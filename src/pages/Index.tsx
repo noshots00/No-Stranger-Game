@@ -1,22 +1,33 @@
 import { useSeoMeta } from '@unhead/react';
-
-// FIXME: Update this page (the content is just a fallback if you fail to update the page)
+import { Link } from 'react-router-dom';
 
 const Index = () => {
   useSeoMeta({
-    title: 'Welcome to Your Blank App',
-    description: 'A modern Nostr client application built with React, TailwindCSS, and Nostrify.',
+    title: 'No Stranger Game',
+    description: 'An RPG that lives inside your social network. Play with real people as NPCs.',
   });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-          Welcome to Your Blank App
-        </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400">
-          Start building your amazing project here!
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="text-center space-y-8">
+        <div className="space-y-4">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
+            No Stranger Game
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            An RPG that lives inside your social network. Not separate from it. Not a Discord server or a Web3 lobby. Just… there. Underneath everything you already see.
+          </p>
+          <Link
+            to="/game"
+            className="inline-block px-8 py-4 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-colors transform hover:-scale-105"
+          >
+            Start Your Adventure
+          </Link>
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          <p>Connect your Nostr account to begin playing</p>
+          <p className="mt-2">Vibed with <a href="https://shakespeare.diy" className="text-primary hover:underline">Shakespeare</a></p>
+        </div>
       </div>
     </div>
   );
