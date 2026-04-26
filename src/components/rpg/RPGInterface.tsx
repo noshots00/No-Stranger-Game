@@ -13,6 +13,7 @@ import { TavernRumorBoard } from './TavernRumorBoard';
 import { CharacterCreation } from './CharacterCreation';
 import { AudioManager } from './AudioManager';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { loadGameData } from '@/lib/rpg/utils';
 
 export function RPGInterface() {
   const { user } = useCurrentUser();
@@ -43,16 +44,9 @@ export function RPGInterface() {
     console.log('Initializing game for user:', user.pubkey.slice(0, 8));
     
     try {
-      // Check if character exists
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-
-      const exists = characterEvents.length > 0;
+      // Check if character exists in Nostr or local fallback storage.
+      const character = await loadGameData(nostr, user.pubkey);
+      const exists = Boolean(character);
       console.log('Character exists:', exists);
       
       setCharacterExists(exists);

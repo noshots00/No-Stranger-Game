@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostr } from '@nostrify/react';
 import { useToast } from '@/hooks/useToast';
-import { calculateCombatDamage, generateRandomEncounter, generateEnemyLoot } from '@/lib/rpg/utils';
+import { calculateCombatDamage, generateRandomEncounter, generateEnemyLoot, loadGameData } from '@/lib/rpg/utils';
 
 export function CombatSystem() {
   const { user } = useCurrentUser();
@@ -29,16 +29,8 @@ export function CombatSystem() {
 
   const loadCharacterStats = async () => {
     try {
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         // Set base HP from constitution stat (10 HP per constitution point)
         const baseHP = character.stats.constitution * 10;
         setPlayerMaxHP(baseHP);

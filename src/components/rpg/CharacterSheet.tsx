@@ -1,45 +1,80 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useCharacter } from '@/contexts/CharacterContext';
+import { loadGameData } from '@/lib/rpg/utils';
 
 export function CharacterSheet() {
-   const { character, loading, error, refreshCharacter } = useCharacter();
+  const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const [characterData, setCharacterData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-   if (loading) {
-     return (
-       <div className="text-center py-8">
-         <div className="inline-block w-12 h-12 border-4 border-primary/50 border-t-primary rounded-full animate-spin"></div>
-         <p className="mt-2 text-gray-500 dark:text-gray-400">Loading character...</p>
-       </div>
-     );
-   }
+  useEffect(() => {
+    if (user) {
+      loadCharacter();
+    }
+  }, [user, nostr]);
 
-   if (error) {
-     return (
-       <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-md">
-         <p className="text-red-700 dark:text-red-300">{error}</p>
-       </div>
-     );
-   }
+  const loadCharacter = async () => {
+    try {
+      setLoading(true);
+      const character = await loadGameData(nostr, user.pubkey);
 
-   if (!character) {
-     return (
-       <div className="text-center py-8">
-         <p className="text-gray-500 dark:text-gray-400">
-           No character found. Creating a new adventurer for you...
-         </p>
-         <Button onClick={refreshCharacter} variant="outline">
-           Retry
-         </Button>
-       </div>
-     );
-   }
+      if (character) {
+        setCharacterData({
+          ...character,
+          level: Number(character.level || 1),
+          class: character.class || 'adventurer',
+          xp: Number(character.xp || 0),
+        });
+      } else {
+        setCharacterData(null);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load character:', err);
+      setError('Failed to load character data');
+      setLoading(false);
+    }
+  };
 
-   const { stats, inventory, equipment, gold, quests, location } = character;
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="inline-block w-12 h-12 border-4 border-primary/50 border-t-primary rounded-full animate-spin"></div>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">Loading character...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-md">
+        <p className="text-red-700 dark:text-red-300">{error}</p>
+      </div>
+    );
+  }
+
+  if (!characterData) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500 dark:text-gray-400">
+          No character found. Creating a new adventurer for you...
+        </p>
+        <Button onClick={loadCharacter} variant="outline">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const { stats, inventory, equipment, gold, quests, location } = characterData;
 
   return (
     <div className="space-y-6">

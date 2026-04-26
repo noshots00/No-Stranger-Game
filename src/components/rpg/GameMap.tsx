@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { MapPin } from 'lucide-react';
+import { loadGameData, saveGameData } from '@/lib/rpg/utils';
 
 export function GameMap() {
   const { user } = useCurrentUser();
@@ -22,16 +23,8 @@ export function GameMap() {
     try {
       setLoading(true);
       // Load character location
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         setCurrentLocation(character.location || 'starting_town');
       }
 
@@ -70,29 +63,10 @@ export function GameMap() {
 
   const moveToLocation = async (locationId: string) => {
     try {
-      // Update character location on Nostr
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223],
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         character.location = locationId;
-        
-        await nostr.event({
-          kind: 3223,
-          content: JSON.stringify(character),
-          tags: [
-            ['d', user.pubkey],
-            ['class', character.class || 'adventurer'],
-            ['level', character.level?.toString() || '1'],
-            ['xp', character.xp?.toString() || '0']
-          ]
-        });
+        await saveGameData(nostr, user.pubkey, character);
         
         setCurrentLocation(locationId);
       }

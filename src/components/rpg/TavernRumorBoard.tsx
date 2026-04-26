@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/useToast';
+import { loadGameData, saveGameData } from '@/lib/rpg/utils';
 
 export function TavernRumorBoard() {
   const { user } = useCurrentUser();
@@ -99,29 +100,16 @@ export function TavernRumorBoard() {
         ]
       });
 
-      // Generate a quest from this rumor
-      const questReward = {
-        gold: 50 + Math.floor(Math.random() * 100),
-        xp: 100 + Math.floor(Math.random() * 200),
-        item: Math.random() < 0.4 ? ['Healing Potion', 'Iron Sword', 'Leather Armor', 'Magic Scroll'][Math.floor(Math.random() * 4)] : undefined
-      };
-
-      await nostr.event({
-        kind: 3223, // Character Profile - update with quest
-        content: JSON.stringify({
-          // In a real implementation, we'd fetch the current character and update it
-          quests: {
-            active: [`rumor_quest_${Date.now()}`],
-            completed: []
-          }
-        }),
-        tags: [
-          ['d', user.pubkey],
-          ['class', 'adventurer'],
-          ['level', '1'],
-          ['xp', '0']
-        ]
-      });
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
+        const newQuestId = `rumor_quest_${Date.now()}`;
+        const quests = character.quests || { active: [], completed: [] };
+        character.quests = {
+          active: [...(quests.active || []), newQuestId],
+          completed: quests.completed || [],
+        };
+        await saveGameData(nostr, user.pubkey, character);
+      }
 
       toast({
         title: 'Quest Accepted!',

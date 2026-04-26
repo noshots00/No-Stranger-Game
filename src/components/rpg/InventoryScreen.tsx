@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
+import { loadGameData, saveGameData } from '@/lib/rpg/utils';
 
 export function InventoryScreen() {
   const { user } = useCurrentUser();
@@ -20,16 +21,8 @@ export function InventoryScreen() {
   const loadCharacterData = async () => {
     try {
       setLoading(true);
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         setInventory(character.inventory || []);
         setGold(character.gold || 0);
       }
@@ -67,29 +60,10 @@ export function InventoryScreen() {
         
         setInventory(updatedInventory);
         
-        // Update character on Nostr
-        const characterEvents = await nostr.query([
-          {
-            kinds: [3223],
-            authors: [user.pubkey],
-            limit: 1
-          }
-        ]);
-        
-        if (characterEvents.length > 0) {
-          const character = JSON.parse(characterEvents[0].content);
+        const character = await loadGameData(nostr, user.pubkey);
+        if (character) {
           character.inventory = updatedInventory;
-          
-          await nostr.event({
-            kind: 3223,
-            content: JSON.stringify(character),
-            tags: [
-              ['d', user.pubkey],
-              ['class', character.class || 'adventurer'],
-              ['level', character.level?.toString() || '1'],
-              ['xp', character.xp?.toString() || '0']
-            ]
-          });
+          await saveGameData(nostr, user.pubkey, character);
           
           toast({
             title: 'Item Used',
@@ -114,29 +88,10 @@ export function InventoryScreen() {
       const updatedInventory = inventory.filter(i => i.id !== item.id);
       setInventory(updatedInventory);
       
-      // Update character on Nostr
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223],
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-      
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         character.inventory = updatedInventory;
-        
-        await nostr.event({
-          kind: 3223,
-          content: JSON.stringify(character),
-          tags: [
-            ['d', user.pubkey],
-            ['class', character.class || 'adventurer'],
-            ['level', character.level?.toString() || '1'],
-            ['xp', character.xp?.toString() || '0']
-          ]
-        });
+        await saveGameData(nostr, user.pubkey, character);
         
         toast({
           title: 'Item Dropped',

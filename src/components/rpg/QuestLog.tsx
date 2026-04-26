@@ -5,6 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
+import { loadGameData, saveGameData } from '@/lib/rpg/utils';
 
 export function QuestLog() {
   const { user } = useCurrentUser();
@@ -24,16 +25,8 @@ export function QuestLog() {
   const loadQuests = async () => {
     try {
       setLoading(true);
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         setQuests(character.quests || { active: [], completed: [] });
         setActiveQuests(character.quests?.active || []);
         setCompletedQuests(character.quests?.completed || []);
@@ -59,32 +52,13 @@ export function QuestLog() {
       setActiveQuests(newActive);
       setCompletedQuests(newCompleted);
       
-      // Update character on Nostr
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223],
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-      
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         character.quests = {
           active: newActive,
           completed: newCompleted
         };
-        
-        await nostr.event({
-          kind: 3223,
-          content: JSON.stringify(character),
-          tags: [
-            ['d', user.pubkey],
-            ['class', character.class || 'adventurer'],
-            ['level', character.level?.toString() || '1'],
-            ['xp', character.xp?.toString() || '0']
-          ]
-        });
+        await saveGameData(nostr, user.pubkey, character);
         
         toast({
           title: 'Quest Completed!',
@@ -108,32 +82,13 @@ export function QuestLog() {
       const newActive = activeQuests.filter(id => id !== questId);
       setActiveQuests(newActive);
       
-      // Update character on Nostr
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223],
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-      
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
+      const character = await loadGameData(nostr, user.pubkey);
+      if (character) {
         character.quests = {
           active: newActive,
           completed: completedQuests
         };
-        
-        await nostr.event({
-          kind: 3223,
-          content: JSON.stringify(character),
-          tags: [
-            ['d', user.pubkey],
-            ['class', character.class || 'adventurer'],
-            ['level', character.level?.toString() || '1'],
-            ['xp', character.xp?.toString() || '0']
-          ]
-        });
+        await saveGameData(nostr, user.pubkey, character);
         
         toast({
           title: 'Quest Abandoned',

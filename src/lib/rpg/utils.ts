@@ -166,25 +166,56 @@ export const generateQuestReward = (questDifficulty: number, playerLevel: number
   return { gold: goldReward, xp: xpReward, item: itemReward };
 };
 
-export const saveGameData = async (nostr: any, userPubkey: string, data: any): Promise<void> => {
+const CHARACTER_STORAGE_PREFIX = 'nsg:character:';
+const NOSTR_LOAD_TIMEOUT_MS = 8000;
+const NOSTR_SAVE_TIMEOUT_MS = 15000;
+
+const getCharacterStorageKey = (pubkey: string): string => `${CHARACTER_STORAGE_PREFIX}${pubkey}`;
+
+const saveGameDataLocal = (userPubkey: string, data: unknown): void => {
   try {
-    await nostr.event({
-      kind: 3223, // Character Profile
-      content: JSON.stringify(data),
-      tags: [
-        ['d', userPubkey],
-        ['class', data.class || 'adventurer'],
-        ['level', data.level?.toString() || '1'],
-        ['xp', data.xp?.toString() || '0']
-      ]
-    });
+    localStorage.setItem(getCharacterStorageKey(userPubkey), JSON.stringify(data));
   } catch (error) {
-    console.error('Failed to save game data:', error);
-    throw error;
+    console.error('Failed to save character to local storage:', error);
+  }
+};
+
+const loadGameDataLocal = (userPubkey: string): any => {
+  try {
+    const raw = localStorage.getItem(getCharacterStorageKey(userPubkey));
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.error('Failed to load character from local storage:', error);
+    return null;
+  }
+};
+
+export const saveGameData = async (nostr: any, userPubkey: string, data: any): Promise<void> => {
+  // Always persist locally first so gameplay is never blocked by signer/relay issues.
+  saveGameDataLocal(userPubkey, data);
+
+  try {
+    await Promise.race([
+      nostr.event({
+        kind: 3223, // Character Profile
+        content: JSON.stringify(data),
+        tags: [
+          ['d', userPubkey],
+          ['class', data.class || 'adventurer'],
+          ['level', data.level?.toString() || '1'],
+          ['xp', data.xp?.toString() || '0']
+        ]
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Nostr save timed out')), NOSTR_SAVE_TIMEOUT_MS)),
+    ]);
+  } catch (error) {
+    console.warn('Saved character locally; failed to publish to Nostr:', error);
   }
 };
 
 export const loadGameData = async (nostr: any, userPubkey: string): Promise<any> => {
+  const localCharacter = loadGameDataLocal(userPubkey);
+
   try {
     const events = await nostr.query([
       {
@@ -192,16 +223,18 @@ export const loadGameData = async (nostr: any, userPubkey: string): Promise<any>
         authors: [userPubkey],
         limit: 1
       }
-    ]);
-    
+    ], { signal: AbortSignal.timeout(NOSTR_LOAD_TIMEOUT_MS) });
+
     if (events.length > 0) {
-      return JSON.parse(events[0].content);
+      const fromNostr = JSON.parse(events[0].content);
+      saveGameDataLocal(userPubkey, fromNostr);
+      return fromNostr;
     }
-    return null;
   } catch (error) {
-    console.error('Failed to load game data:', error);
-    throw error;
+    console.warn('Failed to load character from Nostr; using local fallback if available:', error);
   }
+
+  return localCharacter;
 };
 
 /**
