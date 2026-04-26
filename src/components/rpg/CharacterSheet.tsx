@@ -1,231 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostr } from '@nostrify/react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { loadGameData } from '@/lib/rpg/utils';
+import type { MVPCharacter } from '@/lib/rpg/utils';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { nip19 } from 'nostr-tools';
 
-export function CharacterSheet() {
+interface CharacterSheetProps {
+  character: MVPCharacter;
+  onBack: () => void;
+  onNewGame: () => void;
+}
+
+const choiceLabels = ['A', 'B', 'C'] as const;
+
+export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetProps) {
   const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const [characterData, setCharacterData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user) {
-      loadCharacter();
-    }
-  }, [user, nostr]);
-
-  const loadCharacter = async () => {
-    try {
-      setLoading(true);
-      const character = await loadGameData(nostr, user.pubkey);
-
-      if (character) {
-        setCharacterData({
-          ...character,
-          level: Number(character.level || 1),
-          class: character.class || 'adventurer',
-          xp: Number(character.xp || 0),
-        });
-      } else {
-        setCharacterData(null);
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error('Failed to load character:', err);
-      setError('Failed to load character data');
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <div className="inline-block w-12 h-12 border-4 border-primary/50 border-t-primary rounded-full animate-spin"></div>
-        <p className="mt-2 text-gray-500 dark:text-gray-400">Loading character...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-md">
-        <p className="text-red-700 dark:text-red-300">{error}</p>
-      </div>
-    );
-  }
-
-  if (!characterData) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 dark:text-gray-400">
-          No character found. Creating a new adventurer for you...
-        </p>
-        <Button onClick={loadCharacter} variant="outline">
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  const { stats, inventory, equipment, gold, quests, location } = characterData;
+  const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
 
   return (
     <div className="space-y-6">
-      {/* Character Overview */}
-      <Card>
+      <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
-                <span className="text-primary">{characterData.class.charAt(0).toUpperCase()}</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium">{characterData.class}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Level {characterData.level} • {characterData.xp} XP
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <Badge variant="secondary" className="whitespace-nowrap">
-                {gold} Gold
-              </Badge>
-            </div>
-          </CardTitle>
+          <CardTitle className="text-2xl font-semibold">Character Profile</CardTitle>
+          <p className="text-zinc-300 font-serif">
+            Your first seasonal identity is set. Future seasons can react to these choices.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Strength</p>
-              <p className="text-lg font-bold">{stats.strength}</p>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-400">Level</p>
+              <p className="text-3xl font-mono text-zinc-100">{character.level}</p>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Dexterity</p>
-              <p className="text-lg font-bold">{stats.dexterity}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Intelligence</p>
-              <p className="text-lg font-bold">{stats.intelligence}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Constitution</p>
-              <p className="text-lg font-bold">{stats.constitution}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Wisdom</p>
-              <p className="text-lg font-bold">{stats.wisdom}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Charisma</p>
-              <p className="text-lg font-bold">{stats.charisma}</p>
+            <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4">
+              <p className="text-xs uppercase tracking-wide text-zinc-400">Class</p>
+              <p className="text-3xl font-mono text-zinc-100">Class {character.classId}</p>
             </div>
           </div>
-          
-          {/* Equipment */}
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Equipment</p>
-            <div className="flex flex-wrap gap-2">
-              <div className="flex-1 min-w-[80px]">
-                <Label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Weapon</Label>
-                <Input
-                  disabled
-                  defaultValue={equipment.weapon || 'None'}
-                  className="bg-gray-50 dark:bg-gray-800"
-                />
-              </div>
-              <div className="flex-1 min-w-[80px]">
-                <Label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Armor</Label>
-                <Input
-                  disabled
-                  defaultValue={equipment.armor || 'None'}
-                  className="bg-gray-50 dark:bg-gray-800"
-                />
-              </div>
-              <div className="flex-1 min-w-[80px]">
-                <Label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Accessory</Label>
-                <Input
-                  disabled
-                  defaultValue={equipment.accessory || 'None'}
-                  className="bg-gray-50 dark:bg-gray-800"
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Inventory */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Inventory</h3>
-            <Button variant="outline" size="sm">
-              Sort
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {inventory.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-              Your inventory is empty.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {inventory.map((item: any, index: number) => (
-                <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded p-3 text-center">
-                  <div className="w-10 h-10 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    {item.type === 'weapon' ? '⚔️' : item.type === 'armor' ? '🛡️' : item.type === 'potion' ? '🧪' : '📦'}
-                  </div>
-                  <h4 className="font-medium">{item.name}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{item.type}</p>
-                  {item.quantity > 1 && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">x{item.quantity}</p>
-                  )}
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4">
+            <p className="text-sm font-semibold text-zinc-100 mb-3">Creation Choices</p>
+            <div className="grid grid-cols-3 gap-3">
+              {character.answers.map((answer, index) => (
+                <div key={`answer-${index}`} className="rounded border border-zinc-700 p-3 text-center">
+                  <p className="text-xs text-zinc-400">Q{index + 1}</p>
+                  <p className="text-xl font-mono text-zinc-100">{choiceLabels[answer]}</p>
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <Button 
-            onClick={() => {/* Travel logic */}}
-            variant="outline"
-          >
-            Travel
-          </Button>
-          <Button 
-            onClick={() => {/* Rest logic */}}
-            variant="outline"
-          >
-            Rest
-          </Button>
-          <Button 
-            onClick={() => {/* Craft logic */}}
-            variant="outline"
-          >
-            Craft
-          </Button>
-          <Button 
-            onClick={() => {/* Quest logic */}}
-            variant="outline"
-          >
-            Quest Log
-          </Button>
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4 space-y-1">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Identity</p>
+            <p className="text-sm text-zinc-200">
+              Player ID: <span className="font-mono">{character.id}</span>
+            </p>
+            {npub ? (
+              <p className="text-sm text-zinc-200 break-all">
+                npub: <span className="font-mono">{npub}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-300">
+                No Nostr login detected. Using temporary local identity.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={onBack} variant="outline" className="border-zinc-600 text-zinc-200 hover:bg-zinc-800">
+              Back to Home
+            </Button>
+            <Button onClick={onNewGame} variant="destructive">
+              New Game
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

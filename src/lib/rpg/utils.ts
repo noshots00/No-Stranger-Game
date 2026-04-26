@@ -169,6 +169,71 @@ export const generateQuestReward = (questDifficulty: number, playerLevel: number
 const CHARACTER_STORAGE_PREFIX = 'nsg:character:';
 const NOSTR_LOAD_TIMEOUT_MS = 8000;
 const NOSTR_SAVE_TIMEOUT_MS = 15000;
+const MVP_CHARACTER_STORAGE_KEY = 'noStrangerCharacter';
+
+export type CreationAnswer = 0 | 1 | 2;
+
+export interface MVPCharacter {
+  id: string;
+  createdAt: number;
+  level: 1;
+  classId: number;
+  answers: [CreationAnswer, CreationAnswer, CreationAnswer];
+  pubkey?: string;
+  npub?: string;
+}
+
+export const computeMVPClassId = (
+  answers: [CreationAnswer, CreationAnswer, CreationAnswer],
+): number => {
+  const [q1, q2, q3] = answers;
+  return (q1 * 9) + (q2 * 3) + q3 + 1;
+};
+
+export const saveMVPCharacter = (character: MVPCharacter): void => {
+  try {
+    localStorage.setItem(MVP_CHARACTER_STORAGE_KEY, JSON.stringify(character));
+  } catch (error) {
+    console.error('Failed to save MVP character:', error);
+  }
+};
+
+export const loadMVPCharacter = (): MVPCharacter | null => {
+  try {
+    const raw = localStorage.getItem(MVP_CHARACTER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MVPCharacter>;
+
+    if (
+      typeof parsed.classId !== 'number' ||
+      !Array.isArray(parsed.answers) ||
+      parsed.answers.length !== 3
+    ) {
+      return null;
+    }
+
+    return {
+      id: parsed.id ?? `temp-${Date.now()}`,
+      createdAt: parsed.createdAt ?? Date.now(),
+      level: 1,
+      classId: parsed.classId,
+      answers: parsed.answers as [CreationAnswer, CreationAnswer, CreationAnswer],
+      pubkey: parsed.pubkey,
+      npub: parsed.npub,
+    };
+  } catch (error) {
+    console.error('Failed to load MVP character:', error);
+    return null;
+  }
+};
+
+export const clearMVPCharacter = (): void => {
+  try {
+    localStorage.removeItem(MVP_CHARACTER_STORAGE_KEY);
+  } catch (error) {
+    console.error('Failed to clear MVP character:', error);
+  }
+};
 
 const getCharacterStorageKey = (pubkey: string): string => `${CHARACTER_STORAGE_PREFIX}${pubkey}`;
 

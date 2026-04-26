@@ -1,74 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostr } from '@nostrify/react';
 import { CharacterSheet } from './CharacterSheet';
-import { InventoryScreen } from './InventoryScreen';
-import { QuestLog } from './QuestLog';
-import { GameMap } from './GameMap';
-import { ChatLog } from './ChatLog';
-import { CombatSystem } from './CombatSystem';
-import { TavernRumorBoard } from './TavernRumorBoard';
 import { CharacterCreation } from './CharacterCreation';
-import { AudioManager } from './AudioManager';
 import { LoginArea } from '@/components/auth/LoginArea';
-import { loadGameData } from '@/lib/rpg/utils';
+import { clearMVPCharacter, loadMVPCharacter, saveMVPCharacter, type CreationAnswer, type MVPCharacter } from '@/lib/rpg/utils';
+import { nip19 } from 'nostr-tools';
 
 export function RPGInterface() {
   const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const [activeTab, setActiveTab] = useState<'character' | 'inventory' | 'quests' | 'map' | 'chat' | 'combat' | 'rumors' | 'creation'>('creation');
-  const [gameInitialized, setGameInitialized] = useState(false);
-  const [characterExists, setCharacterExists] = useState(false);
-  const [socialIntegrationInitialized, setSocialIntegrationInitialized] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
+  const [character, setCharacter] = useState<MVPCharacter | null>(null);
+  const [screen, setScreen] = useState<'creation' | 'home' | 'profile'>('creation');
 
-  // Initialize game data for user
   useEffect(() => {
-    if (user && nostr) {
-      initializeGame();
+    const existing = loadMVPCharacter();
+    if (existing) {
+      setCharacter(existing);
+      setScreen('home');
+      return;
     }
-  }, [user, nostr]);
+    setScreen('creation');
+  }, []);
 
-  // Initialize social layer integration
-  useEffect(() => {
-    if (user && nostr) {
-      setSocialIntegrationInitialized(true);
-    }
-  }, [user, nostr]);
+  const upcomingFeatures = useMemo(
+    () => ['Map', 'Shop', 'Guild', 'Journal', 'Settings'],
+    [],
+  );
 
-  const initializeGame = async () => {
-    if (!user || !nostr) return;
-    
-    console.log('Initializing game for user:', user.pubkey.slice(0, 8));
-    
-    try {
-      // Check if character exists in Nostr or local fallback storage.
-      const character = await loadGameData(nostr, user.pubkey);
-      const exists = Boolean(character);
-      console.log('Character exists:', exists);
-      
-      setCharacterExists(exists);
-      
-      // Set active tab based on whether character exists
-      if (!exists) {
-        // Show character creation screen
-        console.log('No character found, showing creation screen');
-        setActiveTab('creation');
-      } else {
-        // Go to character sheet
-        console.log('Character found, showing character sheet');
-        setActiveTab('character');
-      }
-      setGameInitialized(true);
-    } catch (error) {
-      console.error('Failed to initialize game:', error);
-      setInitError(String(error));
-      // If we can't check, show creation screen
-      setActiveTab('creation');
-      setGameInitialized(true);
-    }
+  const handleCharacterCreated = (
+    answers: [CreationAnswer, CreationAnswer, CreationAnswer],
+    classId: number,
+  ) => {
+    const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
+    const newCharacter: MVPCharacter = {
+      id: user?.pubkey ?? `temp-${Date.now()}`,
+      createdAt: Date.now(),
+      level: 1,
+      classId,
+      answers,
+      pubkey: user?.pubkey,
+      npub,
+    };
+    saveMVPCharacter(newCharacter);
+    setCharacter(newCharacter);
+    setScreen('home');
+  };
+
+  const handleNewGame = () => {
+    clearMVPCharacter();
+    setCharacter(null);
+    setScreen('creation');
   };
 
   // Show login screen if no user
@@ -98,156 +80,69 @@ export function RPGInterface() {
     );
   }
 
-  // Show loading while initializing
-  if (!gameInitialized) {
+  if (screen === 'creation') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-900 to-gray-900">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4 text-white">Initializing Your Adventure...</h2>
-          <div className="w-12 h-12 border-4 border-purple-500/50 border-t-purple-400 rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading your character data from Nostr...</p>
+      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-4 md:p-8">
+        <div className="max-w-4xl mx-auto py-8 space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-semibold text-zinc-100">No Stranger Game</h1>
+            <p className="text-zinc-300 font-serif">
+              A seasonal dark-fantasy journey where your first choices shape your path.
+            </p>
+          </div>
+          <CharacterCreation onCharacterCreated={handleCharacterCreated} />
         </div>
       </div>
     );
   }
 
-  // Show error/welcome screen if initialization failed or no character
-  if (initError || !characterExists) {
-    // Show character creation as the default when there's no character
+  if (!character) {
+    return null;
+  }
+
+  if (screen === 'profile') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-gray-100 dark:from-purple-900 dark:to-gray-900 p-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              ⚔️ No Stranger Game
-            </h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                🧙 {user.pubkey.slice(0, 8)}...
-              </span>
-            </div>
-          </div>
-          <CharacterCreation onCharacterCreated={() => {
-            setCharacterExists(true);
-            setActiveTab('character');
-          }} />
+      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-4 md:p-8">
+        <div className="max-w-4xl mx-auto py-8">
+          <CharacterSheet
+            character={character}
+            onBack={() => setScreen('home')}
+            onNewGame={handleNewGame}
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-gray-100 dark:from-purple-900 dark:to-gray-900">
-      <AudioManager />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              ⚔️ No Stranger Game
-            </h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                🧙 {user.pubkey.slice(0, 8)}...
-              </span>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-4 md:p-8">
+      <div className="max-w-5xl mx-auto py-8 space-y-6">
+        <div className="rounded-xl border border-zinc-700/70 bg-zinc-900/70 p-5">
+          <h1 className="text-3xl font-semibold text-zinc-100">Home</h1>
+          <p className="mt-2 text-zinc-300 font-serif">
+            Your character is ready. Explore the upcoming systems for future seasons.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button className="bg-emerald-600 hover:bg-emerald-500 text-white" onClick={() => setScreen('profile')}>
+              Character Profile
+            </Button>
+            <Button variant="destructive" onClick={handleNewGame}>
+              New Game
+            </Button>
           </div>
+        </div>
 
-          {/* Tab Navigation */}
-          <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
-            <button
-              onClick={() => setActiveTab('creation')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'creation'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              🏠 Home
-            </button>
-            <button
-              onClick={() => setActiveTab('character')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'character'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              👤 Character
-            </button>
-            <button
-              onClick={() => setActiveTab('inventory')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'inventory'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              🎒 Inventory
-            </button>
-            <button
-              onClick={() => setActiveTab('quests')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'quests'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              📜 Quests
-            </button>
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'map'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              🗺️ Map
-            </button>
-            <button
-              onClick={() => setActiveTab('rumors')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'rumors'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              🍺 Rumors
-            </button>
-            <button
-              onClick={() => setActiveTab('combat')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'combat'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              ⚔️ Combat
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'chat'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              💬 Chat
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          <div className="space-y-6">
-            {activeTab === 'character' && <CharacterSheet />}
-            {activeTab === 'inventory' && <InventoryScreen />}
-            {activeTab === 'quests' && <QuestLog />}
-            {activeTab === 'map' && <GameMap />}
-            {activeTab === 'rumors' && <TavernRumorBoard />}
-            {activeTab === 'combat' && <CombatSystem />}
-            {activeTab === 'chat' && <ChatLog />}
-            {activeTab === 'creation' && <CharacterCreation onCharacterCreated={() => setActiveTab('character')} />}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {upcomingFeatures.map((feature) => (
+            <Card key={feature} className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+              <CardHeader>
+                <CardTitle>{feature}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-zinc-300 font-serif">Coming soon in a future season.</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </div>
