@@ -10,7 +10,11 @@ import { useNostr } from '@nostrify/react';
 import { useToast } from '@/hooks/useToast';
 import { saveGameData } from '@/lib/rpg/utils';
 
-export function CharacterCreation() {
+interface CharacterCreationProps {
+  onCharacterCreated?: () => void;
+}
+
+export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps) {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const [name, setName] = useState('');
@@ -149,8 +153,12 @@ export function CharacterCreation() {
         variant: 'default'
       });
 
-      // In a real app, this would navigate to the main game interface
-      // For now, we'll just reset the form
+      // Notify parent that character was created
+      if (onCharacterCreated) {
+        onCharacterCreated();
+      }
+
+      // Reset form
       setName('');
       setCharacterClass('adventurer');
       setBackground('wanderer');
