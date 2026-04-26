@@ -8,12 +8,16 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { clearMVPCharacter, loadMVPCharacter, saveMVPCharacter, type CreationAnswer, type MVPCharacter } from '@/lib/rpg/utils';
 import { nip19 } from 'nostr-tools';
 import { useNetworkPresence } from '@/hooks/useNetworkPresence';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useToast } from '@/hooks/useToast';
 
 export function RPGInterface() {
   const { user } = useCurrentUser();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home' | 'profile'>('creation');
   const networkPresence = useNetworkPresence(user?.pubkey);
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { toast } = useToast();
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -47,6 +51,38 @@ export function RPGInterface() {
     saveMVPCharacter(newCharacter);
     setCharacter(newCharacter);
     setScreen('home');
+
+    // Publish presence for social network discovery.
+    // This keeps local-first UX while enabling cross-account visibility.
+    if (user) {
+      publishEvent({
+        kind: 30000,
+        content: JSON.stringify({
+          app: 'no-stranger-game',
+          level: 1,
+          classId,
+          answers,
+          createdAt: newCharacter.createdAt,
+        }),
+        tags: [
+          ['d', 'opt-in'],
+          ['t', 'no-stranger-game'],
+          ['alt', 'No Stranger Game player presence opt-in'],
+        ],
+      }).then(() => {
+        toast({
+          title: 'Presence published',
+          description: 'Your network can now detect your character presence.',
+        });
+      }).catch((error: unknown) => {
+        console.error('Failed to publish presence event:', error);
+        toast({
+          title: 'Presence not published',
+          description: 'Character saved locally, but network presence publish failed.',
+          variant: 'destructive',
+        });
+      });
+    }
   };
 
   const handleNewGame = () => {
