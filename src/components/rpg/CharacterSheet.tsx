@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import type { MVPCharacter } from '@/lib/rpg/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { nip19 } from 'nostr-tools';
+import { useNetworkPresence } from '@/hooks/useNetworkPresence';
 
 interface CharacterSheetProps {
   character: MVPCharacter;
@@ -15,6 +16,7 @@ const choiceLabels = ['A', 'B', 'C'] as const;
 export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetProps) {
   const { user } = useCurrentUser();
   const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
+  const networkPresence = useNetworkPresence(user?.pubkey);
 
   return (
     <div className="space-y-6">
@@ -61,6 +63,21 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
             ) : (
               <p className="text-sm text-zinc-300">
                 No Nostr login detected. Using temporary local identity.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4 space-y-1">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">Network Presence</p>
+            {networkPresence.isLoading ? (
+              <p className="text-sm text-zinc-300 font-serif">Listening for nearby souls...</p>
+            ) : networkPresence.data && networkPresence.data.totalOptedIn > 0 ? (
+              <p className="text-sm text-zinc-200 font-serif">
+                {networkPresence.data.totalOptedIn} known souls in your network.
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-300 font-serif">
+                No known souls have crossed the threshold yet.
               </p>
             )}
           </div>

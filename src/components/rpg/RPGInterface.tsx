@@ -7,11 +7,13 @@ import { CharacterCreation } from './CharacterCreation';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { clearMVPCharacter, loadMVPCharacter, saveMVPCharacter, type CreationAnswer, type MVPCharacter } from '@/lib/rpg/utils';
 import { nip19 } from 'nostr-tools';
+import { useNetworkPresence } from '@/hooks/useNetworkPresence';
 
 export function RPGInterface() {
   const { user } = useCurrentUser();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home' | 'profile'>('creation');
+  const networkPresence = useNetworkPresence(user?.pubkey);
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -131,6 +133,31 @@ export function RPGInterface() {
             </Button>
           </div>
         </div>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Network Presence</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {networkPresence.isLoading ? (
+              <p className="text-zinc-300 font-serif">Listening for nearby souls...</p>
+            ) : networkPresence.data && networkPresence.data.totalOptedIn > 0 ? (
+              <>
+                <p className="text-zinc-200 font-serif">
+                  You sense <span className="font-mono">{networkPresence.data.totalOptedIn}</span> known souls in the mist.
+                </p>
+                <p className="text-zinc-300 text-sm font-serif">
+                  Closest lights: {networkPresence.data.topMembers.map((member) => member.displayName).join(', ')}
+                  {networkPresence.data.totalOptedIn > networkPresence.data.topMembers.length
+                    ? ` ...and ${networkPresence.data.totalOptedIn - networkPresence.data.topMembers.length} more.`
+                    : '.'}
+                </p>
+              </>
+            ) : (
+              <p className="text-zinc-300 font-serif">No known souls have crossed the threshold yet.</p>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {upcomingFeatures.map((feature) => (

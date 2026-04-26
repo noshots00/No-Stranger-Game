@@ -1,3 +1,6 @@
+import type { NostrMetadata } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
+
 /**
  * RPG Utility Functions for No Stranger Game
  */
@@ -182,6 +185,31 @@ export interface MVPCharacter {
   pubkey?: string;
   npub?: string;
 }
+
+export interface NetworkPresenceMember {
+  pubkey: string;
+  displayName: string;
+}
+
+export const mergeUniquePubkeys = (follows: string[], followers: string[], currentUserPubkey: string): string[] => {
+  const unique = new Set<string>([...follows, ...followers]);
+  unique.delete(currentUserPubkey);
+  return [...unique];
+};
+
+export const getDisplayNameForPubkey = (
+  pubkey: string,
+  metadata: NostrMetadata | undefined,
+): string => {
+  const preferredName = metadata?.display_name?.trim() || metadata?.name?.trim();
+  if (preferredName) return preferredName;
+
+  try {
+    return nip19.npubEncode(pubkey).slice(0, 16) + '...';
+  } catch {
+    return `${pubkey.slice(0, 12)}...`;
+  }
+};
 
 export const computeMVPClassId = (
   answers: [CreationAnswer, CreationAnswer, CreationAnswer],
