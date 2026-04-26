@@ -176,19 +176,34 @@ const MVP_CHARACTER_STORAGE_KEY = 'noStrangerCharacter';
 
 export type CreationAnswer = 0 | 1 | 2;
 
+export interface MainQuestChoice {
+  questId: string;
+  prompt: string;
+  option: 'A' | 'B' | 'C';
+  consequence: string;
+  chosenAt: number;
+}
+
 export interface MVPCharacter {
   id: string;
   createdAt: number;
-  level: 1;
-  classId: number;
-  answers: [CreationAnswer, CreationAnswer, CreationAnswer];
+  level: number;
+  role: 'stranger';
+  characterName: string;
+  gender: string;
+  classId?: number;
+  answers?: [CreationAnswer, CreationAnswer, CreationAnswer];
+  mainQuestChoices: MainQuestChoice[];
   pubkey?: string;
   npub?: string;
 }
 
 export interface NetworkPresenceMember {
   pubkey: string;
-  displayName: string;
+  nostrName: string;
+  characterName: string;
+  classLabel: string;
+  picture?: string;
 }
 
 export const mergeUniquePubkeys = (follows: string[], followers: string[], currentUserPubkey: string): string[] => {
@@ -232,20 +247,25 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<MVPCharacter>;
 
-    if (
-      typeof parsed.classId !== 'number' ||
-      !Array.isArray(parsed.answers) ||
-      parsed.answers.length !== 3
-    ) {
+    if (!parsed || typeof parsed !== 'object') {
       return null;
     }
+
+    const legacyAnswers = Array.isArray(parsed.answers) && parsed.answers.length === 3
+      ? parsed.answers as [CreationAnswer, CreationAnswer, CreationAnswer]
+      : undefined;
+    const mainQuestChoices = Array.isArray(parsed.mainQuestChoices) ? parsed.mainQuestChoices as MainQuestChoice[] : [];
 
     return {
       id: parsed.id ?? `temp-${Date.now()}`,
       createdAt: parsed.createdAt ?? Date.now(),
-      level: 1,
-      classId: parsed.classId,
-      answers: parsed.answers as [CreationAnswer, CreationAnswer, CreationAnswer],
+      level: typeof parsed.level === 'number' ? parsed.level : 1,
+      role: 'stranger',
+      characterName: typeof parsed.characterName === 'string' && parsed.characterName.trim() ? parsed.characterName : 'Nameless Stranger',
+      gender: typeof parsed.gender === 'string' && parsed.gender.trim() ? parsed.gender : 'Unknown',
+      classId: typeof parsed.classId === 'number' ? parsed.classId : undefined,
+      answers: legacyAnswers,
+      mainQuestChoices,
       pubkey: parsed.pubkey,
       npub: parsed.npub,
     };

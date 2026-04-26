@@ -11,12 +11,12 @@ interface CharacterSheetProps {
   onNewGame: () => void;
 }
 
-const choiceLabels = ['A', 'B', 'C'] as const;
-
 export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetProps) {
-  const { user } = useCurrentUser();
+  const { user, metadata } = useCurrentUser();
   const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
   const networkPresence = useNetworkPresence(user?.pubkey);
+  const classLabel = character.mainQuestChoices.find((choice) => choice.questId === 'market-money-001')?.option ?? 'Unchosen';
+  const nostrUsername = metadata?.display_name || metadata?.name || 'Unnamed Nostr User';
 
   return (
     <div className="space-y-6">
@@ -35,26 +35,38 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
             </div>
             <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4">
               <p className="text-xs uppercase tracking-wide text-zinc-400">Class</p>
-              <p className="text-3xl font-mono text-zinc-100">Class {character.classId}</p>
+              <p className="text-3xl font-mono text-zinc-100">{classLabel}</p>
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4">
-            <p className="text-sm font-semibold text-zinc-100 mb-3">Creation Choices</p>
-            <div className="grid grid-cols-3 gap-3">
-              {character.answers.map((answer, index) => (
-                <div key={`answer-${index}`} className="rounded border border-zinc-700 p-3 text-center">
-                  <p className="text-xs text-zinc-400">Q{index + 1}</p>
-                  <p className="text-xl font-mono text-zinc-100">{choiceLabels[answer]}</p>
-                </div>
-              ))}
+          {character.mainQuestChoices.length > 0 && (
+            <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4">
+              <p className="text-sm font-semibold text-zinc-100 mb-3">Crucial Choices</p>
+              <div className="space-y-2">
+                {character.mainQuestChoices.map((choice) => (
+                  <div key={`${choice.questId}-${choice.chosenAt}`} className="rounded border border-zinc-700 p-3">
+                    <p className="text-zinc-300 text-sm font-serif">{choice.prompt}</p>
+                    <p className="text-zinc-100 font-mono mt-1">Choice: {choice.option}</p>
+                    <p className="text-zinc-300 text-sm mt-1">{choice.consequence}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/70 p-4 space-y-1">
             <p className="text-xs uppercase tracking-wide text-zinc-400">Identity</p>
             <p className="text-sm text-zinc-200">
+              Nostr Username: <span className="font-mono">{nostrUsername}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
               Player ID: <span className="font-mono">{character.id}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
+              Character Name: <span className="font-mono">{character.characterName}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
+              Gender: <span className="font-mono">{character.gender}</span>
             </p>
             {npub ? (
               <p className="text-sm text-zinc-200 break-all">

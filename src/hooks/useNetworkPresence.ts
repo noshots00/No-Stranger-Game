@@ -20,6 +20,11 @@ interface NetworkPresenceData {
   };
 }
 
+interface PresencePayload {
+  characterName?: string;
+  classLabel?: string;
+}
+
 const getMetadataMap = (metadataEvents: Array<{ pubkey: string; content: string }>): Map<string, NostrMetadata> => {
   const map = new Map<string, NostrMetadata>();
 
@@ -141,11 +146,27 @@ export function useNetworkPresence(userPubkey: string | undefined) {
           content: event.content,
         })),
       );
+
+      const presencePayloadByPubkey = new Map<string, PresencePayload>();
+      for (const event of presenceEvents) {
+        if (event.kind !== 30000) continue;
+        if (presencePayloadByPubkey.has(event.pubkey)) continue;
+        try {
+          const payload = JSON.parse(event.content) as PresencePayload;
+          presencePayloadByPubkey.set(event.pubkey, payload);
+        } catch {
+          // Ignore invalid payloads.
+        }
+      }
+
       const topMembers: NetworkPresenceMember[] = optedInPubkeys
         .slice(0, DISPLAY_NAMES_LIMIT)
         .map((pubkey) => ({
           pubkey,
-          displayName: getDisplayNameForPubkey(pubkey, metadataMap.get(pubkey)),
+          nostrName: getDisplayNameForPubkey(pubkey, metadataMap.get(pubkey)),
+          characterName: presencePayloadByPubkey.get(pubkey)?.characterName || 'Unknown Stranger',
+          classLabel: presencePayloadByPubkey.get(pubkey)?.classLabel || 'Unchosen',
+          picture: metadataMap.get(pubkey)?.picture,
         }));
 
       return {
