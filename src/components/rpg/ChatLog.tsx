@@ -57,23 +57,41 @@ export function ChatLog() {
     }
   };
 
-  const setupRealtimeUpdates = () => {
-    // Setup subscription for new messages
-    const subscription = nostr.req([
-      {
-        kinds: [7673, 7127],
-        limit: 1
-      }
-    ]);
+   const setupRealtimeUpdates = () => {
+     // Setup subscription for new messages
+     let subscription: any = null;
+     
+     if (user) {
+       subscription = nostr.group([
+         'wss://relay.ditto.pub',
+         'wss://relay.primal.net',
+         'wss://relay.damus.io'
+       ]).req([
+         {
+           kinds: [7673, 7127],
+           limit: 1
+         }
+       ]);
 
-    subscription.on('event', (event) => {
-      setMessages(prev => [event, ...prev.slice(0, 49)]); // Keep last 50
-    });
+       subscription.onsub = () => {
+         console.log('Subscribed to chat updates');
+       };
 
-    return () => {
-      subscription.close();
-    };
-  };
+       subscription.on('event', (event: any) => {
+         setMessages(prev => [event, ...prev.slice(0, 49)]); // Keep last 50
+       });
+
+       subscription.on('close', () => {
+         console.log('Subscription closed');
+       });
+     }
+
+     return () => {
+       if (subscription) {
+         subscription.close();
+       }
+     };
+   };
 
   const sendMessage = async () => {
     if (!inputValue.trim()) return;

@@ -1,90 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
+import { useCharacter } from '@/contexts/CharacterContext';
 import { useToast } from '@/hooks/useToast';
 
 export function TavernRumorBoard() {
-  const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const [rumors, setRumors] = useState<Array<any>>([]);
-  const [loading, setLoading] = useState(true);
-  const toast = useToast();
+   const { character, loading: charLoading, error } = useCharacter();
+   const [rumors, setRumors] = useState<Array<any>>([]);
+   const [loading, setLoading] = useState(true);
+   const toast = useToast();
 
-  useEffect(() => {
-    if (user) {
-      loadRumors();
-    }
-  }, [user, nostr]);
+   // Load rumors when character context changes
+   React.useEffect(() => {
+     if (character) {
+       loadRumors();
+     }
+   }, [character, charLoading]);
 
-  const loadRumors = async () => {
-    try {
-      setLoading(true);
-      // Load social interaction events that are rumors (kind 7127 with d-tag rumor)
-      const rumorEvents = await nostr.query([
-        {
-          kinds: [7127], // Social Interaction
-          '#d': ['rumor'],
-          limit: 20
-        }
-      ]);
+   const loadRumors = async () => {
+     try {
+       setLoading(true);
+       // Load social interaction events that are rumors (kind 7127 with d-tag rumor)
+       const rumorEvents = await nostr.query([
+         {
+           kinds: [7127], // Social Interaction
+           '#d': ['rumor'],
+           limit: 20
+         }
+       ]);
 
-      // Also check for recent social posts that might contain rumors
-      const recentPosts = await nostr.query([
-        {
-          kinds: [1], // Text notes
-          limit: 50
-        }
-      ]);
+       // Also check for recent social posts that might contain rumors
+       const recentPosts = await nostr.query([
+         {
+           kinds: [1], // Text notes
+           limit: 50
+         }
+       ]);
 
-      // Process recent posts for potential rumors
-      const processedRumors = recentPosts
-        .filter(post => {
-          const content = post.content.toLowerCase();
-          return content.includes('rumor') || 
-                 content.includes('heard') || 
-                 content.includes('secret') ||
-                 content.includes('hidden') ||
-                 content.includes('treasure') ||
-                 content.includes('quest') ||
-                 content.includes('mysterious') ||
-                 content.includes('strange');
-        })
-        .map(post => ({
-          id: post.id,
-          content: post.content,
-          author: post.pubkey,
-          created_at: post.created_at,
-          type: 'rumor'
-        }));
+       // Process recent posts for potential rumors
+       const processedRumors = recentPosts
+         .filter(post => {
+           const content = post.content.toLowerCase();
+           return content.includes('rumor') || 
+                  content.includes('heard') || 
+                  content.includes('secret') ||
+                  content.includes('hidden') ||
+                  content.includes('treasure') ||
+                  content.includes('quest') ||
+                  content.includes('mysterious') ||
+                  content.includes('strange');
+         })
+         .map(post => ({
+           id: post.id,
+           content: post.content,
+           author: post.pubkey,
+           created_at: post.created_at,
+           type: 'rumor'
+         }));
 
-      // Combine and sort by timestamp
-      const allRumors = [
-        ...rumorEvents.map(event => ({
-          id: event.id,
-          content: event.content,
-          author: event.pubkey,
-          created_at: event.created_at,
-          type: 'social_rumor'
-        })),
-        ...processedRumors
-      ]
-      .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
-      .slice(0, 10); // Keep latest 10
+       // Combine and sort by timestamp
+       const allRumors = [
+         ...rumorEvents.map(event => ({
+           id: event.id,
+           content: event.content,
+           author: event.pubkey,
+           created_at: event.created_at,
+           type: 'social_rumor'
+         })),
+         ...processedRumors
+       ]
+       .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+       .slice(0, 10); // Keep latest 10
 
-      setRumors(allRumors);
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to load rumors:', error);
-      toast.create({
-        title: 'Error',
-        description: 'Failed to load tavern rumors',
-        variant: 'destructive'
-      });
-      setLoading(false);
-    }
-  };
+       setRumors(allRumors);
+       setLoading(false);
+     } catch (error) {
+       console.error('Failed to load rumors:', error);
+       toast.create({
+         title: 'Error',
+         description: 'Failed to load tavern rumors',
+         variant: 'destructive'
+       });
+       setLoading(false);
+     }
+   };
 
   const followRumor = async (rumor: any) => {
     try {
@@ -99,29 +98,61 @@ export function TavernRumorBoard() {
         ]
       });
 
-      // Generate a quest from this rumor
-      const questReward = {
-        gold: 50 + Math.floor(Math.random() * 100),
-        xp: 100 + Math.floor(Math.random() * 200),
-        item: Math.random() < 0.4 ? ['Healing Potion', 'Iron Sword', 'Leather Armor', 'Magic Scroll'][Math.floor(Math.random() * 4)] : undefined
-      };
-
-      await nostr.event({
-        kind: 3223, // Character Profile - update with quest
-        content: JSON.stringify({
-          // In a real implementation, we'd fetch the current character and update it
-          quests: {
-            active: [`rumor_quest_${Date.now()}`],
-            completed: []
-          }
-        }),
-        tags: [
-          ['d', user.pubkey],
-          ['class', 'adventurer'],
-          ['level', '1'],
-          ['xp', '0']
-        ]
-      });
+       // Generate a quest from this rumor
+       const questId = `rumor_quest_${Date.now()}`;
+       
+       // First, fetch the current character to preserve existing data
+       let currentCharacter = null;
+       try {
+         const characterEvents = await nostr.query([
+           {
+             kinds: [3223], // Character Profile
+             authors: [user.pubkey],
+             limit: 1
+           }
+         ]);
+         
+         if (characterEvents.length > 0) {
+           currentCharacter = JSON.parse(characterEvents[0].content);
+         }
+       } catch (error) {
+         console.error('Failed to fetch current character:', error);
+       }
+       
+       // Prepare character update with preserved data and new quest
+       const characterUpdate = currentCharacter || {
+         name: 'Unknown Adventurer',
+         stats: { strength: 10, dexterity: 10, intelligence: 10, constitution: 10, wisdom: 10, charisma: 10 },
+         inventory: [],
+         equipment: { weapon: null, armor: null, accessory: null },
+         gold: 100,
+         quests: { active: [], completed: [] },
+         location: 'starting_town',
+         class: 'adventurer',
+         background: 'wanderer',
+         level: 1,
+         xp: 0
+       };
+       
+       // Add the new quest to active quests
+       if (!characterUpdate.quests) {
+         characterUpdate.quests = { active: [], completed: [] };
+       }
+       if (!characterUpdate.quests.active) {
+         characterUpdate.quests.active = [];
+       }
+       characterUpdate.quests.active.push(questId);
+       
+       await nostr.event({
+         kind: 3223, // Character Profile - update with quest
+         content: JSON.stringify(characterUpdate),
+         tags: [
+           ['d', user.pubkey],
+           ['class', currentCharacter?.class || 'adventurer'],
+           ['level', currentCharacter?.level?.toString() || '1'],
+           ['xp', currentCharacter?.xp?.toString() || '0']
+         ]
+       });
 
       toast.create({
         title: 'Quest Accepted!',

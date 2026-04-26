@@ -1,159 +1,93 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Toast } from '@/components/ui/toaster';
+import { useCharacter } from '@/contexts/CharacterContext';
 import { useToast } from '@/hooks/useToast';
 
 export function InventoryScreen() {
-  const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const [inventory, setInventory] = useState<Array<any>>([]);
-  const [gold, setGold] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const toast = useToast();
+   const { character, loading: charLoading, error } = useCharacter();
+   const [inventory, setInventory] = useState<Array<any>>([]);
+   const [gold, setGold] = useState(0);
+   const [loading, setLoading] = useState(true);
+   const [selectedItem, setSelectedItem] = useState<any>(null);
+   const toast = useToast();
 
-  const loadCharacterData = async () => {
-    try {
-      setLoading(true);
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
+   // Load initial data from character context
+   React.useEffect(() => {
+     if (character) {
+       setInventory(character.inventory || []);
+       setGold(character.gold || 0);
+       setLoading(false);
+     } else if (!charLoading) {
+       // Character is null but not loading - no character exists
+       setInventory([]);
+       setGold(0);
+       setLoading(false);
+     }
+   }, [character, charLoading]);
 
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
-        setInventory(character.inventory || []);
-        setGold(character.gold || 0);
-      }
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to load inventory:', error);
-      toast.create({
-        title: 'Error',
-        description: 'Failed to load inventory data',
-        variant: 'destructive'
-      });
-      setLoading(false);
-    }
-  };
+   const useItem = async (item: any) => {
+     try {
+       // Remove one item from inventory
+       const updatedInventory = [...inventory];
+       const itemIndex = updatedInventory.findIndex(i => i.id === item.id);
+       
+       if (itemIndex !== -1) {
+         if (updatedInventory[itemIndex].quantity > 1) {
+           updatedInventory[itemIndex].quantity -= 1;
+         } else {
+           updatedInventory.splice(itemIndex, 1);
+         }
+         
+         setInventory(updatedInventory);
+         
+         // Update character via context
+         const { updateCharacter } = useCharacter();
+         await updateCharacter({ inventory: updatedInventory });
+         
+         toast.create({
+           title: 'Item Used',
+           description: `You used ${item.name}`,
+           variant: 'default'
+         });
+       }
+     } catch (error) {
+       console.error('Failed to use item:', error);
+       toast.create({
+         title: 'Error',
+         description: 'Failed to use item',
+         variant: 'destructive'
+       });
+     }
+   };
 
-  // Load initial data
-  React.useEffect(() => {
-    if (user) {
-      loadCharacterData();
-    }
-  }, [user]);
-
-  const useItem = async (item: any) => {
-    try {
-      // Remove one item from inventory
-      const updatedInventory = [...inventory];
-      const itemIndex = updatedInventory.findIndex(i => i.id === item.id);
-      
-      if (itemIndex !== -1) {
-        if (updatedInventory[itemIndex].quantity > 1) {
-          updatedInventory[itemIndex].quantity -= 1;
-        } else {
-          updatedInventory.splice(itemIndex, 1);
-        }
-        
-        setInventory(updatedInventory);
-        
-        // Update character on Nostr
-        const characterEvents = await nostr.query([
-          {
-            kinds: [3223],
-            authors: [user.pubkey],
-            limit: 1
-          }
-        ]);
-        
-        if (characterEvents.length > 0) {
-          const character = JSON.parse(characterEvents[0].content);
-          character.inventory = updatedInventory;
-          
-          await nostr.event({
-            kind: 3223,
-            content: JSON.stringify(character),
-            tags: [
-              ['d', user.pubkey],
-              ['class', character.class || 'adventurer'],
-              ['level', character.level?.toString() || '1'],
-              ['xp', character.xp?.toString() || '0']
-            ]
-          });
-          
-          toast.create({
-            title: 'Item Used',
-            description: `You used ${item.name}`,
-            variant: 'default'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to use item:', error);
-      toast.create({
-        title: 'Error',
-        description: 'Failed to use item',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const dropItem = async (item: any) => {
-    try {
-      // Remove item from inventory
-      const updatedInventory = inventory.filter(i => i.id !== item.id);
-      setInventory(updatedInventory);
-      
-      // Update character on Nostr
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223],
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
-      
-      if (characterEvents.length > 0) {
-        const character = JSON.parse(characterEvents[0].content);
-        character.inventory = updatedInventory;
-        
-        await nostr.event({
-          kind: 3223,
-          content: JSON.stringify(character),
-          tags: [
-            ['d', user.pubkey],
-            ['class', character.class || 'adventurer'],
-            ['level', character.level?.toString() || '1'],
-            ['xp', character.xp?.toString() || '0']
-          ]
-        });
-        
-        toast.create({
-          title: 'Item Dropped',
-          description: `You dropped ${item.name}`,
-          variant: 'default'
-        });
-      }
-    } catch (error) {
-      console.error('Failed to drop item:', error);
-      toast.create({
-        title: 'Error',
-        description: 'Failed to drop item',
-        variant: 'destructive'
-      });
-    }
-  };
+   const dropItem = async (item: any) => {
+     try {
+       // Remove item from inventory
+       const updatedInventory = inventory.filter(i => i.id !== item.id);
+       setInventory(updatedInventory);
+       
+       // Update character via context
+       const { updateCharacter } = useCharacter();
+       await updateCharacter({ inventory: updatedInventory });
+       
+       toast.create({
+         title: 'Item Dropped',
+         description: `You dropped ${item.name}`,
+         variant: 'default'
+       });
+     } catch (error) {
+       console.error('Failed to drop item:', error);
+       toast.create({
+         title: 'Error',
+         description: 'Failed to drop item',
+         variant: 'destructive'
+       });
+     }
+   };
 
   if (loading) {
     return (

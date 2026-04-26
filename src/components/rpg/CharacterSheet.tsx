@@ -1,88 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { useCharacter } from '@/contexts/CharacterContext';
 
 export function CharacterSheet() {
-  const { user } = useCurrentUser();
-  const { nostr } = useNostr();
-  const [characterData, setCharacterData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+   const { character, loading, error, refreshCharacter } = useCharacter();
 
-  useEffect(() => {
-    if (user) {
-      loadCharacter();
-    }
-  }, [user, nostr]);
+   if (loading) {
+     return (
+       <div className="text-center py-8">
+         <div className="inline-block w-12 h-12 border-4 border-primary/50 border-t-primary rounded-full animate-spin"></div>
+         <p className="mt-2 text-gray-500 dark:text-gray-400">Loading character...</p>
+       </div>
+     );
+   }
 
-  const loadCharacter = async () => {
-    try {
-      setLoading(true);
-      const characterEvents = await nostr.query([
-        {
-          kinds: [3223], // Character Profile
-          authors: [user.pubkey],
-          limit: 1
-        }
-      ]);
+   if (error) {
+     return (
+       <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-md">
+         <p className="text-red-700 dark:text-red-300">{error}</p>
+       </div>
+     );
+   }
 
-      if (characterEvents.length > 0) {
-        const characterEvent = characterEvents[0];
-        const character = JSON.parse(characterEvent.content);
-        setCharacterData({
-          ...character,
-          id: characterEvent.id,
-          level: parseInt(characterEvent.tags.find(tag => tag[0] === 'level')?.[1] || '1'),
-          class: characterEvent.tags.find(tag => tag[0] === 'class')?.[1] || 'adventurer',
-          xp: parseInt(characterEvent.tags.find(tag => tag[0] === 'xp')?.[1] || '0')
-        });
-      } else {
-        setCharacterData(null);
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error('Failed to load character:', err);
-      setError('Failed to load character data');
-      setLoading(false);
-    }
-  };
+   if (!character) {
+     return (
+       <div className="text-center py-8">
+         <p className="text-gray-500 dark:text-gray-400">
+           No character found. Creating a new adventurer for you...
+         </p>
+         <Button onClick={refreshCharacter} variant="outline">
+           Retry
+         </Button>
+       </div>
+     );
+   }
 
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <div className="inline-block w-12 h-12 border-4 border-primary/50 border-t-primary rounded-full animate-spin"></div>
-        <p className="mt-2 text-gray-500 dark:text-gray-400">Loading character...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-md">
-        <p className="text-red-700 dark:text-red-300">{error}</p>
-      </div>
-    );
-  }
-
-  if (!characterData) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 dark:text-gray-400">
-          No character found. Creating a new adventurer for you...
-        </p>
-        <Button onClick={loadCharacter} variant="outline">
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  const { stats, inventory, equipment, gold, quests, location } = characterData;
+   const { stats, inventory, equipment, gold, quests, location } = character;
 
   return (
     <div className="space-y-6">
