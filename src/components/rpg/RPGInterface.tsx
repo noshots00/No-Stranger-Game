@@ -7,16 +7,16 @@ import { CharacterCreation } from './CharacterCreation';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { clearMVPCharacter, loadMVPCharacter, saveMVPCharacter, type CreationAnswer, type MVPCharacter } from '@/lib/rpg/utils';
 import { nip19 } from 'nostr-tools';
-import { useNetworkPresence } from '@/hooks/useNetworkPresence';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { PRESENCE_RELAYS, useNetworkPresence } from '@/hooks/useNetworkPresence';
 import { useToast } from '@/hooks/useToast';
+import { useNostr } from '@nostrify/react';
 
 export function RPGInterface() {
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home' | 'profile'>('creation');
   const networkPresence = useNetworkPresence(user?.pubkey);
-  const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -55,7 +55,8 @@ export function RPGInterface() {
     // Publish presence for social network discovery.
     // This keeps local-first UX while enabling cross-account visibility.
     if (user) {
-      publishEvent({
+      const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
+      user.signer.signEvent({
         kind: 30000,
         content: JSON.stringify({
           app: 'no-stranger-game',
@@ -69,17 +70,21 @@ export function RPGInterface() {
           ['t', 'no-stranger-game'],
           ['alt', 'No Stranger Game player presence opt-in'],
         ],
-      }).then(() => {
-        toast({
-          title: 'Presence published',
-          description: 'Your network can now detect your character presence.',
-        });
-      }).catch((error: unknown) => {
-        console.error('Failed to publish presence event:', error);
-        toast({
-          title: 'Presence not published',
-          description: 'Character saved locally, but network presence publish failed.',
-          variant: 'destructive',
+        created_at: Math.floor(Date.now() / 1000),
+      }).then((signedEvent) => {
+        presenceNostr.event(signedEvent).then(() => {
+          toast({
+            title: 'Presence published',
+            description: 'Published to Ditto + Primal relays.',
+          });
+          networkPresence.refetch();
+        }).catch((error: unknown) => {
+          console.error('Failed to publish presence event:', error);
+          toast({
+            title: 'Presence not published',
+            description: 'Character saved locally, but Ditto/Primal publish failed.',
+            variant: 'destructive',
+          });
         });
       });
     }
@@ -192,6 +197,40 @@ export function RPGInterface() {
             ) : (
               <p className="text-zinc-300 font-serif">No known souls have crossed the threshold yet.</p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Presence Debug</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p className="text-zinc-300">
+              Your npub:{' '}
+              <span className="font-mono break-all">
+                {user ? nip19.npubEncode(user.pubkey) : 'not logged in'}
+              </span>
+            </p>
+            <p className="text-zinc-300">
+              Self presence live:{' '}
+              <span className="font-mono">
+                {networkPresence.data?.diagnostics.selfPresenceLive ? 'yes' : 'no'}
+              </span>
+            </p>
+            <p className="text-zinc-300">
+              Follows: <span className="font-mono">{networkPresence.data?.diagnostics.followsCount ?? 0}</span>
+              {' '}| Followers: <span className="font-mono">{networkPresence.data?.diagnostics.followersCount ?? 0}</span>
+            </p>
+            <p className="text-zinc-300">
+              Network total: <span className="font-mono">{networkPresence.data?.diagnostics.networkCount ?? 0}</span>
+              {' '}| Opted-in found: <span className="font-mono">{networkPresence.data?.diagnostics.optedInCount ?? 0}</span>
+            </p>
+            <p className="text-zinc-300">
+              Relays:{' '}
+              <span className="font-mono">
+                {(networkPresence.data?.diagnostics.relays ?? PRESENCE_RELAYS).join(', ')}
+              </span>
+            </p>
           </CardContent>
         </Card>
 
