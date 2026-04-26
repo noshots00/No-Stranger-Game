@@ -12,9 +12,16 @@ import { nip19 } from 'nostr-tools';
 import { PRESENCE_RELAYS, useNetworkPresence } from '@/hooks/useNetworkPresence';
 import { useToast } from '@/hooks/useToast';
 import { useNostr } from '@nostrify/react';
+import { useEchoes } from '@/hooks/useEchoes';
+import { useScryingPool } from '@/hooks/useScryingPool';
+import { useHomeland } from '@/hooks/useHomeland';
+import { usePhase2Signals } from '@/hooks/usePhase2Signals';
+import { CHAPTER_PROOF_KIND, getChapterWindowId, hasCanonicalChoiceForWindow, markCanonicalChoiceForWindow } from '@/lib/rpg/proof';
+import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
+import { trackTelemetry } from '@/lib/rpg/telemetry';
 
 export function RPGInterface() {
-  const { user } = useCurrentUser();
+  const { user, metadata } = useCurrentUser();
   const { nostr } = useNostr();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
@@ -22,7 +29,12 @@ export function RPGInterface() {
   const [characterNameInput, setCharacterNameInput] = useState('');
   const [genderInput, setGenderInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
+  const [chapterOpened, setChapterOpened] = useState(false);
+  const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
   const networkPresence = useNetworkPresence(user?.pubkey);
+  const echoes = useEchoes(user?.pubkey);
+  const phase2Signals = usePhase2Signals(user?.pubkey);
+  const homeland = useHomeland(metadata?.nip05);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,6 +45,7 @@ export function RPGInterface() {
       return;
     }
     setScreen('creation');
+    setTier3Policy(loadTier3Policy());
   }, []);
 
   const upcomingFeatures = useMemo(
@@ -52,6 +65,7 @@ export function RPGInterface() {
       characterName: normalizedCharacterName,
       gender: normalizedGender,
       mainQuestChoices: [],
+      discoveredLocations: ['market-square'],
       pubkey: user?.pubkey,
       npub,
     };
@@ -72,6 +86,7 @@ export function RPGInterface() {
           characterName: normalizedCharacterName,
           gender: normalizedGender,
           classLabel: 'Unchosen',
+          discoveredLocations: ['market-square'],
           createdAt: newCharacter.createdAt,
         }),
         tags: [
@@ -101,6 +116,17 @@ export function RPGInterface() {
 
   const handleMainQuestChoice = (option: 'A' | 'B' | 'C') => {
     if (!character) return;
+    const chapterWindowId = getChapterWindowId();
+    const identityKey = user?.pubkey ?? character.id;
+    if (hasCanonicalChoiceForWindow(chapterWindowId, identityKey)) {
+      trackTelemetry('chapter_duplicate_rejected', { chapterWindowId });
+      toast({
+        title: 'Choice already sealed',
+        description: 'You already recorded a canonical choice for this chapter window.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const consequenceByOption: Record<'A' | 'B' | 'C', string> = {
       A: 'You returned the money. Someone noticed.',
       B: 'You kept the money. The market felt colder.',
@@ -120,10 +146,19 @@ export function RPGInterface() {
         },
       ],
       level: character.level + 1,
+      discoveredLocations: Array.from(
+        new Set([
+          ...(character.discoveredLocations ?? ['market-square']),
+          option === 'A' ? 'old-library' : option === 'B' ? 'coin-vault' : 'silent-alley',
+        ]),
+      ),
+      chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
     };
 
     saveMVPCharacter(updatedCharacter);
     setCharacter(updatedCharacter);
+    markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${option}`);
+    trackTelemetry('chapter_choice_recorded', { option, chapterWindowId });
     setHomeTab('events');
     toast({
       title: 'Crucial choice recorded',
@@ -141,6 +176,7 @@ export function RPGInterface() {
           characterName: updatedCharacter.characterName,
           gender: updatedCharacter.gender,
           classLabel: option,
+          discoveredLocations: updatedCharacter.discoveredLocations ?? [],
           createdAt: updatedCharacter.createdAt,
         }),
         tags: [
@@ -154,7 +190,48 @@ export function RPGInterface() {
           console.error('Failed to publish updated class label:', error);
         });
       });
+
+      user.signer.signEvent({
+        kind: CHAPTER_PROOF_KIND,
+        content: JSON.stringify({
+          app: 'no-stranger-game',
+          chapterId: 'market-money-001',
+          chapterWindowId,
+          selectedOption: option,
+          prompt: 'You are in a crowded market and you see the person in front of you drop some money.',
+          consequence: consequenceByOption[option],
+          characterId: updatedCharacter.id,
+          recordedAt: Math.floor(Date.now() / 1000),
+        }),
+        tags: [
+          ['t', 'no-stranger-game'],
+          ['chapter', 'market-money-001'],
+          ['window', chapterWindowId],
+          ['choice', option],
+          ['prev', character.chapterProofHead ?? 'genesis'],
+          ['alt', 'No Stranger Game crucial choice proof'],
+        ],
+        created_at: Math.floor(Date.now() / 1000),
+      }).then((signedEvent) => {
+        const withProofHead: MVPCharacter = { ...updatedCharacter, chapterProofHead: signedEvent.id };
+        saveMVPCharacter(withProofHead);
+        setCharacter(withProofHead);
+        nostr.event(signedEvent).catch((error: unknown) => {
+          console.error('Failed to publish chapter proof event:', error);
+        });
+      }).catch((error: unknown) => {
+        console.error('Failed to sign chapter proof event:', error);
+      });
     }
+  };
+
+  const updateTier3Policy = (nextPolicy: Tier3PolicySettings) => {
+    setTier3Policy(nextPolicy);
+    saveTier3Policy(nextPolicy);
+    trackTelemetry('tier3_policy_updated', {
+      experimentalEnabled: nextPolicy.experimentalEnabled,
+      visibility: nextPolicy.visibility,
+    });
   };
 
   const handleNewGame = () => {
@@ -240,38 +317,37 @@ export function RPGInterface() {
     return null;
   }
 
+  const hasChosenMarketQuest = character.mainQuestChoices.some((choice) => choice.questId === 'market-money-001');
+  const marketChoice = character.mainQuestChoices.find((choice) => choice.questId === 'market-money-001');
+  const hasUnreadChapter = !hasChosenMarketQuest;
+  const scryingPool = useScryingPool(character.discoveredLocations, networkPresence.data?.topMembers);
+  const chapterLines = [
+    'The village burns.',
+    'Smoke rolls across the market square.',
+    'A purse slips from a stranger\'s hand and lands near your feet.',
+  ];
+
+  useEffect(() => {
+    if (echoes.data?.rumorSeeds.length) {
+      trackTelemetry('echoes_generated', { count: echoes.data.rumorSeeds.length });
+    }
+  }, [echoes.data?.rumorSeeds.length]);
+
+  useEffect(() => {
+    if (scryingPool.glimmers.length > 0) {
+      trackTelemetry('scrying_glimmers_seen', { count: scryingPool.glimmers.length });
+    }
+  }, [scryingPool.glimmers.length]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-4 md:p-8">
-      <div className="max-w-5xl mx-auto py-8 space-y-6">
-        <div className="rounded-xl border border-zinc-700/70 bg-zinc-900/70 p-5">
-          <h1 className="text-3xl font-semibold text-zinc-100">Home</h1>
-          <p className="mt-2 text-zinc-300 font-serif">
-            Your character is active. Check Events and Main Quest each day to progress.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button
-              variant={homeTab === 'events' ? 'default' : 'outline'}
-              className={homeTab === 'events' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : ''}
-              onClick={() => setHomeTab('events')}
-            >
-              Events
-            </Button>
-            <Button
-              variant={homeTab === 'mainQuest' ? 'default' : 'outline'}
-              className={homeTab === 'mainQuest' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : ''}
-              onClick={() => setHomeTab('mainQuest')}
-            >
-              Main Quest
-            </Button>
-            <Button
-              variant={homeTab === 'profile' ? 'default' : 'outline'}
-              className={homeTab === 'profile' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : ''}
-              onClick={() => setHomeTab('profile')}
-            >
-              Character Profile
-            </Button>
-            <Button variant="destructive" onClick={handleNewGame}>
-              New Game
+    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-3 md:p-6">
+      <div className="mx-auto w-full max-w-3xl py-4 md:py-6 space-y-5">
+        <div className="rounded-xl border border-zinc-700/60 bg-zinc-900/70 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="h-2.5 w-2.5 rounded-full bg-amber-400 ember-glow" aria-hidden="true" />
+            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-400 font-mono">Season III</p>
+            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-100" onClick={handleNewGame}>
+              New
             </Button>
           </div>
         </div>
@@ -290,38 +366,105 @@ export function RPGInterface() {
                   Latest consequence: {character.mainQuestChoices[character.mainQuestChoices.length - 1].consequence}
                 </p>
               )}
+              {homeland.homelandFlavorLine && (
+                <p className="text-zinc-400 text-sm font-serif">{homeland.homelandFlavorLine}</p>
+              )}
+              {echoes.data?.eventsFlavorLines.map((line) => (
+                <p key={line} className="text-zinc-300 text-sm font-serif">{line}</p>
+              ))}
+              {phase2Signals.data && (
+                <div className="rounded border border-zinc-700/70 bg-zinc-800/40 p-3 space-y-1">
+                  <p className="text-zinc-300 text-sm font-serif">
+                    Blessings: <span className="font-mono">{phase2Signals.data.positiveReactions24h}</span>
+                    {' '}| Curses: <span className="font-mono">{phase2Signals.data.negativeReactions24h}</span>
+                  </p>
+                  <p className="text-zinc-400 text-xs font-mono uppercase">
+                    Relay difficulty: {phase2Signals.data.relayDifficultyBand}
+                  </p>
+                  {phase2Signals.data.grayLadyHint && (
+                    <p className="text-zinc-400 text-xs font-serif">{phase2Signals.data.grayLadyHint}</p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
         {homeTab === 'mainQuest' && (
-          <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-            <CardHeader>
-              <CardTitle>Main Quest</CardTitle>
+          <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100 overflow-hidden">
+            <CardHeader className="border-b border-zinc-700/60">
+              <CardTitle className="font-serif text-2xl">Chapter View</CardTitle>
+              <p className="text-zinc-400 text-xs font-mono uppercase tracking-wider">
+                {hasChosenMarketQuest ? 'Sealed Choice Recorded' : 'Unopened Letter'}
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {character.mainQuestChoices.some((choice) => choice.questId === 'market-money-001') ? (
-                <p className="text-zinc-300 font-serif">
-                  You already made today&apos;s crucial choice. Return tomorrow for the next chapter.
-                </p>
-              ) : (
-                <>
-                  <p className="text-zinc-300 font-serif">
-                    You are in a crowded market and you see the person in front of you drop some money. Do you:
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    <Button variant="outline" onClick={() => handleMainQuestChoice('A')}>
-                      A) Give it back to them
-                    </Button>
-                    <Button variant="outline" onClick={() => handleMainQuestChoice('B')}>
-                      B) Keep it
-                    </Button>
-                    <Button variant="outline" onClick={() => handleMainQuestChoice('C')}>
-                      C) Act as if you didn&apos;t see it
-                    </Button>
-                  </div>
-                </>
+            <CardContent className="space-y-5 pt-5">
+              {!chapterOpened && !hasChosenMarketQuest && (
+                <button
+                  type="button"
+                  onClick={() => setChapterOpened(true)}
+                  className="w-full rounded-lg border border-zinc-700/80 bg-zinc-800/60 px-4 py-8 text-center transition hover:bg-zinc-800/80"
+                >
+                  <p className="text-zinc-200 font-serif text-lg">Press to crack the wax seal</p>
+                  <p className="text-zinc-500 text-xs mt-2 font-mono">Your daily chapter waits in silence.</p>
+                </button>
               )}
+
+              {(chapterOpened || hasChosenMarketQuest) && (
+                <div className="space-y-2">
+                  {chapterLines.map((line, idx) => (
+                    <p
+                      key={line}
+                      className="text-zinc-200 font-serif text-xl leading-relaxed chapter-line"
+                      style={{ animationDelay: `${idx * 120}ms` }}
+                    >
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {echoes.data?.mainQuestFlavorLine && (
+                <p className="text-zinc-400 text-sm font-serif">{echoes.data.mainQuestFlavorLine}</p>
+              )}
+
+              {hasChosenMarketQuest ? (
+                <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/60 p-4 space-y-2">
+                  <p className="text-zinc-300 font-serif">
+                    This chapter is now immutable. Return tomorrow for the next unfolding.
+                  </p>
+                  <p className="text-zinc-100 font-mono">
+                    Signed choice: {marketChoice?.option ?? 'Unknown'}
+                  </p>
+                  <p className="text-zinc-400 text-sm font-serif">{marketChoice?.consequence}</p>
+                </div>
+              ) : chapterOpened ? (
+                <div className="space-y-2">
+                  <p className="text-zinc-300 font-serif">Do you:</p>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                      onClick={() => handleMainQuestChoice('A')}
+                    >
+                      ▸ Save the scholar. Return the money.
+                    </button>
+                    <button
+                      type="button"
+                      className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                      onClick={() => handleMainQuestChoice('B')}
+                    >
+                      ▸ Keep the coins. Keep walking.
+                    </button>
+                    <button
+                      type="button"
+                      className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                      onClick={() => handleMainQuestChoice('C')}
+                    >
+                      ▸ Say nothing. Let fate decide.
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         )}
@@ -402,9 +545,77 @@ export function RPGInterface() {
               <p className="text-zinc-300 text-sm break-all">
                 npub: <span className="font-mono">{nip19.npubEncode(selectedNetworkMember.pubkey)}</span>
               </p>
+              <p className="text-zinc-300 text-sm">
+                Glimpsed locations: <span className="font-mono">{(selectedNetworkMember.discoveredLocations ?? []).join(', ') || 'none'}</span>
+              </p>
             </CardContent>
           </Card>
         )}
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Scrying Pool</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {scryingPool.glimmers.length === 0 ? (
+              <p className="text-zinc-300 font-serif">No distant places shimmer yet.</p>
+            ) : (
+              scryingPool.glimmers.slice(0, 5).map((glimmer) => (
+                <p key={glimmer.locationId} className="text-zinc-300 text-sm font-serif">
+                  {glimmer.locationId} appears as a locked glimmer ({glimmer.seenByCount} travelers).
+                </p>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Tier 3 Policy Gates</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <label className="flex items-center justify-between gap-3">
+              <span>Enable experimental social mechanics</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.experimentalEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, experimentalEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Zap influence</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.zapInfluenceEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, zapInfluenceEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Trauma shadows</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.traumaEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, traumaEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Scars from reports</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.scarsEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, scarsEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Summoning ghosts</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.summoningEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, summoningEnabled: event.target.checked })}
+              />
+            </label>
+          </CardContent>
+        </Card>
 
         <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
           <CardHeader>
@@ -440,7 +651,7 @@ export function RPGInterface() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
           {upcomingFeatures.map((feature) => (
             <Card key={feature} className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
               <CardHeader>
@@ -452,6 +663,32 @@ export function RPGInterface() {
             </Card>
           ))}
         </div>
+
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-700/70 bg-zinc-950/90 backdrop-blur-md">
+          <div className="mx-auto flex max-w-3xl items-center justify-around px-3 py-2">
+            {[
+              { key: 'events', icon: '◈', label: 'Map' },
+              { key: 'mainQuest', icon: '✶', label: 'Companion' },
+              { key: 'profile', icon: '◉', label: 'Profile' },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setHomeTab(item.key as 'events' | 'mainQuest' | 'profile')}
+                className="group relative flex h-11 w-11 items-center justify-center rounded-md text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+                aria-label={item.label}
+                title={item.label}
+              >
+                <span className={(item.key === 'mainQuest' && hasUnreadChapter) ? 'ember-glow rounded-full px-2 py-0.5' : ''}>
+                  {item.icon}
+                </span>
+                <span className="pointer-events-none absolute -top-6 rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-300 opacity-0 transition group-hover:opacity-100">
+                  {item.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </nav>
       </div>
     </div>
   );

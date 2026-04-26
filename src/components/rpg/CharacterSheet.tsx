@@ -4,6 +4,7 @@ import type { MVPCharacter } from '@/lib/rpg/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { nip19 } from 'nostr-tools';
 import { useNetworkPresence } from '@/hooks/useNetworkPresence';
+import { useHomeland } from '@/hooks/useHomeland';
 
 interface CharacterSheetProps {
   character: MVPCharacter;
@@ -17,6 +18,7 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
   const networkPresence = useNetworkPresence(user?.pubkey);
   const classLabel = character.mainQuestChoices.find((choice) => choice.questId === 'market-money-001')?.option ?? 'Unchosen';
   const nostrUsername = metadata?.display_name || metadata?.name || 'Unnamed Nostr User';
+  const homeland = useHomeland(metadata?.nip05);
 
   return (
     <div className="space-y-6">
@@ -67,6 +69,9 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
             </p>
             <p className="text-sm text-zinc-200">
               Gender: <span className="font-mono">{character.gender}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
+              Homeland: <span className="font-mono">{homeland.homelandLabel}</span>
             </p>
             {npub ? (
               <p className="text-sm text-zinc-200 break-all">

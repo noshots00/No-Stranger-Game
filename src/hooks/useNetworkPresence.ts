@@ -23,6 +23,7 @@ interface NetworkPresenceData {
 interface PresencePayload {
   characterName?: string;
   classLabel?: string;
+  discoveredLocations?: string[];
 }
 
 const getMetadataMap = (metadataEvents: Array<{ pubkey: string; content: string }>): Map<string, NostrMetadata> => {
@@ -167,6 +168,7 @@ export function useNetworkPresence(userPubkey: string | undefined) {
           characterName: presencePayloadByPubkey.get(pubkey)?.characterName || 'Unknown Stranger',
           classLabel: presencePayloadByPubkey.get(pubkey)?.classLabel || 'Unchosen',
           picture: metadataMap.get(pubkey)?.picture,
+          discoveredLocations: presencePayloadByPubkey.get(pubkey)?.discoveredLocations ?? [],
         }));
 
       return {

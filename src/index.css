@@ -99,3 +99,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .ember-glow {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.45), 0 0 22px rgba(239, 68, 68, 0.25);
+    animation: emberPulse 3.2s ease-in-out infinite;
+  }
+
+  .choice-smudge {
+    filter: blur(1.4px);
+    opacity: 0.62;
+    transition: filter 220ms ease, opacity 220ms ease, color 220ms ease;
+  }
+
+  .choice-smudge:hover,
+  .choice-smudge:focus-visible {
+    filter: blur(0);
+    opacity: 1;
+  }
+
+  .choice-faded {
+    opacity: 0.25;
+    filter: blur(2.2px);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .chapter-line {
+    animation: chapterReveal 460ms ease-out both;
+  }
+}
+
+@keyframes emberPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes chapterReveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

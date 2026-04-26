@@ -191,9 +191,12 @@ export interface MVPCharacter {
   role: 'stranger';
   characterName: string;
   gender: string;
+  chapterProofHead?: string;
+  chapterWindowIds?: string[];
   classId?: number;
   answers?: [CreationAnswer, CreationAnswer, CreationAnswer];
   mainQuestChoices: MainQuestChoice[];
+  discoveredLocations?: string[];
   pubkey?: string;
   npub?: string;
 }
@@ -204,6 +207,7 @@ export interface NetworkPresenceMember {
   characterName: string;
   classLabel: string;
   picture?: string;
+  discoveredLocations?: string[];
 }
 
 export const mergeUniquePubkeys = (follows: string[], followers: string[], currentUserPubkey: string): string[] => {
@@ -255,6 +259,12 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       ? parsed.answers as [CreationAnswer, CreationAnswer, CreationAnswer]
       : undefined;
     const mainQuestChoices = Array.isArray(parsed.mainQuestChoices) ? parsed.mainQuestChoices as MainQuestChoice[] : [];
+    const discoveredLocations = Array.isArray(parsed.discoveredLocations)
+      ? parsed.discoveredLocations.filter((location): location is string => typeof location === 'string')
+      : ['market-square'];
+    const chapterWindowIds = Array.isArray(parsed.chapterWindowIds)
+      ? parsed.chapterWindowIds.filter((windowId): windowId is string => typeof windowId === 'string')
+      : [];
 
     return {
       id: parsed.id ?? `temp-${Date.now()}`,
@@ -266,6 +276,9 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       classId: typeof parsed.classId === 'number' ? parsed.classId : undefined,
       answers: legacyAnswers,
       mainQuestChoices,
+      discoveredLocations,
+      chapterWindowIds,
+      chapterProofHead: typeof parsed.chapterProofHead === 'string' ? parsed.chapterProofHead : undefined,
       pubkey: parsed.pubkey,
       npub: parsed.npub,
     };
