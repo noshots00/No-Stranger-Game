@@ -1,85 +1,155 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostr } from '@nostrify/react';
 import { Button } from '@/components/ui/button';
-import { useCharacter } from '@/contexts/CharacterContext';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
 
 export function QuestLog() {
-   const { character, loading: charLoading, error } = useCharacter();
-   const [quests, setQuests] = useState<Array<any>>([]);
-   const [activeQuests, setActiveQuests] = useState<Array<any>>([]);
-   const [completedQuests, setCompletedQuests] = useState<Array<any>>([]);
-   const [loading, setLoading] = useState(true);
-   const toast = useToast();
+  const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const [quests, setQuests] = useState<Array<any>>([]);
+  const [activeQuests, setActiveQuests] = useState<Array<any>>([]);
+  const [completedQuests, setCompletedQuests] = useState<Array<any>>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-   // Load quests from character context when it changes
-   React.useEffect(() => {
-     if (character) {
-       setQuests(character.quests || { active: [], completed: [] });
-       setActiveQuests(character.quests?.active || []);
-       setCompletedQuests(character.quests?.completed || []);
-       setLoading(false);
-     } else if (!charLoading) {
-       // Character is null but not loading - no character exists
-       setQuests({ active: [], completed: [] });
-       setActiveQuests([]);
-       setCompletedQuests([]);
-       setLoading(false);
-     }
-   }, [character, charLoading]);
+  useEffect(() => {
+    if (user) {
+      loadQuests();
+    }
+  }, [user, nostr]);
 
-   const completeQuest = async (questId: string) => {
-     try {
-       // Remove from active quests, add to completed
-       const newActive = activeQuests.filter(id => id !== questId);
-       const newCompleted = [...completedQuests, questId];
-       
-       setActiveQuests(newActive);
-       setCompletedQuests(newCompleted);
-       
-       // Update character via context
-       const { updateCharacter } = useCharacter();
-       await updateCharacter({ quests: { active: newActive, completed: newCompleted } });
-       
-       toast.create({
-         title: 'Quest Completed!',
-         description: 'You have completed a quest',
-         variant: 'default'
-       });
-     } catch (error) {
-       console.error('Failed to complete quest:', error);
-       toast.create({
-         title: 'Error',
-         description: 'Failed to complete quest',
-         variant: 'destructive'
-       });
-     }
-   };
+  const loadQuests = async () => {
+    try {
+      setLoading(true);
+      const characterEvents = await nostr.query([
+        {
+          kinds: [3223], // Character Profile
+          authors: [user.pubkey],
+          limit: 1
+        }
+      ]);
 
-    const abandonQuest = async (questId: string) => {
-      try {
-        // Remove from active quests
-        const newActive = activeQuests.filter(id => id !== questId);
-        setActiveQuests(newActive);
+      if (characterEvents.length > 0) {
+        const character = JSON.parse(characterEvents[0].content);
+        setQuests(character.quests || { active: [], completed: [] });
+        setActiveQuests(character.quests?.active || []);
+        setCompletedQuests(character.quests?.completed || []);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load quests:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load quest data',
+        variant: 'destructive'
+      });
+      setLoading(false);
+    }
+  };
+
+  const completeQuest = async (questId: string) => {
+    try {
+      // Remove from active quests, add to completed
+      const newActive = activeQuests.filter(id => id !== questId);
+      const newCompleted = [...completedQuests, questId];
+      
+      setActiveQuests(newActive);
+      setCompletedQuests(newCompleted);
+      
+      // Update character on Nostr
+      const characterEvents = await nostr.query([
+        {
+          kinds: [3223],
+          authors: [user.pubkey],
+          limit: 1
+        }
+      ]);
+      
+      if (characterEvents.length > 0) {
+        const character = JSON.parse(characterEvents[0].content);
+        character.quests = {
+          active: newActive,
+          completed: newCompleted
+        };
         
-        // Update character via context
-        const { updateCharacter } = useCharacter();
-        await updateCharacter({ quests: { active: newActive, completed: completedQuests } });
-        
-        toast.create({
-          title: 'Quest Abandoned',
-          description: 'You have abandoned this quest',
-          variant: 'destructive'
+        await nostr.event({
+          kind: 3223,
+          content: JSON.stringify(character),
+          tags: [
+            ['d', user.pubkey],
+            ['class', character.class || 'adventurer'],
+            ['level', character.level?.toString() || '1'],
+            ['xp', character.xp?.toString() || '0']
+          ]
         });
-      } catch (error) {
-        console.error('Failed to abandon quest:', error);
-        toast.create({
-          title: 'Error',
-          description: 'Failed to abandon quest',
-          variant: 'destructive'
+        
+        toast({
+          title: 'Quest Completed!',
+          description: 'You have completed a quest',
+          variant: 'default'
         });
       }
-    };
+    } catch (error) {
+      console.error('Failed to complete quest:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to complete quest',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const abandonQuest = async (questId: string) => {
+    try {
+      // Remove from active quests
+      const newActive = activeQuests.filter(id => id !== questId);
+      setActiveQuests(newActive);
+      
+      // Update character on Nostr
+      const characterEvents = await nostr.query([
+        {
+          kinds: [3223],
+          authors: [user.pubkey],
+          limit: 1
+        }
+      ]);
+      
+      if (characterEvents.length > 0) {
+        const character = JSON.parse(characterEvents[0].content);
+        character.quests = {
+          active: newActive,
+          completed: completedQuests
+        };
+        
+        await nostr.event({
+          kind: 3223,
+          content: JSON.stringify(character),
+          tags: [
+            ['d', user.pubkey],
+            ['class', character.class || 'adventurer'],
+            ['level', character.level?.toString() || '1'],
+            ['xp', character.xp?.toString() || '0']
+          ]
+        });
+        
+        toast({
+          title: 'Quest Abandoned',
+          description: 'You have abandoned this quest',
+          variant: 'default'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to abandon quest:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to abandon quest',
+        variant: 'destructive'
+      });
+    }
+  };
 
   if (loading) {
     return (

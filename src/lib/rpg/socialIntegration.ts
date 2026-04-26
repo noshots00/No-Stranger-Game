@@ -6,8 +6,6 @@
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEffect } from 'react';
-import { useToast } from '@/hooks/useToast';
-import { saveGameData, loadGameData } from './utils';
 
 /**
  * Hook to initialize social layer monitoring
@@ -16,13 +14,13 @@ import { saveGameData, loadGameData } from './utils';
 export function useSocialLayerIntegration() {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const toast = useToast();
 
   useEffect(() => {
     if (!user || !nostr) return;
+    let isActive = true;
 
     // Start monitoring followed npubs for social activity
-    const monitorSocialActivity = async () => {
+    const monitorSocialActivity = () => {
       try {
         // Get list of followed npubs (from kind 3 contacts or similar)
         // For now, we'll monitor a few public relays for demo purposes
@@ -35,11 +33,6 @@ export function useSocialLayerIntegration() {
           }
         ]);
 
-        subscription.on('event', (event) => {
-          // Convert social post to game element
-          processSocialPost(event);
-        });
-
         // Also monitor for replies/mentions
         const mentionSubscription = nostr.req([
           {
@@ -48,29 +41,41 @@ export function useSocialLayerIntegration() {
             limit: 10
           }
         ]);
+        (async () => {
+          for await (const msg of subscription) {
+            if (!isActive) break;
+            if (msg[0] === 'EVENT') {
+              // Convert social post to game element
+              await processSocialPost(nostr, msg[2]);
+            }
+          }
+        })();
+        (async () => {
+          for await (const msg of mentionSubscription) {
+            if (!isActive) break;
+            if (msg[0] === 'EVENT') {
+              // Treat mentions as direct interactions/challenges
+              await processMention(nostr, msg[2]);
+            }
+          }
+        })();
 
-        mentionSubscription.on('event', (event) => {
-          // Treat mentions as direct interactions/challenges
-          processMention(event);
-        });
-
-        return () => {
-          subscription.close();
-          mentionSubscription.close();
-        };
       } catch (error) {
         console.error('Failed to setup social monitoring:', error);
       }
     };
 
     monitorSocialActivity();
+    return () => {
+      isActive = false;
+    };
   }, [user, nostr]);
 }
 
 /**
  * Process a regular social post and convert it to game elements
  */
-const processSocialPost = async (event: any) => {
+const processSocialPost = async (nostr: any, event: any) => {
   try {
     const { content, pubkey, created_at, tags } = event;
     
@@ -112,7 +117,7 @@ const processSocialPost = async (event: any) => {
 /**
  * Process a mention/direct interaction
  */
-const processMention = async (event: any) => {
+const processMention = async (nostr: any, event: any) => {
   try {
     const { content, pubkey, created_at } = event;
     
@@ -176,7 +181,7 @@ const analyzePostForGame = (content: string, authorPubkey: string): any => {
     };
   }
   
-  # Check for helpful information (tips, advice)
+  // Check for helpful information (tips, advice)
   if (lowerContent.includes('tip') || 
       lowerContent.includes('advice') || 
       lowerContent.includes('help') ||
@@ -190,7 +195,7 @@ const analyzePostForGame = (content: string, authorPubkey: string): any => {
     };
   }
   
-  # Check for item/marketplace mentions
+  // Check for item/marketplace mentions
   if (lowerContent.includes('sell') || 
       lowerContent.includes('buy') || 
       lowerContent.includes('trade') ||
@@ -204,7 +209,7 @@ const analyzePostForGame = (content: string, authorPubkey: string): any => {
     };
   }
   
-  # Default: tavern chatter
+  // Default: tavern chatter
   return {
     type: 'tavern_chat',
     description: `The tavern chatter includes: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`,

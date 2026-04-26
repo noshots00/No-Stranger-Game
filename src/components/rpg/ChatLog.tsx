@@ -6,7 +6,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { ScrollArea, ScrollBar, ScrollbarThumb, ScrollbarTrack } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/useToast';
 
 export function ChatLog() {
@@ -15,13 +15,14 @@ export function ChatLog() {
   const [messages, setMessages] = useState<Array<any>>([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(true);
-  const toast = useToast();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      loadChatMessages();
-      setupRealtimeUpdates();
-    }
+    if (!user) return;
+
+    loadChatMessages();
+    const cleanup = setupRealtimeUpdates();
+    return cleanup;
   }, [user, nostr]);
 
   const loadChatMessages = async () => {
@@ -57,41 +58,29 @@ export function ChatLog() {
     }
   };
 
-   const setupRealtimeUpdates = () => {
-     // Setup subscription for new messages
-     let subscription: any = null;
-     
-     if (user) {
-       subscription = nostr.group([
-         'wss://relay.ditto.pub',
-         'wss://relay.primal.net',
-         'wss://relay.damus.io'
-       ]).req([
-         {
-           kinds: [7673, 7127],
-           limit: 1
-         }
-       ]);
+  const setupRealtimeUpdates = () => {
+    // Setup subscription for new messages
+    const subscription = nostr.req([
+      {
+        kinds: [7673, 7127],
+        limit: 1
+      }
+    ]);
 
-       subscription.onsub = () => {
-         console.log('Subscribed to chat updates');
-       };
+    let isActive = true;
+    (async () => {
+      for await (const msg of subscription) {
+        if (!isActive) break;
+        if (msg[0] === 'EVENT') {
+          setMessages(prev => [msg[2], ...prev.slice(0, 49)]); // Keep last 50
+        }
+      }
+    })();
 
-       subscription.on('event', (event: any) => {
-         setMessages(prev => [event, ...prev.slice(0, 49)]); // Keep last 50
-       });
-
-       subscription.on('close', () => {
-         console.log('Subscription closed');
-       });
-     }
-
-     return () => {
-       if (subscription) {
-         subscription.close();
-       }
-     };
-   };
+    return () => {
+      isActive = false;
+    };
+  };
 
   const sendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -122,7 +111,7 @@ export function ChatLog() {
       });
     } catch (error) {
       console.error('Failed to send message:', error);
-      toast.create({
+      toast({
         title: 'Error',
         description: 'Failed to send message',
         variant: 'destructive'

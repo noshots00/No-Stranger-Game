@@ -4,33 +4,50 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostr } from '@nostrify/react';
 import { useToast } from '@/hooks/useToast';
-import { useCharacter } from '@/contexts/CharacterContext';
 import { calculateCombatDamage, generateRandomEncounter, generateEnemyLoot } from '@/lib/rpg/utils';
 
 export function CombatSystem() {
-   const { user } = useCurrentUser();
-   const { nostr } = useNostr();
-   const { character, refreshCharacter } = useCharacter();
-   const [combatState, setCombatState] = useState<'idle' | 'encounter' | 'fighting' | 'victory' | 'defeat'>('idle');
-   const [encounter, setEncounter] = useState<any>(null);
-   const [playerHP, setPlayerHP] = useState(100);
-   const [enemyHP, setEnemyHP] = useState(100);
-   const [playerMaxHP, setPlayerMaxHP] = useState(100);
-   const [enemyMaxHP, setEnemyMaxHP] = useState(100);
-   const [combatLog, setCombatLog] = useState<Array<string>>([]);
-   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
-   const [loading, setLoading] = useState(false);
-   const toast = useToast();
+  const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const [combatState, setCombatState] = useState<'idle' | 'encounter' | 'fighting' | 'victory' | 'defeat'>('idle');
+  const [encounter, setEncounter] = useState<any>(null);
+  const [playerHP, setPlayerHP] = useState(100);
+  const [enemyHP, setEnemyHP] = useState(100);
+  const [playerMaxHP, setPlayerMaxHP] = useState(100);
+  const [enemyMaxHP, setEnemyMaxHP] = useState(100);
+  const [combatLog, setCombatLog] = useState<Array<string>>([]);
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-   // Load character data to get stats
-   useEffect(() => {
-     if (character) {
-       // Set base HP from constitution stat (10 HP per constitution point)
-       const baseHP = character.stats.constitution * 10;
-       setPlayerMaxHP(baseHP);
-       setPlayerHP(baseHP);
-     }
-   }, [character]);
+  // Load character data to get stats
+  useEffect(() => {
+    if (user) {
+      loadCharacterStats();
+    }
+  }, [user]);
+
+  const loadCharacterStats = async () => {
+    try {
+      const characterEvents = await nostr.query([
+        {
+          kinds: [3223], // Character Profile
+          authors: [user.pubkey],
+          limit: 1
+        }
+      ]);
+
+      if (characterEvents.length > 0) {
+        const character = JSON.parse(characterEvents[0].content);
+        // Set base HP from constitution stat (10 HP per constitution point)
+        const baseHP = character.stats.constitution * 10;
+        setPlayerMaxHP(baseHP);
+        setPlayerHP(baseHP);
+      }
+    } catch (error) {
+      console.error('Failed to load character stats:', error);
+    }
+  };
 
   const startRandomEncounter = async (location: string = 'starting_town') => {
     setLoading(true);
@@ -66,123 +83,69 @@ export function CombatSystem() {
     }
   };
 
-const playerAttack = async () => {
-     if (!encounter || !isPlayerTurn || !character) return;
-     
-     setIsPlayerTurn(false);
-     
-     // Use character from context
-     try {
-       const playerStrength = character.stats.strength || 10;
-       const playerLevel = character.level || 1;
-       const enemyDefense = encounter.difficulty * 2; // Simplified
-       const enemyLevel = encounter.difficulty; // Simplified
-       
-       const damage = calculateCombatDamage(
-         playerStrength, 
-         enemyDefense, 
-         5, // Weapon damage (placeholder)
-         playerLevel,
-         enemyLevel
-       );
-       
-       setEnemyHP(prev => Math.max(0, prev - damage));
-       
-       setCombatLog(prev => [
-         ...prev,
-         `You strike the ${encounter.enemy} for ${damage} damage!`
-       ]);
-       
-       // Check if enemy is defeated
-       if (enemyHP <= damage) {
-         setCombatState('victory');
-         setTimeout(() => {
-           handleVictory();
-         }, 2000);
-       } else {
-         // Enemy turn after delay
-         setTimeout(() => {
-           enemyTurn();
-         }, 1500);
-       }
-     } catch (error) {
-       console.error('Failed to calculate combat damage:', error);
-       // Fallback to placeholder values
-       const playerStrength = 10; // Placeholder
-       const playerLevel = 1; // Would come from character data
-       const enemyDefense = encounter.difficulty * 2; // Simplified
-       const enemyLevel = encounter.difficulty; // Simplified
-       
-       const damage = calculateCombatDamage(
-         playerStrength, 
-         enemyDefense, 
-         5, // Weapon damage (placeholder)
-         playerLevel,
-         enemyLevel
-       );
-       
-       setEnemyHP(prev => Math.max(0, prev - damage));
-       
-       setCombatLog(prev => [
-         ...prev,
-         `You strike the ${encounter.enemy} for ${damage} damage!`
-       ]);
-       
-       // Check if enemy is defeated
-       if (enemyHP <= damage) {
-         setCombatState('victory');
-         setTimeout(() => {
-           handleVictory();
-         }, 2000);
-       } else {
-         // Enemy turn after delay
-         setTimeout(() => {
-           enemyTurn();
-         }, 1500);
-       }
-     }
-   };
+  const playerAttack = async () => {
+    if (!encounter || !isPlayerTurn) return;
+    
+    setIsPlayerTurn(false);
+    
+    // In a real implementation, we would get actual stats from character
+    const playerStrength = 10; // Placeholder
+    const playerLevel = 1; // Would come from character data
+    const enemyDefense = encounter.difficulty * 2; // Simplified
+    const enemyLevel = encounter.difficulty; // Simplified
+    
+    const damage = calculateCombatDamage(
+      playerStrength, 
+      enemyDefense, 
+      5, // Weapon damage (placeholder)
+      playerLevel,
+      enemyLevel
+    );
+    
+    setEnemyHP(prev => Math.max(0, prev - damage));
+    
+    setCombatLog(prev => [
+      ...prev,
+      `You strike the ${encounter.enemy} for ${damage} damage!`
+    ]);
+    
+    // Check if enemy is defeated
+    if (enemyHP <= damage) {
+      setCombatState('victory');
+      setTimeout(() => {
+        handleVictory();
+      }, 2000);
+    } else {
+      // Enemy turn after delay
+      setTimeout(() => {
+        enemyTurn();
+      }, 1500);
+    }
+  };
 
-   const enemyTurn = async () => {
-     setIsPlayerTurn(true);
-     
-     // Use character from context for defense calculation
-     let playerDefense = 5; // Default placeholder
-     try {
-       if (character) {
-         // Defense based on dexterity and level (simplified)
-         const dexterityMod = Math.floor((character.stats.dexterity - 10) / 2);
-         const levelMod = Math.floor(character.level / 5);
-         playerDefense = 5 + dexterityMod + levelMod; // Base 5 + modifiers
-         playerDefense = Math.max(1, playerDefense); // Minimum 1
-       }
-     } catch (error) {
-       console.error('Failed to calculate character defense for enemy turn:', error);
-       // Keep default playerDefense = 5
-     }
-     
-     // Enemy attack based on difficulty
-     const enemyAttack = encounter.difficulty * 2;
-     const damage = Math.max(0, enemyAttack - playerDefense + Math.floor(Math.random() * 5) - 2);
-     
-     setPlayerHP(prev => Math.max(0, prev - damage));
-     
-     setCombatLog(prev => [
-       ...prev,
-       `The ${encounter.enemy} hits you for ${damage} damage!`
-     ]);
-     
-     // Check if player is defeated
-     if (damage >= playerHP) {
-       setCombatState('defeat');
-       setTimeout(() => {
-         handleDefeat();
-       }, 2000);
-     } else {
-       // Player's turn again after enemy attacks
-       setIsPlayerTurn(true);
-     }
-   };
+  const enemyTurn = () => {
+    setIsPlayerTurn(true);
+    
+    // Simplified enemy attack
+    const enemyAttack = encounter.difficulty * 2;
+    const playerDefense = 5; // Placeholder
+    const damage = Math.max(0, enemyAttack - playerDefense + Math.floor(Math.random() * 5) - 2);
+    
+    setPlayerHP(prev => Math.max(0, prev - damage));
+    
+    setCombatLog(prev => [
+      ...prev,
+      `The ${encounter.enemy} hits you for ${damage} damage!`
+    ]);
+    
+    // Check if player is defeated
+    if (damage >= playerHP) {
+      setCombatState('defeat');
+      setTimeout(() => {
+        handleDefeat();
+      }, 2000);
+    }
+  };
 
   const handleVictory = () => {
     // Give rewards
@@ -209,7 +172,7 @@ const playerAttack = async () => {
     
     // Update character with rewards (in real implementation)
     // For now, just log it
-    toast.create({
+    toast({
       title: 'Victory!',
       description: `You defeated the ${encounter.enemy} and gained rewards`,
       variant: 'default'
@@ -224,7 +187,7 @@ const playerAttack = async () => {
     ]);
     
     // Penalties for defeat (lose some gold, etc.)
-    toast.create({
+    toast({
       title: 'Defeat',
       description: `You were defeated but managed to escape. You wake up in town.`,
       variant: 'destructive'
