@@ -52,6 +52,27 @@ export function RPGInterface() {
     () => ['Map', 'Shop', 'Guild', 'Journal', 'Settings'],
     [],
   );
+  const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
+  const hasChosenMarketQuest = character?.mainQuestChoices.some((choice) => choice.questId === 'market-money-001') ?? false;
+  const marketChoice = character?.mainQuestChoices.find((choice) => choice.questId === 'market-money-001');
+  const hasUnreadChapter = !hasChosenMarketQuest;
+  const chapterLines = [
+    'The village burns.',
+    'Smoke rolls across the market square.',
+    'A purse slips from a stranger\'s hand and lands near your feet.',
+  ];
+
+  useEffect(() => {
+    if (echoes.data?.rumorSeeds.length) {
+      trackTelemetry('echoes_generated', { count: echoes.data.rumorSeeds.length });
+    }
+  }, [echoes.data?.rumorSeeds.length]);
+
+  useEffect(() => {
+    if (scryingPool.glimmers.length > 0) {
+      trackTelemetry('scrying_glimmers_seen', { count: scryingPool.glimmers.length });
+    }
+  }, [scryingPool.glimmers.length]);
 
   const handleCreateStranger = () => {
     const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
@@ -316,28 +337,6 @@ export function RPGInterface() {
   if (!character) {
     return null;
   }
-
-  const hasChosenMarketQuest = character.mainQuestChoices.some((choice) => choice.questId === 'market-money-001');
-  const marketChoice = character.mainQuestChoices.find((choice) => choice.questId === 'market-money-001');
-  const hasUnreadChapter = !hasChosenMarketQuest;
-  const scryingPool = useScryingPool(character.discoveredLocations, networkPresence.data?.topMembers);
-  const chapterLines = [
-    'The village burns.',
-    'Smoke rolls across the market square.',
-    'A purse slips from a stranger\'s hand and lands near your feet.',
-  ];
-
-  useEffect(() => {
-    if (echoes.data?.rumorSeeds.length) {
-      trackTelemetry('echoes_generated', { count: echoes.data.rumorSeeds.length });
-    }
-  }, [echoes.data?.rumorSeeds.length]);
-
-  useEffect(() => {
-    if (scryingPool.glimmers.length > 0) {
-      trackTelemetry('scrying_glimmers_seen', { count: scryingPool.glimmers.length });
-    }
-  }, [scryingPool.glimmers.length]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-3 md:p-6">
