@@ -8,11 +8,12 @@ import { Circle } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostr } from '@nostrify/react';
 import { useToast } from '@/hooks/useToast';
-import { saveGameData } from '@/lib/rpg/utils';
 
 interface CharacterCreationProps {
   onCharacterCreated?: () => void;
 }
+
+const CHARACTER_PUBLISH_TIMEOUT_MS = 20000;
 
 export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps) {
   const { user } = useCurrentUser();
@@ -38,6 +39,15 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
   ];
 
   const handleCreateCharacter = async () => {
+    if (!user) {
+      toast({
+        title: 'Not logged in',
+        description: 'Please log in with your Nostr account first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     if (!name.trim()) {
       toast({
         title: 'Error',
@@ -135,17 +145,29 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
         xp: xpBonus
       };
 
-      // Save character to Nostr
-      await nostr.event({
-        kind: 3223, // Character Profile
-        content: JSON.stringify(characterData),
-        tags: [
-          ['d', user.pubkey], // Character ID based on pubkey
-          ['class', characterClass],
-          ['level', '1'],
-          ['xp', xpBonus.toString()]
-        ]
+      toast({
+        title: 'Waiting for wallet confirmation',
+        description: 'Approve the character creation request in your Nostr signer if prompted.',
+        variant: 'default'
       });
+
+      // Save character to Nostr. Use a timeout so the UI never hangs forever
+      // when signer confirmation or relay publishing stalls.
+      await Promise.race([
+        nostr.event({
+          kind: 3223, // Character Profile
+          content: JSON.stringify(characterData),
+          tags: [
+            ['d', user.pubkey], // Character ID based on pubkey
+            ['class', characterClass],
+            ['level', '1'],
+            ['xp', xpBonus.toString()]
+          ]
+        }),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Character creation timed out')), CHARACTER_PUBLISH_TIMEOUT_MS);
+        }),
+      ]);
 
       toast({
         title: 'Character Created!',
@@ -164,9 +186,13 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
       setBackground('wanderer');
     } catch (error) {
       console.error('Failed to create character:', error);
+      const description = error instanceof Error && error.message === 'Character creation timed out'
+        ? 'No response from signer/relay. Check your Nostr extension popup and try again.'
+        : 'Failed to create character';
+
       toast({
         title: 'Error',
-        description: 'Failed to create character',
+        description,
         variant: 'destructive'
       });
     } finally {
