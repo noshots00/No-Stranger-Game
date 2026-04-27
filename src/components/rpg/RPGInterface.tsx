@@ -76,10 +76,118 @@ export function RPGInterface() {
     'A purse slips from a stranger\'s hand and lands near your feet.',
   ];
   const activeQuestId = 'market-money-001';
+  const questBunchSteps: Array<{
+    questionId: string;
+    title: string;
+    prompt: string;
+    options: Array<{ option: 'A' | 'B' | 'C'; label: string }>;
+  }> = [
+    {
+      questionId: `${activeQuestId}-q1`,
+      title: 'Quest 1/10 - Waking',
+      prompt: 'You open your eyes to moss and half-light. What color was your mother\'s hair?',
+      options: [
+        { option: 'A', label: 'Copper-red and bright like embers' },
+        { option: 'B', label: 'Black as wet stone' },
+        { option: 'C', label: 'Silver like moonlit frost' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q2`,
+      title: 'Quest 2/10 - The Village',
+      prompt: 'A woman offers you bread. What do you notice first about her face?',
+      options: [
+        { option: 'A', label: 'A scar she does not hide' },
+        { option: 'B', label: 'Eyes that weigh every word' },
+        { option: 'C', label: 'A smile that feels borrowed' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q3`,
+      title: 'Quest 3/10 - A Family Finds You',
+      prompt: 'The carpenter asks you to stay. If it were your choice, would you?',
+      options: [
+        { option: 'A', label: 'Stay, and share their table' },
+        { option: 'B', label: 'Stay only until dawn' },
+        { option: 'C', label: 'Refuse and sleep outside' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q4`,
+      title: 'Quest 4/10 - A Simple Trade',
+      prompt: 'Which craft feels least like a lie?',
+      options: [
+        { option: 'A', label: 'Woodcutting and grainwork' },
+        { option: 'B', label: 'Mining and masonry' },
+        { option: 'C', label: 'Forging and hidden trade' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q5`,
+      title: 'Quest 5/10 - Slow Work of Days',
+      prompt: 'If you could know one thing about your old life, what would it be?',
+      options: [
+        { option: 'A', label: 'Who I once protected' },
+        { option: 'B', label: 'Who I betrayed' },
+        { option: 'C', label: 'What I stole from fate' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q6`,
+      title: 'Quest 6/10 - A Stranger\'s Fortune',
+      prompt: 'The crone asks what you fear you left behind.',
+      options: [
+        { option: 'A', label: 'A promise I could not keep' },
+        { option: 'B', label: 'A debt with my name on it' },
+        { option: 'C', label: 'A door that should stay closed' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q7`,
+      title: 'Quest 7/10 - The Night Before',
+      prompt: 'What is the last thing you would save?',
+      options: [
+        { option: 'A', label: 'A person' },
+        { option: 'B', label: 'A tool' },
+        { option: 'C', label: 'A secret' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q8`,
+      title: 'Quest 8/10 - The Fire',
+      prompt: 'The cottage burns. You have time for one.',
+      options: [
+        { option: 'A', label: 'Carry the carpenter' },
+        { option: 'B', label: 'Carry his wife' },
+        { option: 'C', label: 'Carry the daughter' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q9`,
+      title: 'Quest 9/10 - The Road',
+      prompt: 'At the fork, which road feels most like regret avoided?',
+      options: [
+        { option: 'A', label: 'North to old libraries' },
+        { option: 'B', label: 'East to the coast' },
+        { option: 'C', label: 'West toward the dream-door' },
+      ],
+    },
+    {
+      questionId: `${activeQuestId}-q10`,
+      title: 'Quest 10/10 - The First Night',
+      prompt: 'The stone is warm in your pocket. What do you whisper before sleep?',
+      options: [
+        { option: 'A', label: '“Let me become someone worthy.”' },
+        { option: 'B', label: '“Let me survive what comes.”' },
+        { option: 'C', label: '“Let me remember everything.”' },
+      ],
+    },
+  ];
   const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId
     ? character.pendingQuestBunch
     : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
-  const questionOneAnswer = pendingBunch.answers.find((answer) => answer.questionId === `${activeQuestId}-q1`);
+  const answeredQuestionIds = new Set(pendingBunch.answers.map((answer) => answer.questionId));
+  const currentQuestStep = questBunchSteps.find((step) => !answeredQuestionIds.has(step.questionId));
   const myClassLabel = character?.className || character?.mainQuestChoices.find((choice) => choice.questId === 'market-money-001')?.option;
   const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
 
@@ -198,7 +306,7 @@ export function RPGInterface() {
     }
   };
 
-  const handleMainQuestChoice = (questionId: `${typeof activeQuestId}-q1` | `${typeof activeQuestId}-q2`, option: 'A' | 'B' | 'C') => {
+  const handleMainQuestChoice = (questionId: string, option: 'A' | 'B' | 'C') => {
     if (!character) return;
     const pendingAnswers = [
       ...pendingBunch.answers.filter((answer) => answer.questionId !== questionId),
@@ -215,11 +323,11 @@ export function RPGInterface() {
     saveMVPCharacter(withPending);
     setCharacter(withPending);
 
-    if (!pendingAnswers.some((answer) => answer.questionId === `${activeQuestId}-q1`) ||
-      !pendingAnswers.some((answer) => answer.questionId === `${activeQuestId}-q2`)) {
+    if (pendingAnswers.length < questBunchSteps.length) {
+      const remaining = questBunchSteps.length - pendingAnswers.length;
       toast({
         title: 'Quest bunch saved',
-        description: 'Your first answer is sealed locally. Complete step 2 to submit the bunch.',
+        description: `${remaining} quest step${remaining === 1 ? '' : 's'} remain before final submit.`,
       });
       return;
     }
@@ -235,23 +343,15 @@ export function RPGInterface() {
       });
       return;
     }
-    const consequenceByOption: Record<'A' | 'B' | 'C', string> = {
-      A: 'You returned the money. Someone noticed.',
-      B: 'You kept the money. The market felt colder.',
-      C: 'You walked away. The moment followed you anyway.',
-    };
-    const combinedAnswerKey = `${pendingAnswers.find((a) => a.questionId.endsWith('-q1'))?.option ?? 'A'}${pendingAnswers.find((a) => a.questionId.endsWith('-q2'))?.option ?? 'A'}`;
-    const consequenceByBunch: Record<string, string> = {
-      AA: 'Mercy and vigilance mark your first stride.',
-      AB: 'You showed mercy, then calculated your gain.',
-      AC: 'You offered grace, then vanished into the crowd.',
-      BA: 'You took what you could, then relented in regret.',
-      BB: 'You embraced hunger and hardened quickly.',
-      BC: 'You claimed coin, then hid in silence.',
-      CA: 'You watched, then stepped in too late.',
-      CB: 'You hesitated, then chose the cold road.',
-      CC: 'You let fate pass and kept your own counsel.',
-    };
+    const finalChoice = pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q10`)?.option ?? option;
+    const aCount = pendingAnswers.filter((answer) => answer.option === 'A').length;
+    const bCount = pendingAnswers.filter((answer) => answer.option === 'B').length;
+    const cCount = pendingAnswers.filter((answer) => answer.option === 'C').length;
+    const consequenceByArc = finalChoice === 'A'
+      ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows.`
+      : finalChoice === 'B'
+        ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies.`
+        : `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens.`;
     const identity = computeQuestBunchIdentity(
       pendingAnswers,
       `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`,
@@ -263,9 +363,9 @@ export function RPGInterface() {
         ...character.mainQuestChoices,
         {
           questId: activeQuestId,
-          prompt: 'Quest bunch: The market trial and the witness vow.',
-          option: pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q2`)?.option ?? option,
-          consequence: consequenceByBunch[combinedAnswerKey] ?? consequenceByOption[option],
+          prompt: 'Quest bunch: Chapter One arc completed.',
+          option: finalChoice,
+          consequence: consequenceByArc,
           chosenAt: Math.floor(Date.now() / 1000),
         },
       ],
@@ -293,13 +393,13 @@ export function RPGInterface() {
     trackTelemetry('chapter_choice_recorded', { option, chapterWindowId });
     setHomeTab('events');
     toast({
-      title: 'Crucial choice recorded',
-      description: consequenceByBunch[combinedAnswerKey] ?? consequenceByOption[option],
+      title: 'Chapter arc sealed',
+      description: consequenceByArc,
     });
 
     if (user) {
       const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
-      const questBunchId = `${activeQuestId}:${chapterWindowId}`;
+      const questBunchId = `${activeQuestId}:${chapterWindowId}:${pendingAnswers.length}`;
       user.signer.signEvent({
         kind: 30000,
         content: JSON.stringify({
@@ -335,9 +435,9 @@ export function RPGInterface() {
           app: 'no-stranger-game',
           chapterId: 'market-money-001',
           chapterWindowId,
-          selectedOption: pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q2`)?.option ?? option,
-          prompt: 'Quest bunch: The market trial and the witness vow.',
-          consequence: consequenceByBunch[combinedAnswerKey] ?? consequenceByOption[option],
+          selectedOption: finalChoice,
+          prompt: 'Quest bunch: Chapter One arc completed.',
+          consequence: consequenceByArc,
           characterId: updatedCharacter.id,
           recordedAt: Math.floor(Date.now() / 1000),
           questBunchId,
@@ -570,63 +670,28 @@ export function RPGInterface() {
                 </div>
               ) : chapterOpened ? (
                 <div className="space-y-2">
-                  {!questionOneAnswer ? (
+                  {currentQuestStep ? (
                     <>
-                      <p className="text-zinc-300 font-serif">Quest Bunch 1/2 - The market trial. Do you:</p>
+                      <p className="text-zinc-300 font-serif">{currentQuestStep.title}</p>
+                      <p className="text-zinc-400 text-sm font-serif">{currentQuestStep.prompt}</p>
                       <div className="flex flex-col gap-2">
-                        <button
-                          type="button"
-                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                          onClick={() => handleMainQuestChoice('market-money-001-q1', 'A')}
-                        >
-                          ▸ Return the dropped money.
-                        </button>
-                        <button
-                          type="button"
-                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                          onClick={() => handleMainQuestChoice('market-money-001-q1', 'B')}
-                        >
-                          ▸ Keep the coins in silence.
-                        </button>
-                        <button
-                          type="button"
-                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                          onClick={() => handleMainQuestChoice('market-money-001-q1', 'C')}
-                        >
-                          ▸ Pretend you saw nothing.
-                        </button>
+                        {currentQuestStep.options.map((optionItem) => (
+                          <button
+                            key={`${currentQuestStep.questionId}-${optionItem.option}`}
+                            type="button"
+                            className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                            onClick={() => handleMainQuestChoice(currentQuestStep.questionId, optionItem.option)}
+                          >
+                            ▸ {optionItem.label}{currentQuestStep.questionId.endsWith('-q10') ? ' (Submit bunch)' : ''}
+                          </button>
+                        ))}
                       </div>
+                      <p className="text-zinc-500 text-xs font-mono">
+                        Progress: {pendingBunch.answers.length}/{questBunchSteps.length}
+                      </p>
                     </>
                   ) : (
-                    <>
-                      <p className="text-zinc-400 text-sm font-serif">
-                        Step 1 sealed locally as {questionOneAnswer.option}. Complete step 2 to submit your quest bunch.
-                      </p>
-                      <p className="text-zinc-300 font-serif">Quest Bunch 2/2 - A witness asks your intent. You answer:</p>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          type="button"
-                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                          onClick={() => handleMainQuestChoice('market-money-001-q2', 'A')}
-                        >
-                          ▸ “I protect the weak.” (Submit bunch)
-                        </button>
-                        <button
-                          type="button"
-                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                          onClick={() => handleMainQuestChoice('market-money-001-q2', 'B')}
-                        >
-                          ▸ “I protect what is mine.” (Submit bunch)
-                        </button>
-                        <button
-                          type="button"
-                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                          onClick={() => handleMainQuestChoice('market-money-001-q2', 'C')}
-                        >
-                          ▸ “I answer to no one.” (Submit bunch)
-                        </button>
-                      </div>
-                    </>
+                    <p className="text-zinc-300 font-serif">All choices are sealed. Awaiting final state sync.</p>
                   )}
                 </div>
               ) : null}

@@ -245,6 +245,12 @@ const getRacePointMatrix = (): Record<string, Record<'A' | 'B' | 'C', Partial<Re
   },
 });
 
+const defaultRaceWeightsByOption: Record<'A' | 'B' | 'C', Partial<Record<(typeof RACE_OPTIONS)[number], number>>> = {
+  A: { Elf: 1, Redguard: 1, Gnome: 1 },
+  B: { Dwarf: 1, Troll: 1, Redguard: 1 },
+  C: { Iksar: 1, Troll: 1, Gnome: 1 },
+};
+
 const createSeededRandom = (seedSource: string): (() => number) => {
   let hash = 2166136261;
   for (let i = 0; i < seedSource.length; i++) {
@@ -284,7 +290,7 @@ export const computeQuestBunchIdentity = (
   const racePoints = new Map<string, number>(RACE_OPTIONS.map((race) => [race, 0]));
 
   for (const answer of answers) {
-    const points = matrix[answer.questionId]?.[answer.option];
+    const points = matrix[answer.questionId]?.[answer.option] ?? defaultRaceWeightsByOption[answer.option];
     if (!points) continue;
     for (const [race, value] of Object.entries(points)) {
       racePoints.set(race, (racePoints.get(race) ?? 0) + (value ?? 0));
