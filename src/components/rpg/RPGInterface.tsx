@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { CharacterSheet } from './CharacterSheet';
+import { GameMap } from './GameMap';
 import { LoginArea } from '@/components/auth/LoginArea';
-import { clearMVPCharacter, loadMVPCharacter, saveMVPCharacter, type MVPCharacter, type NetworkPresenceMember } from '@/lib/rpg/utils';
+import { clearMVPCharacter, computeQuestBunchIdentity, loadMVPCharacter, saveMVPCharacter, type MVPCharacter, type NetworkPresenceMember, type QuestBunchAnswer } from '@/lib/rpg/utils';
 import { nip19 } from 'nostr-tools';
 import { PRESENCE_RELAYS, useNetworkPresence } from '@/hooks/useNetworkPresence';
 import { useToast } from '@/hooks/useToast';
@@ -25,7 +26,7 @@ export function RPGInterface() {
   const { nostr } = useNostr();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
-  const [homeTab, setHomeTab] = useState<'events' | 'mainQuest' | 'profile'>('events');
+  const [homeTab, setHomeTab] = useState<'events' | 'map' | 'mainQuest' | 'profile'>('events');
   const [characterNameInput, setCharacterNameInput] = useState('');
   const [genderInput, setGenderInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
@@ -61,6 +62,12 @@ export function RPGInterface() {
     'Smoke rolls across the market square.',
     'A purse slips from a stranger\'s hand and lands near your feet.',
   ];
+  const activeQuestId = 'market-money-001';
+  const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId
+    ? character.pendingQuestBunch
+    : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
+  const questionOneAnswer = pendingBunch.answers.find((answer) => answer.questionId === `${activeQuestId}-q1`);
+  const questionTwoAnswer = pendingBunch.answers.find((answer) => answer.questionId === `${activeQuestId}-q2`);
 
   useEffect(() => {
     if (echoes.data?.rumorSeeds.length) {
@@ -85,6 +92,10 @@ export function RPGInterface() {
       role: 'stranger',
       characterName: normalizedCharacterName,
       gender: normalizedGender,
+      race: 'Elf',
+      profession: 'Wood Cutter',
+      startingCity: 'Dawnharbor',
+      className: 'Wanderer',
       mainQuestChoices: [],
       discoveredLocations: ['market-square'],
       pubkey: user?.pubkey,
@@ -135,8 +146,32 @@ export function RPGInterface() {
     }
   };
 
-  const handleMainQuestChoice = (option: 'A' | 'B' | 'C') => {
+  const handleMainQuestChoice = (questionId: `${typeof activeQuestId}-q1` | `${typeof activeQuestId}-q2`, option: 'A' | 'B' | 'C') => {
     if (!character) return;
+    const pendingAnswers = [
+      ...pendingBunch.answers.filter((answer) => answer.questionId !== questionId),
+      { questionId, option },
+    ];
+
+    const withPending: MVPCharacter = {
+      ...character,
+      pendingQuestBunch: {
+        questId: activeQuestId,
+        answers: pendingAnswers,
+      },
+    };
+    saveMVPCharacter(withPending);
+    setCharacter(withPending);
+
+    if (!pendingAnswers.some((answer) => answer.questionId === `${activeQuestId}-q1`) ||
+      !pendingAnswers.some((answer) => answer.questionId === `${activeQuestId}-q2`)) {
+      toast({
+        title: 'Quest bunch saved',
+        description: 'Your first answer is sealed locally. Complete step 2 to submit the bunch.',
+      });
+      return;
+    }
+
     const chapterWindowId = getChapterWindowId();
     const identityKey = user?.pubkey ?? character.id;
     if (hasCanonicalChoiceForWindow(chapterWindowId, identityKey)) {
@@ -153,27 +188,48 @@ export function RPGInterface() {
       B: 'You kept the money. The market felt colder.',
       C: 'You walked away. The moment followed you anyway.',
     };
+    const combinedAnswerKey = `${pendingAnswers.find((a) => a.questionId.endsWith('-q1'))?.option ?? 'A'}${pendingAnswers.find((a) => a.questionId.endsWith('-q2'))?.option ?? 'A'}`;
+    const consequenceByBunch: Record<string, string> = {
+      AA: 'Mercy and vigilance mark your first stride.',
+      AB: 'You showed mercy, then calculated your gain.',
+      AC: 'You offered grace, then vanished into the crowd.',
+      BA: 'You took what you could, then relented in regret.',
+      BB: 'You embraced hunger and hardened quickly.',
+      BC: 'You claimed coin, then hid in silence.',
+      CA: 'You watched, then stepped in too late.',
+      CB: 'You hesitated, then chose the cold road.',
+      CC: 'You let fate pass and kept your own counsel.',
+    };
+    const identity = computeQuestBunchIdentity(pendingAnswers);
 
     const updatedCharacter: MVPCharacter = {
       ...character,
       mainQuestChoices: [
         ...character.mainQuestChoices,
         {
-          questId: 'market-money-001',
-          prompt: 'You are in a crowded market and you see the person in front of you drop some money.',
-          option,
-          consequence: consequenceByOption[option],
+          questId: activeQuestId,
+          prompt: 'Quest bunch: The market trial and the witness vow.',
+          option: pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q2`)?.option ?? option,
+          consequence: consequenceByBunch[combinedAnswerKey] ?? consequenceByOption[option],
           chosenAt: Math.floor(Date.now() / 1000),
         },
       ],
       level: character.level + 1,
+      race: identity.race,
+      profession: identity.profession,
+      className: identity.className,
       discoveredLocations: Array.from(
         new Set([
           ...(character.discoveredLocations ?? ['market-square']),
-          option === 'A' ? 'old-library' : option === 'B' ? 'coin-vault' : 'silent-alley',
+          (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A'
+            ? 'old-library'
+            : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B'
+              ? 'coin-vault'
+              : 'silent-alley',
         ]),
       ),
       chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
+      pendingQuestBunch: undefined,
     };
 
     saveMVPCharacter(updatedCharacter);
@@ -183,11 +239,12 @@ export function RPGInterface() {
     setHomeTab('events');
     toast({
       title: 'Crucial choice recorded',
-      description: consequenceByOption[option],
+      description: consequenceByBunch[combinedAnswerKey] ?? consequenceByOption[option],
     });
 
     if (user) {
       const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
+      const questBunchId = `${activeQuestId}:${chapterWindowId}`;
       user.signer.signEvent({
         kind: 30000,
         content: JSON.stringify({
@@ -196,7 +253,12 @@ export function RPGInterface() {
           role: 'stranger',
           characterName: updatedCharacter.characterName,
           gender: updatedCharacter.gender,
-          classLabel: option,
+          classLabel: updatedCharacter.className,
+          race: updatedCharacter.race,
+          profession: updatedCharacter.profession,
+          startingCity: updatedCharacter.startingCity,
+          questBunchId,
+          questAnswers: pendingAnswers,
           discoveredLocations: updatedCharacter.discoveredLocations ?? [],
           createdAt: updatedCharacter.createdAt,
         }),
@@ -218,11 +280,17 @@ export function RPGInterface() {
           app: 'no-stranger-game',
           chapterId: 'market-money-001',
           chapterWindowId,
-          selectedOption: option,
-          prompt: 'You are in a crowded market and you see the person in front of you drop some money.',
-          consequence: consequenceByOption[option],
+          selectedOption: pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q2`)?.option ?? option,
+          prompt: 'Quest bunch: The market trial and the witness vow.',
+          consequence: consequenceByBunch[combinedAnswerKey] ?? consequenceByOption[option],
           characterId: updatedCharacter.id,
           recordedAt: Math.floor(Date.now() / 1000),
+          questBunchId,
+          questAnswers: pendingAnswers,
+          race: updatedCharacter.race,
+          profession: updatedCharacter.profession,
+          className: updatedCharacter.className,
+          startingCity: updatedCharacter.startingCity,
         }),
         tags: [
           ['t', 'no-stranger-game'],
@@ -429,7 +497,7 @@ export function RPGInterface() {
               {hasChosenMarketQuest ? (
                 <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/60 p-4 space-y-2">
                   <p className="text-zinc-300 font-serif">
-                    This chapter is now immutable. Return tomorrow for the next unfolding.
+                    You&apos;ve done all you can for now. Your character will automatically pursue its goals and desires according to your choices in the game thus far. You can explore the map to continue playing the game.
                   </p>
                   <p className="text-zinc-100 font-mono">
                     Signed choice: {marketChoice?.option ?? 'Unknown'}
@@ -438,34 +506,75 @@ export function RPGInterface() {
                 </div>
               ) : chapterOpened ? (
                 <div className="space-y-2">
-                  <p className="text-zinc-300 font-serif">Do you:</p>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                      onClick={() => handleMainQuestChoice('A')}
-                    >
-                      ▸ Save the scholar. Return the money.
-                    </button>
-                    <button
-                      type="button"
-                      className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                      onClick={() => handleMainQuestChoice('B')}
-                    >
-                      ▸ Keep the coins. Keep walking.
-                    </button>
-                    <button
-                      type="button"
-                      className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                      onClick={() => handleMainQuestChoice('C')}
-                    >
-                      ▸ Say nothing. Let fate decide.
-                    </button>
-                  </div>
+                  {!questionOneAnswer ? (
+                    <>
+                      <p className="text-zinc-300 font-serif">Quest Bunch 1/2 - The market trial. Do you:</p>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                          onClick={() => handleMainQuestChoice('market-money-001-q1', 'A')}
+                        >
+                          ▸ Return the dropped money.
+                        </button>
+                        <button
+                          type="button"
+                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                          onClick={() => handleMainQuestChoice('market-money-001-q1', 'B')}
+                        >
+                          ▸ Keep the coins in silence.
+                        </button>
+                        <button
+                          type="button"
+                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                          onClick={() => handleMainQuestChoice('market-money-001-q1', 'C')}
+                        >
+                          ▸ Pretend you saw nothing.
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-zinc-400 text-sm font-serif">
+                        Step 1 sealed locally as {questionOneAnswer.option}. Complete step 2 to submit your quest bunch.
+                      </p>
+                      <p className="text-zinc-300 font-serif">Quest Bunch 2/2 - A witness asks your intent. You answer:</p>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                          onClick={() => handleMainQuestChoice('market-money-001-q2', 'A')}
+                        >
+                          ▸ “I protect the weak.” (Submit bunch)
+                        </button>
+                        <button
+                          type="button"
+                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                          onClick={() => handleMainQuestChoice('market-money-001-q2', 'B')}
+                        >
+                          ▸ “I protect what is mine.” (Submit bunch)
+                        </button>
+                        <button
+                          type="button"
+                          className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
+                          onClick={() => handleMainQuestChoice('market-money-001-q2', 'C')}
+                        >
+                          ▸ “I answer to no one.” (Submit bunch)
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
             </CardContent>
           </Card>
+        )}
+
+        {homeTab === 'map' && (
+          <GameMap
+            discoveredLocations={character.discoveredLocations ?? []}
+            glimmerLocationIds={scryingPool.glimmers.map((glimmer) => glimmer.locationId)}
+          />
         )}
 
         {homeTab === 'profile' && (
@@ -541,6 +650,9 @@ export function RPGInterface() {
               <p className="text-zinc-200 text-sm">
                 Main Quest Class: <span className="font-mono">{selectedNetworkMember.classLabel}</span>
               </p>
+              <p className="text-zinc-300 text-sm">Race: <span className="font-mono">{selectedNetworkMember.race ?? 'Unknown'}</span></p>
+              <p className="text-zinc-300 text-sm">Profession: <span className="font-mono">{selectedNetworkMember.profession ?? 'Unknown'}</span></p>
+              <p className="text-zinc-300 text-sm">Starting City: <span className="font-mono">{selectedNetworkMember.startingCity ?? 'Unknown'}</span></p>
               <p className="text-zinc-300 text-sm break-all">
                 npub: <span className="font-mono">{nip19.npubEncode(selectedNetworkMember.pubkey)}</span>
               </p>
@@ -666,15 +778,19 @@ export function RPGInterface() {
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-700/70 bg-zinc-950/90 backdrop-blur-md">
           <div className="mx-auto flex max-w-3xl items-center justify-around px-3 py-2">
             {[
-              { key: 'events', icon: '◈', label: 'Map' },
-              { key: 'mainQuest', icon: '✶', label: 'Companion' },
+              { key: 'map', icon: '◈', label: 'Map' },
+              { key: 'mainQuest', icon: '✶', label: 'Main Quest' },
               { key: 'profile', icon: '◉', label: 'Profile' },
             ].map((item) => (
               <button
                 key={item.key}
                 type="button"
-                onClick={() => setHomeTab(item.key as 'events' | 'mainQuest' | 'profile')}
-                className="group relative flex h-11 w-11 items-center justify-center rounded-md text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100"
+                onClick={() => setHomeTab(item.key as 'events' | 'map' | 'mainQuest' | 'profile')}
+                className={`group relative flex h-11 w-11 items-center justify-center rounded-md transition hover:bg-zinc-800 ${
+                  item.key === 'mainQuest' && !hasUnreadChapter
+                    ? 'text-zinc-500 hover:text-zinc-400'
+                    : 'text-zinc-300 hover:text-zinc-100'
+                }`}
                 aria-label={item.label}
                 title={item.label}
               >

@@ -16,7 +16,7 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
   const { user, metadata } = useCurrentUser();
   const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
   const networkPresence = useNetworkPresence(user?.pubkey);
-  const classLabel = character.mainQuestChoices.find((choice) => choice.questId === 'market-money-001')?.option ?? 'Unchosen';
+  const classLabel = character.className || 'Wanderer';
   const nostrUsername = metadata?.display_name || metadata?.name || 'Unnamed Nostr User';
   const homeland = useHomeland(metadata?.nip05);
 
@@ -69,6 +69,15 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
             </p>
             <p className="text-sm text-zinc-200">
               Gender: <span className="font-mono">{character.gender}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
+              Race: <span className="font-mono">{character.race}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
+              Profession: <span className="font-mono">{character.profession}</span>
+            </p>
+            <p className="text-sm text-zinc-200">
+              Starting City: <span className="font-mono">{character.startingCity}</span>
             </p>
             <p className="text-sm text-zinc-200">
               Homeland: <span className="font-mono">{homeland.homelandLabel}</span>

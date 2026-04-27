@@ -23,6 +23,10 @@ interface NetworkPresenceData {
 interface PresencePayload {
   characterName?: string;
   classLabel?: string;
+  className?: string;
+  race?: string;
+  profession?: string;
+  startingCity?: string;
   discoveredLocations?: string[];
 }
 
@@ -166,7 +170,10 @@ export function useNetworkPresence(userPubkey: string | undefined) {
           pubkey,
           nostrName: getDisplayNameForPubkey(pubkey, metadataMap.get(pubkey)),
           characterName: presencePayloadByPubkey.get(pubkey)?.characterName || 'Unknown Stranger',
-          classLabel: presencePayloadByPubkey.get(pubkey)?.classLabel || 'Unchosen',
+          classLabel: presencePayloadByPubkey.get(pubkey)?.className || presencePayloadByPubkey.get(pubkey)?.classLabel || 'Wanderer',
+          race: presencePayloadByPubkey.get(pubkey)?.race,
+          profession: presencePayloadByPubkey.get(pubkey)?.profession,
+          startingCity: presencePayloadByPubkey.get(pubkey)?.startingCity,
           picture: metadataMap.get(pubkey)?.picture,
           discoveredLocations: presencePayloadByPubkey.get(pubkey)?.discoveredLocations ?? [],
         }));

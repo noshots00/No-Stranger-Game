@@ -184,6 +184,16 @@ export interface MainQuestChoice {
   chosenAt: number;
 }
 
+export interface QuestBunchAnswer {
+  questionId: string;
+  option: 'A' | 'B' | 'C';
+}
+
+export interface PendingQuestBunch {
+  questId: string;
+  answers: QuestBunchAnswer[];
+}
+
 export interface MVPCharacter {
   id: string;
   createdAt: number;
@@ -191,8 +201,13 @@ export interface MVPCharacter {
   role: 'stranger';
   characterName: string;
   gender: string;
+  race: string;
+  profession: string;
+  startingCity: string;
+  className: string;
   chapterProofHead?: string;
   chapterWindowIds?: string[];
+  pendingQuestBunch?: PendingQuestBunch;
   classId?: number;
   answers?: [CreationAnswer, CreationAnswer, CreationAnswer];
   mainQuestChoices: MainQuestChoice[];
@@ -206,9 +221,93 @@ export interface NetworkPresenceMember {
   nostrName: string;
   characterName: string;
   classLabel: string;
+  race?: string;
+  profession?: string;
+  startingCity?: string;
   picture?: string;
   discoveredLocations?: string[];
 }
+
+const RACE_OPTIONS = ['Elf', 'Dwarf', 'Troll', 'Redguard', 'Gnome', 'Iksar'] as const;
+const PROFESSION_OPTIONS = ['Wood Cutter', 'Miner', 'Royal Guard'] as const;
+const CLASS_OPTIONS = ['Wizard', 'Warrior', 'Ninja', 'Ranger', 'Cleric', 'Berserker', 'Assassin', 'Druid', 'Spellblade'] as const;
+
+const getRacePointMatrix = (): Record<string, Record<'A' | 'B' | 'C', Partial<Record<(typeof RACE_OPTIONS)[number], number>>>> => ({
+  'market-money-001-q1': {
+    A: { Elf: 2, Redguard: 1, Gnome: 1 },
+    B: { Dwarf: 2, Troll: 1, Iksar: 1 },
+    C: { Iksar: 2, Troll: 1, Elf: 1 },
+  },
+  'market-money-001-q2': {
+    A: { Gnome: 2, Elf: 1, Redguard: 1 },
+    B: { Dwarf: 2, Redguard: 1, Troll: 1 },
+    C: { Iksar: 2, Troll: 1, Dwarf: 1 },
+  },
+});
+
+const weightedPick = <T extends string>(weights: Array<{ value: T; weight: number }>): T => {
+  const total = weights.reduce((sum, item) => sum + item.weight, 0);
+  if (total <= 0) return weights[0].value;
+  let roll = Math.random() * total;
+  for (const entry of weights) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.value;
+  }
+  return weights[weights.length - 1].value;
+};
+
+export interface QuestBunchIdentityResult {
+  race: string;
+  profession: string;
+  className: string;
+}
+
+export const computeQuestBunchIdentity = (
+  answers: QuestBunchAnswer[],
+): QuestBunchIdentityResult => {
+  const matrix = getRacePointMatrix();
+  const racePoints = new Map<string, number>(RACE_OPTIONS.map((race) => [race, 0]));
+
+  for (const answer of answers) {
+    const points = matrix[answer.questionId]?.[answer.option];
+    if (!points) continue;
+    for (const [race, value] of Object.entries(points)) {
+      racePoints.set(race, (racePoints.get(race) ?? 0) + (value ?? 0));
+    }
+  }
+
+  const maxPoints = Math.max(...[...racePoints.values()]);
+  const raceTies = [...racePoints.entries()]
+    .filter(([, score]) => score === maxPoints)
+    .map(([race]) => race);
+  const race = weightedPick(raceTies.map((value) => ({ value, weight: 1 })));
+
+  const professionWeights = PROFESSION_OPTIONS.map((value) => {
+    let weight = 1;
+    if (value === 'Miner' && (race === 'Dwarf' || race === 'Iksar')) weight += 2;
+    if (value === 'Royal Guard' && race === 'Redguard') weight += 2;
+    if (value === 'Wood Cutter' && (race === 'Elf' || race === 'Troll')) weight += 2;
+    return { value, weight };
+  });
+  const profession = weightedPick(professionWeights);
+
+  const classWeights = CLASS_OPTIONS.map((value) => {
+    let weight = 1;
+    if (value === 'Wizard' && (race === 'Elf' || profession === 'Royal Guard')) weight += 2;
+    if (value === 'Warrior' && (race === 'Redguard' || profession === 'Royal Guard')) weight += 2;
+    if (value === 'Ninja' && race === 'Iksar') weight += 2;
+    if (value === 'Druid' && (race === 'Elf' || profession === 'Wood Cutter')) weight += 2;
+    if (value === 'Berserker' && race === 'Troll') weight += 2;
+    if (value === 'Spellblade' && (race === 'Gnome' || profession === 'Miner')) weight += 2;
+    if (value === 'Assassin' && race === 'Iksar') weight += 1;
+    if (value === 'Ranger' && profession === 'Wood Cutter') weight += 1;
+    if (value === 'Cleric' && profession === 'Royal Guard') weight += 1;
+    return { value, weight };
+  });
+  const className = weightedPick(classWeights);
+
+  return { race, profession, className };
+};
 
 export const mergeUniquePubkeys = (follows: string[], followers: string[], currentUserPubkey: string): string[] => {
   const unique = new Set<string>([...follows, ...followers]);
@@ -273,12 +372,19 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       role: 'stranger',
       characterName: typeof parsed.characterName === 'string' && parsed.characterName.trim() ? parsed.characterName : 'Nameless Stranger',
       gender: typeof parsed.gender === 'string' && parsed.gender.trim() ? parsed.gender : 'Unknown',
+      race: typeof parsed.race === 'string' && parsed.race.trim() ? parsed.race : 'Elf',
+      profession: typeof parsed.profession === 'string' && parsed.profession.trim() ? parsed.profession : 'Wood Cutter',
+      startingCity: typeof parsed.startingCity === 'string' && parsed.startingCity.trim() ? parsed.startingCity : 'Dawnharbor',
+      className: typeof parsed.className === 'string' && parsed.className.trim() ? parsed.className : 'Wanderer',
       classId: typeof parsed.classId === 'number' ? parsed.classId : undefined,
       answers: legacyAnswers,
       mainQuestChoices,
       discoveredLocations,
       chapterWindowIds,
       chapterProofHead: typeof parsed.chapterProofHead === 'string' ? parsed.chapterProofHead : undefined,
+      pendingQuestBunch: parsed.pendingQuestBunch && typeof parsed.pendingQuestBunch === 'object'
+        ? parsed.pendingQuestBunch as PendingQuestBunch
+        : undefined,
       pubkey: parsed.pubkey,
       npub: parsed.npub,
     };
