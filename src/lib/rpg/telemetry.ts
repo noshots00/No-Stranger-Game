@@ -5,7 +5,14 @@ export type TelemetryEventName =
   | 'chapter_choice_recorded'
   | 'chapter_duplicate_rejected'
   | 'scrying_glimmers_seen'
-  | 'tier3_policy_updated';
+  | 'tier3_policy_updated'
+  | 'ledger_loaded'
+  | 'convergence_detected'
+  | 'proof_chain_loaded'
+  | 'relay_region_seen'
+  | 'dead_letter_created'
+  | 'echo_scroll_sent'
+  | 'forgetting_invoked';
 
 interface TelemetryEvent {
   name: TelemetryEventName;

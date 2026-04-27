@@ -245,10 +245,23 @@ const getRacePointMatrix = (): Record<string, Record<'A' | 'B' | 'C', Partial<Re
   },
 });
 
-const weightedPick = <T extends string>(weights: Array<{ value: T; weight: number }>): T => {
+const createSeededRandom = (seedSource: string): (() => number) => {
+  let hash = 2166136261;
+  for (let i = 0; i < seedSource.length; i++) {
+    hash ^= seedSource.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  let state = hash >>> 0;
+  return () => {
+    state = Math.imul(1664525, state) + 1013904223;
+    return (state >>> 0) / 4294967296;
+  };
+};
+
+const weightedPick = <T extends string>(weights: Array<{ value: T; weight: number }>, random: () => number): T => {
   const total = weights.reduce((sum, item) => sum + item.weight, 0);
   if (total <= 0) return weights[0].value;
-  let roll = Math.random() * total;
+  let roll = random() * total;
   for (const entry of weights) {
     roll -= entry.weight;
     if (roll <= 0) return entry.value;
@@ -264,7 +277,9 @@ export interface QuestBunchIdentityResult {
 
 export const computeQuestBunchIdentity = (
   answers: QuestBunchAnswer[],
+  seedSource: string,
 ): QuestBunchIdentityResult => {
+  const random = createSeededRandom(seedSource);
   const matrix = getRacePointMatrix();
   const racePoints = new Map<string, number>(RACE_OPTIONS.map((race) => [race, 0]));
 
@@ -280,7 +295,7 @@ export const computeQuestBunchIdentity = (
   const raceTies = [...racePoints.entries()]
     .filter(([, score]) => score === maxPoints)
     .map(([race]) => race);
-  const race = weightedPick(raceTies.map((value) => ({ value, weight: 1 })));
+  const race = weightedPick(raceTies.map((value) => ({ value, weight: 1 })), random);
 
   const professionWeights = PROFESSION_OPTIONS.map((value) => {
     let weight = 1;
@@ -289,7 +304,7 @@ export const computeQuestBunchIdentity = (
     if (value === 'Wood Cutter' && (race === 'Elf' || race === 'Troll')) weight += 2;
     return { value, weight };
   });
-  const profession = weightedPick(professionWeights);
+  const profession = weightedPick(professionWeights, random);
 
   const classWeights = CLASS_OPTIONS.map((value) => {
     let weight = 1;
@@ -304,7 +319,7 @@ export const computeQuestBunchIdentity = (
     if (value === 'Cleric' && profession === 'Royal Guard') weight += 1;
     return { value, weight };
   });
-  const className = weightedPick(classWeights);
+  const className = weightedPick(classWeights, random);
 
   return { race, profession, className };
 };

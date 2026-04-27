@@ -24,11 +24,12 @@ const sanitizeContent = (content: string): string =>
 const extractTokens = (content: string): string[] => {
   const cleaned = sanitizeContent(content);
   const hashtags = cleaned.match(/#[a-zA-Z0-9_-]{3,}/g)?.map((tag) => tag.slice(1).toLowerCase()) ?? [];
+  const properNouns = cleaned.match(/\b[A-Z][a-z]{2,}\b/g)?.map((word) => word.toLowerCase()) ?? [];
   const words = cleaned
     .split(/\s+/)
     .map((word) => word.trim().toLowerCase())
     .filter((word) => word.length >= 3 && !STOP_WORDS.has(word) && /^[a-z0-9_-]+$/.test(word));
-  return [...hashtags, ...words];
+  return [...hashtags, ...properNouns, ...words];
 };
 
 export function useEchoes(userPubkey: string | undefined) {
@@ -48,16 +49,25 @@ export function useEchoes(userPubkey: string | undefined) {
       );
 
       const scoreMap = new Map<string, number>();
+      const sourceCountByToken = new Map<string, number>();
       for (const note of notes) {
         const tokens = extractTokens(note.content);
+        const uniqueTokens = new Set(tokens);
         const recencyBoost = Math.max(1, 3 - Math.floor((Date.now() / 1000 - note.created_at) / (24 * 60 * 60)));
         for (const token of tokens) {
           scoreMap.set(token, (scoreMap.get(token) ?? 0) + recencyBoost);
         }
+        for (const token of uniqueTokens) {
+          sourceCountByToken.set(token, (sourceCountByToken.get(token) ?? 0) + 1);
+        }
       }
 
       const rumorSeeds = [...scoreMap.entries()]
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => {
+          const scoreA = a[1] + (sourceCountByToken.get(a[0]) ?? 0);
+          const scoreB = b[1] + (sourceCountByToken.get(b[0]) ?? 0);
+          return scoreB - scoreA;
+        })
         .slice(0, 3)
         .map(([seed]) => seed);
 

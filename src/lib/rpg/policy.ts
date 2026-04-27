@@ -8,6 +8,11 @@ export interface Tier3PolicySettings {
   traumaEnabled: boolean;
   scarsEnabled: boolean;
   summoningEnabled: boolean;
+  deadLetterEnabled: boolean;
+  echoChamberEnabled: boolean;
+  forgettingEnabled: boolean;
+  whisperingRelayEnabled: boolean;
+  killSwitchEnabled: boolean;
   visibility: VisibilityMode;
 }
 
@@ -17,6 +22,11 @@ export const DEFAULT_TIER3_POLICY: Tier3PolicySettings = {
   traumaEnabled: false,
   scarsEnabled: false,
   summoningEnabled: false,
+  deadLetterEnabled: false,
+  echoChamberEnabled: false,
+  forgettingEnabled: false,
+  whisperingRelayEnabled: false,
+  killSwitchEnabled: false,
   visibility: 'followers',
 };
 

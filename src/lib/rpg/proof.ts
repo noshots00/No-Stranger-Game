@@ -11,6 +11,14 @@ export interface ChapterChoiceProofPayload {
   recordedAt: number;
 }
 
+export interface ChapterChoiceProofEvent {
+  id: string;
+  pubkey: string;
+  created_at: number;
+  tags: string[][];
+  content: string;
+}
+
 export const getChapterWindowId = (): string => {
   const now = new Date();
   const yyyy = now.getUTCFullYear();
@@ -36,4 +44,24 @@ export const markCanonicalChoiceForWindow = (chapterWindowId: string, pubkeyOrCh
   } catch {
     // Ignore storage errors to preserve gameplay flow.
   }
+};
+
+export const getWindowTag = (event: ChapterChoiceProofEvent): string | undefined =>
+  event.tags.find(([name]) => name === 'window')?.[1];
+
+export const resolveCanonicalChoiceFromEvents = (
+  events: ChapterChoiceProofEvent[],
+  chapterWindowId: string,
+  pubkeyOrCharacterId: string,
+): ChapterChoiceProofEvent | null => {
+  const candidates = events.filter((event) => getWindowTag(event) === chapterWindowId);
+  if (candidates.length === 0) return null;
+
+  const canonical = [...candidates].sort((a, b) => {
+    if (a.created_at !== b.created_at) return a.created_at - b.created_at;
+    return a.id.localeCompare(b.id);
+  })[0];
+
+  markCanonicalChoiceForWindow(chapterWindowId, pubkeyOrCharacterId, canonical.id);
+  return canonical;
 };

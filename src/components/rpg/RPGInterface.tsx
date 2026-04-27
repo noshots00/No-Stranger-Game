@@ -17,9 +17,16 @@ import { useEchoes } from '@/hooks/useEchoes';
 import { useScryingPool } from '@/hooks/useScryingPool';
 import { useHomeland } from '@/hooks/useHomeland';
 import { usePhase2Signals } from '@/hooks/usePhase2Signals';
-import { CHAPTER_PROOF_KIND, getChapterWindowId, hasCanonicalChoiceForWindow, markCanonicalChoiceForWindow } from '@/lib/rpg/proof';
+import { CHAPTER_PROOF_KIND, getChapterWindowId, hasCanonicalChoiceForWindow, markCanonicalChoiceForWindow, resolveCanonicalChoiceFromEvents } from '@/lib/rpg/proof';
 import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
 import { trackTelemetry } from '@/lib/rpg/telemetry';
+import { useStrangersLedger } from '@/hooks/useStrangersLedger';
+import { useConvergence } from '@/hooks/useConvergence';
+import { useProofChain } from '@/hooks/useProofChain';
+import { useRelayRegions } from '@/hooks/useRelayRegions';
+import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
+import { useEchoChamber } from '@/hooks/useEchoChamber';
+import { useForgetting } from '@/hooks/useForgetting';
 
 export function RPGInterface() {
   const { user, metadata } = useCurrentUser();
@@ -36,6 +43,12 @@ export function RPGInterface() {
   const echoes = useEchoes(user?.pubkey);
   const phase2Signals = usePhase2Signals(user?.pubkey);
   const homeland = useHomeland(metadata?.nip05);
+  const ledger = useStrangersLedger();
+  const proofChain = useProofChain(user?.pubkey);
+  const relayRegions = useRelayRegions();
+  const deadLetter = useDeadLetterOffice();
+  const echoChamber = useEchoChamber();
+  const forgetting = useForgetting();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,7 +80,8 @@ export function RPGInterface() {
     ? character.pendingQuestBunch
     : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
   const questionOneAnswer = pendingBunch.answers.find((answer) => answer.questionId === `${activeQuestId}-q1`);
-  const questionTwoAnswer = pendingBunch.answers.find((answer) => answer.questionId === `${activeQuestId}-q2`);
+  const myClassLabel = character?.className || character?.mainQuestChoices.find((choice) => choice.questId === 'market-money-001')?.option;
+  const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
 
   useEffect(() => {
     if (echoes.data?.rumorSeeds.length) {
@@ -80,6 +94,44 @@ export function RPGInterface() {
       trackTelemetry('scrying_glimmers_seen', { count: scryingPool.glimmers.length });
     }
   }, [scryingPool.glimmers.length]);
+
+  useEffect(() => {
+    if (ledger.data) {
+      trackTelemetry('ledger_loaded', { total: ledger.data.totalStrangers });
+    }
+  }, [ledger.data?.totalStrangers]);
+
+  useEffect(() => {
+    if (convergence.matches.length > 0) {
+      trackTelemetry('convergence_detected', { count: convergence.matches.length });
+    }
+  }, [convergence.matches.length]);
+
+  useEffect(() => {
+    if (proofChain.data?.length) {
+      trackTelemetry('proof_chain_loaded', { count: proofChain.data.length });
+    }
+  }, [proofChain.data?.length]);
+
+  useEffect(() => {
+    if (relayRegions.length > 0) {
+      trackTelemetry('relay_region_seen', { count: relayRegions.length });
+    }
+  }, [relayRegions.length]);
+
+  useEffect(() => {
+    if (!user?.pubkey) return;
+    const chapterWindowId = getChapterWindowId();
+    nostr.query(
+      [{ kinds: [CHAPTER_PROOF_KIND], authors: [user.pubkey], '#window': [chapterWindowId], limit: 20 }],
+      { signal: AbortSignal.timeout(5000) },
+    ).then((events) => {
+      const canonical = resolveCanonicalChoiceFromEvents(events, chapterWindowId, user.pubkey);
+      if (canonical) trackTelemetry('proof_chain_loaded', { canonicalId: canonical.id });
+    }).catch(() => {
+      // Best-effort hardening pass.
+    });
+  }, [nostr, user?.pubkey]);
 
   const handleCreateStranger = () => {
     const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
@@ -200,7 +252,10 @@ export function RPGInterface() {
       CB: 'You hesitated, then chose the cold road.',
       CC: 'You let fate pass and kept your own counsel.',
     };
-    const identity = computeQuestBunchIdentity(pendingAnswers);
+    const identity = computeQuestBunchIdentity(
+      pendingAnswers,
+      `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`,
+    );
 
     const updatedCharacter: MVPCharacter = {
       ...character,
@@ -453,6 +508,15 @@ export function RPGInterface() {
                   )}
                 </div>
               )}
+              {ledger.data && (
+                <div className="rounded border border-zinc-700/70 bg-zinc-800/40 p-3 space-y-1">
+                  <p className="text-zinc-200 text-sm font-serif">
+                    Stranger&apos;s Ledger: Of {ledger.data.totalStrangers} strangers,
+                    {' '}
+                    {ledger.data.tally[0] ? `${ledger.data.tally[0].count} chose ${ledger.data.tally[0].option}` : 'no choices are sealed yet'}.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -682,6 +746,135 @@ export function RPGInterface() {
 
         <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
           <CardHeader>
+            <CardTitle>Convergence</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {convergence.matches.length === 0 ? (
+              <p className="text-zinc-300 font-serif">No convergent paths in your nearby network yet.</p>
+            ) : (
+              convergence.matches.slice(0, 5).map((match) => (
+                <p key={match.pubkey} className="text-zinc-300 text-sm font-serif">
+                  {match.characterName} mirrored your latest path ({match.classLabel}).
+                </p>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Proof Chain</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {proofChain.data && proofChain.data.length > 0 ? (
+              proofChain.data.slice(-5).map((node) => (
+                <p key={node.id} className="text-zinc-300 text-xs font-mono break-all">
+                  {node.window} :: {node.choice} :: prev {node.prev}
+                </p>
+              ))
+            ) : (
+              <p className="text-zinc-300 font-serif">No chain entries loaded.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Whispering Relay</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {relayRegions.map((region) => (
+              <p key={region.relay} className="text-zinc-300 text-xs font-serif">
+                {region.region}: <span className="font-mono">{region.relay}</span>
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Dead Letter Office</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="outline"
+              className="border-zinc-600 text-zinc-200 hover:bg-zinc-800"
+              disabled={!tier3Policy.deadLetterEnabled || tier3Policy.killSwitchEnabled}
+              onClick={() => {
+                deadLetter.mutate({
+                  title: 'A letter to my future self',
+                  body: 'When you read this, remember the market and the smoke.',
+                  unlockAt: Math.floor(Date.now() / 1000) + 86400,
+                }, {
+                  onSuccess: () => {
+                    trackTelemetry('dead_letter_created');
+                    toast({ title: 'Letter sealed', description: 'A dead letter has been encrypted to your future self.' });
+                  },
+                });
+              }}
+            >
+              Seal letter to future self
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Echo Chamber</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="outline"
+              className="border-zinc-600 text-zinc-200 hover:bg-zinc-800"
+              disabled={!selectedNetworkMember || !tier3Policy.echoChamberEnabled || tier3Policy.killSwitchEnabled}
+              onClick={() => {
+                if (!selectedNetworkMember) return;
+                echoChamber.mutate({
+                  targetPubkey: selectedNetworkMember.pubkey,
+                  title: 'A warning from the market',
+                  body: 'Beware the man with the silver ring by the well.',
+                }, {
+                  onSuccess: () => {
+                    trackTelemetry('echo_scroll_sent');
+                    toast({ title: 'Scroll sent', description: 'Encrypted echo scroll dispatched.' });
+                  },
+                });
+              }}
+            >
+              Send encrypted scroll to selected traveler
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
+            <CardTitle>Forgetting</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="destructive"
+              onClick={() => {
+                const latest = proofChain.data?.[proofChain.data.length - 1];
+                if (!latest) return;
+                forgetting.mutate(latest.id, {
+                  onSuccess: () => {
+                    trackTelemetry('forgetting_invoked', { target: latest.id });
+                    toast({ title: 'Ritual performed', description: 'A chapter memory was offered to forgetting.' });
+                  },
+                });
+              }}
+              disabled={!tier3Policy.forgettingEnabled || !proofChain.data?.length || tier3Policy.killSwitchEnabled}
+            >
+              Invoke Forgetting on latest proof
+            </Button>
+            {!tier3Policy.forgettingEnabled && (
+              <p className="text-zinc-400 text-xs font-serif">Enable Forgetting in Tier 3 policy gates first.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
+          <CardHeader>
             <CardTitle>Tier 3 Policy Gates</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
@@ -723,6 +916,46 @@ export function RPGInterface() {
                 type="checkbox"
                 checked={tier3Policy.summoningEnabled}
                 onChange={(event) => updateTier3Policy({ ...tier3Policy, summoningEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Dead Letter Office</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.deadLetterEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, deadLetterEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Echo Chamber</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.echoChamberEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, echoChamberEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Forgetting</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.forgettingEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, forgettingEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Whispering Relay Regions</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.whisperingRelayEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, whisperingRelayEnabled: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3">
+              <span>Global kill switch</span>
+              <input
+                type="checkbox"
+                checked={tier3Policy.killSwitchEnabled}
+                onChange={(event) => updateTier3Policy({ ...tier3Policy, killSwitchEnabled: event.target.checked })}
               />
             </label>
           </CardContent>
