@@ -274,7 +274,7 @@ export function RPGInterface() {
     if (pendingAnswers.length < questBunchSteps.length) return;
 
     const chapterWindowId = getChapterWindowId();
-    const identityKey = `${character.id}:${character.createdAt}`;
+    const identityKey = `${character.id}:${character.createdAt}:${activeQuestId}`;
     if (hasCanonicalChoiceForWindow(chapterWindowId, identityKey)) {
       const withClearedPending: MVPCharacter = { ...character, pendingQuestBunch: undefined };
       saveMVPCharacter(withClearedPending);
@@ -385,7 +385,7 @@ export function RPGInterface() {
 
     setTimeout(() => {
       setRevealPhase('idle');
-      setActiveView('chronicle');
+      setActiveView('play');
       setChapterOpened(false);
     }, 12000);
   };
@@ -508,7 +508,7 @@ export function RPGInterface() {
 
   if (hasActiveMainQuest || activeView === 'chapter') {
     return (
-      <div className="min-h-screen pb-safe" style={{ background: 'var(--void)' }}>
+      <div className="min-h-screen pb-24 pb-safe" style={{ background: 'var(--void)' }}>
         <Guttering />
         <ChapterView
           chapterOpened={chapterOpened}
@@ -527,6 +527,27 @@ export function RPGInterface() {
           revealPhase={revealPhase}
           revealIdentity={revealIdentity ?? undefined}
         />
+        <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
+          <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
+            {[
+              { key: 'profile', icon: '◉', label: 'Profile' },
+              { key: 'play', icon: '✦', label: 'Play' },
+              { key: 'map', icon: '◈', label: 'Map' },
+            ].map((item) => {
+              const isActive = (item.key === 'play' && (activeView === 'play' || hasActiveMainQuest)) || activeView === item.key;
+              return (
+                <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
+                  <span className="text-lg transition-all duration-300" style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
+                    {item.icon}
+                  </span>
+                  <span className="text-[9px] tracking-[0.2em] uppercase transition-opacity" style={{ color: isActive ? 'var(--ink-dim)' : 'var(--ink-ghost)', opacity: isActive ? 1 : 0.5 }}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     );
   }
@@ -624,19 +645,7 @@ export function RPGInterface() {
 
         <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
 
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <button type="button" className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--surface)', color: 'var(--ink)' }} onClick={() => setActiveView('profile')}>
-              Profile
-            </button>
-            <button type="button" className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--surface)', color: 'var(--ink)' }} onClick={() => setActiveView('map')}>
-              Map
-            </button>
-          </div>
-          <button type="button" className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-            Settings
-          </button>
-        </div>
+        <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
 
         <section className="space-y-1">
           <p className="text-sm" style={{ color: 'var(--ink)' }}>- Real-money shop (coming soon)</p>
@@ -722,6 +731,27 @@ export function RPGInterface() {
           echoChamber.mutate({ targetPubkey: selectedNetworkMember.pubkey, ...payload }, { onSuccess: () => setEchoChamberOpen(false) });
         }}
       />
+      <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
+        <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
+          {[
+            { key: 'profile', icon: '◉', label: 'Profile' },
+            { key: 'play', icon: '✦', label: 'Play' },
+            { key: 'map', icon: '◈', label: 'Map' },
+          ].map((item) => {
+            const isActive = activeView === item.key || (item.key === 'play' && activeView !== 'profile' && activeView !== 'map');
+            return (
+              <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
+                <span className="text-lg transition-all duration-300" style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
+                  {item.icon}
+                </span>
+                <span className="text-[9px] tracking-[0.2em] uppercase transition-opacity" style={{ color: isActive ? 'var(--ink-dim)' : 'var(--ink-ghost)', opacity: isActive ? 1 : 0.5 }}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

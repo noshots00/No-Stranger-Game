@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import type { Tier3PolicySettings } from '@/lib/rpg/policy';
 import { getClassDescription, getProfessionDescription, getRaceDescription } from '@/lib/rpg/identityGlossary';
 import { ResponsiveTooltip } from './ResponsiveTooltip';
+import { useState } from 'react';
 
 interface SelfViewProps {
   character: MVPCharacter;
@@ -28,6 +29,7 @@ export function SelfView({
   onForgetProof,
   onUpdateCharacter,
 }: SelfViewProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const raceDescription = getRaceDescription(character.race) ?? 'Unknown race lore.';
   const classDescription = getClassDescription(character.className || 'Wanderer') ?? 'Unknown class lore.';
   const professionDescription = getProfessionDescription(character.profession) ?? 'Unknown profession lore.';
@@ -41,7 +43,15 @@ export function SelfView({
 
   return (
       <div className="px-4 py-8 max-w-lg mx-auto space-y-10">
-        <div className="text-center emerge">
+        <div className="text-center emerge relative">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((prev) => !prev)}
+            className="absolute right-0 top-0 text-xs px-2 py-1 rounded-md"
+            style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
+          >
+            Settings
+          </button>
           <p className="font-cormorant text-3xl font-light" style={{ color: 'var(--ink)' }}>
             {character.characterName}
           </p>
@@ -187,38 +197,21 @@ export function SelfView({
           </p>
         )}
         </CollapsibleSection>
-
-        <CollapsibleSection title="Rituals & Permissions" defaultOpen={false}>
-        <div className="space-y-4">
-          {[
-            { key: 'experimentalEnabled', label: 'Experimental social mechanics' },
-            { key: 'deadLetterEnabled', label: 'Dead Letter Office' },
-            { key: 'echoChamberEnabled', label: 'Echo Chamber' },
-            { key: 'forgettingEnabled', label: 'The Forgetting' },
-            { key: 'whisperingRelayEnabled', label: 'Whispering Relay Regions' },
-            { key: 'killSwitchEnabled', label: 'Silence all rituals' },
-          ].map(({ key, label }) => (
-            <label key={key} className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm" style={{ color: 'var(--ink-dim)' }}>{label}</span>
-              <Switch
-                checked={Boolean(tier3Policy[key as keyof Tier3PolicySettings])}
-                onCheckedChange={(checked) => onUpdatePolicy({ ...tier3Policy, [key]: checked })}
-              />
-            </label>
-          ))}
-        </div>
-        </CollapsibleSection>
-
-        <div className="pt-6">
-          <button
-            type="button"
-            onClick={onNewGame}
-            className="text-xs tracking-wider uppercase transition-colors"
-            style={{ color: 'var(--crimson)' }}
-          >
-            Abandon this stranger
-          </button>
-        </div>
+        {settingsOpen ? (
+          <div className="pt-2 space-y-4 rounded-lg p-4" style={{ background: 'var(--surface)' }}>
+            <p className="text-xs tracking-[0.16em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
+              Character Settings
+            </p>
+            <button
+              type="button"
+              onClick={onNewGame}
+              className="text-xs tracking-wider uppercase transition-colors"
+              style={{ color: 'var(--crimson)' }}
+            >
+              Create new character
+            </button>
+          </div>
+        ) : null}
       </div>
   );
 }
