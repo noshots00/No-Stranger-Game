@@ -17,15 +17,15 @@ export interface Tier3PolicySettings {
 }
 
 export const DEFAULT_TIER3_POLICY: Tier3PolicySettings = {
-  experimentalEnabled: false,
-  zapInfluenceEnabled: false,
-  traumaEnabled: false,
-  scarsEnabled: false,
-  summoningEnabled: false,
-  deadLetterEnabled: false,
-  echoChamberEnabled: false,
-  forgettingEnabled: false,
-  whisperingRelayEnabled: false,
+  experimentalEnabled: true,
+  zapInfluenceEnabled: true,
+  traumaEnabled: true,
+  scarsEnabled: true,
+  summoningEnabled: true,
+  deadLetterEnabled: true,
+  echoChamberEnabled: true,
+  forgettingEnabled: true,
+  whisperingRelayEnabled: true,
   killSwitchEnabled: false,
   visibility: 'followers',
 };
@@ -35,7 +35,27 @@ export const loadTier3Policy = (): Tier3PolicySettings => {
     const raw = localStorage.getItem(POLICY_STORAGE_KEY);
     if (!raw) return DEFAULT_TIER3_POLICY;
     const parsed = JSON.parse(raw) as Partial<Tier3PolicySettings>;
-    return { ...DEFAULT_TIER3_POLICY, ...parsed };
+    const merged = { ...DEFAULT_TIER3_POLICY, ...parsed };
+
+    // Migration: older saves often had every Tier 3 toggle off.
+    // If all feature toggles are off and the kill switch is off, promote to current defaults.
+    const featureToggleKeys: Array<keyof Tier3PolicySettings> = [
+      'experimentalEnabled',
+      'zapInfluenceEnabled',
+      'traumaEnabled',
+      'scarsEnabled',
+      'summoningEnabled',
+      'deadLetterEnabled',
+      'echoChamberEnabled',
+      'forgettingEnabled',
+      'whisperingRelayEnabled',
+    ];
+    const hasAnyFeatureEnabled = featureToggleKeys.some((key) => Boolean(merged[key]));
+    if (!hasAnyFeatureEnabled && !merged.killSwitchEnabled) {
+      return { ...DEFAULT_TIER3_POLICY, killSwitchEnabled: false, visibility: merged.visibility };
+    }
+
+    return merged;
   } catch {
     return DEFAULT_TIER3_POLICY;
   }
