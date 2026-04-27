@@ -21,7 +21,6 @@ import { trackTelemetry } from '@/lib/rpg/telemetry';
 import {
   CHAPTER_PROOF_KIND,
   getChapterWindowId,
-  hasCanonicalChoiceForWindow,
   markCanonicalChoiceForWindow,
   resolveCanonicalChoiceFromEvents,
 } from '@/lib/rpg/proof';
@@ -47,7 +46,7 @@ import { EchoChamberOverlay } from './EchoChamberOverlay';
 import { Guttering } from './Guttering';
 import { WorldWelcome } from './WorldWelcome';
 
-type ActiveView = 'play' | 'chapter' | 'map' | 'profile';
+type ActiveView = 'play' | 'chapter' | 'map' | 'profile' | 'settings';
 
 export function RPGInterface() {
   const { user, metadata } = useCurrentUser();
@@ -94,6 +93,19 @@ export function RPGInterface() {
 
   const repairCharacter = () => {
     if (!character) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith(`nsg:chapter-proof:${character.id}:`) || (character.pubkey && key.startsWith(`nsg:chapter-proof:${character.pubkey}:`))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // Ignore storage errors.
+    }
     const repaired: MVPCharacter = {
       ...character,
       level: 1,
@@ -194,12 +206,6 @@ export function RPGInterface() {
   const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
   const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
 
-  const updateTier3Policy = (nextPolicy: Tier3PolicySettings) => {
-    setTier3Policy(nextPolicy);
-    saveTier3Policy(nextPolicy);
-    trackTelemetry('tier3_policy_updated', { experimentalEnabled: nextPolicy.experimentalEnabled, visibility: nextPolicy.visibility });
-  };
-
   const noteSyncFailure = () => {
     setSyncFailed(true);
     setTimeout(() => setSyncFailed(false), 10000);
@@ -275,13 +281,6 @@ export function RPGInterface() {
 
     const chapterWindowId = getChapterWindowId();
     const identityKey = `${character.id}:${character.createdAt}:${activeQuestId}`;
-    if (hasCanonicalChoiceForWindow(chapterWindowId, identityKey)) {
-      const withClearedPending: MVPCharacter = { ...character, pendingQuestBunch: undefined };
-      saveMVPCharacter(withClearedPending);
-      setCharacter(withClearedPending);
-      return;
-    }
-
     const finalStepQuestionId = questBunchSteps[questBunchSteps.length - 1]?.questionId;
     const finalChoice = pendingAnswers.find((a) => a.questionId === finalStepQuestionId)?.option ?? option;
     const aCount = pendingAnswers.filter((answer) => answer.option === 'A').length;
@@ -469,16 +468,12 @@ export function RPGInterface() {
 
   if (!character) return null;
 
-  const estDayLabel = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(Date.now());
   const activeLocationLabel = autonomous.state?.locationId?.replaceAll('_', ' ') ?? 'market square';
-  const publicSnippet = `${character.characterName}, Level ${character.level} ${character.className}, in ${activeLocationLabel}`;
+  const publicSnippet = `${character.characterName}, Level ${character.level} ${character.className}`;
+  const regionLabel = 'Mysterious Village';
   const rateXp = Math.max(1, Math.floor((autonomous.state?.visibleTraits.length ?? 1) * 0.4));
   const rateGold = Math.max(1, Math.floor((autonomous.state?.gold ?? 0) / Math.max(1, character.level)));
+  const currentActivity = autonomous.state?.professionLabel || character.profession || 'Working';
   const hasActiveMainQuest = hasUnreadChapter;
   const socialAccomplishments = (networkPresence.data?.topMembers ?? []).slice(0, 4).map((member) => {
     const discovery = member.discoveredLocations?.[0] ?? 'a forgotten place';
@@ -510,6 +505,14 @@ export function RPGInterface() {
     return (
       <div className="min-h-screen pb-24 pb-safe" style={{ background: 'var(--void)' }}>
         <Guttering />
+        <button
+          type="button"
+          onClick={() => setActiveView('settings')}
+          className="fixed right-4 top-4 z-50 text-xs px-2 py-1 rounded-md"
+          style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
+        >
+          Settings
+        </button>
         <ChapterView
           chapterOpened={chapterOpened}
           onOpenChapter={() => setChapterOpened(true)}
@@ -534,7 +537,7 @@ export function RPGInterface() {
               { key: 'play', icon: '✦', label: 'Play' },
               { key: 'map', icon: '◈', label: 'Map' },
             ].map((item) => {
-              const isActive = (item.key === 'play' && (activeView === 'play' || hasActiveMainQuest)) || activeView === item.key;
+            const isActive = (item.key === 'play' && (activeView === 'play' || activeView === 'settings' || hasActiveMainQuest)) || activeView === item.key;
               return (
                 <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
                   <span className="text-lg transition-all duration-300" style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
@@ -555,103 +558,48 @@ export function RPGInterface() {
   return (
     <div className="min-h-screen pb-24" style={{ background: 'var(--void)' }}>
       <Guttering />
-      <div className="mx-auto max-w-2xl px-4 pt-6 space-y-5">
-        <header className="rounded-xl p-4" style={{ background: 'var(--surface)' }}>
-          <div className="flex items-center justify-between">
-            <p className="font-cormorant text-xl" style={{ color: 'var(--ink)' }}>{character.characterName}</p>
-            <p className="text-xs tracking-[0.16em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Day · {estDayLabel}</p>
-          </div>
-          <p className="mt-1 text-sm" style={{ color: 'var(--ink-dim)' }}>
-            {activeLocationLabel}
-          </p>
-          <button
-            type="button"
-            className="mt-3 w-full text-left rounded-md p-3"
-            style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
-            onClick={() => setActiveView('profile')}
-          >
-            <p className="font-cormorant text-base">{publicSnippet}</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--ink-ghost)' }}>
-              Click to open full public profile
+      <button
+        type="button"
+        onClick={() => setActiveView('settings')}
+        className="fixed right-4 top-4 z-50 text-xs px-2 py-1 rounded-md"
+        style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
+      >
+        Settings
+      </button>
+      <div className="mx-auto max-w-2xl px-4 pt-8 space-y-5">
+        {activeView === 'play' ? (
+          <section className="space-y-4">
+            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>{publicSnippet}</p>
+            <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{regionLabel}</p>
+            <p className="text-sm" style={{ color: 'var(--ink)' }}>
+              Health {character.health ?? 100} · Experience {character.level * 100} · Gold {character.gold ?? 0}
             </p>
-          </button>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(networkPresence.data?.topMembers ?? []).slice(0, 3).map((member) => (
+            <p className="font-cormorant text-lg" style={{ color: 'var(--ink)' }}>
+              Earning {rateXp} experience/hr and {rateGold} gold/hr — {String(currentActivity).toUpperCase()}
+            </p>
+            <p className="font-cormorant text-lg" style={{ color: 'var(--ink-dim)' }}>
+              Your companion has something to talk to you about.
+            </p>
+            {[
+              'Ask about the old tower dreams',
+              'Ask who in town owes you a debt',
+              'Ask where hunters vanish at dusk',
+            ].map((choice) => (
               <button
-                key={member.pubkey}
+                key={choice}
                 type="button"
-                className="text-xs rounded-full px-2 py-1"
-                style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
+                className="w-full text-left rounded-md px-3 py-3 font-cormorant text-lg"
+                style={{ background: 'var(--surface)', color: 'var(--ink)' }}
                 onClick={() => {
-                  setSelectedNetworkMember(member);
-                  setActiveView('profile');
+                  autonomous.queueExploreIntent(choice);
+                  toast({ title: 'The memory takes root.', description: 'Your companion will return to this thread.' });
                 }}
               >
-                {member.characterName}
+                {choice}
               </button>
             ))}
-          </div>
-        </header>
-
-        <section className="rounded-xl p-5 text-center" style={{ background: 'var(--surface)' }}>
-          <button
-            type="button"
-            className="mx-auto h-28 w-28 rounded-full font-cormorant text-2xl"
-            style={{ background: 'var(--ember)', color: 'var(--void)' }}
-            onClick={() => setActiveView('play')}
-          >
-            Play
-          </button>
-          <p className="mt-4 text-sm" style={{ color: 'var(--ink-dim)' }}>
-            Gaining experience at a rate of {rateXp}/hr · Gold {rateGold}/hr
-          </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-ghost)' }}>
-            {autonomous.state?.injuries?.length ? `Negative effects: ${autonomous.state.injuries.join(', ')}` : 'No severe injuries today.'}
-          </p>
-        </section>
-
-        <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
-          <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Mundane Log</p>
-          {(autonomous.state?.dailyLogs ?? []).slice(0, 5).map((entry, idx) => (
-            <p key={`${entry.tick}-${idx}`} className="font-cormorant text-lg leading-relaxed" style={{ color: 'var(--ink)' }}>
-              {entry.line}
-            </p>
-          ))}
-        </section>
-
-        <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
-
-        <section className="rounded-xl p-4 space-y-3" style={{ background: 'var(--surface)' }}>
-          <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Companion</p>
-          {[
-            'Ask about the old tower dreams',
-            'Ask who in town owes you a debt',
-            'Ask where hunters vanish at dusk',
-          ].map((choice) => (
-            <button
-              key={choice}
-              type="button"
-              className="w-full text-left rounded-md px-3 py-2 font-cormorant text-lg"
-              style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
-              onClick={() => {
-                autonomous.queueExploreIntent(choice);
-                toast({ title: 'The memory takes root.', description: 'Your companion will bring this thread back later.' });
-              }}
-            >
-              {choice}
-            </button>
-          ))}
-        </section>
-
-        <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
-
-        <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
-
-        <section className="space-y-1">
-          <p className="text-sm" style={{ color: 'var(--ink)' }}>- Real-money shop (coming soon)</p>
-          <p className="text-sm" style={{ color: 'var(--ink)' }}>- Guild registry (coming soon)</p>
-          <p className="text-sm" style={{ color: 'var(--ink)' }}>- Caravan contracts (coming soon)</p>
-        </section>
+          </section>
+        ) : null}
 
         {activeView === 'map' ? (
         <TerritoryView
@@ -672,24 +620,31 @@ export function RPGInterface() {
         />
       ) : null}
 
-      {activeView === 'profile' ? (
+        {activeView === 'profile' ? (
         <SelfView
           character={character}
           proofNodes={proofChain.data ?? []}
           relayRegions={relayRegions}
-          tier3Policy={tier3Policy}
-          onUpdatePolicy={updateTier3Policy}
-          onNewGame={handleNewGame}
-          onForgetProof={(eventId) => {
-            if (!tier3Policy.forgettingEnabled || tier3Policy.killSwitchEnabled) return;
-            forgetting.mutate(eventId);
-          }}
           onUpdateCharacter={(nextCharacter) => {
             saveMVPCharacter(nextCharacter);
             setCharacter(nextCharacter);
           }}
         />
       ) : null}
+
+        {activeView === 'settings' ? (
+          <section className="rounded-xl p-5 space-y-4" style={{ background: 'var(--surface)' }}>
+            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>Settings</p>
+            <button
+              type="button"
+              onClick={handleNewGame}
+              className="text-xs tracking-wider uppercase transition-colors"
+              style={{ color: 'var(--crimson)' }}
+            >
+              Create new character
+            </button>
+          </section>
+        ) : null}
 
       {showWorldWelcome ? (
         <WorldWelcome
@@ -701,6 +656,7 @@ export function RPGInterface() {
         />
       ) : null}
 
+      {activeView === 'play' ? (
       <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
         <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Across the World</p>
         {socialAccomplishments.length > 0 ? socialAccomplishments.map((line) => (
@@ -711,6 +667,7 @@ export function RPGInterface() {
           </p>
         )}
       </section>
+      ) : null}
       </div>
 
       <DeadLetterOverlay
@@ -738,7 +695,7 @@ export function RPGInterface() {
             { key: 'play', icon: '✦', label: 'Play' },
             { key: 'map', icon: '◈', label: 'Map' },
           ].map((item) => {
-            const isActive = activeView === item.key || (item.key === 'play' && activeView !== 'profile' && activeView !== 'map');
+            const isActive = activeView === item.key || (item.key === 'play' && activeView === 'settings');
             return (
               <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
                 <span className="text-lg transition-all duration-300" style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>

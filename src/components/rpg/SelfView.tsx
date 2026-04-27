@@ -1,21 +1,11 @@
 import type { MVPCharacter } from '@/lib/rpg/utils';
 import type { ProofChainNode } from '@/hooks/useProofChain';
 import type { RelayRegion } from '@/hooks/useRelayRegions';
-import { CollapsibleSection } from './CollapsibleSection';
-import { Switch } from '@/components/ui/switch';
-import type { Tier3PolicySettings } from '@/lib/rpg/policy';
-import { getClassDescription, getProfessionDescription, getRaceDescription } from '@/lib/rpg/identityGlossary';
-import { ResponsiveTooltip } from './ResponsiveTooltip';
-import { useState } from 'react';
 
 interface SelfViewProps {
   character: MVPCharacter;
   proofNodes: ProofChainNode[];
   relayRegions: RelayRegion[];
-  tier3Policy: Tier3PolicySettings;
-  onUpdatePolicy: (nextPolicy: Tier3PolicySettings) => void;
-  onNewGame: () => void;
-  onForgetProof: (eventId: string) => void;
   onUpdateCharacter: (nextCharacter: MVPCharacter) => void;
 }
 
@@ -23,195 +13,60 @@ export function SelfView({
   character,
   proofNodes,
   relayRegions,
-  tier3Policy,
-  onUpdatePolicy,
-  onNewGame,
-  onForgetProof,
   onUpdateCharacter,
 }: SelfViewProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const raceDescription = getRaceDescription(character.race) ?? 'Unknown race lore.';
-  const classDescription = getClassDescription(character.className || 'Wanderer') ?? 'Unknown class lore.';
-  const professionDescription = getProfessionDescription(character.profession) ?? 'Unknown profession lore.';
-  const characterAgeDays = Math.max(
-    0,
-    Math.floor((Date.now() - character.createdAt) / (1000 * 60 * 60 * 24)),
-  );
-  const characterAgeLabel = characterAgeDays === 0
-    ? 'Born today'
-    : `${characterAgeDays} day${characterAgeDays === 1 ? '' : 's'} old`;
+  const totalVisibleTraits = character.visibleTraits?.length ?? 0;
+  const totalHiddenTraits = character.hiddenTraits?.length ?? 0;
+  const totalInjuries = character.injuries?.length ?? 0;
+  const experience = character.level * 100;
 
   return (
-      <div className="px-4 py-8 max-w-lg mx-auto space-y-10">
-        <div className="text-center emerge relative">
-          <button
-            type="button"
-            onClick={() => setSettingsOpen((prev) => !prev)}
-            className="absolute right-0 top-0 text-xs px-2 py-1 rounded-md"
-            style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
-          >
-            Settings
-          </button>
-          <p className="font-cormorant text-3xl font-light" style={{ color: 'var(--ink)' }}>
-            {character.characterName}
-          </p>
-          <p className="mt-2 text-xs tracking-[0.2em] uppercase" style={{ color: 'var(--ink-dim)' }}>
-            {character.profileTitle?.trim() || 'Unnamed Drifter'} ·{' '}
-            Level {character.level} ·{' '}
-            <ResponsiveTooltip content={classDescription}>
-              <button type="button" className="underline underline-offset-2 decoration-dotted">
-                {character.className || 'Wanderer'}
-              </button>
-            </ResponsiveTooltip>
-          </p>
-          <p className="mt-1 text-xs flex items-center justify-center gap-1.5 flex-wrap" style={{ color: 'var(--ink-ghost)' }}>
-            <ResponsiveTooltip content={raceDescription}>
-              <button type="button" className="underline underline-offset-2 decoration-dotted">
-                {character.race}
-              </button>
-            </ResponsiveTooltip>
-            <span>·</span>
-            <ResponsiveTooltip content={professionDescription}>
-              <button type="button" className="underline underline-offset-2 decoration-dotted">
-                {character.profession}
-              </button>
-            </ResponsiveTooltip>
-          </p>
-          <p className="mt-1 text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-dim)' }}>
-            Age · {characterAgeLabel}
-          </p>
-          {character.npub ? (
-            <a
-              href={`https://ditto.pub/${character.npub}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs transition-colors"
-              style={{ color: 'var(--ember-dim)' }}
-            >
-              View Ditto profile ↗
-            </a>
-          ) : null}
-        </div>
+    <div className="px-4 py-8 max-w-lg mx-auto space-y-4">
+      <p className="font-cormorant text-3xl" style={{ color: 'var(--ink)' }}>{character.characterName}</p>
+      <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{character.profileTitle?.trim() || 'Unnamed Drifter'}</p>
+      <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{character.profileBio?.trim() || '?????'}</p>
 
-        <div className="h-px w-16 mx-auto" style={{ background: 'var(--ink-ghost)' }} />
-
-        <CollapsibleSection title="Revealed Nature">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--ink-ghost)' }}>
-              Gold: {character.gold ?? 0} · Health: {character.health ?? 100}
-            </p>
-            {character.visibleTraits && character.visibleTraits.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {character.visibleTraits.map((trait) => (
-                  <span key={trait} className="text-xs px-2 py-1 rounded" style={{ color: 'var(--ink)', background: 'var(--surface)' }}>
-                    {trait}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="font-cormorant text-sm italic" style={{ color: 'var(--ink-ghost)' }}>
-                No traits have surfaced yet.
-              </p>
-            )}
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="Public Profile" defaultOpen={false}>
-          <div className="space-y-3">
-            <input
-              value={character.profileTitle ?? ''}
-              onChange={(event) => onUpdateCharacter({ ...character, profileTitle: event.target.value })}
-              placeholder="Choose a public title"
-              className="w-full rounded-md px-3 py-2 text-sm"
-              style={{ background: 'var(--surface)', color: 'var(--ink)' }}
-            />
-            <textarea
-              value={character.profileBio ?? ''}
-              onChange={(event) => onUpdateCharacter({ ...character, profileBio: event.target.value })}
-              placeholder="A short line others can read..."
-              className="w-full h-24 rounded-md px-3 py-2 text-sm"
-              style={{ background: 'var(--surface)', color: 'var(--ink)' }}
-            />
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="Unrevealed Depth" defaultOpen={false}>
-          <p className="font-cormorant text-sm italic" style={{ color: 'var(--ink-ghost)' }}>
-            {character.hiddenTraits && character.hiddenTraits.length > 0
-              ? `${character.hiddenTraits.length} qualities remain obscured.`
-              : 'Nothing remains hidden.'}
-          </p>
-        </CollapsibleSection>
-
-        {character.mainQuestChoices.length > 0 ? (
-          <CollapsibleSection title="Sealed Choices">
-            <div className="space-y-3">
-              {character.mainQuestChoices.map((choice) => (
-                <div key={`${choice.questId}-${choice.chosenAt}`} className="pl-4 border-l" style={{ borderColor: 'var(--ink-ghost)' }}>
-                  <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
-                    {choice.consequence}
-                  </p>
-                  <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-ghost)' }}>
-                    {choice.option}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CollapsibleSection>
-        ) : null}
-
-        <CollapsibleSection title="Your Path" defaultOpen={false}>
-        {proofNodes.length > 0 ? (
-          <div className="space-y-2">
-            {proofNodes.map((node) => (
-              <div key={node.id} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--ember-dim)' }} />
-                  <p className="text-xs font-mono" style={{ color: 'var(--ink-ghost)' }}>
-                    {node.window} → {node.choice}
-                  </p>
-                </div>
-                {tier3Policy.forgettingEnabled && !tier3Policy.killSwitchEnabled ? (
-                  <button type="button" onClick={() => onForgetProof(node.id)} className="text-xs font-mono" style={{ color: 'var(--crimson)' }}>
-                    ☒
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="font-cormorant text-sm italic" style={{ color: 'var(--ink-ghost)' }}>
-            No path yet.
-          </p>
-        )}
-        </CollapsibleSection>
-
-        <CollapsibleSection title="Your Relays" defaultOpen={false}>
-        {relayRegions.length > 0 ? relayRegions.map((region) => (
-          <p key={region.relay} className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-            {region.region}
-          </p>
-        )) : (
-          <p className="text-xs" style={{ color: 'var(--ink-ghost)' }}>
-            No mapped relay regions.
-          </p>
-        )}
-        </CollapsibleSection>
-        {settingsOpen ? (
-          <div className="pt-2 space-y-4 rounded-lg p-4" style={{ background: 'var(--surface)' }}>
-            <p className="text-xs tracking-[0.16em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
-              Character Settings
-            </p>
-            <button
-              type="button"
-              onClick={onNewGame}
-              className="text-xs tracking-wider uppercase transition-colors"
-              style={{ color: 'var(--crimson)' }}
-            >
-              Create new character
-            </button>
-          </div>
-        ) : null}
+      <div className="rounded-lg p-4 space-y-2" style={{ background: 'var(--surface)' }}>
+        <p className="text-xs uppercase tracking-[0.16em]" style={{ color: 'var(--ink-ghost)' }}>Core Stats</p>
+        <p style={{ color: 'var(--ink)' }}>Health: {character.health ?? 100}</p>
+        <p style={{ color: 'var(--ink)' }}>Experience: {experience}</p>
+        <p style={{ color: 'var(--ink)' }}>Gold: {character.gold ?? 0}</p>
+        <p style={{ color: 'var(--ink)' }}>Class: {character.className || '?????'}</p>
+        <p style={{ color: 'var(--ink)' }}>Race: {character.race || '?????'}</p>
+        <p style={{ color: 'var(--ink)' }}>Profession: {character.profession || '?????'}</p>
       </div>
+
+      <div className="rounded-lg p-4 space-y-2" style={{ background: 'var(--surface)' }}>
+        <p className="text-xs uppercase tracking-[0.16em]" style={{ color: 'var(--ink-ghost)' }}>Traits & Conditions</p>
+        <p style={{ color: 'var(--ink)' }}>Visible Traits: {totalVisibleTraits > 0 ? character.visibleTraits?.join(', ') : '?????'}</p>
+        <p style={{ color: 'var(--ink)' }}>Hidden Traits: {totalHiddenTraits > 0 ? `${totalHiddenTraits} hidden` : '?????'}</p>
+        <p style={{ color: 'var(--ink)' }}>Injuries: {totalInjuries > 0 ? character.injuries?.join(', ') : 'None'}</p>
+      </div>
+
+      <div className="rounded-lg p-4 space-y-2" style={{ background: 'var(--surface)' }}>
+        <p className="text-xs uppercase tracking-[0.16em]" style={{ color: 'var(--ink-ghost)' }}>Story State</p>
+        <p style={{ color: 'var(--ink)' }}>Sealed Choices: {character.mainQuestChoices.length}</p>
+        <p style={{ color: 'var(--ink)' }}>Proof Nodes: {proofNodes.length}</p>
+        <p style={{ color: 'var(--ink)' }}>Known Relays: {relayRegions.length > 0 ? relayRegions.length : '?????'}</p>
+      </div>
+
+      <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--surface)' }}>
+        <p className="text-xs uppercase tracking-[0.16em]" style={{ color: 'var(--ink-ghost)' }}>Public Card</p>
+        <input
+          value={character.profileTitle ?? ''}
+          onChange={(event) => onUpdateCharacter({ ...character, profileTitle: event.target.value })}
+          placeholder="Public title"
+          className="w-full rounded-md px-3 py-2 text-sm"
+          style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
+        />
+        <textarea
+          value={character.profileBio ?? ''}
+          onChange={(event) => onUpdateCharacter({ ...character, profileBio: event.target.value })}
+          placeholder="Short public bio"
+          className="w-full h-24 rounded-md px-3 py-2 text-sm"
+          style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
+        />
+      </div>
+    </div>
   );
 }

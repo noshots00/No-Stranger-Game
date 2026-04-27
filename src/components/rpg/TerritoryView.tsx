@@ -29,7 +29,14 @@ const REGIONS = [
   },
 ];
 
-const baseActions = ['Hunt', 'Forage', 'Trade', 'Socialize'];
+const LOCATION_ACTIONS: Record<string, string[]> = {
+  'market-square': ['Buy Groceries', 'Run Errands'],
+  'blackfoot-woods': ['Forage', 'Chop Wood', 'Rest by Fire'],
+  'tanner-row': ['Cure Hides', 'Deliver Leather'],
+  'old-library': ['Read Archives', 'Copy Notes'],
+  'forest-edge': ['Gather Herbs', 'Settle Camp'],
+  'sunken-library': ['Recover Lost Ledger (Quest)'],
+};
 
 export function TerritoryView({ discoveredLocations, glimmerLocationIds, level = 1, visibleTraits = [], onExplore }: TerritoryViewProps) {
   const known = new Set(discoveredLocations);
@@ -37,11 +44,9 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, level =
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
   const unlockedActionsFor = (locationId: string): string[] => {
-    const actions = [...baseActions];
-    if (level >= 2) actions.push('Settle Camp');
-    if (visibleTraits.includes('Hunter')) actions.push('Track Rare Game');
-    if (locationId === 'sunken-library' && level >= 3) actions.push('Recover Lost Ledger (Quest)');
+    const actions = [...(LOCATION_ACTIONS[locationId] ?? ['Rest'])];
     if (locationId === 'blackfoot-woods' && visibleTraits.includes('Hunter')) actions.push('Collect 15 Pristine Pelts (Quest)');
+    if (locationId === 'forest-edge' && level >= 3) actions.push('Track Rare Game');
     return actions;
   };
 
@@ -61,7 +66,7 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, level =
               {visibleLocations.map((location) => {
                 const isKnown = known.has(location.id);
                 const actions = unlockedActionsFor(location.id);
-                const hasNewUnlock = actions.length > baseActions.length;
+                const hasNewUnlock = actions.some((action) => action.includes('(Quest)'));
                 return (
                   <button
                     key={location.id}
