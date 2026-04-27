@@ -1,3 +1,5 @@
+import { useIsMobile } from '@/hooks/useIsMobile';
+
 const BASE_MAP = String.raw`
                     .  .      ^^^^^^^      .    .
                  .        ^^^^#####^^^^           .
@@ -25,6 +27,7 @@ const BASE_MAP = String.raw`
 interface TerritoryViewProps {
   discoveredLocations: string[];
   glimmerLocationIds: string[];
+  onExplore?: (intent: string) => void;
 }
 
 const points = [
@@ -35,7 +38,8 @@ const points = [
   { id: 'forest-edge', label: 'Forest edge' },
 ];
 
-export function TerritoryView({ discoveredLocations, glimmerLocationIds }: TerritoryViewProps) {
+export function TerritoryView({ discoveredLocations, glimmerLocationIds, onExplore }: TerritoryViewProps) {
+  const isMobile = useIsMobile();
   const known = new Set(discoveredLocations);
   const glimmers = new Set(glimmerLocationIds);
 
@@ -45,11 +49,29 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds }: Terri
         The Territory
       </p>
 
-      <div className="rounded-xl p-4 md:p-6 overflow-x-auto emerge" style={{ background: 'var(--surface)' }}>
-        <pre className="text-[11px] leading-[18px] font-mono whitespace-pre min-w-[600px]" style={{ color: 'var(--ink-dim)' }}>
-          {BASE_MAP}
-        </pre>
-      </div>
+      {isMobile ? (
+        <div className="rounded-xl p-4 emerge space-y-2" style={{ background: 'var(--surface)' }}>
+          {points.map((point) => {
+            const isKnown = known.has(point.id);
+            const isGlimmer = !isKnown && glimmers.has(point.id);
+            if (!isKnown && !isGlimmer) return null;
+            return (
+              <div key={point.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--surface-dim)' }}>
+                <span style={{ color: isKnown ? 'var(--ember)' : 'var(--mist)' }}>{isKnown ? '◆' : '◇'}</span>
+                <span className="font-cormorant text-sm" style={{ color: isKnown ? 'var(--ink)' : 'var(--mist)' }}>
+                  {point.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-xl p-4 md:p-6 overflow-x-auto emerge" style={{ background: 'var(--surface)' }}>
+          <pre className="text-[11px] leading-[18px] font-mono whitespace-pre min-w-[600px]" style={{ color: 'var(--ink-dim)' }}>
+            {BASE_MAP}
+          </pre>
+        </div>
+      )}
 
       <div className="mt-8 space-y-2 emerge emerge-delay-1">
         {points.map((point) => {
@@ -68,6 +90,16 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds }: Terri
       <p className="mt-6 font-cormorant text-sm italic emerge emerge-delay-2" style={{ color: 'var(--ink-ghost)' }}>
         Some paths are yours. Some only shimmer from afar.
       </p>
+      {onExplore ? (
+        <button
+          type="button"
+          className="mt-4 font-cormorant text-sm transition-colors"
+          style={{ color: 'var(--ember)' }}
+          onClick={() => onExplore('Search the old road for work and shelter')}
+        >
+          Explore the old road →
+        </button>
+      ) : null}
     </div>
   );
 }

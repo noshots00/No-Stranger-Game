@@ -4,8 +4,8 @@ import type { RelayRegion } from '@/hooks/useRelayRegions';
 import { CollapsibleSection } from './CollapsibleSection';
 import { Switch } from '@/components/ui/switch';
 import type { Tier3PolicySettings } from '@/lib/rpg/policy';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getClassDescription, getProfessionDescription, getRaceDescription } from '@/lib/rpg/identityGlossary';
+import { ResponsiveTooltip } from './ResponsiveTooltip';
 
 interface SelfViewProps {
   character: MVPCharacter;
@@ -38,7 +38,6 @@ export function SelfView({
     : `${characterAgeDays} day${characterAgeDays === 1 ? '' : 's'} old`;
 
   return (
-    <TooltipProvider delayDuration={140}>
       <div className="px-4 py-8 max-w-lg mx-auto space-y-10">
         <div className="text-center emerge">
           <p className="font-cormorant text-3xl font-light" style={{ color: 'var(--ink)' }}>
@@ -46,46 +45,71 @@ export function SelfView({
           </p>
           <p className="mt-2 text-xs tracking-[0.2em] uppercase" style={{ color: 'var(--ink-dim)' }}>
             Level {character.level} ·{' '}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="underline underline-offset-2 decoration-dotted">
-                  {character.className || 'Wanderer'}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                {classDescription}
-              </TooltipContent>
-            </Tooltip>
+            <ResponsiveTooltip content={classDescription}>
+              <button type="button" className="underline underline-offset-2 decoration-dotted">
+                {character.className || 'Wanderer'}
+              </button>
+            </ResponsiveTooltip>
           </p>
           <p className="mt-1 text-xs flex items-center justify-center gap-1.5 flex-wrap" style={{ color: 'var(--ink-ghost)' }}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="underline underline-offset-2 decoration-dotted">
-                  {character.race}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                {raceDescription}
-              </TooltipContent>
-            </Tooltip>
+            <ResponsiveTooltip content={raceDescription}>
+              <button type="button" className="underline underline-offset-2 decoration-dotted">
+                {character.race}
+              </button>
+            </ResponsiveTooltip>
             <span>·</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="underline underline-offset-2 decoration-dotted">
-                  {character.profession}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                {professionDescription}
-              </TooltipContent>
-            </Tooltip>
+            <ResponsiveTooltip content={professionDescription}>
+              <button type="button" className="underline underline-offset-2 decoration-dotted">
+                {character.profession}
+              </button>
+            </ResponsiveTooltip>
           </p>
           <p className="mt-1 text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-dim)' }}>
             Age · {characterAgeLabel}
           </p>
+          {character.npub ? (
+            <a
+              href={`https://primal.net/p/${character.npub}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs transition-colors"
+              style={{ color: 'var(--ember-dim)' }}
+            >
+              View on Nostr ↗
+            </a>
+          ) : null}
         </div>
 
         <div className="h-px w-16 mx-auto" style={{ background: 'var(--ink-ghost)' }} />
+
+        <CollapsibleSection title="Revealed Nature">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--ink-ghost)' }}>
+              Gold: {character.gold ?? 0} · Health: {character.health ?? 100}
+            </p>
+            {character.visibleTraits && character.visibleTraits.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {character.visibleTraits.map((trait) => (
+                  <span key={trait} className="text-xs px-2 py-1 rounded" style={{ color: 'var(--ink)', background: 'var(--surface)' }}>
+                    {trait}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="font-cormorant text-sm italic" style={{ color: 'var(--ink-ghost)' }}>
+                No traits have surfaced yet.
+              </p>
+            )}
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Unrevealed Depth" defaultOpen={false}>
+          <p className="font-cormorant text-sm italic" style={{ color: 'var(--ink-ghost)' }}>
+            {character.hiddenTraits && character.hiddenTraits.length > 0
+              ? `${character.hiddenTraits.length} qualities remain obscured.`
+              : 'Nothing remains hidden.'}
+          </p>
+        </CollapsibleSection>
 
         {character.mainQuestChoices.length > 0 ? (
           <CollapsibleSection title="Sealed Choices">
@@ -174,6 +198,5 @@ export function SelfView({
           </button>
         </div>
       </div>
-    </TooltipProvider>
   );
 }

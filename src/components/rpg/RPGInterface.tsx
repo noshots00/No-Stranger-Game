@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -15,6 +15,8 @@ import { useRelayRegions } from '@/hooks/useRelayRegions';
 import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
 import { useEchoChamber } from '@/hooks/useEchoChamber';
 import { useForgetting } from '@/hooks/useForgetting';
+import { useAutonomousState } from '@/hooks/useAutonomousState';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { trackTelemetry } from '@/lib/rpg/telemetry';
 import {
   CHAPTER_PROOF_KIND,
@@ -33,6 +35,8 @@ import {
   type QuestBunchAnswer,
 } from '@/lib/rpg/utils';
 import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
+import { getActiveChapter } from '@/lib/rpg/chapterCatalog';
+import { AUTONOMOUS_SNAPSHOT_KIND } from '@/lib/rpg/autonomousSimulation';
 import { ChronicleView } from './ChronicleView';
 import { ChapterView } from './ChapterView';
 import { TerritoryView } from './TerritoryView';
@@ -53,9 +57,12 @@ export function RPGInterface() {
   const [characterNameInput, setCharacterNameInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
+  const [revealPhase, setRevealPhase] = useState<'idle' | 'revealing'>('idle');
+  const [revealIdentity, setRevealIdentity] = useState<{ consequence: string; race: string; profession: string; className: string } | null>(null);
   const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
   const [deadLetterOpen, setDeadLetterOpen] = useState(false);
   const [echoChamberOpen, setEchoChamberOpen] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
 
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
@@ -66,6 +73,7 @@ export function RPGInterface() {
   const deadLetter = useDeadLetterOffice();
   const echoChamber = useEchoChamber();
   const forgetting = useForgetting();
+  const autonomous = useAutonomousState(character, user?.pubkey);
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -90,29 +98,59 @@ export function RPGInterface() {
     ).then((events) => {
       const canonical = resolveCanonicalChoiceFromEvents(events, chapterWindowId, user.pubkey);
       if (canonical) trackTelemetry('proof_chain_loaded', { canonicalId: canonical.id });
-    }).catch(() => {});
+    }).catch(() => noteSyncFailure());
   }, [nostr, user?.pubkey]);
 
-  const activeQuestId = 'market-money-001';
-  const questBunchSteps: Array<{ questionId: string; title: string; prompt: string; options: Array<{ option: 'A' | 'B' | 'C'; label: string }> }> = [
-    { questionId: `${activeQuestId}-q1`, title: 'Quest 1/10 - Waking', prompt: 'You open your eyes to moss and half-light. What color was your mother\'s hair?', options: [{ option: 'A', label: 'Copper-red and bright like embers' }, { option: 'B', label: 'Black as wet stone' }, { option: 'C', label: 'Silver like moonlit frost' }] },
-    { questionId: `${activeQuestId}-q2`, title: 'Quest 2/10 - The Village', prompt: 'A woman offers you bread. What do you notice first about her face?', options: [{ option: 'A', label: 'A scar she does not hide' }, { option: 'B', label: 'Eyes that weigh every word' }, { option: 'C', label: 'A smile that feels borrowed' }] },
-    { questionId: `${activeQuestId}-q3`, title: 'Quest 3/10 - A Family Finds You', prompt: 'The carpenter asks you to stay. If it were your choice, would you?', options: [{ option: 'A', label: 'Stay, and share their table' }, { option: 'B', label: 'Stay only until dawn' }, { option: 'C', label: 'Refuse and sleep outside' }] },
-    { questionId: `${activeQuestId}-q4`, title: 'Quest 4/10 - A Simple Trade', prompt: 'Which craft feels least like a lie?', options: [{ option: 'A', label: 'Woodcutting and grainwork' }, { option: 'B', label: 'Mining and masonry' }, { option: 'C', label: 'Forging and hidden trade' }] },
-    { questionId: `${activeQuestId}-q5`, title: 'Quest 5/10 - Slow Work of Days', prompt: 'If you could know one thing about your old life, what would it be?', options: [{ option: 'A', label: 'Who I once protected' }, { option: 'B', label: 'Who I betrayed' }, { option: 'C', label: 'What I stole from fate' }] },
-    { questionId: `${activeQuestId}-q6`, title: 'Quest 6/10 - A Stranger\'s Fortune', prompt: 'The crone asks what you fear you left behind.', options: [{ option: 'A', label: 'A promise I could not keep' }, { option: 'B', label: 'A debt with my name on it' }, { option: 'C', label: 'A door that should stay closed' }] },
-    { questionId: `${activeQuestId}-q7`, title: 'Quest 7/10 - The Night Before', prompt: 'What is the last thing you would save?', options: [{ option: 'A', label: 'A person' }, { option: 'B', label: 'A tool' }, { option: 'C', label: 'A secret' }] },
-    { questionId: `${activeQuestId}-q8`, title: 'Quest 8/10 - The Fire', prompt: 'The cottage burns. You have time for one.', options: [{ option: 'A', label: 'Carry the carpenter' }, { option: 'B', label: 'Carry his wife' }, { option: 'C', label: 'Carry the daughter' }] },
-    { questionId: `${activeQuestId}-q9`, title: 'Quest 9/10 - The Road', prompt: 'At the fork, which road feels most like regret avoided?', options: [{ option: 'A', label: 'North to old libraries' }, { option: 'B', label: 'East to the coast' }, { option: 'C', label: 'West toward the dream-door' }] },
-    { questionId: `${activeQuestId}-q10`, title: 'Quest 10/10 - The First Night', prompt: 'The stone is warm in your pocket. What do you whisper before sleep?', options: [{ option: 'A', label: '“Let me become someone worthy.”' }, { option: 'B', label: '“Let me survive what comes.”' }, { option: 'C', label: '“Let me remember everything.”' }] },
-  ];
+  useEffect(() => {
+    if (!character || !autonomous.state) return;
+    if (character.lastSimulatedTick === autonomous.state.lastSimulatedTick) return;
+    const mergedCharacter: MVPCharacter = {
+      ...character,
+      gold: autonomous.state.gold,
+      health: autonomous.state.health,
+      locationId: autonomous.state.locationId,
+      visibleTraits: autonomous.state.visibleTraits,
+      hiddenTraits: autonomous.state.hiddenTraits,
+      injuries: autonomous.state.injuries,
+      dailyLogs: autonomous.state.dailyLogs,
+      lastSimulatedTick: autonomous.state.lastSimulatedTick,
+      exploreIntent: autonomous.state.exploreIntent,
+      profession: autonomous.state.professionLabel || character.profession,
+    };
+    saveMVPCharacter(mergedCharacter);
+    setCharacter(mergedCharacter);
+
+    if (!user || !autonomous.state.lastSimulatedTick) return;
+    user.signer.signEvent({
+      kind: AUTONOMOUS_SNAPSHOT_KIND,
+      content: JSON.stringify(autonomous.state),
+      tags: [
+        ['t', 'no-stranger-game'],
+        ['character', character.id],
+        ['window', autonomous.state.lastSimulatedTick],
+        ['alt', 'No Stranger Game autonomous daily snapshot'],
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    }).then((event) => {
+      nostr.group([...PRESENCE_RELAYS]).event(event).catch(() => noteSyncFailure());
+    }).catch(() => noteSyncFailure());
+  }, [autonomous.state, character, nostr, user]);
+
+  useEffect(() => {
+    if (!character) return;
+    autonomous.runTick().catch(() => {});
+  }, [character?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeChapter = getActiveChapter();
+  const activeQuestId = activeChapter.id;
+  const questBunchSteps = activeChapter.questBunch;
 
   const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId ? character.pendingQuestBunch : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
   const answeredQuestionIds = new Set(pendingBunch.answers.map((answer) => answer.questionId));
   const currentQuestStep = questBunchSteps.find((step) => !answeredQuestionIds.has(step.questionId));
   const hasChosenMarketQuest = character?.mainQuestChoices.some((choice) => choice.questId === activeQuestId) ?? false;
   const marketChoice = character?.mainQuestChoices.find((choice) => choice.questId === activeQuestId);
-  const chapterLines = ['The village burns.', 'Smoke rolls across the market square.', 'A purse slips from a stranger\'s hand and lands near your feet.'];
+  const chapterLines = activeChapter.chapterLines;
   const hasUnreadChapter = !hasChosenMarketQuest;
   const myClassLabel = character?.className || marketChoice?.option;
   const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
@@ -122,6 +160,11 @@ export function RPGInterface() {
     setTier3Policy(nextPolicy);
     saveTier3Policy(nextPolicy);
     trackTelemetry('tier3_policy_updated', { experimentalEnabled: nextPolicy.experimentalEnabled, visibility: nextPolicy.visibility });
+  };
+
+  const noteSyncFailure = () => {
+    setSyncFailed(true);
+    setTimeout(() => setSyncFailed(false), 10000);
   };
 
   const handleNewGame = () => {
@@ -154,7 +197,10 @@ export function RPGInterface() {
     saveMVPCharacter(newCharacter);
     setCharacter(newCharacter);
     setScreen('home');
-    setActiveView('chronicle');
+    setActiveView('chapter');
+    setChapterOpened(false);
+    setRevealPhase('idle');
+    setRevealIdentity(null);
 
     if (user) {
       const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
@@ -172,8 +218,8 @@ export function RPGInterface() {
         tags: [['d', 'opt-in'], ['t', 'no-stranger-game'], ['alt', 'No Stranger Game player presence opt-in']],
         created_at: Math.floor(Date.now() / 1000),
       }).then((signedEvent) => {
-        presenceNostr.event(signedEvent).then(() => networkPresence.refetch()).catch(() => {});
-      }).catch(() => {});
+        presenceNostr.event(signedEvent).then(() => networkPresence.refetch()).catch(() => noteSyncFailure());
+      }).catch(() => noteSyncFailure());
     }
   };
 
@@ -215,16 +261,35 @@ export function RPGInterface() {
       discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
       chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
       pendingQuestBunch: undefined,
+      hasCompletedFirstChapter: true,
     };
+    const now = Math.floor(Date.now() / 1000);
     saveMVPCharacter(updatedCharacter);
     setCharacter(updatedCharacter);
-    markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${option}`);
-    setActiveView('chronicle');
-    setChapterOpened(false);
+    markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${finalChoice}`);
+    setRevealIdentity({
+      consequence: consequenceByArc,
+      race: identity.race,
+      profession: identity.profession,
+      className: identity.className,
+    });
+    setRevealPhase('revealing');
+    setChapterOpened(true);
 
     if (user) {
       const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
       const questBunchId = `${activeQuestId}:${chapterWindowId}:${pendingAnswers.length}`;
+      const prevProofHead = character.chapterProofHead ?? 'genesis';
+      const proofPayload = {
+        app: 'no-stranger-game',
+        chapterId: activeQuestId,
+        chapterWindowId,
+        selectedOption: finalChoice,
+        prompt: 'Quest bunch: Chapter One arc completed.',
+        consequence: consequenceByArc,
+        characterId: character.id,
+        recordedAt: now,
+      };
       user.signer.signEvent({
         kind: 30000,
         content: JSON.stringify({
@@ -242,9 +307,34 @@ export function RPGInterface() {
           createdAt: updatedCharacter.createdAt,
         }),
         tags: [['d', 'opt-in'], ['t', 'no-stranger-game'], ['alt', 'No Stranger Game player presence opt-in']],
-        created_at: Math.floor(Date.now() / 1000),
-      }).then((signedEvent) => presenceNostr.event(signedEvent).catch(() => {})).catch(() => {});
+        created_at: now,
+      }).then((signedEvent) => presenceNostr.event(signedEvent).catch(() => noteSyncFailure())).catch(() => noteSyncFailure());
+
+      user.signer.signEvent({
+        kind: CHAPTER_PROOF_KIND,
+        content: JSON.stringify(proofPayload),
+        tags: [
+          ['chapter', activeQuestId],
+          ['window', chapterWindowId],
+          ['choice', finalChoice],
+          ['prev', prevProofHead],
+          ['t', 'no-stranger-game'],
+          ['alt', 'No Stranger Game chapter choice proof'],
+        ],
+        created_at: now,
+      }).then((signedProofEvent) => {
+        presenceNostr.event(signedProofEvent).catch(() => noteSyncFailure());
+        const withHead: MVPCharacter = { ...updatedCharacter, chapterProofHead: signedProofEvent.id };
+        saveMVPCharacter(withHead);
+        setCharacter(withHead);
+      }).catch(() => noteSyncFailure());
     }
+
+    setTimeout(() => {
+      setRevealPhase('idle');
+      setActiveView('chronicle');
+      setChapterOpened(false);
+    }, 5000);
   };
 
   if (!user) {
@@ -256,9 +346,40 @@ export function RPGInterface() {
         <p className="mt-6 text-sm tracking-[0.25em] uppercase emerge emerge-delay-2" style={{ color: 'var(--ink-ghost)' }}>
           An RPG that lives inside your social network
         </p>
-        <div className="mt-16 w-full max-w-xs emerge emerge-delay-4">
+        <div className="mt-8 space-y-4 max-w-xs text-center">
+          <p className="font-cormorant text-sm italic emerge emerge-delay-2" style={{ color: 'var(--ink-ghost)' }}>
+            Every day, a letter arrives.
+          </p>
+          <p className="font-cormorant text-sm italic emerge emerge-delay-3" style={{ color: 'var(--ink-ghost)' }}>
+            Every choice closes a door.
+          </p>
+          <p className="font-cormorant text-sm italic emerge emerge-delay-4" style={{ color: 'var(--ink-ghost)' }}>
+            No one else could be here.
+          </p>
+        </div>
+        <div className="mt-12 w-full max-w-xs emerge emerge-delay-5 game-login">
           <LoginArea className="w-full flex flex-col gap-3" />
         </div>
+        <details className="mt-8 max-w-xs text-center emerge emerge-delay-5">
+          <summary className="text-xs cursor-pointer" style={{ color: 'var(--ink-ghost)' }}>
+            What is Nostr?
+          </summary>
+          <div className="mt-3 space-y-2 text-xs" style={{ color: 'var(--ink-ghost)' }}>
+            <p>Nostr is a protocol for sovereign identity. Your account belongs to you.</p>
+            <p>
+              To play, you need a Nostr key. A simple start:
+              {' '}
+              <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Alby</a>
+              {' '}or{' '}
+              <a href="https://nos2x.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>nos2x</a>.
+            </p>
+            <p>
+              On mobile, open a Nostr app like{' '}
+              <a href="https://primal.net" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Primal</a>
+              {' '}and sign in there.
+            </p>
+          </div>
+        </details>
         <div className="mt-12 h-2 w-2 rounded-full smolder" style={{ background: 'var(--ember)' }} />
       </div>
     );
@@ -297,14 +418,33 @@ export function RPGInterface() {
   if (!character) return null;
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: 'var(--void)' }}>
+    <div className="min-h-screen pb-24" style={{ background: 'var(--void)' }}>
       <Guttering />
       <header className="flex items-center justify-between px-2 pt-6 pb-4">
         <div className="h-1.5 w-1.5 rounded-full smolder" style={{ background: 'var(--ember)' }} />
         <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
           Season III
         </span>
-        <div className="w-1.5" />
+        {metadata?.picture ? (
+          <a
+            href={`https://primal.net/p/${nip19.npubEncode(user.pubkey)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View your Nostr profile on Primal"
+          >
+            <Avatar
+              className="h-7 w-7 ring-1 transition-all duration-300 hover:ring-2"
+              style={{ '--tw-ring-color': 'var(--ember-dim)' } as CSSProperties}
+            >
+              <AvatarImage src={metadata.picture} alt="Your profile" />
+              <AvatarFallback className="text-[10px]" style={{ background: 'var(--surface)', color: 'var(--ink-dim)' }}>
+                {character.characterName.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </a>
+        ) : (
+          <div className="w-7" />
+        )}
       </header>
 
       {activeView === 'chronicle' ? (
@@ -323,6 +463,11 @@ export function RPGInterface() {
           glimmers={scryingPool.glimmers}
           onOpenEchoChamber={() => setEchoChamberOpen(true)}
           echoChamberEnabled={tier3Policy.echoChamberEnabled && !tier3Policy.killSwitchEnabled && Boolean(selectedNetworkMember)}
+          dailyLogs={autonomous.state?.dailyLogs}
+          tickWindowId={autonomous.tickWindowId}
+          currentGold={autonomous.state?.gold}
+          currentHealth={autonomous.state?.health}
+          syncFailed={syncFailed}
         />
       ) : null}
 
@@ -341,11 +486,26 @@ export function RPGInterface() {
           onChoose={handleMainQuestChoice}
           deadLetterEnabled={tier3Policy.deadLetterEnabled && !tier3Policy.killSwitchEnabled}
           onOpenDeadLetter={() => setDeadLetterOpen(true)}
+          revealPhase={revealPhase}
+          revealIdentity={revealIdentity ?? undefined}
         />
       ) : null}
 
       {activeView === 'territory' ? (
-        <TerritoryView discoveredLocations={character.discoveredLocations ?? []} glimmerLocationIds={scryingPool.glimmers.map((g) => g.locationId)} />
+        <TerritoryView
+          discoveredLocations={character.discoveredLocations ?? []}
+          glimmerLocationIds={scryingPool.glimmers.map((g) => g.locationId)}
+          onExplore={(intent) => {
+            autonomous.queueExploreIntent(intent);
+            const nextCharacter = { ...character, exploreIntent: intent };
+            saveMVPCharacter(nextCharacter);
+            setCharacter(nextCharacter);
+            toast({
+              title: 'The road receives your intention',
+              description: 'Your character will carry this impulse into the next dawn.',
+            });
+          }}
+        />
       ) : null}
 
       {activeView === 'self' ? (
@@ -382,7 +542,7 @@ export function RPGInterface() {
         }}
       />
 
-      <nav className="fixed inset-x-0 bottom-0 z-40" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
+      <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
         <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
           {[
             { key: 'chronicle', icon: '⊙', label: 'Chronicle' },
@@ -392,12 +552,16 @@ export function RPGInterface() {
           ].map((item) => {
             const isActive = activeView === item.key;
             const hasNotification = item.key === 'chapter' && hasUnreadChapter;
+            const isLocked = !character.hasCompletedFirstChapter && (item.key === 'territory' || item.key === 'self');
             return (
-              <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
-                <span className={`text-lg transition-all duration-300 ${hasNotification ? 'smolder' : ''}`} style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
+              <button key={item.key} type="button" disabled={isLocked} onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300 disabled:opacity-35" aria-label={item.label} title={isLocked ? 'Not yet.' : item.label}>
+                <span className={`text-lg transition-all duration-300 ${hasNotification ? 'smolder' : ''}`} style={{ color: isLocked ? 'var(--ink-ghost)' : isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
                   {item.icon}
                 </span>
-                <span className="text-[9px] tracking-[0.2em] uppercase transition-opacity" style={{ color: isActive ? 'var(--ink-dim)' : 'transparent' }}>
+                <span
+                  className="text-[9px] tracking-[0.2em] uppercase transition-opacity"
+                  style={{ color: isActive ? 'var(--ink-dim)' : 'var(--ink-ghost)', opacity: isActive ? 1 : 0.5 }}
+                >
                   {item.label}
                 </span>
                 {isActive ? <div className="absolute -bottom-0 h-0.5 w-4 rounded-full" style={{ background: 'var(--ember)' }} /> : null}

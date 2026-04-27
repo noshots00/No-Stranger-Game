@@ -189,6 +189,31 @@
   .smoke-wisp-1 { width: 110px; height: 58px; left: -18px; top: 18px; animation-delay: 0ms; }
   .smoke-wisp-2 { width: 124px; height: 62px; right: -16px; top: 96px; animation-delay: 1200ms; }
   .smoke-wisp-3 { width: 96px; height: 52px; left: 26%; bottom: 8px; animation-delay: 2400ms; }
+
+  .game-login .flex > button {
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--ink-ghost) !important;
+    border-radius: 0.5rem !important;
+    font-family: "Cormorant Garamond", Georgia, serif !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.05em !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .game-login .flex > button:hover {
+    border-color: var(--ember-dim) !important;
+    color: var(--ember) !important;
+  }
+
+  .game-login .flex > button:focus-visible {
+    outline: 1px solid var(--ember-dim) !important;
+    outline-offset: 1px !important;
+  }
+
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
 }
 
 @keyframes breath {

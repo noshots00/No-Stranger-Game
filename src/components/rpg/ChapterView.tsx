@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { QuestBunchAnswer } from '@/lib/rpg/utils';
 
 interface QuestStep {
@@ -21,6 +22,8 @@ interface ChapterViewProps {
   onChoose: (questionId: string, option: 'A' | 'B' | 'C') => void;
   deadLetterEnabled: boolean;
   onOpenDeadLetter: () => void;
+  revealPhase: 'idle' | 'revealing';
+  revealIdentity?: { consequence: string; race: string; profession: string; className: string };
 }
 
 export function ChapterView({
@@ -37,7 +40,21 @@ export function ChapterView({
   onChoose,
   deadLetterEnabled,
   onOpenDeadLetter,
+  revealPhase,
+  revealIdentity,
 }: ChapterViewProps) {
+  const [narrativeComplete, setNarrativeComplete] = useState(false);
+
+  useEffect(() => {
+    if (!chapterOpened || hasChosenMarketQuest || revealPhase === 'revealing') {
+      setNarrativeComplete(false);
+      return;
+    }
+    const delay = chapterLines.length * 800 + 1200;
+    const timer = setTimeout(() => setNarrativeComplete(true), delay);
+    return () => clearTimeout(timer);
+  }, [chapterOpened, hasChosenMarketQuest, chapterLines, revealPhase]);
+
   return (
     <div className="min-h-[80vh] flex flex-col justify-center px-6 mx-auto max-w-lg">
       {!chapterOpened && !hasChosenMarketQuest ? (
@@ -75,6 +92,26 @@ export function ChapterView({
         </div>
       ) : null}
 
+      {revealPhase === 'revealing' && revealIdentity ? (
+        <div className="mt-12 space-y-5 emerge">
+          <p className="font-cormorant text-xl md:text-2xl leading-relaxed chapter-line" style={{ color: 'var(--ink)' }}>
+            {revealIdentity.consequence}
+          </p>
+          <p className="font-cormorant text-lg emerge emerge-delay-2" style={{ color: 'var(--ember)' }}>
+            Race revealed: {revealIdentity.race}
+          </p>
+          <p className="font-cormorant text-lg emerge emerge-delay-3" style={{ color: 'var(--ember)' }}>
+            Profession revealed: {revealIdentity.profession}
+          </p>
+          <p className="font-cormorant text-lg emerge emerge-delay-4" style={{ color: 'var(--ember)' }}>
+            Class revealed: {revealIdentity.className}
+          </p>
+          <p className="font-cormorant text-sm italic emerge emerge-delay-5" style={{ color: 'var(--ink-ghost)' }}>
+            Return tomorrow for the next unfolding.
+          </p>
+        </div>
+      ) : null}
+
       {mainQuestFlavorLine ? (
         <p className="mt-8 font-cormorant text-sm italic" style={{ color: 'var(--ink-ghost)' }}>
           {mainQuestFlavorLine}
@@ -101,7 +138,7 @@ export function ChapterView({
         </div>
       ) : null}
 
-      {chapterOpened && !hasChosenMarketQuest && currentQuestStep ? (
+      {chapterOpened && !hasChosenMarketQuest && narrativeComplete && revealPhase !== 'revealing' && currentQuestStep ? (
         <div className="mt-12 space-y-6 emerge candle-flicker-soft">
           <p className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
             {pendingBunch.answers.length + 1} of {questBunchStepsLength}
@@ -128,6 +165,12 @@ export function ChapterView({
             ))}
           </div>
         </div>
+      ) : null}
+
+      {chapterOpened && !hasChosenMarketQuest && !narrativeComplete && revealPhase !== 'revealing' ? (
+        <p className="mt-8 text-xs tracking-[0.2em] uppercase emerge" style={{ color: 'var(--ink-ghost)' }}>
+          Crack the seal to begin.
+        </p>
       ) : null}
     </div>
   );

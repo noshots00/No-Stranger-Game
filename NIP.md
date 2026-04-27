@@ -56,6 +56,33 @@ Regular event logging RPG actions taken by players (combat, quests, purchases, e
 
 **Content:** Description of the action taken
 
+### 30315 - Autonomous Daily Snapshot
+Regular event storing deterministic daily idle simulation snapshots for a character run.
+
+**Tags:**
+- `t` - Always `no-stranger-game`
+- `character` - Character identifier for this run
+- `window` - UTC daily window (`YYYY-MM-DD`)
+- `alt` - Human-readable description
+
+**Content:** JSON string containing:
+```json
+{
+  "locationId": "market_square",
+  "gold": 12,
+  "health": 94,
+  "professionLabel": "Street Vendor",
+  "visibleTraits": ["Patient"],
+  "hiddenTraits": ["Night Owl"],
+  "injuries": [],
+  "lastSimulatedTick": "2026-04-27",
+  "dailyLogs": [
+    { "tick": "2026-04-27", "line": "At Market Square, you worked as Street Vendor..." }
+  ],
+  "exploreIntent": "Search the old road for work and shelter"
+}
+```
+
 ### 7127 - Social Interaction
 Regular event converting social Nostr activity into game elements (rumors, NPC dialogues, rival challenges)
 

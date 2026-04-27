@@ -6,16 +6,16 @@ export function Guttering() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const schedule = () => {
-      const delay = 180000 + Math.random() * 120000;
+    const schedule = (isFirst: boolean = false) => {
+      const delay = isFirst ? 30000 + Math.random() * 30000 : 180000 + Math.random() * 120000;
       timer = setTimeout(() => {
         setActive(true);
-        setTimeout(() => setActive(false), 250);
+        setTimeout(() => setActive(false), 400);
         schedule();
       }, delay);
     };
 
-    schedule();
+    schedule(true);
     return () => {
       if (timer) clearTimeout(timer);
     };
@@ -23,5 +23,5 @@ export function Guttering() {
 
   if (!active) return null;
 
-  return <div className="pointer-events-none fixed inset-0 z-50 bg-black/40 transition-opacity duration-200" />;
+  return <div className="pointer-events-none fixed inset-0 z-50 bg-black/20 transition-opacity duration-300" />;
 }
