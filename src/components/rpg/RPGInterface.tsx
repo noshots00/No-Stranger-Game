@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -30,6 +30,7 @@ import {
   computeQuestBunchIdentity,
   loadMVPCharacter,
   saveMVPCharacter,
+  isCharacterLikelyStuck,
   type MVPCharacter,
   type NetworkPresenceMember,
   type QuestBunchAnswer,
@@ -46,7 +47,7 @@ import { EchoChamberOverlay } from './EchoChamberOverlay';
 import { Guttering } from './Guttering';
 import { WorldWelcome } from './WorldWelcome';
 
-type ActiveView = 'chronicle' | 'chapter' | 'territory' | 'self';
+type ActiveView = 'play' | 'chapter' | 'map' | 'profile';
 
 export function RPGInterface() {
   const { user, metadata } = useCurrentUser();
@@ -54,7 +55,7 @@ export function RPGInterface() {
   const { toast } = useToast();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
-  const [activeView, setActiveView] = useState<ActiveView>('chronicle');
+  const [activeView, setActiveView] = useState<ActiveView>('play');
   const [characterNameInput, setCharacterNameInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
@@ -65,6 +66,7 @@ export function RPGInterface() {
   const [echoChamberOpen, setEchoChamberOpen] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
   const [showWorldWelcome, setShowWorldWelcome] = useState(false);
+  const [showStuckRecovery, setShowStuckRecovery] = useState(false);
 
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
@@ -80,12 +82,32 @@ export function RPGInterface() {
   useEffect(() => {
     const existing = loadMVPCharacter();
     if (existing) {
+      if (isCharacterLikelyStuck(existing)) {
+        setShowStuckRecovery(true);
+      }
       setCharacter(existing);
       setScreen('home');
       return;
     }
     setScreen('creation');
   }, []);
+
+  const repairCharacter = () => {
+    if (!character) return;
+    const repaired: MVPCharacter = {
+      ...character,
+      level: 1,
+      className: character.className || 'Wanderer',
+      profession: character.profession || 'Woodcutter',
+      pendingQuestBunch: undefined,
+      completedChapterIds: Array.isArray(character.completedChapterIds) ? character.completedChapterIds : [],
+      mainQuestChoices: Array.isArray(character.mainQuestChoices) ? character.mainQuestChoices : [],
+      hasCompletedFirstChapter: Boolean(character.hasCompletedFirstChapter),
+    };
+    saveMVPCharacter(repaired);
+    setCharacter(repaired);
+    setShowStuckRecovery(false);
+  };
 
   useEffect(() => {
     setTier3Policy(loadTier3Policy());
@@ -164,11 +186,11 @@ export function RPGInterface() {
   const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId ? character.pendingQuestBunch : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
   const answeredQuestionIds = new Set(pendingBunch.answers.map((answer) => answer.questionId));
   const currentQuestStep = questBunchSteps.find((step) => !answeredQuestionIds.has(step.questionId));
-  const hasChosenMarketQuest = character?.mainQuestChoices.some((choice) => choice.questId === activeQuestId) ?? false;
-  const marketChoice = character?.mainQuestChoices.find((choice) => choice.questId === activeQuestId);
+  const hasChosenActiveChapter = character?.mainQuestChoices.some((choice) => choice.questId === activeQuestId) ?? false;
+  const activeChapterChoice = character?.mainQuestChoices.find((choice) => choice.questId === activeQuestId);
   const chapterLines = activeChapter.chapterLines;
-  const hasUnreadChapter = !hasChosenMarketQuest;
-  const myClassLabel = character?.className || marketChoice?.option;
+  const hasUnreadChapter = !hasChosenActiveChapter;
+  const myClassLabel = character?.className || activeChapterChoice?.option;
   const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
   const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
 
@@ -187,7 +209,7 @@ export function RPGInterface() {
     clearMVPCharacter();
     setCharacter(null);
     setScreen('creation');
-    setActiveView('chronicle');
+    setActiveView('play');
     setChapterOpened(false);
   };
 
@@ -201,10 +223,12 @@ export function RPGInterface() {
       role: 'stranger',
       characterName: normalizedCharacterName,
       gender: 'Unknown',
-      race: 'Human',
-      profession: 'Farmer',
+      race: 'Unspoken',
+      profession: 'Woodcutter',
       startingCity: 'Dawnharbor',
       className: 'Wanderer',
+      profileTitle: 'Unnamed Drifter',
+      profileBio: '',
       mainQuestChoices: [],
       completedChapterIds: [],
       discoveredLocations: ['market-square'],
@@ -266,23 +290,26 @@ export function RPGInterface() {
     const dCount = pendingAnswers.filter((answer) => answer.option === 'D').length;
     const eCount = pendingAnswers.filter((answer) => answer.option === 'E').length;
     const identity = computeQuestBunchIdentity(pendingAnswers, `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`);
+    const basicArchetype = finalChoice === 'A' ? 'Shieldbearer' : finalChoice === 'B' ? 'Magician' : finalChoice === 'C' ? 'Thief' : finalChoice === 'D' ? 'Soldier' : 'Wanderer';
+    const basicProfession = finalChoice === 'A' ? 'Woodcutter' : finalChoice === 'B' ? 'Miner' : finalChoice === 'C' ? 'Hunter' : finalChoice === 'D' ? 'Tanner' : 'Beggar';
+    const isChapterOne = activeQuestId === 'market-money-001';
     const consequenceByArc = finalChoice === 'A'
-      ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+      ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows. ${identity.hook}`
       : finalChoice === 'B'
-        ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+        ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies. ${identity.hook}`
         : finalChoice === 'C'
-          ? `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+          ? `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens. ${identity.hook}`
           : finalChoice === 'D'
-            ? `You choose risk without witness. Your road carries ${dCount} dangerous turns and ${eCount} quiet debts. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
-            : `You choose silence and resolve. Your road carries ${eCount} buried vows and ${dCount} unanswered names. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`;
+            ? `You choose risk without witness. Your road carries ${dCount} dangerous turns and ${eCount} quiet debts. ${identity.hook}`
+            : `You choose silence and resolve. Your road carries ${eCount} buried vows and ${dCount} unanswered names. ${identity.hook}`;
 
     const updatedCharacter: MVPCharacter = {
       ...character,
       mainQuestChoices: [...character.mainQuestChoices, { questId: activeQuestId, prompt: 'Quest bunch: Chapter One arc completed.', option: finalChoice, consequence: consequenceByArc, chosenAt: Math.floor(Date.now() / 1000) }],
-      level: character.level + 1,
-      race: identity.race,
-      profession: identity.profession,
-      className: identity.className,
+      level: isChapterOne ? 1 : character.level + 1,
+      race: isChapterOne ? 'Unspoken' : identity.race,
+      profession: isChapterOne ? basicProfession : identity.profession,
+      className: isChapterOne ? basicArchetype : identity.className,
       discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
       chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
       completedChapterIds: Array.from(new Set([...(character.completedChapterIds ?? []), activeQuestId])),
@@ -295,9 +322,9 @@ export function RPGInterface() {
     markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${finalChoice}`);
     setRevealIdentity({
       consequence: consequenceByArc,
-      race: identity.race,
-      profession: identity.profession,
-      className: identity.className,
+      race: isChapterOne ? 'Unspoken' : identity.race,
+      profession: isChapterOne ? basicProfession : identity.profession,
+      className: isChapterOne ? basicArchetype : identity.className,
     });
     setRevealPhase('revealing');
     setChapterOpened(true);
@@ -442,79 +469,55 @@ export function RPGInterface() {
 
   if (!character) return null;
 
-  return (
-    <div className="min-h-screen pb-32" style={{ background: 'var(--void)' }}>
-      <Guttering />
-      <header className="flex items-center justify-between px-2 pt-6 pb-4">
-        <div className="h-1.5 w-1.5 rounded-full smolder" style={{ background: 'var(--ember)' }} />
-        <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
-          Season III
-        </span>
-        {metadata?.picture ? (
-          <a
-            href={`https://primal.net/p/${nip19.npubEncode(user.pubkey)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View your Nostr profile on Primal"
-          >
-            <Avatar
-              className="h-9 w-9 ring-1 transition-all duration-300 hover:ring-2"
-              style={{ '--tw-ring-color': 'var(--ember-dim)' } as CSSProperties}
-            >
-              <AvatarImage src={metadata.picture} alt="Your profile" />
-              <AvatarFallback className="text-[10px]" style={{ background: 'var(--surface)', color: 'var(--ink-dim)' }}>
-                {character.characterName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </a>
-        ) : (
-          <div className="w-7" />
-        )}
-      </header>
+  const estDayLabel = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(Date.now());
+  const activeLocationLabel = autonomous.state?.locationId?.replaceAll('_', ' ') ?? 'market square';
+  const publicSnippet = `${character.characterName}, Level ${character.level} ${character.className}, in ${activeLocationLabel}`;
+  const rateXp = Math.max(1, Math.floor((autonomous.state?.visibleTraits.length ?? 1) * 0.4));
+  const rateGold = Math.max(1, Math.floor((autonomous.state?.gold ?? 0) / Math.max(1, character.level)));
+  const hasActiveMainQuest = hasUnreadChapter;
+  const socialAccomplishments = (networkPresence.data?.topMembers ?? []).slice(0, 4).map((member) => {
+    const discovery = member.discoveredLocations?.[0] ?? 'a forgotten place';
+    return `${member.characterName} discovered ${discovery}.`;
+  });
 
-      {activeView === 'chronicle' ? (
-        showWorldWelcome ? (
-          <WorldWelcome
-            characterName={character.characterName}
-            onDismiss={() => {
-              localStorage.setItem('nsg:welcomed', 'true');
-              setShowWorldWelcome(false);
-            }}
-          />
-        ) : (
-        <ChronicleView
-          latestConsequence={character.mainQuestChoices[character.mainQuestChoices.length - 1]?.consequence}
-          hasUnreadChapter={hasUnreadChapter}
-          onOpenChapter={() => setActiveView('chapter')}
-          echoes={echoes.data}
-          homelandLine={homeland.homelandFlavorLine}
-          ledger={ledger.data}
-          totalWorldOptedIn={networkPresence.data?.totalWorldOptedIn}
-          convergenceMatches={convergence.matches}
-          topMembers={networkPresence.data?.topMembers ?? []}
-          selectedNetworkMember={selectedNetworkMember}
-          onSelectNetworkMember={setSelectedNetworkMember}
-          glimmers={scryingPool.glimmers}
-          onOpenEchoChamber={() => setEchoChamberOpen(true)}
-          echoChamberEnabled={tier3Policy.echoChamberEnabled && !tier3Policy.killSwitchEnabled && Boolean(selectedNetworkMember)}
-          dailyLogs={autonomous.state?.dailyLogs}
-          tickWindowId={autonomous.tickWindowId}
-          currentGold={autonomous.state?.gold}
-          currentHealth={autonomous.state?.health}
-          syncFailed={syncFailed}
-        />
-        )
-      ) : null}
+  if (showStuckRecovery) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--void)' }}>
+        <div className="max-w-md space-y-4 rounded-xl p-6" style={{ background: 'var(--surface)' }}>
+          <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>A torn page was found.</p>
+          <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
+            This character comes from an older season build and can no longer continue safely.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={repairCharacter} className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--ember)', color: 'var(--void)' }}>
+              Repair Character
+            </button>
+            <button type="button" onClick={handleNewGame} className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}>
+              Hard Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-      {activeView === 'chapter' ? (
+  if (hasActiveMainQuest || activeView === 'chapter') {
+    return (
+      <div className="min-h-screen pb-safe" style={{ background: 'var(--void)' }}>
+        <Guttering />
         <ChapterView
           chapterOpened={chapterOpened}
           onOpenChapter={() => setChapterOpened(true)}
-          hasChosenMarketQuest={hasChosenMarketQuest}
+          hasChosenMarketQuest={hasChosenActiveChapter}
           chapterLines={chapterLines}
           mainQuestFlavorLine={echoes.data?.mainQuestFlavorLine}
-          marketConsequence={marketChoice?.consequence}
-          marketOption={marketChoice?.option}
+          marketConsequence={activeChapterChoice?.consequence}
+          marketOption={activeChapterChoice?.option}
           currentQuestStep={currentQuestStep}
           pendingBunch={pendingBunch}
           questBunchStepsLength={questBunchSteps.length}
@@ -524,12 +527,129 @@ export function RPGInterface() {
           revealPhase={revealPhase}
           revealIdentity={revealIdentity ?? undefined}
         />
-      ) : null}
+      </div>
+    );
+  }
 
-      {activeView === 'territory' ? (
+  return (
+    <div className="min-h-screen pb-24" style={{ background: 'var(--void)' }}>
+      <Guttering />
+      <div className="mx-auto max-w-2xl px-4 pt-6 space-y-5">
+        <header className="rounded-xl p-4" style={{ background: 'var(--surface)' }}>
+          <div className="flex items-center justify-between">
+            <p className="font-cormorant text-xl" style={{ color: 'var(--ink)' }}>{character.characterName}</p>
+            <p className="text-xs tracking-[0.16em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Day · {estDayLabel}</p>
+          </div>
+          <p className="mt-1 text-sm" style={{ color: 'var(--ink-dim)' }}>
+            {activeLocationLabel}
+          </p>
+          <button
+            type="button"
+            className="mt-3 w-full text-left rounded-md p-3"
+            style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
+            onClick={() => setActiveView('profile')}
+          >
+            <p className="font-cormorant text-base">{publicSnippet}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--ink-ghost)' }}>
+              Click to open full public profile
+            </p>
+          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(networkPresence.data?.topMembers ?? []).slice(0, 3).map((member) => (
+              <button
+                key={member.pubkey}
+                type="button"
+                className="text-xs rounded-full px-2 py-1"
+                style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
+                onClick={() => {
+                  setSelectedNetworkMember(member);
+                  setActiveView('profile');
+                }}
+              >
+                {member.characterName}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <section className="rounded-xl p-5 text-center" style={{ background: 'var(--surface)' }}>
+          <button
+            type="button"
+            className="mx-auto h-28 w-28 rounded-full font-cormorant text-2xl"
+            style={{ background: 'var(--ember)', color: 'var(--void)' }}
+            onClick={() => setActiveView('play')}
+          >
+            Play
+          </button>
+          <p className="mt-4 text-sm" style={{ color: 'var(--ink-dim)' }}>
+            Gaining experience at a rate of {rateXp}/hr · Gold {rateGold}/hr
+          </p>
+          <p className="text-xs mt-1" style={{ color: 'var(--ink-ghost)' }}>
+            {autonomous.state?.injuries?.length ? `Negative effects: ${autonomous.state.injuries.join(', ')}` : 'No severe injuries today.'}
+          </p>
+        </section>
+
+        <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
+          <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Mundane Log</p>
+          {(autonomous.state?.dailyLogs ?? []).slice(0, 5).map((entry, idx) => (
+            <p key={`${entry.tick}-${idx}`} className="font-cormorant text-lg leading-relaxed" style={{ color: 'var(--ink)' }}>
+              {entry.line}
+            </p>
+          ))}
+        </section>
+
+        <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
+
+        <section className="rounded-xl p-4 space-y-3" style={{ background: 'var(--surface)' }}>
+          <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Companion</p>
+          {[
+            'Ask about the old tower dreams',
+            'Ask who in town owes you a debt',
+            'Ask where hunters vanish at dusk',
+          ].map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              className="w-full text-left rounded-md px-3 py-2 font-cormorant text-lg"
+              style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
+              onClick={() => {
+                autonomous.queueExploreIntent(choice);
+                toast({ title: 'The memory takes root.', description: 'Your companion will bring this thread back later.' });
+              }}
+            >
+              {choice}
+            </button>
+          ))}
+        </section>
+
+        <div className="h-px" style={{ background: 'var(--ink-ghost)' }} />
+
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            <button type="button" className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--surface)', color: 'var(--ink)' }} onClick={() => setActiveView('profile')}>
+              Profile
+            </button>
+            <button type="button" className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--surface)', color: 'var(--ink)' }} onClick={() => setActiveView('map')}>
+              Map
+            </button>
+          </div>
+          <button type="button" className="text-sm" style={{ color: 'var(--ink-dim)' }}>
+            Settings
+          </button>
+        </div>
+
+        <section className="space-y-1">
+          <p className="text-sm" style={{ color: 'var(--ink)' }}>- Real-money shop (coming soon)</p>
+          <p className="text-sm" style={{ color: 'var(--ink)' }}>- Guild registry (coming soon)</p>
+          <p className="text-sm" style={{ color: 'var(--ink)' }}>- Caravan contracts (coming soon)</p>
+        </section>
+
+        {activeView === 'map' ? (
         <TerritoryView
           discoveredLocations={character.discoveredLocations ?? []}
           glimmerLocationIds={scryingPool.glimmers.map((g) => g.locationId)}
+          level={character.level}
+          visibleTraits={character.visibleTraits}
           onExplore={(intent) => {
             autonomous.queueExploreIntent(intent);
             const nextCharacter = { ...character, exploreIntent: intent };
@@ -543,7 +663,7 @@ export function RPGInterface() {
         />
       ) : null}
 
-      {activeView === 'self' ? (
+      {activeView === 'profile' ? (
         <SelfView
           character={character}
           proofNodes={proofChain.data ?? []}
@@ -555,8 +675,34 @@ export function RPGInterface() {
             if (!tier3Policy.forgettingEnabled || tier3Policy.killSwitchEnabled) return;
             forgetting.mutate(eventId);
           }}
+          onUpdateCharacter={(nextCharacter) => {
+            saveMVPCharacter(nextCharacter);
+            setCharacter(nextCharacter);
+          }}
         />
       ) : null}
+
+      {showWorldWelcome ? (
+        <WorldWelcome
+          characterName={character.characterName}
+          onDismiss={() => {
+            localStorage.setItem('nsg:welcomed', 'true');
+            setShowWorldWelcome(false);
+          }}
+        />
+      ) : null}
+
+      <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
+        <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Across the World</p>
+        {socialAccomplishments.length > 0 ? socialAccomplishments.map((line) => (
+          <p key={line} className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>{line}</p>
+        )) : (
+          <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
+            The roads are quiet tonight, but not empty.
+          </p>
+        )}
+      </section>
+      </div>
 
       <DeadLetterOverlay
         isOpen={deadLetterOpen}
@@ -576,36 +722,6 @@ export function RPGInterface() {
           echoChamber.mutate({ targetPubkey: selectedNetworkMember.pubkey, ...payload }, { onSuccess: () => setEchoChamberOpen(false) });
         }}
       />
-
-      <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
-        <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
-          {[
-            { key: 'chronicle', icon: '⊙', label: 'Chronicle' },
-            { key: 'chapter', icon: '✦', label: 'Chapter' },
-            { key: 'territory', icon: '◈', label: 'Territory' },
-            { key: 'self', icon: '◉', label: 'Self' },
-          ].map((item) => {
-            const isActive = activeView === item.key;
-            const hasNotification = item.key === 'chapter' && hasUnreadChapter;
-            const isLocked = !character.hasCompletedFirstChapter && (item.key === 'territory' || item.key === 'self');
-            const lockedLabel = item.key === 'territory' ? 'The mist has not parted.' : item.key === 'self' ? 'You do not yet know your name.' : item.label;
-            return (
-              <button key={item.key} type="button" disabled={isLocked} onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300 disabled:opacity-35" aria-label={item.label} title={isLocked ? lockedLabel : item.label}>
-                <span className={`text-lg transition-all duration-300 ${hasNotification ? 'smolder' : ''}`} style={{ color: isLocked ? 'var(--ink-ghost)' : isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
-                  {item.icon}
-                </span>
-                <span
-                  className="text-[9px] tracking-[0.2em] uppercase transition-opacity"
-                  style={{ color: isActive ? 'var(--ink-dim)' : 'var(--ink-ghost)', opacity: isActive ? 1 : 0.5 }}
-                >
-                  {item.label}
-                </span>
-                {isActive ? <div className="absolute -bottom-0 h-0.5 w-4 rounded-full" style={{ background: 'var(--ember)' }} /> : null}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
     </div>
   );
 }

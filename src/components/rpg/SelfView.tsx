@@ -15,6 +15,7 @@ interface SelfViewProps {
   onUpdatePolicy: (nextPolicy: Tier3PolicySettings) => void;
   onNewGame: () => void;
   onForgetProof: (eventId: string) => void;
+  onUpdateCharacter: (nextCharacter: MVPCharacter) => void;
 }
 
 export function SelfView({
@@ -25,6 +26,7 @@ export function SelfView({
   onUpdatePolicy,
   onNewGame,
   onForgetProof,
+  onUpdateCharacter,
 }: SelfViewProps) {
   const raceDescription = getRaceDescription(character.race) ?? 'Unknown race lore.';
   const classDescription = getClassDescription(character.className || 'Wanderer') ?? 'Unknown class lore.';
@@ -44,6 +46,7 @@ export function SelfView({
             {character.characterName}
           </p>
           <p className="mt-2 text-xs tracking-[0.2em] uppercase" style={{ color: 'var(--ink-dim)' }}>
+            {character.profileTitle?.trim() || 'Unnamed Drifter'} ·{' '}
             Level {character.level} ·{' '}
             <ResponsiveTooltip content={classDescription}>
               <button type="button" className="underline underline-offset-2 decoration-dotted">
@@ -69,13 +72,13 @@ export function SelfView({
           </p>
           {character.npub ? (
             <a
-              href={`https://primal.net/p/${character.npub}`}
+              href={`https://ditto.pub/${character.npub}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 inline-flex items-center gap-1.5 text-xs transition-colors"
               style={{ color: 'var(--ember-dim)' }}
             >
-              View on Nostr ↗
+              View Ditto profile ↗
             </a>
           ) : null}
         </div>
@@ -100,6 +103,25 @@ export function SelfView({
                 No traits have surfaced yet.
               </p>
             )}
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Public Profile" defaultOpen={false}>
+          <div className="space-y-3">
+            <input
+              value={character.profileTitle ?? ''}
+              onChange={(event) => onUpdateCharacter({ ...character, profileTitle: event.target.value })}
+              placeholder="Choose a public title"
+              className="w-full rounded-md px-3 py-2 text-sm"
+              style={{ background: 'var(--surface)', color: 'var(--ink)' }}
+            />
+            <textarea
+              value={character.profileBio ?? ''}
+              onChange={(event) => onUpdateCharacter({ ...character, profileBio: event.target.value })}
+              placeholder="A short line others can read..."
+              className="w-full h-24 rounded-md px-3 py-2 text-sm"
+              style={{ background: 'var(--surface)', color: 'var(--ink)' }}
+            />
           </div>
         </CollapsibleSection>
 

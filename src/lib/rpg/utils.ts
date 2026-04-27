@@ -38,6 +38,8 @@ export interface MVPCharacter {
   profession: string;
   startingCity: string;
   className: string;
+  profileTitle?: string;
+  profileBio?: string;
   gold?: number;
   health?: number;
   locationId?: string;
@@ -163,6 +165,7 @@ export interface QuestBunchIdentityResult {
   race: string;
   profession: string;
   className: string;
+  hook: string;
 }
 
 export const computeQuestBunchIdentity = (
@@ -177,54 +180,29 @@ export const computeQuestBunchIdentity = (
   );
 
   const professionWeightsFromAnswers = professionWeightMapFromAnswers(answers);
-  const professionWeights = PROFESSION_OPTIONS.map((value) => {
-    let weight = professionWeightsFromAnswers.get(value) ?? 1;
-    const loweredRace = race.toLowerCase();
-    const loweredProfession = value.toLowerCase();
-
-    if ((loweredRace.includes('dwarf') || loweredRace.includes('kobold') || loweredRace.includes('goblin')) && (
-      loweredProfession.includes('smith') || loweredProfession.includes('miner') || loweredProfession.includes('armorer')
-    )) weight += 2;
-    if ((loweredRace.includes('human') || loweredRace.includes('imperial') || loweredRace.includes('redguard')) && (
-      loweredProfession.includes('guard') || loweredProfession.includes('watchman') || loweredProfession.includes('steward')
-    )) weight += 2;
-    if ((loweredRace.includes('elf') || loweredRace.includes('firbolg') || loweredRace.includes('treant')) && (
-      loweredProfession.includes('herbalist') || loweredProfession.includes('harvester') || loweredProfession.includes('tracker')
-    )) weight += 2;
-    return { value, weight };
-  });
+  const professionWeights = PROFESSION_OPTIONS.map((value) => ({ value, weight: professionWeightsFromAnswers.get(value) ?? 1 }));
   const profession = weightedPick(professionWeights, random);
 
   const classWeightsByAnswers = classWeightMapFromAnswers(answers);
-  const classWeights = CLASS_OPTIONS.map((value) => {
-    let weight = classWeightsByAnswers.get(value) ?? 1;
-    const loweredRace = race.toLowerCase();
-    const loweredClass = value.toLowerCase();
-
-    if (loweredClass.includes('mage') || loweredClass.includes('wizard') || loweredClass.includes('arcan') || loweredClass.includes('sorcer') || loweredClass.includes('warlock')) {
-      if (loweredRace.includes('elf') || loweredRace.includes('aasimar') || loweredRace.includes('tiefling')) weight += 2;
-    }
-    if (loweredClass.includes('druid') || loweredClass.includes('warden') || loweredClass.includes('shaman') || loweredClass.includes('animist')) {
-      if (loweredRace.includes('firbolg') || loweredRace.includes('treant') || loweredRace.includes('elf')) weight += 2;
-      if (profession === 'Wood Cutter') weight += 1;
-    }
-    if (loweredClass.includes('assassin') || loweredClass.includes('rogue') || loweredClass.includes('shadow') || loweredClass.includes('ninja') || loweredClass.includes('thief')) {
-      if (loweredRace.includes('drow') || loweredRace.includes('kenku') || loweredRace.includes('yuan-ti') || loweredRace.includes('khajiit')) weight += 2;
-    }
-    if (loweredClass.includes('knight') || loweredClass.includes('paladin') || loweredClass.includes('guardian') || loweredClass.includes('sentinel') || loweredClass.includes('defender')) {
-      if (profession === 'Royal Guard') weight += 2;
-      if (loweredRace.includes('human') || loweredRace.includes('imperial') || loweredRace.includes('redguard')) weight += 1;
-    }
-    if (loweredClass.includes('engineer') || loweredClass.includes('machinist') || loweredClass.includes('mechanist') || loweredClass.includes('artificer') || loweredClass.includes('alchemist')) {
-      if (profession === 'Miner') weight += 2;
-      if (loweredRace.includes('gnome') || loweredRace.includes('goblin') || loweredRace.includes('kobold')) weight += 1;
-    }
-
-    return { value, weight };
-  });
+  const classWeights = CLASS_OPTIONS.map((value) => ({ value, weight: classWeightsByAnswers.get(value) ?? 1 }));
   const className = weightedPick(classWeights, random);
+  const hooks = [
+    'You owe a hooded creditor whose name you cannot remember.',
+    'A child in town insists they have seen your face in old wanted posters.',
+    'You carry a scar that aches when the moon is high.',
+    'A sealed letter addressed to you keeps reappearing in your pack.',
+    'You dream of a sunken tower each full moon.',
+  ];
+  const hook = hooks[Math.floor(random() * hooks.length)];
 
-  return { race, profession, className };
+  return { race, profession, className, hook };
+};
+
+export const isCharacterLikelyStuck = (character: MVPCharacter): boolean => {
+  const hasPending = Boolean(character.pendingQuestBunch?.answers.length);
+  const hasProgress = (character.mainQuestChoices?.length ?? 0) > 0;
+  const noChapterTracking = !Array.isArray(character.completedChapterIds);
+  return noChapterTracking || (hasPending && !hasProgress && (Date.now() - character.createdAt) > 1000 * 60 * 60);
 };
 
 export const mergeUniquePubkeys = (follows: string[], followers: string[], currentUserPubkey: string): string[] => {
@@ -287,6 +265,8 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       profession: typeof parsed.profession === 'string' && parsed.profession.trim() ? parsed.profession : 'Wood Cutter',
       startingCity: typeof parsed.startingCity === 'string' && parsed.startingCity.trim() ? parsed.startingCity : 'Dawnharbor',
       className: typeof parsed.className === 'string' && parsed.className.trim() ? parsed.className : 'Wanderer',
+      profileTitle: typeof parsed.profileTitle === 'string' ? parsed.profileTitle : 'Unnamed Drifter',
+      profileBio: typeof parsed.profileBio === 'string' ? parsed.profileBio : '',
       gold: typeof parsed.gold === 'number' ? parsed.gold : 0,
       health: typeof parsed.health === 'number' ? parsed.health : 100,
       locationId: typeof parsed.locationId === 'string' ? parsed.locationId : 'market_square',

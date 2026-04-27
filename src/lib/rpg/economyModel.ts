@@ -27,13 +27,16 @@ export const LOCATION_ECONOMIES: Record<string, LocationEconomy> = {
   market_square: {
     id: 'market_square',
     label: 'Market Square',
-    baseCostOfLiving: 7,
+    baseCostOfLiving: 5,
     workTable: [
-      { role: 'Courier', minIncome: 4, maxIncome: 10, revealTrait: 'Fleet Footed' },
-      { role: 'Street Vendor', minIncome: 3, maxIncome: 9, revealTrait: 'Silver Tongue', requiresTrait: 'Charming' },
-      { role: 'Pickpocket Attempt', minIncome: -2, maxIncome: 14, revealTrait: 'Risk-Taker', requiresTrait: 'Cunning' },
-      { role: 'Errand Runner', minIncome: 3, maxIncome: 8, revealTrait: 'Steady Hands' },
-      { role: 'Guard Scribe', minIncome: 4, maxIncome: 12, revealTrait: 'Disciplined' },
+      { role: 'Woodcutter', minIncome: 4, maxIncome: 4, revealTrait: 'Strong Back' },
+      { role: 'Miner', minIncome: 7, maxIncome: 7, revealTrait: 'Disciplined' },
+      { role: 'Blacksmith', minIncome: 21, maxIncome: 21, revealTrait: 'Steady Hands' },
+      { role: 'Tanner', minIncome: 16, maxIncome: 16, revealTrait: 'Patient' },
+      { role: 'Beggar', minIncome: 1, maxIncome: 4, revealTrait: 'Survivor' },
+      { role: 'Hunter', minIncome: 3, maxIncome: 18, revealTrait: 'Hunter' },
+      { role: 'Fisher', minIncome: 5, maxIncome: 9, revealTrait: 'Patient' },
+      { role: 'Clothes Maker', minIncome: 6, maxIncome: 10, revealTrait: 'Gentle' },
     ],
   },
   forest_edge: {

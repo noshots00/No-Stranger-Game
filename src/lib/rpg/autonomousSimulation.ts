@@ -139,12 +139,18 @@ export const simulateAutonomousDay = ({
     healedInjuries.length < nextInjuries.length ? 'One of your old wounds finally eased.' : undefined,
   ].filter((line): line is string => Boolean(line));
 
+  const gainsPerfectShot = Boolean(state.exploreIntent?.includes('Collect 15 Pristine Pelts')) && !traitReveal.visibleTraits.includes('Perfect Shot');
+  const nextVisibleTraits = gainsPerfectShot ? [...traitReveal.visibleTraits, 'Perfect Shot'] : traitReveal.visibleTraits;
+  if (gainsPerfectShot) {
+    logLines.unshift('Quest complete: Collect 15 Pristine Pelts. Trait gained: Perfect Shot (+crit, +pelt quality).');
+  }
+
   const nextState: AutonomousState = {
     ...state,
     gold: Math.max(0, state.gold + delta),
     health: nextHealth,
     professionLabel: selectedRole.role,
-    visibleTraits: traitReveal.visibleTraits,
+    visibleTraits: nextVisibleTraits,
     hiddenTraits: traitReveal.hiddenTraits,
     locationId: nextLocationId,
     injuries: healedInjuries,

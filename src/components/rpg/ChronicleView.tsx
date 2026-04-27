@@ -222,7 +222,7 @@ export function ChronicleView({
                 </ResponsiveTooltip>
               </p>
               <a
-                href={`https://primal.net/p/${nip19.npubEncode(selectedNetworkMember.pubkey)}`}
+                href={`https://ditto.pub/${nip19.npubEncode(selectedNetworkMember.pubkey)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs mt-1 font-mono opacity-30 hover:opacity-60 transition-opacity"
