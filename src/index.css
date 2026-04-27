@@ -49,6 +49,17 @@
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --void: #07070a;
+    --surface: #0e0e13;
+    --surface-dim: #12121a;
+    --ink: #d4cbb8;
+    --ink-dim: #7a756a;
+    --ink-ghost: #3d3a34;
+    --ember: #c9a55a;
+    --ember-dim: #8b7340;
+    --crimson: #8b2d2d;
+    --mist: #4a5568;
   }
 
   .dark {
@@ -101,41 +112,129 @@
 }
 
 @layer utilities {
-  .ember-glow {
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.45), 0 0 22px rgba(239, 68, 68, 0.25);
-    animation: emberPulse 3.2s ease-in-out infinite;
+  .breathe {
+    animation: breath 4s ease-in-out infinite;
+  }
+
+  .emerge {
+    animation: emerge 800ms ease-out both;
+  }
+
+  .emerge-delay-1 { animation-delay: 200ms; }
+  .emerge-delay-2 { animation-delay: 400ms; }
+  .emerge-delay-3 { animation-delay: 600ms; }
+  .emerge-delay-4 { animation-delay: 800ms; }
+  .emerge-delay-5 { animation-delay: 1000ms; }
+
+  .ink-spread {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    animation: inkSpread 2s ease-out both;
+  }
+
+  .smolder {
+    animation: smolder 5s ease-in-out infinite;
   }
 
   .choice-smudge {
-    filter: blur(1.4px);
-    opacity: 0.62;
-    transition: filter 220ms ease, opacity 220ms ease, color 220ms ease;
+    filter: blur(2.5px);
+    opacity: 0.45;
+    transition: filter 350ms ease, opacity 350ms ease, box-shadow 350ms ease;
   }
 
   .choice-smudge:hover,
   .choice-smudge:focus-visible {
     filter: blur(0);
     opacity: 1;
+    box-shadow: 0 0 12px rgba(201, 165, 90, 0.15);
   }
 
   .choice-faded {
-    opacity: 0.25;
-    filter: blur(2.2px);
+    opacity: 0.05;
+    filter: blur(4px);
     pointer-events: none;
     user-select: none;
+    animation: dissolve 1.5s ease-in forwards;
   }
 
   .chapter-line {
-    animation: chapterReveal 460ms ease-out both;
+    animation: chapterReveal 900ms ease-out both;
+  }
+
+  .flicker {
+    animation: flicker 3s ease-in-out infinite;
+  }
+
+  .fog-drift {
+    background: linear-gradient(90deg, transparent, rgba(14, 14, 19, 0.8), transparent);
+    background-size: 200% 100%;
+    animation: fogDrift 12s linear infinite;
+  }
+
+  .name-shimmer {
+    animation: nameShimmer 2s ease-out forwards;
   }
 }
 
-@keyframes emberPulse {
-  0%, 100% { transform: scale(1); opacity: 0.85; }
-  50% { transform: scale(1.08); opacity: 1; }
+@keyframes breath {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes emerge {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes inkSpread {
+  from { max-width: 0; opacity: 0; }
+  to { max-width: 100%; opacity: 1; }
+}
+
+@keyframes smolder {
+  0%, 100% { box-shadow: 0 0 8px rgba(201, 165, 90, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(201, 165, 90, 0.3); }
+}
+
+@keyframes dissolve {
+  from { opacity: 1; filter: blur(0); }
+  to { opacity: 0; filter: blur(4px); }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 0.8; }
+  10% { opacity: 0.4; }
+  20% { opacity: 0.9; }
+  40% { opacity: 0.6; }
+  60% { opacity: 0.85; }
+  80% { opacity: 0.5; }
+}
+
+@keyframes pulseRing {
+  from {
+    transform: scale(0.8);
+    opacity: 0.6;
+    box-shadow: 0 0 0 0 rgba(201, 165, 90, 0.5);
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+    box-shadow: 0 0 0 40px rgba(201, 165, 90, 0);
+  }
+}
+
+@keyframes fogDrift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes nameShimmer {
+  0% { color: var(--ember); text-shadow: 0 0 8px rgba(201, 165, 90, 0.4); }
+  100% { color: var(--ink); text-shadow: none; }
 }
 
 @keyframes chapterReveal {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }

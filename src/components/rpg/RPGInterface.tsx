@@ -1,25 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { CharacterSheet } from './CharacterSheet';
-import { GameMap } from './GameMap';
-import { LoginArea } from '@/components/auth/LoginArea';
-import { clearMVPCharacter, computeQuestBunchIdentity, loadMVPCharacter, saveMVPCharacter, type MVPCharacter, type NetworkPresenceMember, type QuestBunchAnswer } from '@/lib/rpg/utils';
+import { useEffect, useState } from 'react';
 import { nip19 } from 'nostr-tools';
+import { useNostr } from '@nostrify/react';
+import { LoginArea } from '@/components/auth/LoginArea';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { PRESENCE_RELAYS, useNetworkPresence } from '@/hooks/useNetworkPresence';
 import { useToast } from '@/hooks/useToast';
-import { useNostr } from '@nostrify/react';
 import { useEchoes } from '@/hooks/useEchoes';
 import { useScryingPool } from '@/hooks/useScryingPool';
 import { useHomeland } from '@/hooks/useHomeland';
-import { usePhase2Signals } from '@/hooks/usePhase2Signals';
-import { CHAPTER_PROOF_KIND, getChapterWindowId, hasCanonicalChoiceForWindow, markCanonicalChoiceForWindow, resolveCanonicalChoiceFromEvents } from '@/lib/rpg/proof';
-import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
-import { trackTelemetry } from '@/lib/rpg/telemetry';
 import { useStrangersLedger } from '@/hooks/useStrangersLedger';
 import { useConvergence } from '@/hooks/useConvergence';
 import { useProofChain } from '@/hooks/useProofChain';
@@ -27,20 +15,50 @@ import { useRelayRegions } from '@/hooks/useRelayRegions';
 import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
 import { useEchoChamber } from '@/hooks/useEchoChamber';
 import { useForgetting } from '@/hooks/useForgetting';
+import { trackTelemetry } from '@/lib/rpg/telemetry';
+import {
+  CHAPTER_PROOF_KIND,
+  getChapterWindowId,
+  hasCanonicalChoiceForWindow,
+  markCanonicalChoiceForWindow,
+  resolveCanonicalChoiceFromEvents,
+} from '@/lib/rpg/proof';
+import {
+  clearMVPCharacter,
+  computeQuestBunchIdentity,
+  loadMVPCharacter,
+  saveMVPCharacter,
+  type MVPCharacter,
+  type NetworkPresenceMember,
+  type QuestBunchAnswer,
+} from '@/lib/rpg/utils';
+import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
+import { ChronicleView } from './ChronicleView';
+import { ChapterView } from './ChapterView';
+import { TerritoryView } from './TerritoryView';
+import { SelfView } from './SelfView';
+import { DeadLetterOverlay } from './DeadLetterOverlay';
+import { EchoChamberOverlay } from './EchoChamberOverlay';
+import { Guttering } from './Guttering';
+
+type ActiveView = 'chronicle' | 'chapter' | 'territory' | 'self';
 
 export function RPGInterface() {
   const { user, metadata } = useCurrentUser();
   const { nostr } = useNostr();
+  const { toast } = useToast();
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
-  const [homeTab, setHomeTab] = useState<'events' | 'map' | 'mainQuest' | 'profile'>('events');
+  const [activeView, setActiveView] = useState<ActiveView>('chronicle');
   const [characterNameInput, setCharacterNameInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
   const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
+  const [deadLetterOpen, setDeadLetterOpen] = useState(false);
+  const [echoChamberOpen, setEchoChamberOpen] = useState(false);
+
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
-  const phase2Signals = usePhase2Signals(user?.pubkey);
   const homeland = useHomeland(metadata?.nip05);
   const ledger = useStrangersLedger();
   const proofChain = useProofChain(user?.pubkey);
@@ -48,7 +66,6 @@ export function RPGInterface() {
   const deadLetter = useDeadLetterOffice();
   const echoChamber = useEchoChamber();
   const forgetting = useForgetting();
-  const { toast } = useToast();
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -58,173 +75,11 @@ export function RPGInterface() {
       return;
     }
     setScreen('creation');
-    setTier3Policy(loadTier3Policy());
   }, []);
 
-  const upcomingFeatures = useMemo(
-    () => ['Map', 'Shop', 'Guild', 'Journal', 'Settings'],
-    [],
-  );
-  const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
-  const hasChosenMarketQuest = character?.mainQuestChoices.some((choice) => choice.questId === 'market-money-001') ?? false;
-  const marketChoice = character?.mainQuestChoices.find((choice) => choice.questId === 'market-money-001');
-  const hasUnreadChapter = !hasChosenMarketQuest;
-  const chapterLines = [
-    'The village burns.',
-    'Smoke rolls across the market square.',
-    'A purse slips from a stranger\'s hand and lands near your feet.',
-  ];
-  const activeQuestId = 'market-money-001';
-  const questBunchSteps: Array<{
-    questionId: string;
-    title: string;
-    prompt: string;
-    options: Array<{ option: 'A' | 'B' | 'C'; label: string }>;
-  }> = [
-    {
-      questionId: `${activeQuestId}-q1`,
-      title: 'Quest 1/10 - Waking',
-      prompt: 'You open your eyes to moss and half-light. What color was your mother\'s hair?',
-      options: [
-        { option: 'A', label: 'Copper-red and bright like embers' },
-        { option: 'B', label: 'Black as wet stone' },
-        { option: 'C', label: 'Silver like moonlit frost' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q2`,
-      title: 'Quest 2/10 - The Village',
-      prompt: 'A woman offers you bread. What do you notice first about her face?',
-      options: [
-        { option: 'A', label: 'A scar she does not hide' },
-        { option: 'B', label: 'Eyes that weigh every word' },
-        { option: 'C', label: 'A smile that feels borrowed' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q3`,
-      title: 'Quest 3/10 - A Family Finds You',
-      prompt: 'The carpenter asks you to stay. If it were your choice, would you?',
-      options: [
-        { option: 'A', label: 'Stay, and share their table' },
-        { option: 'B', label: 'Stay only until dawn' },
-        { option: 'C', label: 'Refuse and sleep outside' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q4`,
-      title: 'Quest 4/10 - A Simple Trade',
-      prompt: 'Which craft feels least like a lie?',
-      options: [
-        { option: 'A', label: 'Woodcutting and grainwork' },
-        { option: 'B', label: 'Mining and masonry' },
-        { option: 'C', label: 'Forging and hidden trade' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q5`,
-      title: 'Quest 5/10 - Slow Work of Days',
-      prompt: 'If you could know one thing about your old life, what would it be?',
-      options: [
-        { option: 'A', label: 'Who I once protected' },
-        { option: 'B', label: 'Who I betrayed' },
-        { option: 'C', label: 'What I stole from fate' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q6`,
-      title: 'Quest 6/10 - A Stranger\'s Fortune',
-      prompt: 'The crone asks what you fear you left behind.',
-      options: [
-        { option: 'A', label: 'A promise I could not keep' },
-        { option: 'B', label: 'A debt with my name on it' },
-        { option: 'C', label: 'A door that should stay closed' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q7`,
-      title: 'Quest 7/10 - The Night Before',
-      prompt: 'What is the last thing you would save?',
-      options: [
-        { option: 'A', label: 'A person' },
-        { option: 'B', label: 'A tool' },
-        { option: 'C', label: 'A secret' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q8`,
-      title: 'Quest 8/10 - The Fire',
-      prompt: 'The cottage burns. You have time for one.',
-      options: [
-        { option: 'A', label: 'Carry the carpenter' },
-        { option: 'B', label: 'Carry his wife' },
-        { option: 'C', label: 'Carry the daughter' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q9`,
-      title: 'Quest 9/10 - The Road',
-      prompt: 'At the fork, which road feels most like regret avoided?',
-      options: [
-        { option: 'A', label: 'North to old libraries' },
-        { option: 'B', label: 'East to the coast' },
-        { option: 'C', label: 'West toward the dream-door' },
-      ],
-    },
-    {
-      questionId: `${activeQuestId}-q10`,
-      title: 'Quest 10/10 - The First Night',
-      prompt: 'The stone is warm in your pocket. What do you whisper before sleep?',
-      options: [
-        { option: 'A', label: '“Let me become someone worthy.”' },
-        { option: 'B', label: '“Let me survive what comes.”' },
-        { option: 'C', label: '“Let me remember everything.”' },
-      ],
-    },
-  ];
-  const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId
-    ? character.pendingQuestBunch
-    : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
-  const answeredQuestionIds = new Set(pendingBunch.answers.map((answer) => answer.questionId));
-  const currentQuestStep = questBunchSteps.find((step) => !answeredQuestionIds.has(step.questionId));
-  const myClassLabel = character?.className || character?.mainQuestChoices.find((choice) => choice.questId === 'market-money-001')?.option;
-  const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
-
   useEffect(() => {
-    if (echoes.data?.rumorSeeds.length) {
-      trackTelemetry('echoes_generated', { count: echoes.data.rumorSeeds.length });
-    }
-  }, [echoes.data?.rumorSeeds.length]);
-
-  useEffect(() => {
-    if (scryingPool.glimmers.length > 0) {
-      trackTelemetry('scrying_glimmers_seen', { count: scryingPool.glimmers.length });
-    }
-  }, [scryingPool.glimmers.length]);
-
-  useEffect(() => {
-    if (ledger.data) {
-      trackTelemetry('ledger_loaded', { total: ledger.data.totalStrangers });
-    }
-  }, [ledger.data?.totalStrangers]);
-
-  useEffect(() => {
-    if (convergence.matches.length > 0) {
-      trackTelemetry('convergence_detected', { count: convergence.matches.length });
-    }
-  }, [convergence.matches.length]);
-
-  useEffect(() => {
-    if (proofChain.data?.length) {
-      trackTelemetry('proof_chain_loaded', { count: proofChain.data.length });
-    }
-  }, [proofChain.data?.length]);
-
-  useEffect(() => {
-    if (relayRegions.length > 0) {
-      trackTelemetry('relay_region_seen', { count: relayRegions.length });
-    }
-  }, [relayRegions.length]);
+    setTier3Policy(loadTier3Policy());
+  }, []);
 
   useEffect(() => {
     if (!user?.pubkey) return;
@@ -235,10 +90,47 @@ export function RPGInterface() {
     ).then((events) => {
       const canonical = resolveCanonicalChoiceFromEvents(events, chapterWindowId, user.pubkey);
       if (canonical) trackTelemetry('proof_chain_loaded', { canonicalId: canonical.id });
-    }).catch(() => {
-      // Best-effort hardening pass.
-    });
+    }).catch(() => {});
   }, [nostr, user?.pubkey]);
+
+  const activeQuestId = 'market-money-001';
+  const questBunchSteps: Array<{ questionId: string; title: string; prompt: string; options: Array<{ option: 'A' | 'B' | 'C'; label: string }> }> = [
+    { questionId: `${activeQuestId}-q1`, title: 'Quest 1/10 - Waking', prompt: 'You open your eyes to moss and half-light. What color was your mother\'s hair?', options: [{ option: 'A', label: 'Copper-red and bright like embers' }, { option: 'B', label: 'Black as wet stone' }, { option: 'C', label: 'Silver like moonlit frost' }] },
+    { questionId: `${activeQuestId}-q2`, title: 'Quest 2/10 - The Village', prompt: 'A woman offers you bread. What do you notice first about her face?', options: [{ option: 'A', label: 'A scar she does not hide' }, { option: 'B', label: 'Eyes that weigh every word' }, { option: 'C', label: 'A smile that feels borrowed' }] },
+    { questionId: `${activeQuestId}-q3`, title: 'Quest 3/10 - A Family Finds You', prompt: 'The carpenter asks you to stay. If it were your choice, would you?', options: [{ option: 'A', label: 'Stay, and share their table' }, { option: 'B', label: 'Stay only until dawn' }, { option: 'C', label: 'Refuse and sleep outside' }] },
+    { questionId: `${activeQuestId}-q4`, title: 'Quest 4/10 - A Simple Trade', prompt: 'Which craft feels least like a lie?', options: [{ option: 'A', label: 'Woodcutting and grainwork' }, { option: 'B', label: 'Mining and masonry' }, { option: 'C', label: 'Forging and hidden trade' }] },
+    { questionId: `${activeQuestId}-q5`, title: 'Quest 5/10 - Slow Work of Days', prompt: 'If you could know one thing about your old life, what would it be?', options: [{ option: 'A', label: 'Who I once protected' }, { option: 'B', label: 'Who I betrayed' }, { option: 'C', label: 'What I stole from fate' }] },
+    { questionId: `${activeQuestId}-q6`, title: 'Quest 6/10 - A Stranger\'s Fortune', prompt: 'The crone asks what you fear you left behind.', options: [{ option: 'A', label: 'A promise I could not keep' }, { option: 'B', label: 'A debt with my name on it' }, { option: 'C', label: 'A door that should stay closed' }] },
+    { questionId: `${activeQuestId}-q7`, title: 'Quest 7/10 - The Night Before', prompt: 'What is the last thing you would save?', options: [{ option: 'A', label: 'A person' }, { option: 'B', label: 'A tool' }, { option: 'C', label: 'A secret' }] },
+    { questionId: `${activeQuestId}-q8`, title: 'Quest 8/10 - The Fire', prompt: 'The cottage burns. You have time for one.', options: [{ option: 'A', label: 'Carry the carpenter' }, { option: 'B', label: 'Carry his wife' }, { option: 'C', label: 'Carry the daughter' }] },
+    { questionId: `${activeQuestId}-q9`, title: 'Quest 9/10 - The Road', prompt: 'At the fork, which road feels most like regret avoided?', options: [{ option: 'A', label: 'North to old libraries' }, { option: 'B', label: 'East to the coast' }, { option: 'C', label: 'West toward the dream-door' }] },
+    { questionId: `${activeQuestId}-q10`, title: 'Quest 10/10 - The First Night', prompt: 'The stone is warm in your pocket. What do you whisper before sleep?', options: [{ option: 'A', label: '“Let me become someone worthy.”' }, { option: 'B', label: '“Let me survive what comes.”' }, { option: 'C', label: '“Let me remember everything.”' }] },
+  ];
+
+  const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId ? character.pendingQuestBunch : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
+  const answeredQuestionIds = new Set(pendingBunch.answers.map((answer) => answer.questionId));
+  const currentQuestStep = questBunchSteps.find((step) => !answeredQuestionIds.has(step.questionId));
+  const hasChosenMarketQuest = character?.mainQuestChoices.some((choice) => choice.questId === activeQuestId) ?? false;
+  const marketChoice = character?.mainQuestChoices.find((choice) => choice.questId === activeQuestId);
+  const chapterLines = ['The village burns.', 'Smoke rolls across the market square.', 'A purse slips from a stranger\'s hand and lands near your feet.'];
+  const hasUnreadChapter = !hasChosenMarketQuest;
+  const myClassLabel = character?.className || marketChoice?.option;
+  const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
+  const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
+
+  const updateTier3Policy = (nextPolicy: Tier3PolicySettings) => {
+    setTier3Policy(nextPolicy);
+    saveTier3Policy(nextPolicy);
+    trackTelemetry('tier3_policy_updated', { experimentalEnabled: nextPolicy.experimentalEnabled, visibility: nextPolicy.visibility });
+  };
+
+  const handleNewGame = () => {
+    clearMVPCharacter();
+    setCharacter(null);
+    setScreen('creation');
+    setActiveView('chronicle');
+    setChapterOpened(false);
+  };
 
   const handleCreateStranger = () => {
     const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
@@ -250,8 +142,8 @@ export function RPGInterface() {
       role: 'stranger',
       characterName: normalizedCharacterName,
       gender: 'Unknown',
-      race: 'Elf',
-      profession: 'Wood Cutter',
+      race: 'Human',
+      profession: 'Farmer',
       startingCity: 'Dawnharbor',
       className: 'Wanderer',
       mainQuestChoices: [],
@@ -262,9 +154,8 @@ export function RPGInterface() {
     saveMVPCharacter(newCharacter);
     setCharacter(newCharacter);
     setScreen('home');
+    setActiveView('chronicle');
 
-    // Publish presence for social network discovery.
-    // This keeps local-first UX while enabling cross-account visibility.
     if (user) {
       const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
       user.signer.signEvent({
@@ -278,78 +169,36 @@ export function RPGInterface() {
           discoveredLocations: ['market-square'],
           createdAt: newCharacter.createdAt,
         }),
-        tags: [
-          ['d', 'opt-in'],
-          ['t', 'no-stranger-game'],
-          ['alt', 'No Stranger Game player presence opt-in'],
-        ],
+        tags: [['d', 'opt-in'], ['t', 'no-stranger-game'], ['alt', 'No Stranger Game player presence opt-in']],
         created_at: Math.floor(Date.now() / 1000),
       }).then((signedEvent) => {
-        presenceNostr.event(signedEvent).then(() => {
-          toast({
-            title: 'Presence published',
-            description: 'Published to Ditto + Primal relays.',
-          });
-          networkPresence.refetch();
-        }).catch((error: unknown) => {
-          console.error('Failed to publish presence event:', error);
-          toast({
-            title: 'Presence not published',
-            description: 'Character saved locally, but Ditto/Primal publish failed.',
-            variant: 'destructive',
-          });
-        });
-      });
+        presenceNostr.event(signedEvent).then(() => networkPresence.refetch()).catch(() => {});
+      }).catch(() => {});
     }
   };
 
   const handleMainQuestChoice = (questionId: string, option: 'A' | 'B' | 'C') => {
     if (!character) return;
-    const pendingAnswers = [
-      ...pendingBunch.answers.filter((answer) => answer.questionId !== questionId),
-      { questionId, option },
-    ];
-
-    const withPending: MVPCharacter = {
-      ...character,
-      pendingQuestBunch: {
-        questId: activeQuestId,
-        answers: pendingAnswers,
-      },
-    };
+    const pendingAnswers = [...pendingBunch.answers.filter((answer) => answer.questionId !== questionId), { questionId, option }];
+    const withPending: MVPCharacter = { ...character, pendingQuestBunch: { questId: activeQuestId, answers: pendingAnswers } };
     saveMVPCharacter(withPending);
     setCharacter(withPending);
-
-    if (pendingAnswers.length < questBunchSteps.length) {
-      const remaining = questBunchSteps.length - pendingAnswers.length;
-      toast({
-        title: 'Quest bunch saved',
-        description: `${remaining} quest step${remaining === 1 ? '' : 's'} remain before final submit.`,
-      });
-      return;
-    }
+    if (pendingAnswers.length < questBunchSteps.length) return;
 
     const chapterWindowId = getChapterWindowId();
     const identityKey = `${character.id}:${character.createdAt}`;
     if (hasCanonicalChoiceForWindow(chapterWindowId, identityKey)) {
-      trackTelemetry('chapter_duplicate_rejected', { chapterWindowId });
-      toast({
-        title: 'You have done all you can for now',
-        description: 'Your character will now pursue its goals according to your sealed choices. Explore the map to continue playing.',
-      });
       const withClearedPending: MVPCharacter = { ...character, pendingQuestBunch: undefined };
       saveMVPCharacter(withClearedPending);
       setCharacter(withClearedPending);
       return;
     }
+
     const finalChoice = pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q10`)?.option ?? option;
     const aCount = pendingAnswers.filter((answer) => answer.option === 'A').length;
     const bCount = pendingAnswers.filter((answer) => answer.option === 'B').length;
     const cCount = pendingAnswers.filter((answer) => answer.option === 'C').length;
-    const identity = computeQuestBunchIdentity(
-      pendingAnswers,
-      `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`,
-    );
+    const identity = computeQuestBunchIdentity(pendingAnswers, `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`);
     const consequenceByArc = finalChoice === 'A'
       ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
       : finalChoice === 'B'
@@ -358,43 +207,20 @@ export function RPGInterface() {
 
     const updatedCharacter: MVPCharacter = {
       ...character,
-      mainQuestChoices: [
-        ...character.mainQuestChoices,
-        {
-          questId: activeQuestId,
-          prompt: 'Quest bunch: Chapter One arc completed.',
-          option: finalChoice,
-          consequence: consequenceByArc,
-          chosenAt: Math.floor(Date.now() / 1000),
-        },
-      ],
+      mainQuestChoices: [...character.mainQuestChoices, { questId: activeQuestId, prompt: 'Quest bunch: Chapter One arc completed.', option: finalChoice, consequence: consequenceByArc, chosenAt: Math.floor(Date.now() / 1000) }],
       level: character.level + 1,
       race: identity.race,
       profession: identity.profession,
       className: identity.className,
-      discoveredLocations: Array.from(
-        new Set([
-          ...(character.discoveredLocations ?? ['market-square']),
-          (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A'
-            ? 'old-library'
-            : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B'
-              ? 'coin-vault'
-              : 'silent-alley',
-        ]),
-      ),
+      discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
       chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
       pendingQuestBunch: undefined,
     };
-
     saveMVPCharacter(updatedCharacter);
     setCharacter(updatedCharacter);
     markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${option}`);
-    trackTelemetry('chapter_choice_recorded', { option, chapterWindowId });
-    setHomeTab('events');
-    toast({
-      title: 'Chapter arc sealed',
-      description: consequenceByArc,
-    });
+    setActiveView('chronicle');
+    setChapterOpened(false);
 
     if (user) {
       const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
@@ -406,7 +232,6 @@ export function RPGInterface() {
           level: updatedCharacter.level,
           role: 'stranger',
           characterName: updatedCharacter.characterName,
-          gender: updatedCharacter.gender,
           classLabel: updatedCharacter.className,
           race: updatedCharacter.race,
           profession: updatedCharacter.profession,
@@ -416,684 +241,170 @@ export function RPGInterface() {
           discoveredLocations: updatedCharacter.discoveredLocations ?? [],
           createdAt: updatedCharacter.createdAt,
         }),
-        tags: [
-          ['d', 'opt-in'],
-          ['t', 'no-stranger-game'],
-          ['alt', 'No Stranger Game player presence opt-in'],
-        ],
+        tags: [['d', 'opt-in'], ['t', 'no-stranger-game'], ['alt', 'No Stranger Game player presence opt-in']],
         created_at: Math.floor(Date.now() / 1000),
-      }).then((signedEvent) => {
-        presenceNostr.event(signedEvent).catch((error: unknown) => {
-          console.error('Failed to publish updated class label:', error);
-        });
-      });
-
-      user.signer.signEvent({
-        kind: CHAPTER_PROOF_KIND,
-        content: JSON.stringify({
-          app: 'no-stranger-game',
-          chapterId: 'market-money-001',
-          chapterWindowId,
-          selectedOption: finalChoice,
-          prompt: 'Quest bunch: Chapter One arc completed.',
-          consequence: consequenceByArc,
-          characterId: updatedCharacter.id,
-          recordedAt: Math.floor(Date.now() / 1000),
-          questBunchId,
-          questAnswers: pendingAnswers,
-          race: updatedCharacter.race,
-          profession: updatedCharacter.profession,
-          className: updatedCharacter.className,
-          startingCity: updatedCharacter.startingCity,
-        }),
-        tags: [
-          ['t', 'no-stranger-game'],
-          ['chapter', 'market-money-001'],
-          ['window', chapterWindowId],
-          ['choice', option],
-          ['prev', character.chapterProofHead ?? 'genesis'],
-          ['alt', 'No Stranger Game crucial choice proof'],
-        ],
-        created_at: Math.floor(Date.now() / 1000),
-      }).then((signedEvent) => {
-        const withProofHead: MVPCharacter = { ...updatedCharacter, chapterProofHead: signedEvent.id };
-        saveMVPCharacter(withProofHead);
-        setCharacter(withProofHead);
-        nostr.event(signedEvent).catch((error: unknown) => {
-          console.error('Failed to publish chapter proof event:', error);
-        });
-      }).catch((error: unknown) => {
-        console.error('Failed to sign chapter proof event:', error);
-      });
+      }).then((signedEvent) => presenceNostr.event(signedEvent).catch(() => {})).catch(() => {});
     }
   };
 
-  const updateTier3Policy = (nextPolicy: Tier3PolicySettings) => {
-    setTier3Policy(nextPolicy);
-    saveTier3Policy(nextPolicy);
-    trackTelemetry('tier3_policy_updated', {
-      experimentalEnabled: nextPolicy.experimentalEnabled,
-      visibility: nextPolicy.visibility,
-    });
-  };
-
-  const handleNewGame = () => {
-    clearMVPCharacter();
-    setCharacter(null);
-    setScreen('creation');
-  };
-
-  // Show login screen if no user
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-900 to-gray-900 p-4">
-        <div className="w-full max-w-md p-8 space-y-6 bg-gray-800/50 backdrop-blur rounded-2xl border border-gray-700">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold mb-2 text-white">
-              No Stranger Game
-            </h1>
-            <p className="text-gray-300">
-              An RPG that lives inside your social network
-            </p>
-          </div>
-          <div className="w-full border-2 border-dashed border-gray-600 p-6 rounded-xl">
-            <h2 className="text-xl font-bold mb-4 text-white text-center">
-              Connect Your Nostr Account
-            </h2>
-            <LoginArea className="w-full flex flex-col gap-3" />
-          </div>
-          <p className="text-sm text-gray-400 text-center">
-            Once connected, you'll enter the game world
-          </p>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--void)' }}>
+        <h1 className="font-cormorant text-5xl md:text-6xl font-light tracking-wide emerge" style={{ color: 'var(--ink)' }}>
+          No Stranger Game
+        </h1>
+        <p className="mt-6 text-sm tracking-[0.25em] uppercase emerge emerge-delay-2" style={{ color: 'var(--ink-ghost)' }}>
+          An RPG that lives inside your social network
+        </p>
+        <div className="mt-16 w-full max-w-xs emerge emerge-delay-4">
+          <LoginArea className="w-full flex flex-col gap-3" />
         </div>
+        <div className="mt-12 h-2 w-2 rounded-full smolder" style={{ background: 'var(--ember)' }} />
       </div>
     );
   }
 
   if (screen === 'creation') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto py-8 space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-semibold text-zinc-100">No Stranger Game</h1>
-            <p className="text-zinc-300 font-serif">
-              A seasonal dark-fantasy journey where your choices shape your path.
-            </p>
-          </div>
-          <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-            <CardHeader>
-              <CardTitle>Begin as a Level 1 Stranger</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-zinc-300 font-serif">
-                Character creation is now hidden inside your Main Quest. Start as a stranger and discover who you are through your decisions.
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="character-name">Character Name</Label>
-                <Input
-                  id="character-name"
-                  placeholder="Name your stranger"
-                  className="border-zinc-600 bg-zinc-950/70 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-emerald-500"
-                  value={characterNameInput}
-                  onChange={(event) => setCharacterNameInput(event.target.value)}
-                />
-              </div>
-              <Button className="bg-emerald-600 hover:bg-emerald-500 text-white" onClick={handleCreateStranger}>
-                Enter the Season
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--void)' }}>
+        <p className="text-sm tracking-[0.25em] uppercase emerge" style={{ color: 'var(--ink-ghost)' }}>
+          Season III
+        </p>
+        <h2 className="mt-12 font-cormorant text-3xl font-light emerge emerge-delay-1" style={{ color: 'var(--ink)' }}>
+          What name will you carry?
+        </h2>
+        <div className="mt-10 w-full max-w-sm emerge emerge-delay-2">
+          <input
+            type="text"
+            placeholder="Name your stranger"
+            className="w-full bg-transparent border-0 border-b text-center font-cormorant text-2xl font-light tracking-wide focus:outline-none focus:ring-0"
+            style={{ color: 'var(--ink)', borderColor: 'var(--ink-ghost)' }}
+            value={characterNameInput}
+            onChange={(event) => setCharacterNameInput(event.target.value)}
+            autoFocus
+          />
         </div>
+        <p className="mt-8 text-xs emerge emerge-delay-3" style={{ color: 'var(--ink-ghost)' }}>
+          Begin as a stranger. Discover who you are through your choices.
+        </p>
+        <button type="button" onClick={handleCreateStranger} className="mt-10 font-cormorant text-lg tracking-wide transition-all duration-500 hover:tracking-wider emerge emerge-delay-4" style={{ color: 'var(--ember)' }}>
+          Step through →
+        </button>
       </div>
     );
   }
 
-  if (!character) {
-    return null;
-  }
+  if (!character) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-800 p-3 md:p-6">
-      <div className="mx-auto w-full max-w-3xl py-4 md:py-6 space-y-5">
-        <div className="rounded-xl border border-zinc-700/60 bg-zinc-900/70 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="h-2.5 w-2.5 rounded-full bg-amber-400 ember-glow" aria-hidden="true" />
-            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-400 font-mono">Season III</p>
-            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-100" onClick={handleNewGame}>
-              New
-            </Button>
-          </div>
-        </div>
+    <div className="min-h-screen pb-20" style={{ background: 'var(--void)' }}>
+      <Guttering />
+      <header className="flex items-center justify-between px-2 pt-6 pb-4">
+        <div className="h-1.5 w-1.5 rounded-full smolder" style={{ background: 'var(--ember)' }} />
+        <span className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
+          Season III
+        </span>
+        <div className="w-1.5" />
+      </header>
 
-        {homeTab === 'events' && (
-          <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-            <CardHeader>
-              <CardTitle>Events</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-zinc-300 font-serif">
-                You find yourself in a strange place at a strange time. You are a level 1 stranger. Your character will gain experience and make choices automatically. To progress in the game simply check the Main Quest each day and make your choices.
-              </p>
-              {character.mainQuestChoices.length > 0 && (
-                <p className="text-zinc-200 font-serif">
-                  Latest consequence: {character.mainQuestChoices[character.mainQuestChoices.length - 1].consequence}
-                </p>
-              )}
-              {homeland.homelandFlavorLine && (
-                <p className="text-zinc-400 text-sm font-serif">{homeland.homelandFlavorLine}</p>
-              )}
-              {echoes.data?.eventsFlavorLines.map((line) => (
-                <p key={line} className="text-zinc-300 text-sm font-serif">{line}</p>
-              ))}
-              {phase2Signals.data && (
-                <div className="rounded border border-zinc-700/70 bg-zinc-800/40 p-3 space-y-1">
-                  <p className="text-zinc-300 text-sm font-serif">
-                    Blessings: <span className="font-mono">{phase2Signals.data.positiveReactions24h}</span>
-                    {' '}| Curses: <span className="font-mono">{phase2Signals.data.negativeReactions24h}</span>
-                  </p>
-                  <p className="text-zinc-400 text-xs font-mono uppercase">
-                    Relay difficulty: {phase2Signals.data.relayDifficultyBand}
-                  </p>
-                  {phase2Signals.data.grayLadyHint && (
-                    <p className="text-zinc-400 text-xs font-serif">{phase2Signals.data.grayLadyHint}</p>
-                  )}
-                </div>
-              )}
-              {ledger.data && (
-                <div className="rounded border border-zinc-700/70 bg-zinc-800/40 p-3 space-y-1">
-                  <p className="text-zinc-200 text-sm font-serif">
-                    Stranger&apos;s Ledger: Of {ledger.data.totalStrangers} strangers,
-                    {' '}
-                    {ledger.data.tally[0] ? `${ledger.data.tally[0].count} chose ${ledger.data.tally[0].option}` : 'no choices are sealed yet'}.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+      {activeView === 'chronicle' ? (
+        <ChronicleView
+          latestConsequence={character.mainQuestChoices[character.mainQuestChoices.length - 1]?.consequence}
+          hasUnreadChapter={hasUnreadChapter}
+          onOpenChapter={() => setActiveView('chapter')}
+          echoes={echoes.data}
+          homelandLine={homeland.homelandFlavorLine}
+          ledger={ledger.data}
+          convergenceMatches={convergence.matches}
+          topMembers={networkPresence.data?.topMembers ?? []}
+          selectedNetworkMember={selectedNetworkMember}
+          onSelectNetworkMember={setSelectedNetworkMember}
+          glimmers={scryingPool.glimmers}
+          onOpenEchoChamber={() => setEchoChamberOpen(true)}
+          echoChamberEnabled={tier3Policy.echoChamberEnabled && !tier3Policy.killSwitchEnabled && Boolean(selectedNetworkMember)}
+        />
+      ) : null}
 
-        {homeTab === 'mainQuest' && (
-          <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100 overflow-hidden">
-            <CardHeader className="border-b border-zinc-700/60">
-              <CardTitle className="font-serif text-2xl">Chapter View</CardTitle>
-              <p className="text-zinc-400 text-xs font-mono uppercase tracking-wider">
-                {hasChosenMarketQuest ? 'Sealed Choice Recorded' : 'Unopened Letter'}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5 pt-5">
-              {!chapterOpened && !hasChosenMarketQuest && (
-                <button
-                  type="button"
-                  onClick={() => setChapterOpened(true)}
-                  className="w-full rounded-lg border border-zinc-700/80 bg-zinc-800/60 px-4 py-8 text-center transition hover:bg-zinc-800/80"
-                >
-                  <p className="text-zinc-200 font-serif text-lg">Press to crack the wax seal</p>
-                  <p className="text-zinc-500 text-xs mt-2 font-mono">Your daily chapter waits in silence.</p>
-                </button>
-              )}
+      {activeView === 'chapter' ? (
+        <ChapterView
+          chapterOpened={chapterOpened}
+          onOpenChapter={() => setChapterOpened(true)}
+          hasChosenMarketQuest={hasChosenMarketQuest}
+          chapterLines={chapterLines}
+          mainQuestFlavorLine={echoes.data?.mainQuestFlavorLine}
+          marketConsequence={marketChoice?.consequence}
+          marketOption={marketChoice?.option}
+          currentQuestStep={currentQuestStep}
+          pendingBunch={pendingBunch}
+          questBunchStepsLength={questBunchSteps.length}
+          onChoose={handleMainQuestChoice}
+          deadLetterEnabled={tier3Policy.deadLetterEnabled && !tier3Policy.killSwitchEnabled}
+          onOpenDeadLetter={() => setDeadLetterOpen(true)}
+        />
+      ) : null}
 
-              {(chapterOpened || hasChosenMarketQuest) && (
-                <div className="space-y-2">
-                  {chapterLines.map((line, idx) => (
-                    <p
-                      key={line}
-                      className="text-zinc-200 font-serif text-xl leading-relaxed chapter-line"
-                      style={{ animationDelay: `${idx * 120}ms` }}
-                    >
-                      {line}
-                    </p>
-                  ))}
-                </div>
-              )}
-              {echoes.data?.mainQuestFlavorLine && (
-                <p className="text-zinc-400 text-sm font-serif">{echoes.data.mainQuestFlavorLine}</p>
-              )}
+      {activeView === 'territory' ? (
+        <TerritoryView discoveredLocations={character.discoveredLocations ?? []} glimmerLocationIds={scryingPool.glimmers.map((g) => g.locationId)} />
+      ) : null}
 
-              {hasChosenMarketQuest ? (
-                <div className="rounded-lg border border-zinc-700/80 bg-zinc-800/60 p-4 space-y-2">
-                  <p className="text-zinc-300 font-serif">
-                    You&apos;ve done all you can for now. Your character will automatically pursue its goals and desires according to your choices in the game thus far. You can explore the map to continue playing the game.
-                  </p>
-                  <p className="text-zinc-100 font-mono">
-                    Signed choice: {marketChoice?.option ?? 'Unknown'}
-                  </p>
-                  <p className="text-zinc-400 text-sm font-serif">{marketChoice?.consequence}</p>
-                </div>
-              ) : chapterOpened ? (
-                <div className="space-y-2">
-                  {currentQuestStep ? (
-                    <>
-                      <p className="text-zinc-300 font-serif">{currentQuestStep.title}</p>
-                      <p className="text-zinc-400 text-sm font-serif">{currentQuestStep.prompt}</p>
-                      <div className="flex flex-col gap-2">
-                        {currentQuestStep.options.map((optionItem) => (
-                          <button
-                            key={`${currentQuestStep.questionId}-${optionItem.option}`}
-                            type="button"
-                            className="choice-smudge rounded-md border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left text-zinc-200 font-serif"
-                            onClick={() => handleMainQuestChoice(currentQuestStep.questionId, optionItem.option)}
-                          >
-                            ▸ {optionItem.label}{currentQuestStep.questionId.endsWith('-q10') ? ' (Submit bunch)' : ''}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-zinc-500 text-xs font-mono">
-                        Progress: {pendingBunch.answers.length}/{questBunchSteps.length}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-zinc-300 font-serif">All choices are sealed. Awaiting final state sync.</p>
-                  )}
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        )}
+      {activeView === 'self' ? (
+        <SelfView
+          character={character}
+          proofNodes={proofChain.data ?? []}
+          relayRegions={relayRegions}
+          tier3Policy={tier3Policy}
+          onUpdatePolicy={updateTier3Policy}
+          onNewGame={handleNewGame}
+          onForgetProof={(eventId) => {
+            if (!tier3Policy.forgettingEnabled || tier3Policy.killSwitchEnabled) return;
+            forgetting.mutate(eventId);
+          }}
+        />
+      ) : null}
 
-        {homeTab === 'map' && (
-          <GameMap
-            discoveredLocations={character.discoveredLocations ?? []}
-            glimmerLocationIds={scryingPool.glimmers.map((glimmer) => glimmer.locationId)}
-          />
-        )}
+      <DeadLetterOverlay
+        isOpen={deadLetterOpen}
+        onClose={() => setDeadLetterOpen(false)}
+        isPending={deadLetter.isPending}
+        onSeal={(payload) => {
+          deadLetter.mutate(payload, { onSuccess: () => setDeadLetterOpen(false) });
+        }}
+      />
+      <EchoChamberOverlay
+        isOpen={echoChamberOpen}
+        targetName={selectedNetworkMember?.characterName ?? 'stranger'}
+        onClose={() => setEchoChamberOpen(false)}
+        isPending={echoChamber.isPending}
+        onSend={(payload) => {
+          if (!selectedNetworkMember) return;
+          echoChamber.mutate({ targetPubkey: selectedNetworkMember.pubkey, ...payload }, { onSuccess: () => setEchoChamberOpen(false) });
+        }}
+      />
 
-        {homeTab === 'profile' && (
-          <CharacterSheet
-            character={character}
-            onBack={() => setHomeTab('events')}
-            onNewGame={handleNewGame}
-          />
-        )}
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Network Presence</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {networkPresence.isLoading ? (
-              <p className="text-zinc-300 font-serif">Listening for nearby souls...</p>
-            ) : networkPresence.data && networkPresence.data.totalOptedIn > 0 ? (
-              <>
-                <p className="text-zinc-200 font-serif">
-                  You sense <span className="font-mono">{networkPresence.data.totalOptedIn}</span> known souls in the mist.
-                </p>
-                <p className="text-zinc-300 text-sm font-serif">
-                  Closest lights: {networkPresence.data.topMembers.map((member) => `${member.characterName} (${member.nostrName})`).join(', ')}
-                  {networkPresence.data.totalOptedIn > networkPresence.data.topMembers.length
-                    ? ` ...and ${networkPresence.data.totalOptedIn - networkPresence.data.topMembers.length} more.`
-                    : '.'}
-                </p>
-
-                <div className="space-y-2">
-                  {networkPresence.data.topMembers.map((member) => (
-                    <button
-                      key={member.pubkey}
-                      onClick={() => setSelectedNetworkMember(member)}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-800/70 p-3 text-left hover:bg-zinc-700/70 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={member.picture} alt={member.nostrName} />
-                          <AvatarFallback>{member.characterName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-zinc-100 font-medium">{member.characterName}</p>
-                          <p className="text-zinc-300 text-sm">{member.nostrName}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-zinc-300 font-serif">No known souls have crossed the threshold yet.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {selectedNetworkMember && (
-          <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-            <CardHeader>
-              <CardTitle>Traveler Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={selectedNetworkMember.picture} alt={selectedNetworkMember.nostrName} />
-                  <AvatarFallback>{selectedNetworkMember.characterName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-zinc-100 font-medium">{selectedNetworkMember.characterName}</p>
-                  <p className="text-zinc-300 text-sm">{selectedNetworkMember.nostrName}</p>
-                </div>
-              </div>
-              <p className="text-zinc-200 text-sm">
-                Main Quest Class: <span className="font-mono">{selectedNetworkMember.classLabel}</span>
-              </p>
-              <p className="text-zinc-300 text-sm">Race: <span className="font-mono">{selectedNetworkMember.race ?? 'Unknown'}</span></p>
-              <p className="text-zinc-300 text-sm">Profession: <span className="font-mono">{selectedNetworkMember.profession ?? 'Unknown'}</span></p>
-              <p className="text-zinc-300 text-sm">Starting City: <span className="font-mono">{selectedNetworkMember.startingCity ?? 'Unknown'}</span></p>
-              <p className="text-zinc-300 text-sm break-all">
-                npub: <span className="font-mono">{nip19.npubEncode(selectedNetworkMember.pubkey)}</span>
-              </p>
-              <p className="text-zinc-300 text-sm">
-                Glimpsed locations: <span className="font-mono">{(selectedNetworkMember.discoveredLocations ?? []).join(', ') || 'none'}</span>
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Scrying Pool</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {scryingPool.glimmers.length === 0 ? (
-              <p className="text-zinc-300 font-serif">No distant places shimmer yet.</p>
-            ) : (
-              scryingPool.glimmers.slice(0, 5).map((glimmer) => (
-                <p key={glimmer.locationId} className="text-zinc-300 text-sm font-serif">
-                  {glimmer.locationId} appears as a locked glimmer ({glimmer.seenByCount} travelers).
-                </p>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Convergence</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {convergence.matches.length === 0 ? (
-              <p className="text-zinc-300 font-serif">No convergent paths in your nearby network yet.</p>
-            ) : (
-              convergence.matches.slice(0, 5).map((match) => (
-                <p key={match.pubkey} className="text-zinc-300 text-sm font-serif">
-                  {match.characterName} mirrored your latest path ({match.classLabel}).
-                </p>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Proof Chain</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {proofChain.data && proofChain.data.length > 0 ? (
-              proofChain.data.slice(-5).map((node) => (
-                <p key={node.id} className="text-zinc-300 text-xs font-mono break-all">
-                  {node.window} :: {node.choice} :: prev {node.prev}
-                </p>
-              ))
-            ) : (
-              <p className="text-zinc-300 font-serif">No chain entries loaded.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Whispering Relay</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {relayRegions.map((region) => (
-              <p key={region.relay} className="text-zinc-300 text-xs font-serif">
-                {region.region}: <span className="font-mono">{region.relay}</span>
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Dead Letter Office</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button
-              variant="outline"
-              className="border-zinc-600 text-zinc-200 hover:bg-zinc-800"
-              disabled={!tier3Policy.deadLetterEnabled || tier3Policy.killSwitchEnabled}
-              onClick={() => {
-                deadLetter.mutate({
-                  title: 'A letter to my future self',
-                  body: 'When you read this, remember the market and the smoke.',
-                  unlockAt: Math.floor(Date.now() / 1000) + 86400,
-                }, {
-                  onSuccess: () => {
-                    trackTelemetry('dead_letter_created');
-                    toast({ title: 'Letter sealed', description: 'A dead letter has been encrypted to your future self.' });
-                  },
-                });
-              }}
-            >
-              Seal letter to future self
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Echo Chamber</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button
-              variant="outline"
-              className="border-zinc-600 text-zinc-200 hover:bg-zinc-800"
-              disabled={!selectedNetworkMember || !tier3Policy.echoChamberEnabled || tier3Policy.killSwitchEnabled}
-              onClick={() => {
-                if (!selectedNetworkMember) return;
-                echoChamber.mutate({
-                  targetPubkey: selectedNetworkMember.pubkey,
-                  title: 'A warning from the market',
-                  body: 'Beware the man with the silver ring by the well.',
-                }, {
-                  onSuccess: () => {
-                    trackTelemetry('echo_scroll_sent');
-                    toast({ title: 'Scroll sent', description: 'Encrypted echo scroll dispatched.' });
-                  },
-                });
-              }}
-            >
-              Send encrypted scroll to selected traveler
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Forgetting</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button
-              variant="destructive"
-              onClick={() => {
-                const latest = proofChain.data?.[proofChain.data.length - 1];
-                if (!latest) return;
-                forgetting.mutate(latest.id, {
-                  onSuccess: () => {
-                    trackTelemetry('forgetting_invoked', { target: latest.id });
-                    toast({ title: 'Ritual performed', description: 'A chapter memory was offered to forgetting.' });
-                  },
-                });
-              }}
-              disabled={!tier3Policy.forgettingEnabled || !proofChain.data?.length || tier3Policy.killSwitchEnabled}
-            >
-              Invoke Forgetting on latest proof
-            </Button>
-            {!tier3Policy.forgettingEnabled && (
-              <p className="text-zinc-400 text-xs font-serif">Enable Forgetting in Tier 3 policy gates first.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Tier 3 Policy Gates</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <label className="flex items-center justify-between gap-3">
-              <span>Enable experimental social mechanics</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.experimentalEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, experimentalEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Zap influence</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.zapInfluenceEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, zapInfluenceEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Trauma shadows</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.traumaEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, traumaEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Scars from reports</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.scarsEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, scarsEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Summoning ghosts</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.summoningEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, summoningEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Dead Letter Office</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.deadLetterEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, deadLetterEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Echo Chamber</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.echoChamberEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, echoChamberEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Forgetting</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.forgettingEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, forgettingEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Whispering Relay Regions</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.whisperingRelayEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, whisperingRelayEnabled: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Global kill switch</span>
-              <input
-                type="checkbox"
-                checked={tier3Policy.killSwitchEnabled}
-                onChange={(event) => updateTier3Policy({ ...tier3Policy, killSwitchEnabled: event.target.checked })}
-              />
-            </label>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-          <CardHeader>
-            <CardTitle>Presence Debug</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p className="text-zinc-300">
-              Your npub:{' '}
-              <span className="font-mono break-all">
-                {user ? nip19.npubEncode(user.pubkey) : 'not logged in'}
-              </span>
-            </p>
-            <p className="text-zinc-300">
-              Self presence live:{' '}
-              <span className="font-mono">
-                {networkPresence.data?.diagnostics.selfPresenceLive ? 'yes' : 'no'}
-              </span>
-            </p>
-            <p className="text-zinc-300">
-              Follows: <span className="font-mono">{networkPresence.data?.diagnostics.followsCount ?? 0}</span>
-              {' '}| Followers: <span className="font-mono">{networkPresence.data?.diagnostics.followersCount ?? 0}</span>
-            </p>
-            <p className="text-zinc-300">
-              Network total: <span className="font-mono">{networkPresence.data?.diagnostics.networkCount ?? 0}</span>
-              {' '}| Opted-in found: <span className="font-mono">{networkPresence.data?.diagnostics.optedInCount ?? 0}</span>
-            </p>
-            <p className="text-zinc-300">
-              Relays:{' '}
-              <span className="font-mono">
-                {(networkPresence.data?.diagnostics.relays ?? PRESENCE_RELAYS).join(', ')}
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
-          {upcomingFeatures.map((feature) => (
-            <Card key={feature} className="border-zinc-700/60 bg-zinc-900/60 text-zinc-100">
-              <CardHeader>
-                <CardTitle>{feature}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-zinc-300 font-serif">Coming soon in a future season.</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-700/70 bg-zinc-950/90 backdrop-blur-md">
-          <div className="mx-auto flex max-w-3xl items-center justify-around px-3 py-2">
-            {[
-              { key: 'map', icon: '◈', label: 'Map' },
-              { key: 'mainQuest', icon: '✶', label: 'Main Quest' },
-              { key: 'profile', icon: '◉', label: 'Profile' },
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setHomeTab(item.key as 'events' | 'map' | 'mainQuest' | 'profile')}
-                className={`group relative flex h-11 w-11 items-center justify-center rounded-md transition hover:bg-zinc-800 ${
-                  item.key === 'mainQuest' && !hasUnreadChapter
-                    ? 'text-zinc-500 hover:text-zinc-400'
-                    : 'text-zinc-300 hover:text-zinc-100'
-                }`}
-                aria-label={item.label}
-                title={item.label}
-              >
-                <span className={(item.key === 'mainQuest' && hasUnreadChapter) ? 'ember-glow rounded-full px-2 py-0.5' : ''}>
+      <nav className="fixed inset-x-0 bottom-0 z-40" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
+        <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
+          {[
+            { key: 'chronicle', icon: '⊙', label: 'Chronicle' },
+            { key: 'chapter', icon: '✦', label: 'Chapter' },
+            { key: 'territory', icon: '◈', label: 'Territory' },
+            { key: 'self', icon: '◉', label: 'Self' },
+          ].map((item) => {
+            const isActive = activeView === item.key;
+            const hasNotification = item.key === 'chapter' && hasUnreadChapter;
+            return (
+              <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
+                <span className={`text-lg transition-all duration-300 ${hasNotification ? 'smolder' : ''}`} style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
                   {item.icon}
                 </span>
-                <span className="pointer-events-none absolute -top-6 rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-300 opacity-0 transition group-hover:opacity-100">
+                <span className="text-[9px] tracking-[0.2em] uppercase transition-opacity" style={{ color: isActive ? 'var(--ink-dim)' : 'transparent' }}>
                   {item.label}
                 </span>
+                {isActive ? <div className="absolute -bottom-0 h-0.5 w-4 rounded-full" style={{ background: 'var(--ember)' }} /> : null}
               </button>
-            ))}
-          </div>
-        </nav>
-      </div>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
