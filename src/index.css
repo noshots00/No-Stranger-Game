@@ -138,15 +138,12 @@
   }
 
   .choice-smudge {
-    filter: blur(2.5px);
-    opacity: 0.45;
-    transition: filter 350ms ease, opacity 350ms ease, box-shadow 350ms ease;
+    opacity: 1;
+    transition: box-shadow 350ms ease, transform 200ms ease;
   }
 
   .choice-smudge:hover,
   .choice-smudge:focus-visible {
-    filter: blur(0);
-    opacity: 1;
     box-shadow: 0 0 12px rgba(201, 165, 90, 0.15);
   }
 
@@ -175,6 +172,23 @@
   .name-shimmer {
     animation: nameShimmer 2s ease-out forwards;
   }
+
+  .candle-flicker-soft {
+    animation: candleFlickerSoft 4.2s ease-in-out infinite;
+  }
+
+  .smoke-wisp {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 9999px;
+    filter: blur(10px);
+    background: radial-gradient(circle at center, rgba(122, 117, 106, 0.22) 0%, rgba(122, 117, 106, 0.08) 45%, transparent 75%);
+    animation: smokeWisp 6.5s ease-in-out infinite;
+  }
+
+  .smoke-wisp-1 { width: 110px; height: 58px; left: -18px; top: 18px; animation-delay: 0ms; }
+  .smoke-wisp-2 { width: 124px; height: 62px; right: -16px; top: 96px; animation-delay: 1200ms; }
+  .smoke-wisp-3 { width: 96px; height: 52px; left: 26%; bottom: 8px; animation-delay: 2400ms; }
 }
 
 @keyframes breath {
@@ -232,6 +246,22 @@
 @keyframes nameShimmer {
   0% { color: var(--ember); text-shadow: 0 0 8px rgba(201, 165, 90, 0.4); }
   100% { color: var(--ink); text-shadow: none; }
+}
+
+@keyframes candleFlickerSoft {
+  0%, 100% { opacity: 1; }
+  12% { opacity: 0.92; }
+  26% { opacity: 0.97; }
+  43% { opacity: 0.88; }
+  67% { opacity: 0.95; }
+  84% { opacity: 0.9; }
+}
+
+@keyframes smokeWisp {
+  0% { opacity: 0; transform: translate(-8px, 8px) scale(0.92); }
+  20% { opacity: 0.42; }
+  55% { opacity: 0.2; transform: translate(8px, -10px) scale(1.05); }
+  100% { opacity: 0; transform: translate(16px, -20px) scale(1.12); }
 }
 
 @keyframes chapterReveal {

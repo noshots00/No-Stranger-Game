@@ -4,6 +4,8 @@ import type { RelayRegion } from '@/hooks/useRelayRegions';
 import { CollapsibleSection } from './CollapsibleSection';
 import { Switch } from '@/components/ui/switch';
 import type { Tier3PolicySettings } from '@/lib/rpg/policy';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getClassDescription, getProfessionDescription, getRaceDescription } from '@/lib/rpg/identityGlossary';
 
 interface SelfViewProps {
   character: MVPCharacter;
@@ -24,40 +26,85 @@ export function SelfView({
   onNewGame,
   onForgetProof,
 }: SelfViewProps) {
+  const raceDescription = getRaceDescription(character.race) ?? 'Unknown race lore.';
+  const classDescription = getClassDescription(character.className || 'Wanderer') ?? 'Unknown class lore.';
+  const professionDescription = getProfessionDescription(character.profession) ?? 'Unknown profession lore.';
+  const characterAgeDays = Math.max(
+    0,
+    Math.floor((Date.now() - character.createdAt) / (1000 * 60 * 60 * 24)),
+  );
+  const characterAgeLabel = characterAgeDays === 0
+    ? 'Born today'
+    : `${characterAgeDays} day${characterAgeDays === 1 ? '' : 's'} old`;
+
   return (
-    <div className="px-4 py-8 max-w-lg mx-auto space-y-10">
-      <div className="text-center emerge">
-        <p className="font-cormorant text-3xl font-light" style={{ color: 'var(--ink)' }}>
-          {character.characterName}
-        </p>
-        <p className="mt-2 text-xs tracking-[0.2em] uppercase" style={{ color: 'var(--ink-dim)' }}>
-          Level {character.level} · {character.className || 'Wanderer'}
-        </p>
-        <p className="mt-1 text-xs" style={{ color: 'var(--ink-ghost)' }}>
-          {character.race} · {character.profession}
-        </p>
-      </div>
+    <TooltipProvider delayDuration={140}>
+      <div className="px-4 py-8 max-w-lg mx-auto space-y-10">
+        <div className="text-center emerge">
+          <p className="font-cormorant text-3xl font-light" style={{ color: 'var(--ink)' }}>
+            {character.characterName}
+          </p>
+          <p className="mt-2 text-xs tracking-[0.2em] uppercase" style={{ color: 'var(--ink-dim)' }}>
+            Level {character.level} ·{' '}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="underline underline-offset-2 decoration-dotted">
+                  {character.className || 'Wanderer'}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                {classDescription}
+              </TooltipContent>
+            </Tooltip>
+          </p>
+          <p className="mt-1 text-xs flex items-center justify-center gap-1.5 flex-wrap" style={{ color: 'var(--ink-ghost)' }}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="underline underline-offset-2 decoration-dotted">
+                  {character.race}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                {raceDescription}
+              </TooltipContent>
+            </Tooltip>
+            <span>·</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="underline underline-offset-2 decoration-dotted">
+                  {character.profession}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                {professionDescription}
+              </TooltipContent>
+            </Tooltip>
+          </p>
+          <p className="mt-1 text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-dim)' }}>
+            Age · {characterAgeLabel}
+          </p>
+        </div>
 
-      <div className="h-px w-16 mx-auto" style={{ background: 'var(--ink-ghost)' }} />
+        <div className="h-px w-16 mx-auto" style={{ background: 'var(--ink-ghost)' }} />
 
-      {character.mainQuestChoices.length > 0 ? (
-        <CollapsibleSection title="Sealed Choices">
-          <div className="space-y-3">
-            {character.mainQuestChoices.map((choice) => (
-              <div key={`${choice.questId}-${choice.chosenAt}`} className="pl-4 border-l" style={{ borderColor: 'var(--ink-ghost)' }}>
-                <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
-                  {choice.consequence}
-                </p>
-                <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-ghost)' }}>
-                  {choice.option}
-                </p>
-              </div>
-            ))}
-          </div>
-        </CollapsibleSection>
-      ) : null}
+        {character.mainQuestChoices.length > 0 ? (
+          <CollapsibleSection title="Sealed Choices">
+            <div className="space-y-3">
+              {character.mainQuestChoices.map((choice) => (
+                <div key={`${choice.questId}-${choice.chosenAt}`} className="pl-4 border-l" style={{ borderColor: 'var(--ink-ghost)' }}>
+                  <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
+                    {choice.consequence}
+                  </p>
+                  <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-ghost)' }}>
+                    {choice.option}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CollapsibleSection>
+        ) : null}
 
-      <CollapsibleSection title="Your Path" defaultOpen={false}>
+        <CollapsibleSection title="Your Path" defaultOpen={false}>
         {proofNodes.length > 0 ? (
           <div className="space-y-2">
             {proofNodes.map((node) => (
@@ -81,9 +128,9 @@ export function SelfView({
             No path yet.
           </p>
         )}
-      </CollapsibleSection>
+        </CollapsibleSection>
 
-      <CollapsibleSection title="Your Relays" defaultOpen={false}>
+        <CollapsibleSection title="Your Relays" defaultOpen={false}>
         {relayRegions.length > 0 ? relayRegions.map((region) => (
           <p key={region.relay} className="text-xs" style={{ color: 'var(--ink-dim)' }}>
             {region.region}
@@ -93,9 +140,9 @@ export function SelfView({
             No mapped relay regions.
           </p>
         )}
-      </CollapsibleSection>
+        </CollapsibleSection>
 
-      <CollapsibleSection title="Rituals & Permissions" defaultOpen={false}>
+        <CollapsibleSection title="Rituals & Permissions" defaultOpen={false}>
         <div className="space-y-4">
           {[
             { key: 'experimentalEnabled', label: 'Experimental social mechanics' },
@@ -114,18 +161,19 @@ export function SelfView({
             </label>
           ))}
         </div>
-      </CollapsibleSection>
+        </CollapsibleSection>
 
-      <div className="pt-6">
-        <button
-          type="button"
-          onClick={onNewGame}
-          className="text-xs tracking-wider uppercase transition-colors"
-          style={{ color: 'var(--crimson)' }}
-        >
-          Abandon this stranger
-        </button>
+        <div className="pt-6">
+          <button
+            type="button"
+            onClick={onNewGame}
+            className="text-xs tracking-wider uppercase transition-colors"
+            style={{ color: 'var(--crimson)' }}
+          >
+            Abandon this stranger
+          </button>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

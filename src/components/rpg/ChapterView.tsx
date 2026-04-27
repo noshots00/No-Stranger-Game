@@ -102,7 +102,7 @@ export function ChapterView({
       ) : null}
 
       {chapterOpened && !hasChosenMarketQuest && currentQuestStep ? (
-        <div className="mt-12 space-y-6 emerge">
+        <div className="mt-12 space-y-6 emerge candle-flicker-soft">
           <p className="text-[10px] tracking-[0.3em] uppercase" style={{ color: 'var(--ink-ghost)' }}>
             {pendingBunch.answers.length + 1} of {questBunchStepsLength}
           </p>
@@ -111,7 +111,10 @@ export function ChapterView({
             {currentQuestStep.prompt}
           </p>
 
-          <div className="space-y-3 mt-6">
+          <div className="relative space-y-3 mt-6 overflow-hidden rounded-lg">
+            <div className="smoke-wisp smoke-wisp-1" aria-hidden="true" />
+            <div className="smoke-wisp smoke-wisp-2" aria-hidden="true" />
+            <div className="smoke-wisp smoke-wisp-3" aria-hidden="true" />
             {currentQuestStep.options.map((optionItem, idx) => (
               <button
                 key={`${currentQuestStep.questionId}-${optionItem.option}`}

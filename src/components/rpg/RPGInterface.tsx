@@ -315,6 +315,7 @@ export function RPGInterface() {
           echoes={echoes.data}
           homelandLine={homeland.homelandFlavorLine}
           ledger={ledger.data}
+          totalWorldOptedIn={networkPresence.data?.totalWorldOptedIn}
           convergenceMatches={convergence.matches}
           topMembers={networkPresence.data?.topMembers ?? []}
           selectedNetworkMember={selectedNetworkMember}

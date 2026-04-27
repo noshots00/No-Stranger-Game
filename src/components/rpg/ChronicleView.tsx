@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { NetworkPresenceMember } from '@/lib/rpg/utils';
 import type { EchoesData } from '@/hooks/useEchoes';
 import type { ScryingGlimmer } from '@/hooks/useScryingPool';
 import type { ConvergenceSignal } from '@/hooks/useConvergence';
+import { getClassDescription, getProfessionDescription, getRaceDescription } from '@/lib/rpg/identityGlossary';
 
 interface LedgerData {
   totalStrangers: number;
@@ -17,6 +19,7 @@ interface ChronicleViewProps {
   echoes?: EchoesData;
   homelandLine?: string;
   ledger?: LedgerData;
+  totalWorldOptedIn?: number;
   convergenceMatches: ConvergenceSignal[];
   topMembers: NetworkPresenceMember[];
   selectedNetworkMember: NetworkPresenceMember | null;
@@ -33,6 +36,7 @@ export function ChronicleView({
   echoes,
   homelandLine,
   ledger,
+  totalWorldOptedIn,
   convergenceMatches,
   topMembers,
   selectedNetworkMember,
@@ -63,7 +67,8 @@ export function ChronicleView({
   const shownGlimmers = useMemo(() => glimmers.slice(0, 3), [glimmers]);
 
   return (
-    <div className="relative space-y-10 px-4 py-8 mx-auto max-w-lg">
+    <TooltipProvider delayDuration={140}>
+      <div className="relative space-y-10 px-4 py-8 mx-auto max-w-lg">
       {flashConvergence ? (
         <div className="fixed inset-0 z-30 pointer-events-none flex items-center justify-center">
           <div
@@ -114,6 +119,12 @@ export function ChronicleView({
         </p>
       ) : null}
 
+      {typeof totalWorldOptedIn === 'number' && totalWorldOptedIn > 0 ? (
+        <p className="text-xs uppercase tracking-wider emerge" style={{ color: 'var(--ink-ghost)' }}>
+          World census: {totalWorldOptedIn} character{totalWorldOptedIn === 1 ? '' : 's'} have entered.
+        </p>
+      ) : null}
+
       {convergenceMatches.length > 0 ? (
         <div className="emerge" style={{ color: 'var(--ember-dim)' }}>
           <p className="font-cormorant text-base italic">
@@ -154,8 +165,39 @@ export function ChronicleView({
               <p className="font-cormorant text-lg" style={{ color: 'var(--ink)' }}>
                 {selectedNetworkMember.characterName}
               </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }}>
-                {selectedNetworkMember.race ?? 'Unknown race'} · {selectedNetworkMember.profession ?? 'Unknown trade'} · {selectedNetworkMember.classLabel}
+              <p className="text-xs mt-1 flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--ink-dim)' }}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="underline underline-offset-2 decoration-dotted">
+                      {selectedNetworkMember.race ?? 'Unknown race'}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                    {getRaceDescription(selectedNetworkMember.race) ?? 'No race description available yet.'}
+                  </TooltipContent>
+                </Tooltip>
+                <span>·</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="underline underline-offset-2 decoration-dotted">
+                      {selectedNetworkMember.profession ?? 'Unknown trade'}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                    {getProfessionDescription(selectedNetworkMember.profession) ?? 'No profession description available yet.'}
+                  </TooltipContent>
+                </Tooltip>
+                <span>·</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="underline underline-offset-2 decoration-dotted">
+                      {selectedNetworkMember.classLabel}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                    {getClassDescription(selectedNetworkMember.classLabel) ?? 'No class description available yet.'}
+                  </TooltipContent>
+                </Tooltip>
               </p>
               <p className="text-xs mt-1 font-mono opacity-30" style={{ color: 'var(--ink-dim)' }}>
                 {selectedNetworkMember.nostrName}
@@ -182,6 +224,7 @@ export function ChronicleView({
           ))}
         </div>
       ) : null}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

@@ -9,12 +9,14 @@ export const PRESENCE_RELAYS = ['wss://relay.ditto.pub', 'wss://relay.primal.net
 
 interface NetworkPresenceData {
   totalOptedIn: number;
+  totalWorldOptedIn: number;
   topMembers: NetworkPresenceMember[];
   diagnostics: {
     followsCount: number;
     followersCount: number;
     networkCount: number;
     optedInCount: number;
+    globalOptedInCount: number;
     selfPresenceLive: boolean;
     relays: readonly string[];
   };
@@ -59,17 +61,25 @@ export function useNetworkPresence(userPubkey: string | undefined) {
       if (!userPubkey) {
         return {
           totalOptedIn: 0,
+          totalWorldOptedIn: 0,
           topMembers: [],
           diagnostics: {
             followsCount: 0,
             followersCount: 0,
             networkCount: 0,
             optedInCount: 0,
+            globalOptedInCount: 0,
             selfPresenceLive: false,
             relays: PRESENCE_RELAYS,
           },
         };
       }
+
+      const worldPresenceEvents = await presenceNostr.query(
+        [{ kinds: [30000], '#d': ['opt-in'], limit: 3000 }],
+        { signal: AbortSignal.timeout(7000) },
+      );
+      const totalWorldOptedIn = new Set(worldPresenceEvents.map((event) => event.pubkey)).size;
 
       const contactEvents = await presenceNostr.query(
         [{ kinds: [3], authors: [userPubkey], limit: 1 }],
@@ -100,12 +110,14 @@ export function useNetworkPresence(userPubkey: string | undefined) {
       if (networkPubkeys.length === 0) {
         return {
           totalOptedIn: 0,
+          totalWorldOptedIn,
           topMembers: [],
           diagnostics: {
             followsCount: follows.length,
             followersCount: followers.length,
             networkCount: 0,
             optedInCount: 0,
+            globalOptedInCount: totalWorldOptedIn,
             selfPresenceLive,
             relays: PRESENCE_RELAYS,
           },
@@ -128,12 +140,14 @@ export function useNetworkPresence(userPubkey: string | undefined) {
       if (optedInPubkeys.length === 0) {
         return {
           totalOptedIn: 0,
+          totalWorldOptedIn,
           topMembers: [],
           diagnostics: {
             followsCount: follows.length,
             followersCount: followers.length,
             networkCount: networkPubkeys.length,
             optedInCount: 0,
+            globalOptedInCount: totalWorldOptedIn,
             selfPresenceLive,
             relays: PRESENCE_RELAYS,
           },
@@ -180,12 +194,14 @@ export function useNetworkPresence(userPubkey: string | undefined) {
 
       return {
         totalOptedIn: optedInPubkeys.length,
+        totalWorldOptedIn,
         topMembers,
         diagnostics: {
           followsCount: follows.length,
           followersCount: followers.length,
           networkCount: networkPubkeys.length,
           optedInCount: optedInPubkeys.length,
+          globalOptedInCount: totalWorldOptedIn,
           selfPresenceLive,
           relays: PRESENCE_RELAYS,
         },
