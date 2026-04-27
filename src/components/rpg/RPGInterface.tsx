@@ -347,15 +347,15 @@ export function RPGInterface() {
     const aCount = pendingAnswers.filter((answer) => answer.option === 'A').length;
     const bCount = pendingAnswers.filter((answer) => answer.option === 'B').length;
     const cCount = pendingAnswers.filter((answer) => answer.option === 'C').length;
-    const consequenceByArc = finalChoice === 'A'
-      ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows.`
-      : finalChoice === 'B'
-        ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies.`
-        : `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens.`;
     const identity = computeQuestBunchIdentity(
       pendingAnswers,
       `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`,
     );
+    const consequenceByArc = finalChoice === 'A'
+      ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+      : finalChoice === 'B'
+        ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+        : `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`;
 
     const updatedCharacter: MVPCharacter = {
       ...character,

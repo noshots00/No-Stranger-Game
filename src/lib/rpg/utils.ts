@@ -1,5 +1,8 @@
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
+import { CLASS_CATALOG } from './classCatalog';
+import { PROFESSION_CATALOG } from './professionCatalog';
+import { RACE_CATALOG } from './raceCatalog';
 
 /**
  * RPG Utility Functions for No Stranger Game
@@ -228,27 +231,86 @@ export interface NetworkPresenceMember {
   discoveredLocations?: string[];
 }
 
-const RACE_OPTIONS = ['Elf', 'Dwarf', 'Troll', 'Redguard', 'Gnome', 'Iksar'] as const;
-const PROFESSION_OPTIONS = ['Wood Cutter', 'Miner', 'Royal Guard'] as const;
-const CLASS_OPTIONS = ['Wizard', 'Warrior', 'Ninja', 'Ranger', 'Cleric', 'Berserker', 'Assassin', 'Druid', 'Spellblade'] as const;
+const RACE_OPTIONS = RACE_CATALOG.map((race) => race.name);
+const PROFESSION_OPTIONS = PROFESSION_CATALOG.map((profession) => profession.name);
+const CLASS_OPTIONS = CLASS_CATALOG.map((classDef) => classDef.name);
 
-const getRacePointMatrix = (): Record<string, Record<'A' | 'B' | 'C', Partial<Record<(typeof RACE_OPTIONS)[number], number>>>> => ({
-  'market-money-001-q1': {
-    A: { Elf: 2, Redguard: 1, Gnome: 1 },
-    B: { Dwarf: 2, Troll: 1, Iksar: 1 },
-    C: { Iksar: 2, Troll: 1, Elf: 1 },
-  },
-  'market-money-001-q2': {
-    A: { Gnome: 2, Elf: 1, Redguard: 1 },
-    B: { Dwarf: 2, Redguard: 1, Troll: 1 },
-    C: { Iksar: 2, Troll: 1, Dwarf: 1 },
-  },
-});
+const hashString = (value: string): number => {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
 
-const defaultRaceWeightsByOption: Record<'A' | 'B' | 'C', Partial<Record<(typeof RACE_OPTIONS)[number], number>>> = {
-  A: { Elf: 1, Redguard: 1, Gnome: 1 },
-  B: { Dwarf: 1, Troll: 1, Redguard: 1 },
-  C: { Iksar: 1, Troll: 1, Gnome: 1 },
+const optionStep = (option: 'A' | 'B' | 'C'): number => {
+  if (option === 'A') return 7;
+  if (option === 'B') return 11;
+  return 13;
+};
+
+const raceWeightMapFromAnswers = (answers: QuestBunchAnswer[]): Map<string, number> => {
+  const weights = new Map<string, number>(RACE_OPTIONS.map((race) => [race, 1]));
+  const raceCount = RACE_OPTIONS.length;
+
+  for (const answer of answers) {
+    const sourceHash = hashString(`${answer.questionId}:${answer.option}`);
+    const start = sourceHash % raceCount;
+    const stride = optionStep(answer.option);
+
+    // Each answer boosts 6 races, and all races still keep baseline weight.
+    for (let i = 0; i < 6; i++) {
+      const index = (start + i * stride) % raceCount;
+      const raceName = RACE_OPTIONS[index];
+      const bonus = 6 - i; // 6..1
+      weights.set(raceName, (weights.get(raceName) ?? 1) + bonus);
+    }
+  }
+
+  return weights;
+};
+
+const classWeightMapFromAnswers = (answers: QuestBunchAnswer[]): Map<string, number> => {
+  const weights = new Map<string, number>(CLASS_OPTIONS.map((className) => [className, 1]));
+  const classCount = CLASS_OPTIONS.length;
+
+  for (const answer of answers) {
+    const sourceHash = hashString(`class:${answer.questionId}:${answer.option}`);
+    const start = sourceHash % classCount;
+    const stride = optionStep(answer.option);
+
+    // Each answer boosts 10 classes while preserving baseline odds for all classes.
+    for (let i = 0; i < 10; i++) {
+      const index = (start + i * stride) % classCount;
+      const className = CLASS_OPTIONS[index];
+      const bonus = 10 - i; // 10..1
+      weights.set(className, (weights.get(className) ?? 1) + bonus);
+    }
+  }
+
+  return weights;
+};
+
+const professionWeightMapFromAnswers = (answers: QuestBunchAnswer[]): Map<string, number> => {
+  const weights = new Map<string, number>(PROFESSION_OPTIONS.map((profession) => [profession, 1]));
+  const professionCount = PROFESSION_OPTIONS.length;
+
+  for (const answer of answers) {
+    const sourceHash = hashString(`profession:${answer.questionId}:${answer.option}`);
+    const start = sourceHash % professionCount;
+    const stride = optionStep(answer.option);
+
+    // Each answer boosts 8 professions while keeping baseline odds for all.
+    for (let i = 0; i < 8; i++) {
+      const index = (start + i * stride) % professionCount;
+      const profession = PROFESSION_OPTIONS[index];
+      const bonus = 8 - i; // 8..1
+      weights.set(profession, (weights.get(profession) ?? 1) + bonus);
+    }
+  }
+
+  return weights;
 };
 
 const createSeededRandom = (seedSource: string): (() => number) => {
@@ -286,43 +348,56 @@ export const computeQuestBunchIdentity = (
   seedSource: string,
 ): QuestBunchIdentityResult => {
   const random = createSeededRandom(seedSource);
-  const matrix = getRacePointMatrix();
-  const racePoints = new Map<string, number>(RACE_OPTIONS.map((race) => [race, 0]));
+  const raceWeights = raceWeightMapFromAnswers(answers);
+  const race = weightedPick(
+    [...raceWeights.entries()].map(([value, weight]) => ({ value, weight })),
+    random,
+  );
 
-  for (const answer of answers) {
-    const points = matrix[answer.questionId]?.[answer.option] ?? defaultRaceWeightsByOption[answer.option];
-    if (!points) continue;
-    for (const [race, value] of Object.entries(points)) {
-      racePoints.set(race, (racePoints.get(race) ?? 0) + (value ?? 0));
-    }
-  }
-
-  const maxPoints = Math.max(...[...racePoints.values()]);
-  const raceTies = [...racePoints.entries()]
-    .filter(([, score]) => score === maxPoints)
-    .map(([race]) => race);
-  const race = weightedPick(raceTies.map((value) => ({ value, weight: 1 })), random);
-
+  const professionWeightsFromAnswers = professionWeightMapFromAnswers(answers);
   const professionWeights = PROFESSION_OPTIONS.map((value) => {
-    let weight = 1;
-    if (value === 'Miner' && (race === 'Dwarf' || race === 'Iksar')) weight += 2;
-    if (value === 'Royal Guard' && race === 'Redguard') weight += 2;
-    if (value === 'Wood Cutter' && (race === 'Elf' || race === 'Troll')) weight += 2;
+    let weight = professionWeightsFromAnswers.get(value) ?? 1;
+    const loweredRace = race.toLowerCase();
+    const loweredProfession = value.toLowerCase();
+
+    if ((loweredRace.includes('dwarf') || loweredRace.includes('kobold') || loweredRace.includes('goblin')) && (
+      loweredProfession.includes('smith') || loweredProfession.includes('miner') || loweredProfession.includes('armorer')
+    )) weight += 2;
+    if ((loweredRace.includes('human') || loweredRace.includes('imperial') || loweredRace.includes('redguard')) && (
+      loweredProfession.includes('guard') || loweredProfession.includes('watchman') || loweredProfession.includes('steward')
+    )) weight += 2;
+    if ((loweredRace.includes('elf') || loweredRace.includes('firbolg') || loweredRace.includes('treant')) && (
+      loweredProfession.includes('herbalist') || loweredProfession.includes('harvester') || loweredProfession.includes('tracker')
+    )) weight += 2;
     return { value, weight };
   });
   const profession = weightedPick(professionWeights, random);
 
+  const classWeightsByAnswers = classWeightMapFromAnswers(answers);
   const classWeights = CLASS_OPTIONS.map((value) => {
-    let weight = 1;
-    if (value === 'Wizard' && (race === 'Elf' || profession === 'Royal Guard')) weight += 2;
-    if (value === 'Warrior' && (race === 'Redguard' || profession === 'Royal Guard')) weight += 2;
-    if (value === 'Ninja' && race === 'Iksar') weight += 2;
-    if (value === 'Druid' && (race === 'Elf' || profession === 'Wood Cutter')) weight += 2;
-    if (value === 'Berserker' && race === 'Troll') weight += 2;
-    if (value === 'Spellblade' && (race === 'Gnome' || profession === 'Miner')) weight += 2;
-    if (value === 'Assassin' && race === 'Iksar') weight += 1;
-    if (value === 'Ranger' && profession === 'Wood Cutter') weight += 1;
-    if (value === 'Cleric' && profession === 'Royal Guard') weight += 1;
+    let weight = classWeightsByAnswers.get(value) ?? 1;
+    const loweredRace = race.toLowerCase();
+    const loweredClass = value.toLowerCase();
+
+    if (loweredClass.includes('mage') || loweredClass.includes('wizard') || loweredClass.includes('arcan') || loweredClass.includes('sorcer') || loweredClass.includes('warlock')) {
+      if (loweredRace.includes('elf') || loweredRace.includes('aasimar') || loweredRace.includes('tiefling')) weight += 2;
+    }
+    if (loweredClass.includes('druid') || loweredClass.includes('warden') || loweredClass.includes('shaman') || loweredClass.includes('animist')) {
+      if (loweredRace.includes('firbolg') || loweredRace.includes('treant') || loweredRace.includes('elf')) weight += 2;
+      if (profession === 'Wood Cutter') weight += 1;
+    }
+    if (loweredClass.includes('assassin') || loweredClass.includes('rogue') || loweredClass.includes('shadow') || loweredClass.includes('ninja') || loweredClass.includes('thief')) {
+      if (loweredRace.includes('drow') || loweredRace.includes('kenku') || loweredRace.includes('yuan-ti') || loweredRace.includes('khajiit')) weight += 2;
+    }
+    if (loweredClass.includes('knight') || loweredClass.includes('paladin') || loweredClass.includes('guardian') || loweredClass.includes('sentinel') || loweredClass.includes('defender')) {
+      if (profession === 'Royal Guard') weight += 2;
+      if (loweredRace.includes('human') || loweredRace.includes('imperial') || loweredRace.includes('redguard')) weight += 1;
+    }
+    if (loweredClass.includes('engineer') || loweredClass.includes('machinist') || loweredClass.includes('mechanist') || loweredClass.includes('artificer') || loweredClass.includes('alchemist')) {
+      if (profession === 'Miner') weight += 2;
+      if (loweredRace.includes('gnome') || loweredRace.includes('goblin') || loweredRace.includes('kobold')) weight += 1;
+    }
+
     return { value, weight };
   });
   const className = weightedPick(classWeights, random);
@@ -393,7 +468,7 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       role: 'stranger',
       characterName: typeof parsed.characterName === 'string' && parsed.characterName.trim() ? parsed.characterName : 'Nameless Stranger',
       gender: typeof parsed.gender === 'string' && parsed.gender.trim() ? parsed.gender : 'Unknown',
-      race: typeof parsed.race === 'string' && parsed.race.trim() ? parsed.race : 'Elf',
+      race: typeof parsed.race === 'string' && parsed.race.trim() ? parsed.race : 'Human',
       profession: typeof parsed.profession === 'string' && parsed.profession.trim() ? parsed.profession : 'Wood Cutter',
       startingCity: typeof parsed.startingCity === 'string' && parsed.startingCity.trim() ? parsed.startingCity : 'Dawnharbor',
       className: typeof parsed.className === 'string' && parsed.className.trim() ? parsed.className : 'Wanderer',
