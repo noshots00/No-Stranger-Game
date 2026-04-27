@@ -1,29 +1,3 @@
-import { useIsMobile } from '@/hooks/useIsMobile';
-
-const BASE_MAP = String.raw`
-                    .  .      ^^^^^^^      .    .
-                 .        ^^^^#####^^^^           .
-              .      ^^^^###########^^^^      .      .
-                   ^^^#########F########^^^
-                 ^^##########FFFFF########^^
-               ^^###########FFTTTFF#########^^
-      ~~~~~~~~^##############FTTTTF############^~~~~~~~
-      ~ RIVER ~~~~~~        FTTTTTF       ~~~~~~ RIVER ~
-      ~~~~~~~~      \       FTTTTTF      /      ~~~~~~~~
-                      \_____[GATE]______/ 
-                           ||   ||
-                        ___||___||___
-                       /   /  V  \   \
-                      / H / [S]  \ I  \
-                     /___/___+____\___\
-                        |   [WELL]   |
-                        |      K      |
-                        |      C      |
-                        +------R------+
-                               |
-                          road to marsh
-`;
-
 interface TerritoryViewProps {
   discoveredLocations: string[];
   glimmerLocationIds: string[];
@@ -39,7 +13,6 @@ const points = [
 ];
 
 export function TerritoryView({ discoveredLocations, glimmerLocationIds, onExplore }: TerritoryViewProps) {
-  const isMobile = useIsMobile();
   const known = new Set(discoveredLocations);
   const glimmers = new Set(glimmerLocationIds);
 
@@ -49,29 +22,21 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, onExplo
         The Territory
       </p>
 
-      {isMobile ? (
-        <div className="rounded-xl p-4 emerge space-y-2" style={{ background: 'var(--surface)' }}>
-          {points.map((point) => {
-            const isKnown = known.has(point.id);
-            const isGlimmer = !isKnown && glimmers.has(point.id);
-            if (!isKnown && !isGlimmer) return null;
-            return (
-              <div key={point.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--surface-dim)' }}>
-                <span style={{ color: isKnown ? 'var(--ember)' : 'var(--mist)' }}>{isKnown ? '◆' : '◇'}</span>
-                <span className="font-cormorant text-sm" style={{ color: isKnown ? 'var(--ink)' : 'var(--mist)' }}>
-                  {point.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="rounded-xl p-4 md:p-6 overflow-x-auto emerge" style={{ background: 'var(--surface)' }}>
-          <pre className="text-[11px] leading-[18px] font-mono whitespace-pre min-w-[600px]" style={{ color: 'var(--ink-dim)' }}>
-            {BASE_MAP}
-          </pre>
-        </div>
-      )}
+      <div className="rounded-xl p-4 emerge space-y-2" style={{ background: 'var(--surface)' }}>
+        {points.map((point) => {
+          const isKnown = known.has(point.id);
+          const isGlimmer = !isKnown && glimmers.has(point.id);
+          if (!isKnown && !isGlimmer) return null;
+          return (
+            <div key={point.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'var(--surface-dim)' }}>
+              <span style={{ color: isKnown ? 'var(--ember)' : 'var(--mist)' }}>{isKnown ? '◆' : '◇'}</span>
+              <span className="font-cormorant text-sm" style={{ color: isKnown ? 'var(--ink)' : 'var(--mist)' }}>
+                {point.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="mt-8 space-y-2 emerge emerge-delay-1">
         {points.map((point) => {
@@ -91,14 +56,23 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, onExplo
         Some paths are yours. Some only shimmer from afar.
       </p>
       {onExplore ? (
-        <button
-          type="button"
-          className="mt-4 font-cormorant text-sm transition-colors"
-          style={{ color: 'var(--ember)' }}
-          onClick={() => onExplore('Search the old road for work and shelter')}
-        >
-          Explore the old road →
-        </button>
+        <div className="mt-4 grid grid-cols-1 gap-2">
+          {[
+            'Head north toward the old roads and guild posts',
+            'Drift east where coin and rumor change hands',
+            'Move south through marsh paths for survival work',
+          ].map((intent) => (
+            <button
+              key={intent}
+              type="button"
+              className="font-cormorant text-sm text-left px-3 py-2 rounded-md transition-colors"
+              style={{ color: 'var(--ember)', background: 'var(--surface-dim)' }}
+              onClick={() => onExplore(intent)}
+            >
+              {intent}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

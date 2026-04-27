@@ -44,6 +44,7 @@ import { SelfView } from './SelfView';
 import { DeadLetterOverlay } from './DeadLetterOverlay';
 import { EchoChamberOverlay } from './EchoChamberOverlay';
 import { Guttering } from './Guttering';
+import { WorldWelcome } from './WorldWelcome';
 
 type ActiveView = 'chronicle' | 'chapter' | 'territory' | 'self';
 
@@ -63,6 +64,7 @@ export function RPGInterface() {
   const [deadLetterOpen, setDeadLetterOpen] = useState(false);
   const [echoChamberOpen, setEchoChamberOpen] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [showWorldWelcome, setShowWorldWelcome] = useState(false);
 
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
@@ -90,6 +92,12 @@ export function RPGInterface() {
   }, []);
 
   useEffect(() => {
+    if (!character?.hasCompletedFirstChapter) return;
+    if (localStorage.getItem('nsg:welcomed') === 'true') return;
+    setShowWorldWelcome(true);
+  }, [character?.hasCompletedFirstChapter]);
+
+  useEffect(() => {
     if (!user?.pubkey) return;
     const chapterWindowId = getChapterWindowId();
     nostr.query(
@@ -102,7 +110,7 @@ export function RPGInterface() {
   }, [nostr, user?.pubkey]);
 
   useEffect(() => {
-    if (!character || !autonomous.state) return;
+    if (!character || !autonomous.state || !autonomous.relayLoaded) return;
     if (character.lastSimulatedTick === autonomous.state.lastSimulatedTick) return;
     const mergedCharacter: MVPCharacter = {
       ...character,
@@ -134,14 +142,22 @@ export function RPGInterface() {
     }).then((event) => {
       nostr.group([...PRESENCE_RELAYS]).event(event).catch(() => noteSyncFailure());
     }).catch(() => noteSyncFailure());
-  }, [autonomous.state, character, nostr, user]);
+  }, [autonomous.relayLoaded, autonomous.state, character, nostr, user]);
 
   useEffect(() => {
     if (!character) return;
     autonomous.runTick().catch(() => {});
   }, [character?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const activeChapter = getActiveChapter();
+  useEffect(() => {
+    if (!character) return;
+    const interval = setInterval(() => {
+      autonomous.runTick().catch(() => {});
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [character?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeChapter = getActiveChapter(character?.completedChapterIds ?? []);
   const activeQuestId = activeChapter.id;
   const questBunchSteps = activeChapter.questBunch;
 
@@ -190,6 +206,7 @@ export function RPGInterface() {
       startingCity: 'Dawnharbor',
       className: 'Wanderer',
       mainQuestChoices: [],
+      completedChapterIds: [],
       discoveredLocations: ['market-square'],
       pubkey: user?.pubkey,
       npub,
@@ -223,7 +240,8 @@ export function RPGInterface() {
     }
   };
 
-  const handleMainQuestChoice = (questionId: string, option: 'A' | 'B' | 'C') => {
+  const handleMainQuestChoice = (questionId: string, option: string) => {
+    navigator.vibrate?.(15);
     if (!character) return;
     const pendingAnswers = [...pendingBunch.answers.filter((answer) => answer.questionId !== questionId), { questionId, option }];
     const withPending: MVPCharacter = { ...character, pendingQuestBunch: { questId: activeQuestId, answers: pendingAnswers } };
@@ -240,16 +258,23 @@ export function RPGInterface() {
       return;
     }
 
-    const finalChoice = pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q10`)?.option ?? option;
+    const finalStepQuestionId = questBunchSteps[questBunchSteps.length - 1]?.questionId;
+    const finalChoice = pendingAnswers.find((a) => a.questionId === finalStepQuestionId)?.option ?? option;
     const aCount = pendingAnswers.filter((answer) => answer.option === 'A').length;
     const bCount = pendingAnswers.filter((answer) => answer.option === 'B').length;
     const cCount = pendingAnswers.filter((answer) => answer.option === 'C').length;
+    const dCount = pendingAnswers.filter((answer) => answer.option === 'D').length;
+    const eCount = pendingAnswers.filter((answer) => answer.option === 'E').length;
     const identity = computeQuestBunchIdentity(pendingAnswers, `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`);
     const consequenceByArc = finalChoice === 'A'
       ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
       : finalChoice === 'B'
         ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
-        : `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`;
+        : finalChoice === 'C'
+          ? `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+          : finalChoice === 'D'
+            ? `You choose risk without witness. Your road carries ${dCount} dangerous turns and ${eCount} quiet debts. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`
+            : `You choose silence and resolve. Your road carries ${eCount} buried vows and ${dCount} unanswered names. Fate marks you as ${identity.race}, ${identity.profession}, ${identity.className}.`;
 
     const updatedCharacter: MVPCharacter = {
       ...character,
@@ -260,6 +285,7 @@ export function RPGInterface() {
       className: identity.className,
       discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
       chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
+      completedChapterIds: Array.from(new Set([...(character.completedChapterIds ?? []), activeQuestId])),
       pendingQuestBunch: undefined,
       hasCompletedFirstChapter: true,
     };
@@ -334,7 +360,7 @@ export function RPGInterface() {
       setRevealPhase('idle');
       setActiveView('chronicle');
       setChapterOpened(false);
-    }, 5000);
+    }, 12000);
   };
 
   if (!user) {
@@ -362,21 +388,20 @@ export function RPGInterface() {
         </div>
         <details className="mt-8 max-w-xs text-center emerge emerge-delay-5">
           <summary className="text-xs cursor-pointer" style={{ color: 'var(--ink-ghost)' }}>
-            What is Nostr?
+            New to Nostr? Start here.
           </summary>
           <div className="mt-3 space-y-2 text-xs" style={{ color: 'var(--ink-ghost)' }}>
-            <p>Nostr is a protocol for sovereign identity. Your account belongs to you.</p>
+            <p>Nostr is a protocol for sovereign identity. Your account belongs to you - not a company.</p>
             <p>
-              To play, you need a Nostr key. A simple start:
-              {' '}
+              <strong>On mobile:</strong> create an account with{' '}
+              <a href="https://primal.net" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Primal</a>
+              {' '}then sign in here.
+            </p>
+            <p>
+              <strong>On desktop:</strong> install{' '}
               <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Alby</a>
               {' '}or{' '}
               <a href="https://nos2x.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>nos2x</a>.
-            </p>
-            <p>
-              On mobile, open a Nostr app like{' '}
-              <a href="https://primal.net" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Primal</a>
-              {' '}and sign in there.
             </p>
           </div>
         </details>
@@ -418,7 +443,7 @@ export function RPGInterface() {
   if (!character) return null;
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: 'var(--void)' }}>
+    <div className="min-h-screen pb-32" style={{ background: 'var(--void)' }}>
       <Guttering />
       <header className="flex items-center justify-between px-2 pt-6 pb-4">
         <div className="h-1.5 w-1.5 rounded-full smolder" style={{ background: 'var(--ember)' }} />
@@ -433,7 +458,7 @@ export function RPGInterface() {
             title="View your Nostr profile on Primal"
           >
             <Avatar
-              className="h-7 w-7 ring-1 transition-all duration-300 hover:ring-2"
+              className="h-9 w-9 ring-1 transition-all duration-300 hover:ring-2"
               style={{ '--tw-ring-color': 'var(--ember-dim)' } as CSSProperties}
             >
               <AvatarImage src={metadata.picture} alt="Your profile" />
@@ -448,6 +473,15 @@ export function RPGInterface() {
       </header>
 
       {activeView === 'chronicle' ? (
+        showWorldWelcome ? (
+          <WorldWelcome
+            characterName={character.characterName}
+            onDismiss={() => {
+              localStorage.setItem('nsg:welcomed', 'true');
+              setShowWorldWelcome(false);
+            }}
+          />
+        ) : (
         <ChronicleView
           latestConsequence={character.mainQuestChoices[character.mainQuestChoices.length - 1]?.consequence}
           hasUnreadChapter={hasUnreadChapter}
@@ -469,6 +503,7 @@ export function RPGInterface() {
           currentHealth={autonomous.state?.health}
           syncFailed={syncFailed}
         />
+        )
       ) : null}
 
       {activeView === 'chapter' ? (
@@ -553,8 +588,9 @@ export function RPGInterface() {
             const isActive = activeView === item.key;
             const hasNotification = item.key === 'chapter' && hasUnreadChapter;
             const isLocked = !character.hasCompletedFirstChapter && (item.key === 'territory' || item.key === 'self');
+            const lockedLabel = item.key === 'territory' ? 'The mist has not parted.' : item.key === 'self' ? 'You do not yet know your name.' : item.label;
             return (
-              <button key={item.key} type="button" disabled={isLocked} onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300 disabled:opacity-35" aria-label={item.label} title={isLocked ? 'Not yet.' : item.label}>
+              <button key={item.key} type="button" disabled={isLocked} onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300 disabled:opacity-35" aria-label={item.label} title={isLocked ? lockedLabel : item.label}>
                 <span className={`text-lg transition-all duration-300 ${hasNotification ? 'smolder' : ''}`} style={{ color: isLocked ? 'var(--ink-ghost)' : isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
                   {item.icon}
                 </span>

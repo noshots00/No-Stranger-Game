@@ -14,8 +14,8 @@ export function DeadLetterOverlay({ isOpen, onClose, onSeal, isPending = false }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-xl p-5" style={{ background: 'var(--surface)' }}>
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4 pb-safe">
+      <div className="w-full max-w-md rounded-xl p-5 pb-safe" style={{ background: 'var(--surface)' }}>
         <p className="font-cormorant text-xl" style={{ color: 'var(--ink)' }}>Seal a letter</p>
         <input
           value={title}

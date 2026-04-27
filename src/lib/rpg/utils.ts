@@ -3,6 +3,7 @@ import { nip19 } from 'nostr-tools';
 import { CLASS_CATALOG } from './classCatalog';
 import { PROFESSION_CATALOG } from './professionCatalog';
 import { RACE_CATALOG } from './raceCatalog';
+import { createSeededRandom, hashString } from './random';
 
 const MVP_CHARACTER_STORAGE_KEY = 'noStrangerCharacter';
 
@@ -11,14 +12,14 @@ export type CreationAnswer = 0 | 1 | 2;
 export interface MainQuestChoice {
   questId: string;
   prompt: string;
-  option: 'A' | 'B' | 'C';
+  option: string;
   consequence: string;
   chosenAt: number;
 }
 
 export interface QuestBunchAnswer {
   questionId: string;
-  option: 'A' | 'B' | 'C';
+  option: string;
 }
 
 export interface PendingQuestBunch {
@@ -48,6 +49,7 @@ export interface MVPCharacter {
   exploreIntent?: string;
   chapterProofHead?: string;
   chapterWindowIds?: string[];
+  completedChapterIds?: string[];
   pendingQuestBunch?: PendingQuestBunch;
   hasCompletedFirstChapter?: boolean;
   classId?: number;
@@ -74,18 +76,12 @@ const RACE_OPTIONS = RACE_CATALOG.map((race) => race.name);
 const PROFESSION_OPTIONS = PROFESSION_CATALOG.map((profession) => profession.name);
 const CLASS_OPTIONS = CLASS_CATALOG.map((classDef) => classDef.name);
 
-const hashString = (value: string): number => {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-};
-
-const optionStep = (option: 'A' | 'B' | 'C'): number => {
+const optionStep = (option: string): number => {
   if (option === 'A') return 7;
   if (option === 'B') return 11;
+  if (option === 'C') return 13;
+  if (option === 'D') return 17;
+  if (option === 'E') return 19;
   return 13;
 };
 
@@ -150,19 +146,6 @@ const professionWeightMapFromAnswers = (answers: QuestBunchAnswer[]): Map<string
   }
 
   return weights;
-};
-
-const createSeededRandom = (seedSource: string): (() => number) => {
-  let hash = 2166136261;
-  for (let i = 0; i < seedSource.length; i++) {
-    hash ^= seedSource.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  let state = hash >>> 0;
-  return () => {
-    state = Math.imul(1664525, state) + 1013904223;
-    return (state >>> 0) / 4294967296;
-  };
 };
 
 const weightedPick = <T extends string>(weights: Array<{ value: T; weight: number }>, random: () => number): T => {
@@ -264,13 +247,6 @@ export const getDisplayNameForPubkey = (
   }
 };
 
-export const computeMVPClassId = (
-  answers: [CreationAnswer, CreationAnswer, CreationAnswer],
-): number => {
-  const [q1, q2, q3] = answers;
-  return (q1 * 9) + (q2 * 3) + q3 + 1;
-};
-
 export const saveMVPCharacter = (character: MVPCharacter): void => {
   try {
     localStorage.setItem(MVP_CHARACTER_STORAGE_KEY, JSON.stringify(character));
@@ -329,6 +305,9 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       mainQuestChoices,
       discoveredLocations,
       chapterWindowIds,
+      completedChapterIds: Array.isArray(parsed.completedChapterIds)
+        ? parsed.completedChapterIds.filter((chapterId): chapterId is string => typeof chapterId === 'string')
+        : [],
       chapterProofHead: typeof parsed.chapterProofHead === 'string' ? parsed.chapterProofHead : undefined,
       pendingQuestBunch: parsed.pendingQuestBunch && typeof parsed.pendingQuestBunch === 'object'
         ? parsed.pendingQuestBunch as PendingQuestBunch

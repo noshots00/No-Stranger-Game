@@ -99,10 +99,7 @@ export function useNetworkPresence(userPubkey: string | undefined) {
       const networkPubkeys = mergeUniquePubkeys(follows, followers, userPubkey).slice(0, NETWORK_SIZE_LIMIT);
 
       const selfPresenceEvents = await presenceNostr.query(
-        [
-          { kinds: [3223], authors: [userPubkey], limit: 1 },
-          { kinds: [30000], authors: [userPubkey], '#d': ['opt-in'], limit: 1 },
-        ],
+        [{ kinds: [30000], authors: [userPubkey], '#d': ['opt-in'], limit: 1 }],
         { signal: AbortSignal.timeout(5000) },
       );
       const selfPresenceLive = selfPresenceEvents.length > 0;
@@ -125,17 +122,11 @@ export function useNetworkPresence(userPubkey: string | undefined) {
       }
 
       const presenceEvents = await presenceNostr.query(
-        [
-          { kinds: [3223], authors: networkPubkeys, limit: NETWORK_SIZE_LIMIT },
-          { kinds: [30000], authors: networkPubkeys, '#d': ['opt-in'], limit: NETWORK_SIZE_LIMIT },
-        ],
+        [{ kinds: [30000], authors: networkPubkeys, '#d': ['opt-in'], limit: NETWORK_SIZE_LIMIT }],
         { signal: AbortSignal.timeout(6000) },
       );
 
-      const optedInCandidates = presenceEvents
-        .filter((event) => event.kind !== 30000 || event.tags.some(([name, value]) => name === 'd' && value === 'opt-in'))
-        .map((event) => String(event.pubkey));
-      const optedInPubkeys = Array.from(new Set<string>(optedInCandidates));
+      const optedInPubkeys = Array.from(new Set<string>(presenceEvents.map((event) => String(event.pubkey))));
 
       if (optedInPubkeys.length === 0) {
         return {

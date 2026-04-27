@@ -1,5 +1,8 @@
 import type { MainQuestChoice } from './utils';
-import { resolveEconomy } from './economyModel';
+import { getAdjacentLocations, resolveEconomy } from './economyModel';
+import { INJURY_CATALOG, resolveInjury } from './injuryCatalog';
+import { narrateLine } from './narrativeTemplates';
+import { createSeededRandom } from './random';
 
 export const AUTONOMOUS_SNAPSHOT_KIND = 30315;
 
@@ -28,23 +31,6 @@ export interface SimulationOutput {
   publicLogLine: string;
 }
 
-const hashString = (value: string): number => {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-};
-
-const createSeededRandom = (seedSource: string): (() => number) => {
-  let state = hashString(seedSource);
-  return () => {
-    state = Math.imul(1664525, state) + 1013904223;
-    return (state >>> 0) / 4294967296;
-  };
-};
-
 const maybeRevealTrait = (
   visibleTraits: string[],
   hiddenTraits: string[],
@@ -52,7 +38,7 @@ const maybeRevealTrait = (
   random: () => number,
 ): { visibleTraits: string[]; hiddenTraits: string[]; line?: string } => {
   if (!trait || visibleTraits.includes(trait)) return { visibleTraits, hiddenTraits };
-  if (random() > 0.32) return { visibleTraits, hiddenTraits };
+  if (random() > 0.15) return { visibleTraits, hiddenTraits };
   return {
     visibleTraits: [...visibleTraits, trait],
     hiddenTraits: hiddenTraits.filter((item) => item !== trait),
@@ -89,10 +75,19 @@ export const simulateAutonomousDay = ({
   ].join('::'));
 
   const economy = resolveEconomy(state.locationId);
-  const roleIndex = Math.floor(random() * economy.workTable.length);
-  const selectedRole = economy.workTable[roleIndex];
+  const traitWeightedRoles = economy.workTable.flatMap((role) => {
+    const entries = [role];
+    if (role.requiresTrait && state.visibleTraits.includes(role.requiresTrait)) entries.push(role, role);
+    if (state.professionLabel.toLowerCase().includes(role.role.split(' ')[0].toLowerCase())) entries.push(role);
+    return entries;
+  });
+  const selectedRole = traitWeightedRoles[Math.floor(random() * traitWeightedRoles.length)] ?? economy.workTable[0];
   const spread = selectedRole.maxIncome - selectedRole.minIncome;
-  const income = selectedRole.minIncome + Math.floor(random() * (spread + 1));
+  const baseIncome = selectedRole.minIncome + Math.floor(random() * (spread + 1));
+  const injuryIncomePenalty = state.injuries
+    .map((injuryName) => resolveInjury(injuryName)?.incomeModifier ?? 0)
+    .reduce((sum, penalty) => sum + penalty, 0);
+  const income = Math.max(-5, baseIncome + injuryIncomePenalty);
   const upkeep = economy.baseCostOfLiving + Math.floor(random() * 2);
   const delta = income - upkeep;
 
@@ -100,12 +95,19 @@ export const simulateAutonomousDay = ({
   const nextInjuries = [...state.injuries];
   if (delta < 0) {
     nextHealth = Math.max(0, nextHealth + delta);
-    if (nextHealth < 35 && !nextInjuries.includes('Old Leg Pain') && random() < 0.25) {
-      nextInjuries.push('Old Leg Pain');
+    if (nextHealth < 35 && random() < 0.25) {
+      const injury = INJURY_CATALOG[Math.floor(random() * INJURY_CATALOG.length)];
+      if (!nextInjuries.includes(injury.label)) nextInjuries.push(injury.label);
     }
   } else {
     nextHealth = Math.min(100, nextHealth + Math.max(1, Math.floor(delta / 2)));
   }
+
+  const healedInjuries = nextInjuries.filter((injuryName) => {
+    const def = resolveInjury(injuryName);
+    if (!def || def.healChance <= 0) return true;
+    return random() >= def.healChance;
+  });
 
   const traitReveal = maybeRevealTrait(
     [...state.visibleTraits],
@@ -114,16 +116,27 @@ export const simulateAutonomousDay = ({
     random,
   );
 
-  const publicLogLine = delta >= 0
-    ? `At ${economy.label}, you worked as ${selectedRole.role}. You kept ${delta} copper after shelter and food.`
-    : `At ${economy.label}, ${selectedRole.role} paid poorly. You fell short by ${Math.abs(delta)} copper.`;
+  const publicLogLine = narrateLine(selectedRole.role, economy.label, delta, random);
+
+  let nextLocationId = state.locationId;
+  let travelLine: string | undefined;
+  if (state.exploreIntent && random() < 0.35) {
+    const adjacentLocations = getAdjacentLocations(state.locationId);
+    if (adjacentLocations.length > 0) {
+      nextLocationId = adjacentLocations[Math.floor(random() * adjacentLocations.length)];
+      travelLine = `You followed the road to ${resolveEconomy(nextLocationId).label}.`;
+    }
+  }
 
   const logLines = [
+    state.exploreIntent ? `Your exploration paid off: you found signs of ${state.exploreIntent.toLowerCase()}.` : undefined,
+    travelLine,
     publicLogLine,
     traitReveal.line,
-    nextInjuries.includes('Old Leg Pain') && !state.injuries.includes('Old Leg Pain')
-      ? 'You wake with a deep ache in your leg. An old injury reveals itself.'
+    nextInjuries.find((injury) => !state.injuries.includes(injury))
+      ? resolveInjury(nextInjuries.find((injury) => !state.injuries.includes(injury)) ?? '')?.revealLine
       : undefined,
+    healedInjuries.length < nextInjuries.length ? 'One of your old wounds finally eased.' : undefined,
   ].filter((line): line is string => Boolean(line));
 
   const nextState: AutonomousState = {
@@ -133,7 +146,8 @@ export const simulateAutonomousDay = ({
     professionLabel: selectedRole.role,
     visibleTraits: traitReveal.visibleTraits,
     hiddenTraits: traitReveal.hiddenTraits,
-    injuries: nextInjuries,
+    locationId: nextLocationId,
+    injuries: healedInjuries,
     lastSimulatedTick: tickWindowId,
     dailyLogs: [...logLines.map((line) => ({ tick: tickWindowId, line })), ...state.dailyLogs].slice(0, 40),
     exploreIntent: undefined,

@@ -5,7 +5,7 @@ interface QuestStep {
   questionId: string;
   title: string;
   prompt: string;
-  options: Array<{ option: 'A' | 'B' | 'C'; label: string }>;
+  options: Array<{ option: string; label: string }>;
 }
 
 interface ChapterViewProps {
@@ -19,7 +19,7 @@ interface ChapterViewProps {
   currentQuestStep?: QuestStep;
   pendingBunch: { questId: string; answers: QuestBunchAnswer[] };
   questBunchStepsLength: number;
-  onChoose: (questionId: string, option: 'A' | 'B' | 'C') => void;
+  onChoose: (questionId: string, option: string) => void;
   deadLetterEnabled: boolean;
   onOpenDeadLetter: () => void;
   revealPhase: 'idle' | 'revealing';
@@ -44,6 +44,7 @@ export function ChapterView({
   revealIdentity,
 }: ChapterViewProps) {
   const [narrativeComplete, setNarrativeComplete] = useState(false);
+  const [visibleLineCount, setVisibleLineCount] = useState(0);
 
   useEffect(() => {
     if (!chapterOpened || hasChosenMarketQuest || revealPhase === 'revealing') {
@@ -54,6 +55,18 @@ export function ChapterView({
     const timer = setTimeout(() => setNarrativeComplete(true), delay);
     return () => clearTimeout(timer);
   }, [chapterOpened, hasChosenMarketQuest, chapterLines, revealPhase]);
+
+  useEffect(() => {
+    if (!chapterOpened || hasChosenMarketQuest) return;
+    setVisibleLineCount(0);
+    let count = 0;
+    const timer = setInterval(() => {
+      count += 1;
+      setVisibleLineCount(count);
+      if (count >= chapterLines.length) clearInterval(timer);
+    }, 900);
+    return () => clearInterval(timer);
+  }, [chapterOpened, hasChosenMarketQuest, chapterLines.length]);
 
   return (
     <div className="min-h-[80vh] flex flex-col justify-center px-6 mx-auto max-w-lg">
@@ -80,7 +93,7 @@ export function ChapterView({
 
       {chapterOpened || hasChosenMarketQuest ? (
         <div className="space-y-4">
-          {chapterLines.map((line, idx) => (
+          {chapterLines.slice(0, visibleLineCount).map((line, idx) => (
             <p
               key={line}
               className="font-cormorant text-xl md:text-2xl leading-relaxed chapter-line"
@@ -93,20 +106,20 @@ export function ChapterView({
       ) : null}
 
       {revealPhase === 'revealing' && revealIdentity ? (
-        <div className="mt-12 space-y-5 emerge">
-          <p className="font-cormorant text-xl md:text-2xl leading-relaxed chapter-line" style={{ color: 'var(--ink)' }}>
+        <div className="mt-12 space-y-5">
+          <p className="font-cormorant text-xl md:text-2xl leading-relaxed chapter-line" style={{ color: 'var(--ink)', animationDelay: '0ms' }}>
             {revealIdentity.consequence}
           </p>
-          <p className="font-cormorant text-lg emerge emerge-delay-2" style={{ color: 'var(--ember)' }}>
-            Race revealed: {revealIdentity.race}
+          <p className="font-cormorant text-lg chapter-line" style={{ color: 'var(--ember)', animationDelay: '2000ms' }}>
+            Something stirs in your blood... <em>{revealIdentity.race}</em>
           </p>
-          <p className="font-cormorant text-lg emerge emerge-delay-3" style={{ color: 'var(--ember)' }}>
-            Profession revealed: {revealIdentity.profession}
+          <p className="font-cormorant text-lg chapter-line" style={{ color: 'var(--ember)', animationDelay: '4000ms' }}>
+            Your hands remember a craft... <em>{revealIdentity.profession}</em>
           </p>
-          <p className="font-cormorant text-lg emerge emerge-delay-4" style={{ color: 'var(--ember)' }}>
-            Class revealed: {revealIdentity.className}
+          <p className="font-cormorant text-lg chapter-line" style={{ color: 'var(--ember)', animationDelay: '6000ms' }}>
+            A word rises unbidden... <em>{revealIdentity.className}</em>
           </p>
-          <p className="font-cormorant text-sm italic emerge emerge-delay-5" style={{ color: 'var(--ink-ghost)' }}>
+          <p className="font-cormorant text-sm italic chapter-line" style={{ color: 'var(--ink-ghost)', animationDelay: '8000ms' }}>
             Return tomorrow for the next unfolding.
           </p>
         </div>
@@ -156,7 +169,7 @@ export function ChapterView({
               <button
                 key={`${currentQuestStep.questionId}-${optionItem.option}`}
                 type="button"
-                className="choice-smudge w-full text-left px-5 py-4 rounded-lg font-cormorant text-lg transition-all duration-350"
+                className="choice-smudge w-full min-h-[52px] text-left px-5 py-4 rounded-lg font-cormorant text-lg transition-all duration-350"
                 style={{ color: 'var(--ink)', background: 'var(--surface)', animationDelay: `${idx * 150}ms` }}
                 onClick={() => onChoose(currentQuestStep.questionId, optionItem.option)}
               >

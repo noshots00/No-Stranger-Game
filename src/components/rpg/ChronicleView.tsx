@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { NetworkPresenceMember } from '@/lib/rpg/utils';
@@ -59,13 +59,16 @@ export function ChronicleView({
   const [flashConvergence, setFlashConvergence] = useState(false);
   const [seenNames, setSeenNames] = useState<Set<string>>(new Set());
   const convergenceKey = convergenceMatches.map((match) => match.pubkey).sort().join(',');
+  const prevConvergenceKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (convergenceMatches.length === 0) return;
+    if (convergenceKey === prevConvergenceKeyRef.current) return;
+    prevConvergenceKeyRef.current = convergenceKey;
     setFlashConvergence(true);
     const timer = setTimeout(() => setFlashConvergence(false), 1500);
     return () => clearTimeout(timer);
-  }, [convergenceKey]);
+  }, [convergenceKey, convergenceMatches.length]);
 
   useEffect(() => {
     if (topMembers.length === 0) return;
@@ -145,7 +148,7 @@ export function ChronicleView({
           </p>
           <div className="space-y-2">
             {dailyLogs.slice(0, 4).map((entry, index) => (
-              <p key={`${entry.tick}-${index}`} className="font-cormorant text-sm leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+              <p key={`${entry.tick}-${index}`} className="font-cormorant text-base md:text-sm leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                 {entry.line}
               </p>
             ))}
@@ -183,7 +186,7 @@ export function ChronicleView({
                 title={member.characterName}
                 type="button"
               >
-                <Avatar className="h-10 w-10 md:h-9 md:w-9 ring-1 ring-transparent group-hover:scale-105 transition-all duration-300" style={{ boxShadow: '0 0 0 1px transparent' }}>
+                <Avatar className="h-11 w-11 ring-1 ring-transparent group-hover:scale-105 transition-all duration-300" style={{ boxShadow: '0 0 0 1px transparent' }}>
                   <AvatarImage src={member.picture} alt={member.nostrName} />
                   <AvatarFallback className="text-xs" style={{ background: 'var(--surface)', color: 'var(--ink-dim)' }}>
                     {member.characterName.slice(0, 2).toUpperCase()}
