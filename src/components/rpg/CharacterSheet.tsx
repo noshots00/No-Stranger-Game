@@ -68,9 +68,6 @@ export function CharacterSheet({ character, onBack, onNewGame }: CharacterSheetP
               Character Name: <span className="font-mono">{character.characterName}</span>
             </p>
             <p className="text-sm text-zinc-200">
-              Gender: <span className="font-mono">{character.gender}</span>
-            </p>
-            <p className="text-sm text-zinc-200">
               Race: <span className="font-mono">{character.race}</span>
             </p>
             <p className="text-sm text-zinc-200">

@@ -35,7 +35,6 @@ export function RPGInterface() {
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
   const [homeTab, setHomeTab] = useState<'events' | 'map' | 'mainQuest' | 'profile'>('events');
   const [characterNameInput, setCharacterNameInput] = useState('');
-  const [genderInput, setGenderInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
   const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
@@ -243,7 +242,6 @@ export function RPGInterface() {
 
   const handleCreateStranger = () => {
     const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
-    const normalizedGender = genderInput.trim() || 'Unknown';
     const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
     const newCharacter: MVPCharacter = {
       id: user?.pubkey ?? `temp-${Date.now()}`,
@@ -251,7 +249,7 @@ export function RPGInterface() {
       level: 1,
       role: 'stranger',
       characterName: normalizedCharacterName,
-      gender: normalizedGender,
+      gender: 'Unknown',
       race: 'Elf',
       profession: 'Wood Cutter',
       startingCity: 'Dawnharbor',
@@ -276,7 +274,6 @@ export function RPGInterface() {
           level: 1,
           role: 'stranger',
           characterName: normalizedCharacterName,
-          gender: normalizedGender,
           classLabel: 'Unchosen',
           discoveredLocations: ['market-square'],
           createdAt: newCharacter.createdAt,
@@ -333,14 +330,16 @@ export function RPGInterface() {
     }
 
     const chapterWindowId = getChapterWindowId();
-    const identityKey = user?.pubkey ?? character.id;
+    const identityKey = `${character.id}:${character.createdAt}`;
     if (hasCanonicalChoiceForWindow(chapterWindowId, identityKey)) {
       trackTelemetry('chapter_duplicate_rejected', { chapterWindowId });
       toast({
-        title: 'Choice already sealed',
-        description: 'You already recorded a canonical choice for this chapter window.',
-        variant: 'destructive',
+        title: 'You have done all you can for now',
+        description: 'Your character will now pursue its goals according to your sealed choices. Explore the map to continue playing.',
       });
+      const withClearedPending: MVPCharacter = { ...character, pendingQuestBunch: undefined };
+      saveMVPCharacter(withClearedPending);
+      setCharacter(withClearedPending);
       return;
     }
     const finalChoice = pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q10`)?.option ?? option;
@@ -534,17 +533,9 @@ export function RPGInterface() {
                 <Input
                   id="character-name"
                   placeholder="Name your stranger"
+                  className="border-zinc-600 bg-zinc-950/70 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-emerald-500"
                   value={characterNameInput}
                   onChange={(event) => setCharacterNameInput(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="character-gender">Gender</Label>
-                <Input
-                  id="character-gender"
-                  placeholder="How does your character identify?"
-                  value={genderInput}
-                  onChange={(event) => setGenderInput(event.target.value)}
                 />
               </div>
               <Button className="bg-emerald-600 hover:bg-emerald-500 text-white" onClick={handleCreateStranger}>
