@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#1f3a2b"/>
+  <rect x="36" y="36" width="728" height="378" fill="#32583f" stroke="#9bc3a8" stroke-width="3"/>
+  <text x="400" y="220" text-anchor="middle" font-size="40" fill="#f1f5f9" font-family="Inter, Arial, sans-serif">Forest Edge</text>
+</svg>

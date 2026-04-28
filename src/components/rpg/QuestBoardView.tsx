@@ -21,7 +21,7 @@ export function QuestBoardView({
   onUpdateCharacter,
 }: QuestBoardViewProps) {
   const [showPostModal, setShowPostModal] = useState(false);
-  const { quests, recentCompletions, isLoading, refreshBoard, postQuest, acceptQuest, completeQuest } = usePlayerQuestBoard();
+  const { quests, recentCompletions, isLoading, refreshBoard, postQuest, acceptQuest, completeQuest, settleExpiredQuest } = usePlayerQuestBoard();
 
   const myPubkey = character.pubkey;
   const completionsPreview = useMemo(() => recentCompletions.slice(0, 4), [recentCompletions]);
@@ -86,11 +86,19 @@ export function QuestBoardView({
           return (
             <article key={quest.id} className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--ink-ghost)' }}>
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="flex items-start gap-3">
+                  <img
+                    src="/placeholders/portraits/generic-npc.svg"
+                    alt="Quest poster portrait"
+                    className="h-10 w-10 rounded object-cover border"
+                    style={{ borderColor: 'var(--ink-ghost)' }}
+                  />
+                  <div>
                   <p className="font-cormorant text-xl" style={{ color: 'var(--ink)' }}>{quest.title}</p>
                   <p className="text-xs" style={{ color: 'var(--ink-ghost)' }}>
                     by {quest.alias || quest.posterPubkey.slice(0, 12)}
                   </p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold" style={{ color: 'var(--ember)' }}>{quest.bountyPerUnit} gold / unit</p>
@@ -142,6 +150,26 @@ export function QuestBoardView({
                 >
                   {mine ? 'Your Quest' : `Submit ${getItemName(quest.requestedItem)} (${itemCount})`}
                 </button>
+                {mine && quest.status === 'expired' ? (
+                  <button
+                    type="button"
+                    className="text-xs px-2 py-1 rounded-md"
+                    style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
+                    onClick={() => {
+                      settleExpiredQuest.mutate(quest, {
+                        onSuccess: () => {
+                          onUpdateCharacter({
+                            ...character,
+                            gold: (character.gold ?? 0) + quest.remainingEscrow + 1,
+                            escrowedGold: Math.max(0, (character.escrowedGold ?? 0) - quest.remainingEscrow),
+                          });
+                        },
+                      });
+                    }}
+                  >
+                    Refund Expired
+                  </button>
+                ) : null}
               </div>
             </article>
           );

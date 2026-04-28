@@ -10,6 +10,7 @@ import {
   simulateAutonomousDay,
   type AutonomousState,
 } from '@/lib/rpg/autonomousSimulation';
+import { normalizeLocationId } from '@/lib/rpg/locations';
 
 const TRAIT_POOL = [
   'Patient', 'Risk-Taker', 'Night Owl', 'Fleet Footed', 'Steady Hands', 'Silver Tongue', 'Strong Back',
@@ -37,7 +38,7 @@ const deterministicHiddenTraits = (character: MVPCharacter): string[] => {
 };
 
 const defaultAutonomousState = (character: MVPCharacter): AutonomousState => ({
-  locationId: (character.discoveredLocations ?? []).includes('forest-edge') ? 'forest_edge' : 'market_square',
+  locationId: normalizeLocationId(character.locationId ?? ((character.discoveredLocations ?? []).includes('forest-edge') ? 'forest-edge' : 'market-square')),
   gold: character.gold ?? 0,
   health: character.health ?? 100,
   professionLabel: character.profession ?? 'Unskilled',
@@ -45,6 +46,7 @@ const defaultAutonomousState = (character: MVPCharacter): AutonomousState => ({
   hiddenTraits: character.hiddenTraits ?? deterministicHiddenTraits(character),
   injuries: character.injuries ?? [],
   inventory: character.inventory ?? [],
+  shelterType: character.shelterType ?? 'shared',
   lastSimulatedTick: character.lastSimulatedTick,
   dailyLogs: character.dailyLogs ?? [],
   exploreIntent: character.exploreIntent,
@@ -149,7 +151,7 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
 
   const queueExploreIntent = (intent: string) => {
     if (!state) return;
-    setState({ ...state, exploreIntent: intent });
+    setState({ ...state, exploreIntent: intent, locationId: normalizeLocationId(state.locationId) });
   };
 
   return {

@@ -13,7 +13,7 @@ Define a deterministic, verifiable event model for Crucial Choices.
 - `["t", "no-stranger-game"]`
 - `["chapter", "<chapter-id>"]`
 - `["window", "<chapter-window-id>"]`
-- `["choice", "A|B|C"]`
+- `["choice", "<option-code>"]` (supports `A/B/C/D/E` and future chapter option sets)
 - `["prev", "<prior-choice-event-id-or-genesis>"]`
 - `["alt", "No Stranger Game crucial choice proof"]`
 
@@ -23,7 +23,7 @@ Define a deterministic, verifiable event model for Crucial Choices.
 {
   "app": "no-stranger-game",
   "chapterId": "market-money-001",
-  "chapterWindowId": "season-3-day-1",
+  "chapterWindowId": "season-1-2026-04-28",
   "selectedOption": "A",
   "prompt": "You are in a crowded market...",
   "consequence": "You returned the money. Someone noticed.",

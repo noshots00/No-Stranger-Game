@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#5b4631"/>
+  <rect x="50" y="70" width="700" height="300" fill="#7f5f3f" stroke="#d6b98a" stroke-width="3"/>
+  <text x="400" y="210" text-anchor="middle" font-size="40" fill="#fff7e6" font-family="Inter, Arial, sans-serif">Village Square</text>
+</svg>

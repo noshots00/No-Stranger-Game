@@ -3,6 +3,7 @@ import { getAdjacentLocations, resolveEconomy } from './economyModel';
 import { INJURY_CATALOG, resolveInjury } from './injuryCatalog';
 import { narrateLine } from './narrativeTemplates';
 import { createSeededRandom } from './random';
+import { normalizeLocationId } from './locations';
 
 export const AUTONOMOUS_SNAPSHOT_KIND = 30315;
 
@@ -15,6 +16,7 @@ export interface AutonomousState {
   hiddenTraits: string[];
   injuries: string[];
   inventory: Array<{ itemId: string; quantity: number }>;
+  shelterType?: 'streets' | 'flophouse' | 'shared' | 'private' | 'home';
   lastSimulatedTick?: string;
   dailyLogs: Array<{ tick: string; line: string }>;
   exploreIntent?: string;
@@ -25,6 +27,14 @@ const HUNTING_LOOT_TABLE: Array<{ itemId: string; chance: number; min: number; m
   { itemId: 'boar-meat', chance: 0.32, min: 1, max: 3 },
   { itemId: 'herb-bundle', chance: 0.4, min: 1, max: 2 },
 ];
+
+const SHELTER_COSTS: Record<NonNullable<AutonomousState['shelterType']>, number> = {
+  streets: 0,
+  flophouse: 5,
+  shared: 15,
+  private: 30,
+  home: 100,
+};
 
 export interface SimulationInput {
   characterId: string;
@@ -103,7 +113,8 @@ export const simulateAutonomousDay = ({
     .map((injuryName) => resolveInjury(injuryName)?.incomeModifier ?? 0)
     .reduce((sum, penalty) => sum + penalty, 0);
   const income = Math.max(-5, baseIncome + injuryIncomePenalty);
-  const upkeep = economy.baseCostOfLiving + Math.floor(random() * 2);
+  const shelterCost = SHELTER_COSTS[state.shelterType ?? 'shared'] ?? 15;
+  const upkeep = Math.max(economy.baseCostOfLiving, shelterCost) + Math.floor(random() * 2);
   const delta = income - upkeep;
 
   let nextHealth = state.health;
@@ -136,8 +147,13 @@ export const simulateAutonomousDay = ({
   let nextLocationId = state.locationId;
   let travelLine: string | undefined;
   if (state.exploreIntent && random() < 0.35) {
+    const explicitTravel = state.exploreIntent.match(/Travel to ([a-z0-9_]+)/i)?.[1];
+    if (explicitTravel) {
+      nextLocationId = normalizeLocationId(explicitTravel);
+      travelLine = `You reached ${resolveEconomy(nextLocationId).label}.`;
+    }
     const adjacentLocations = getAdjacentLocations(state.locationId);
-    if (adjacentLocations.length > 0) {
+    if (!explicitTravel && adjacentLocations.length > 0) {
       nextLocationId = adjacentLocations[Math.floor(random() * adjacentLocations.length)];
       travelLine = `You followed the road to ${resolveEconomy(nextLocationId).label}.`;
     }
@@ -187,6 +203,7 @@ export const simulateAutonomousDay = ({
     locationId: nextLocationId,
     injuries: healedInjuries,
     inventory: nextInventory,
+    shelterType: state.shelterType ?? 'shared',
     lastSimulatedTick: tickWindowId,
     dailyLogs: [...logLines.map((line) => ({ tick: tickWindowId, line })), ...state.dailyLogs].slice(0, 40),
     exploreIntent: undefined,

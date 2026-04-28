@@ -19,6 +19,7 @@ export interface PlayerQuestBounty {
   acceptedCount: number;
   completedUnits: number;
   createdAt: number;
+  expiresAt?: number;
   alias?: string;
   status: 'active' | 'completed' | 'expired' | 'cancelled';
 }
@@ -29,6 +30,13 @@ export interface QuestCompletionProof {
   itemsSubmitted: number;
   payout: number;
   createdAt: number;
+}
+
+export interface QuestSettlement {
+  questId: string;
+  type: 'completed' | 'expired';
+  refundedGold?: number;
+  paidOutGold?: number;
 }
 
 export const postingFee = 1;
@@ -87,9 +95,15 @@ export const buildQuestFromEvent = (
     acceptedCount: acceptsByQuest.get(event.id) ?? 0,
     completedUnits,
     createdAt: event.created_at * 1000,
+    expiresAt: Number(getTagValue(event, 'expires') ?? 0) || undefined,
     alias: getTagValue(event, 'alias'),
     status: remainingEscrow > 0 ? 'active' : 'completed',
   };
+};
+
+export const isQuestExpired = (quest: PlayerQuestBounty, nowMs: number = Date.now()): boolean => {
+  if (!quest.expiresAt) return false;
+  return nowMs > quest.expiresAt;
 };
 
 export const applyPostedQuestToCharacter = (

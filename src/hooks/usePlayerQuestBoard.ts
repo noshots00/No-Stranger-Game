@@ -7,8 +7,10 @@ import {
   QUEST_ACCEPT_KIND,
   QUEST_COMPLETE_KIND,
   QUEST_POST_KIND,
+  QUEST_SETTLEMENT_KIND,
   buildQuestFromEvent,
   calculateMaxUnits,
+  isQuestExpired,
   postingFee,
   validateEscrowMath,
   type PlayerQuestBounty,
@@ -72,6 +74,7 @@ export function usePlayerQuestBoard() {
       const quests = posts
         .map((event) => buildQuestFromEvent(event, acceptsByQuest, completedByQuest))
         .filter((quest): quest is PlayerQuestBounty => Boolean(quest))
+        .map((quest) => (isQuestExpired(quest) && quest.status === 'active' ? { ...quest, status: 'expired' as const } : quest))
         .sort((a, b) => b.createdAt - a.createdAt);
 
       return {
@@ -108,6 +111,7 @@ export function usePlayerQuestBoard() {
           ['bounty', String(input.bountyPerUnit)],
           ['escrow', String(input.totalEscrow)],
           ['max', String(calculateMaxUnits(input.totalEscrow, input.bountyPerUnit))],
+          ['expires', String(Date.now() + (1000 * 60 * 60 * 24 * 7))],
           ['fee', String(postingFee)],
           ['t', 'no-stranger-game'],
           ['t', 'quest-board'],
@@ -168,6 +172,32 @@ export function usePlayerQuestBoard() {
     onSuccess: () => boardQuery.refetch(),
   });
 
+  const settleExpiredQuest = useMutation({
+    mutationFn: async (quest: PlayerQuestBounty) => {
+      if (!user) throw new Error('You must be logged in.');
+      const event = await user.signer.signEvent({
+        kind: QUEST_SETTLEMENT_KIND,
+        content: JSON.stringify({
+          questId: quest.id,
+          type: 'expired',
+          refundedGold: quest.remainingEscrow + postingFee,
+        }),
+        tags: [
+          ['e', quest.id],
+          ['type', 'expired'],
+          ['refund', String(quest.remainingEscrow + postingFee)],
+          ['t', 'no-stranger-game'],
+          ['t', 'quest-board'],
+          ['alt', 'No Stranger Game quest settlement marker'],
+        ],
+        created_at: Math.floor(Date.now() / 1000),
+      });
+      await nostr.event(event, { signal: AbortSignal.timeout(7000) });
+      return event;
+    },
+    onSuccess: () => boardQuery.refetch(),
+  });
+
   const recentCompletions = useMemo(() => boardQuery.data?.completions ?? [], [boardQuery.data]);
 
   return {
@@ -178,5 +208,6 @@ export function usePlayerQuestBoard() {
     postQuest,
     acceptQuest,
     completeQuest,
+    settleExpiredQuest,
   };
 }

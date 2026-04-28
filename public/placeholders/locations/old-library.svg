@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#2c2a4d"/>
+  <rect x="44" y="44" width="712" height="362" fill="#3e3a6a" stroke="#b7b2ef" stroke-width="3"/>
+  <text x="400" y="220" text-anchor="middle" font-size="40" fill="#eef2ff" font-family="Inter, Arial, sans-serif">Old Library</text>
+</svg>

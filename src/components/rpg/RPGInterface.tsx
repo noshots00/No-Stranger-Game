@@ -16,6 +16,7 @@ import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
 import { useEchoChamber } from '@/hooks/useEchoChamber';
 import { useForgetting } from '@/hooks/useForgetting';
 import { useAutonomousState } from '@/hooks/useAutonomousState';
+import { useSideQuests } from '@/hooks/useSideQuests';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { trackTelemetry } from '@/lib/rpg/telemetry';
 import {
@@ -37,6 +38,9 @@ import {
 import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
 import { getActiveChapter } from '@/lib/rpg/chapterCatalog';
 import { AUTONOMOUS_SNAPSHOT_KIND } from '@/lib/rpg/autonomousSimulation';
+import { applyProgression } from '@/lib/rpg/progression';
+import { runRevelationPass } from '@/lib/rpg/revelationEngine';
+import { COMPANIONS } from '@/lib/rpg/companions';
 import { ChronicleView } from './ChronicleView';
 import { ChapterView } from './ChapterView';
 import { TerritoryView } from './TerritoryView';
@@ -45,6 +49,7 @@ import { DeadLetterOverlay } from './DeadLetterOverlay';
 import { EchoChamberOverlay } from './EchoChamberOverlay';
 import { QuestBoardView } from './QuestBoardView';
 import { DevTimePanel } from './DevTimePanel';
+import { CharacterCreationFlow, type CreationResult } from './CharacterCreationFlow';
 import { Guttering } from './Guttering';
 import { WorldWelcome } from './WorldWelcome';
 
@@ -57,7 +62,6 @@ export function RPGInterface() {
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
   const [activeView, setActiveView] = useState<ActiveView>('play');
-  const [characterNameInput, setCharacterNameInput] = useState('');
   const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
   const [revealPhase, setRevealPhase] = useState<'idle' | 'revealing'>('idle');
@@ -80,6 +84,7 @@ export function RPGInterface() {
   const echoChamber = useEchoChamber();
   const forgetting = useForgetting();
   const autonomous = useAutonomousState(character, user?.pubkey);
+  const { sideQuests } = useSideQuests(character);
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -163,6 +168,25 @@ export function RPGInterface() {
       exploreIntent: autonomous.state.exploreIntent,
       profession: autonomous.state.professionLabel || character.profession,
     };
+    const progression = applyProgression(character.xp ?? 0, autonomous.state, autonomous.state.gold - (character.gold ?? 0));
+    mergedCharacter.xp = (character.xp ?? 0) + progression.xpGain;
+    if (progression.levelUp) mergedCharacter.level = progression.nextLevel;
+
+    const revelation = runRevelationPass(autonomous.state);
+    if (revelation.logLines.length > 0) {
+      mergedCharacter.visibleTraits = revelation.visibleTraits;
+      mergedCharacter.hiddenTraits = revelation.hiddenTraits;
+      mergedCharacter.dailyLogs = [
+        ...revelation.logLines.map((line) => ({ tick: autonomous.state.lastSimulatedTick ?? 'today', line })),
+        ...(mergedCharacter.dailyLogs ?? []),
+      ].slice(0, 40);
+    }
+    if (progression.logLine) {
+      mergedCharacter.dailyLogs = [
+        { tick: autonomous.state.lastSimulatedTick ?? 'today', line: progression.logLine },
+        ...(mergedCharacter.dailyLogs ?? []),
+      ].slice(0, 40);
+    }
     saveMVPCharacter(mergedCharacter);
     setCharacter(mergedCharacter);
 
@@ -228,8 +252,7 @@ export function RPGInterface() {
     setCharacter(nextCharacter);
   };
 
-  const handleCreateStranger = () => {
-    const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
+  const handleCreateStranger = (normalizedCharacterName: string, creation: CreationResult) => {
     const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
     const newCharacter: MVPCharacter = {
       id: user?.pubkey ?? `temp-${Date.now()}`,
@@ -238,15 +261,21 @@ export function RPGInterface() {
       role: 'stranger',
       characterName: normalizedCharacterName,
       gender: 'Unknown',
-      race: 'Unspoken',
+      race: creation.race || 'Unspoken',
       profession: 'Woodcutter',
       startingCity: 'Dawnharbor',
       className: 'Wanderer',
       profileTitle: 'Unnamed Drifter',
       profileBio: '',
+      xp: 0,
       mainQuestChoices: [],
       completedChapterIds: [],
       discoveredLocations: ['market-square'],
+      hiddenAttributes: creation.hiddenAttributes,
+      raceProgress: creation.raceProgress,
+      raceLocked: creation.raceLocked,
+      companionAffinities: { elara: 0, bran: 0, mira: 0, sera: 0 },
+      shelterType: 'shared',
       inventory: [],
       postedQuests: [],
       acceptedQuests: [],
@@ -320,7 +349,7 @@ export function RPGInterface() {
       ...character,
       mainQuestChoices: [...character.mainQuestChoices, { questId: activeQuestId, prompt: 'Quest bunch: Chapter One arc completed.', option: finalChoice, consequence: consequenceByArc, chosenAt: Math.floor(Date.now() / 1000) }],
       level: isChapterOne ? 1 : character.level + 1,
-      race: isChapterOne ? 'Unspoken' : identity.race,
+      race: isChapterOne ? (character.raceLocked ? character.race : 'Unspoken') : identity.race,
       profession: isChapterOne ? basicProfession : identity.profession,
       className: isChapterOne ? basicArchetype : identity.className,
       discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
@@ -328,6 +357,13 @@ export function RPGInterface() {
       completedChapterIds: Array.from(new Set([...(character.completedChapterIds ?? []), activeQuestId])),
       pendingQuestBunch: undefined,
       hasCompletedFirstChapter: true,
+      companionAffinities: {
+        ...(character.companionAffinities ?? { elara: 0, bran: 0, mira: 0, sera: 0 }),
+        elara: (character.companionAffinities?.elara ?? 0) + (finalChoice === 'B' ? 2 : 0),
+        bran: (character.companionAffinities?.bran ?? 0) + (finalChoice === 'A' ? 2 : 0),
+        mira: (character.companionAffinities?.mira ?? 0) + (finalChoice === 'C' ? 2 : 0),
+        sera: (character.companionAffinities?.sera ?? 0) + (finalChoice === 'D' || finalChoice === 'E' ? 2 : 0),
+      },
     };
     const now = Math.floor(Date.now() / 1000);
     saveMVPCharacter(updatedCharacter);
@@ -335,7 +371,7 @@ export function RPGInterface() {
     markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${finalChoice}`);
     setRevealIdentity({
       consequence: consequenceByArc,
-      race: isChapterOne ? 'Unspoken' : identity.race,
+      race: isChapterOne ? (character.raceLocked ? character.race : 'Unspoken') : identity.race,
       profession: isChapterOne ? basicProfession : identity.profession,
       className: isChapterOne ? basicArchetype : identity.className,
     });
@@ -451,33 +487,7 @@ export function RPGInterface() {
   }
 
   if (screen === 'creation') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--void)' }}>
-        <p className="text-sm tracking-[0.25em] uppercase emerge" style={{ color: 'var(--ink-ghost)' }}>
-          Season III
-        </p>
-        <h2 className="mt-12 font-cormorant text-3xl font-light emerge emerge-delay-1" style={{ color: 'var(--ink)' }}>
-          What name will you carry?
-        </h2>
-        <div className="mt-10 w-full max-w-sm emerge emerge-delay-2">
-          <input
-            type="text"
-            placeholder="Name your stranger"
-            className="w-full bg-transparent border-0 border-b text-center font-cormorant text-2xl font-light tracking-wide focus:outline-none focus:ring-0"
-            style={{ color: 'var(--ink)', borderColor: 'var(--ink-ghost)' }}
-            value={characterNameInput}
-            onChange={(event) => setCharacterNameInput(event.target.value)}
-            autoFocus
-          />
-        </div>
-        <p className="mt-8 text-xs emerge emerge-delay-3" style={{ color: 'var(--ink-ghost)' }}>
-          Begin as a stranger. Discover who you are through your choices.
-        </p>
-        <button type="button" onClick={handleCreateStranger} className="mt-10 font-cormorant text-lg tracking-wide transition-all duration-500 hover:tracking-wider emerge emerge-delay-4" style={{ color: 'var(--ember)' }}>
-          Step through →
-        </button>
-      </div>
-    );
+    return <CharacterCreationFlow onComplete={handleCreateStranger} />;
   }
 
   if (!character) return null;
@@ -528,6 +538,7 @@ export function RPGInterface() {
           Settings
         </button>
         <ChapterView
+          chapterTitle={activeChapter.title}
           chapterOpened={chapterOpened}
           onOpenChapter={() => setChapterOpened(true)}
           hasChosenMarketQuest={hasChosenActiveChapter}
@@ -586,7 +597,7 @@ export function RPGInterface() {
             <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>{publicSnippet}</p>
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{regionLabel}</p>
             <p className="text-sm" style={{ color: 'var(--ink)' }}>
-              Health {character.health ?? 100} · Experience {character.level * 100} · Gold {character.gold ?? 0}
+              Health {character.health ?? 100} · XP {character.xp ?? 0} · Level {character.level} · Gold {character.gold ?? 0}
             </p>
             <p className="font-cormorant text-lg" style={{ color: 'var(--ink)' }}>
               Earning {rateXp} experience/hr and {rateGold} gold/hr — {String(currentActivity).toUpperCase()}
@@ -612,6 +623,28 @@ export function RPGInterface() {
                 {choice}
               </button>
             ))}
+            <div className="rounded-md p-3" style={{ background: 'var(--surface-dim)' }}>
+              <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Main Path</p>
+              <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
+                {hasUnreadChapter ? 'Your Main Quest is ready in Chapter.' : 'Today’s Main Quest is complete.'}
+              </p>
+              {sideQuests.length > 0 ? (
+                <>
+                  <p className="mt-2 text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Rare Side Quests</p>
+                  {sideQuests.map((quest) => (
+                    <p key={quest.id} className="text-sm" style={{ color: 'var(--ink-dim)' }}>{quest.title}</p>
+                  ))}
+                </>
+              ) : null}
+            </div>
+            <div className="rounded-md p-3" style={{ background: 'var(--surface-dim)' }}>
+              <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Companion Affinity (v1)</p>
+              {COMPANIONS.map((companion) => (
+                <p key={companion.id} className="text-sm" style={{ color: 'var(--ink-dim)' }}>
+                  {companion.name}: {character.companionAffinities?.[companion.id] ?? 0}
+                </p>
+              ))}
+            </div>
           </section>
         ) : null}
 
@@ -733,10 +766,10 @@ export function RPGInterface() {
       </nav>
       <DevTimePanel
         enabled={Boolean(import.meta.env.DEV) && Boolean(character)}
-        onSkipDay={async () => {
+        onSkipDays={async (days) => {
           if (!character || !autonomous.state) return null;
           const before = autonomous.state;
-          const after = await autonomous.skipDays(1);
+          const after = await autonomous.skipDays(days);
           if (!after) return null;
           const nextCharacter: MVPCharacter = {
             ...character,

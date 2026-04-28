@@ -9,6 +9,7 @@ interface QuestStep {
 }
 
 interface ChapterViewProps {
+  chapterTitle: string;
   chapterOpened: boolean;
   onOpenChapter: () => void;
   hasChosenMarketQuest: boolean;
@@ -27,6 +28,7 @@ interface ChapterViewProps {
 }
 
 export function ChapterView({
+  chapterTitle,
   chapterOpened,
   onOpenChapter,
   hasChosenMarketQuest,
@@ -45,6 +47,11 @@ export function ChapterView({
 }: ChapterViewProps) {
   const [narrativeComplete, setNarrativeComplete] = useState(false);
   const [visibleLineCount, setVisibleLineCount] = useState(0);
+  const chapterArt = pendingBunch.questId === 'market-money-001'
+    ? '/placeholders/locations/village-square.svg'
+    : pendingBunch.questId === 'embers-and-oaths-002'
+      ? '/placeholders/locations/forest-edge.svg'
+      : '/placeholders/locations/old-library.svg';
 
   useEffect(() => {
     if (!chapterOpened || hasChosenMarketQuest || revealPhase === 'revealing') {
@@ -93,6 +100,16 @@ export function ChapterView({
 
       {chapterOpened || hasChosenMarketQuest ? (
         <div className="space-y-4">
+          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--ink-ghost)' }}>{chapterTitle}</p>
+          <img
+            src={chapterArt}
+            alt="Chapter scene placeholder"
+            className="w-full h-40 object-cover rounded-lg border"
+            style={{ borderColor: 'var(--ink-ghost)' }}
+            onError={(event) => {
+              event.currentTarget.src = '/placeholders/locations/generic-location.svg';
+            }}
+          />
           {chapterLines.slice(0, visibleLineCount).map((line, idx) => (
             <p
               key={line}

@@ -4,7 +4,7 @@ export interface ChapterChoiceProofPayload {
   app: 'no-stranger-game';
   chapterId: string;
   chapterWindowId: string;
-  selectedOption: 'A' | 'B' | 'C';
+  selectedOption: string;
   prompt: string;
   consequence: string;
   characterId: string;
@@ -24,7 +24,7 @@ export const getChapterWindowId = (): string => {
   const yyyy = now.getUTCFullYear();
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(now.getUTCDate()).padStart(2, '0');
-  return `season-3-${yyyy}-${mm}-${dd}`;
+  return `season-1-${yyyy}-${mm}-${dd}`;
 };
 
 export const getCanonicalChoiceKey = (chapterWindowId: string, pubkeyOrCharacterId: string): string =>

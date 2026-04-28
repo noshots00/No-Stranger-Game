@@ -1,3 +1,5 @@
+import { normalizeLocationId } from './locations';
+
 export interface LocationEconomy {
   id: string;
   label: string;
@@ -138,7 +140,7 @@ export const LOCATION_ECONOMIES: Record<string, LocationEconomy> = {
 };
 
 export const resolveEconomy = (locationId: string): LocationEconomy =>
-  LOCATION_ECONOMIES[locationId] ?? LOCATION_ECONOMIES.dawnharbor;
+  LOCATION_ECONOMIES[normalizeLocationId(locationId)] ?? LOCATION_ECONOMIES.dawnharbor;
 
 const LOCATION_GRAPH: Record<string, string[]> = {
   dawnharbor: ['market_square', 'coastal_port'],
@@ -154,4 +156,4 @@ const LOCATION_GRAPH: Record<string, string[]> = {
 };
 
 export const getAdjacentLocations = (locationId: string): string[] =>
-  LOCATION_GRAPH[locationId] ?? ['market_square'];
+  LOCATION_GRAPH[normalizeLocationId(locationId)] ?? ['market_square'];

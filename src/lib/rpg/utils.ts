@@ -42,6 +42,7 @@ export interface MVPCharacter {
   profileBio?: string;
   gold?: number;
   health?: number;
+  xp?: number;
   locationId?: string;
   visibleTraits?: string[];
   hiddenTraits?: string[];
@@ -58,6 +59,11 @@ export interface MVPCharacter {
   answers?: [CreationAnswer, CreationAnswer, CreationAnswer];
   mainQuestChoices: MainQuestChoice[];
   discoveredLocations?: string[];
+  hiddenAttributes?: Record<string, number>;
+  raceProgress?: Record<string, number>;
+  raceLocked?: boolean;
+  companionAffinities?: Record<string, number>;
+  shelterType?: 'streets' | 'flophouse' | 'shared' | 'private' | 'home';
   inventory: Array<{ itemId: string; quantity: number }>;
   postedQuests: string[];
   acceptedQuests: string[];
@@ -274,6 +280,7 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       profileBio: typeof parsed.profileBio === 'string' ? parsed.profileBio : '',
       gold: typeof parsed.gold === 'number' ? parsed.gold : 0,
       health: typeof parsed.health === 'number' ? parsed.health : 100,
+      xp: typeof parsed.xp === 'number' ? parsed.xp : 0,
       locationId: typeof parsed.locationId === 'string' ? parsed.locationId : 'market_square',
       visibleTraits: Array.isArray(parsed.visibleTraits) ? parsed.visibleTraits.filter((trait): trait is string => typeof trait === 'string') : [],
       hiddenTraits: Array.isArray(parsed.hiddenTraits) ? parsed.hiddenTraits.filter((trait): trait is string => typeof trait === 'string') : ['Patient', 'Risk-Taker', 'Night Owl'],
@@ -289,6 +296,23 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       answers: legacyAnswers,
       mainQuestChoices,
       discoveredLocations,
+      hiddenAttributes: parsed.hiddenAttributes && typeof parsed.hiddenAttributes === 'object'
+        ? parsed.hiddenAttributes as Record<string, number>
+        : {},
+      raceProgress: parsed.raceProgress && typeof parsed.raceProgress === 'object'
+        ? parsed.raceProgress as Record<string, number>
+        : {},
+      raceLocked: typeof parsed.raceLocked === 'boolean' ? parsed.raceLocked : false,
+      companionAffinities: parsed.companionAffinities && typeof parsed.companionAffinities === 'object'
+        ? parsed.companionAffinities as Record<string, number>
+        : { elara: 0, bran: 0, mira: 0, sera: 0 },
+      shelterType: parsed.shelterType === 'streets'
+        || parsed.shelterType === 'flophouse'
+        || parsed.shelterType === 'shared'
+        || parsed.shelterType === 'private'
+        || parsed.shelterType === 'home'
+        ? parsed.shelterType
+        : 'shared',
       inventory: Array.isArray(parsed.inventory)
         ? parsed.inventory
             .filter((entry): entry is { itemId: string; quantity: number } => (

@@ -59,3 +59,35 @@ Used for in-game private messaging mechanics (Dead Letter Office / Echo Chamber)
 
 ### 5 - Event Deletion
 Used for The Forgetting mechanic to request deletion of prior proof events.
+
+### 30101 - Player Quest Post
+Regular event used for player-created bounty quest posts on the social quest board.
+
+**Tags:**
+- `d` - local quest slug
+- `item` - requested item id
+- `bounty` - reward per unit
+- `escrow` - total escrowed reward amount
+- `max` - max units derived from escrow/bounty
+- `expires` - unix milliseconds expiration
+- `fee` - posting fee
+- `t` - `no-stranger-game`
+- `t` - `quest-board`
+- `alt` - human-readable description
+
+### 30102 - Player Quest Accept
+Regular event used to signal one-click acceptance/claim intent for a posted player quest.
+
+### 30103 - Player Quest Complete
+Regular event used to publish completion proof for player quests.
+
+**Tags:**
+- `e` - referenced quest event id
+- `item` - submitted item id
+- `quantity` - submitted quantity
+- `payout` - payout computed from quantity x bounty
+- `t` - `no-stranger-game`
+- `t` - `quest-board`
+
+### 30104 - Player Quest Settlement
+Regular event used to mark settlement operations (currently expiration refunds), enabling deterministic reconciliation.

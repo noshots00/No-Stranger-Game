@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#2a2f3a"/>
+  <rect x="24" y="24" width="752" height="402" fill="#3b4252" stroke="#6b7280" stroke-width="2"/>
+  <text x="400" y="210" text-anchor="middle" font-size="38" fill="#f3f4f6" font-family="Inter, Arial, sans-serif">Location Placeholder</text>
+  <text x="400" y="250" text-anchor="middle" font-size="24" fill="#cbd5e1" font-family="Inter, Arial, sans-serif">No Stranger Game</text>
+</svg>

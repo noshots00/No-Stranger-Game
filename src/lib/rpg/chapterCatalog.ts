@@ -15,6 +15,9 @@ export interface ChapterDefinition {
   title: string;
   chapterLines: string[];
   questBunch: ChapterQuestStep[];
+  requiredDiscoveries?: string[];
+  sideQuestHooks?: string[];
+  outcomeTags?: string[];
 }
 
 const chapterOneId = 'market-money-001';
@@ -25,6 +28,9 @@ export const CHAPTER_CATALOG: ChapterDefinition[] = [
   {
     id: chapterOneId,
     title: 'Chapter One — The Village',
+    requiredDiscoveries: ['market-square'],
+    sideQuestHooks: ['markus-ledger'],
+    outcomeTags: ['origin', 'identity'],
     chapterLines: [
       'The village burns.',
       'Smoke rolls across the market square.',
@@ -46,6 +52,9 @@ export const CHAPTER_CATALOG: ChapterDefinition[] = [
   {
     id: chapterTwoId,
     title: 'Chapter Two - Ash and Oath',
+    requiredDiscoveries: ['forest-edge'],
+    sideQuestHooks: ['grave-child'],
+    outcomeTags: ['duty', 'debt'],
     chapterLines: [
       'By daylight the smoke looks thinner, but nothing smells clean.',
       'A courier seeks the one who carried the letter.',
@@ -62,6 +71,9 @@ export const CHAPTER_CATALOG: ChapterDefinition[] = [
   {
     id: chapterThreeId,
     title: 'Chapter Three - Salt and Echo',
+    requiredDiscoveries: ['old-library'],
+    sideQuestHooks: ['grave-child'],
+    outcomeTags: ['memory', 'echo'],
     chapterLines: [
       'At the coast, gulls wheel above ships that never anchor long.',
       'Someone in the crowd speaks your old nickname.',

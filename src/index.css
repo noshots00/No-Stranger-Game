@@ -50,12 +50,12 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    --void: #07070a;
-    --surface: #0e0e13;
-    --surface-dim: #12121a;
-    --ink: #d4cbb8;
-    --ink-dim: #7a756a;
-    --ink-ghost: #3d3a34;
+    --void: #11131a;
+    --surface: #1a1f2b;
+    --surface-dim: #232a38;
+    --ink: #f3efe5;
+    --ink-dim: #d1c9b7;
+    --ink-ghost: #a8a18f;
     --ember: #c9a55a;
     --ember-dim: #8b7340;
     --crimson: #8b2d2d;
@@ -108,6 +108,7 @@
 
   body {
     @apply bg-background text-foreground;
+    line-height: 1.55;
   }
 }
 

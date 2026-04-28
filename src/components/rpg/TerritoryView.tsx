@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { normalizeLocationId } from '@/lib/rpg/locations';
 
 interface TerritoryViewProps {
   discoveredLocations: string[];
@@ -38,6 +39,12 @@ const LOCATION_ACTIONS: Record<string, string[]> = {
   'sunken-library': ['Recover Lost Ledger (Quest)'],
 };
 
+const LOCATION_IMAGES: Record<string, string> = {
+  'market-square': '/placeholders/locations/village-square.svg',
+  'forest-edge': '/placeholders/locations/forest-edge.svg',
+  'old-library': '/placeholders/locations/old-library.svg',
+};
+
 export function TerritoryView({ discoveredLocations, glimmerLocationIds, level = 1, visibleTraits = [], onExplore }: TerritoryViewProps) {
   const known = new Set(discoveredLocations);
   const glimmers = new Set(glimmerLocationIds);
@@ -67,6 +74,7 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, level =
                 const isKnown = known.has(location.id);
                 const actions = unlockedActionsFor(location.id);
                 const hasNewUnlock = actions.some((action) => action.includes('(Quest)'));
+                const imageSrc = LOCATION_IMAGES[location.id] ?? '/placeholders/locations/generic-location.svg';
                 return (
                   <button
                     key={location.id}
@@ -75,8 +83,19 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, level =
                     className="w-full flex items-center justify-between gap-3 p-3 rounded-lg text-left"
                     style={{ background: 'var(--surface-dim)' }}
                   >
-                    <span className="font-cormorant text-sm" style={{ color: isKnown ? 'var(--ink)' : 'var(--mist)' }}>
-                      {isKnown ? '◆' : '◇'} {location.label}
+                    <span className="flex items-center gap-3">
+                      <img
+                        src={imageSrc}
+                        alt={location.label}
+                        className="h-10 w-16 rounded object-cover border"
+                        style={{ borderColor: 'var(--ink-ghost)' }}
+                        onError={(event) => {
+                          event.currentTarget.src = '/placeholders/locations/generic-location.svg';
+                        }}
+                      />
+                      <span className="font-cormorant text-sm" style={{ color: isKnown ? 'var(--ink)' : 'var(--mist)' }}>
+                        {isKnown ? '◆' : '◇'} {location.label}
+                      </span>
                     </span>
                     {hasNewUnlock ? (
                       <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--ember)', color: 'var(--void)' }}>
@@ -106,6 +125,14 @@ export function TerritoryView({ discoveredLocations, glimmerLocationIds, level =
               {action}
             </button>
           ))}
+          <button
+            type="button"
+            className="w-full text-left px-3 py-2 rounded-md font-cormorant text-sm"
+            style={{ color: 'var(--ink)', background: 'var(--surface)' }}
+            onClick={() => onExplore?.(`Travel to ${normalizeLocationId(selectedLocationId)}`)}
+          >
+            Travel to this location
+          </button>
         </div>
       ) : null}
 
