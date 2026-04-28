@@ -109,6 +109,7 @@ export function RPGInterface() {
   const [showWorldWelcome, setShowWorldWelcome] = useState(false);
   const [showStuckRecovery, setShowStuckRecovery] = useState(false);
   const [skipDelta, setSkipDelta] = useState<{ goldDelta: number; healthDelta: number; fromLocation: string; toLocation: string } | null>(null);
+  const [mobileDevToolsEnabled, setMobileDevToolsEnabled] = useState(false);
 
   const wasTickPublished = (characterId: string, tick: string): boolean => {
     try {
@@ -136,6 +137,17 @@ export function RPGInterface() {
   const echoChamber = useEchoChamber();
   useForgetting();
   const autonomous = useAutonomousState(character, user?.pubkey);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get('devtools') === '1';
+      const fromStorage = localStorage.getItem('nsg:mobile-dev-tools') === '1';
+      setMobileDevToolsEnabled(fromQuery || fromStorage);
+    } catch {
+      setMobileDevToolsEnabled(false);
+    }
+  }, []);
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -177,8 +189,8 @@ export function RPGInterface() {
       dayCount: character.dayCount ?? 1,
       region: character.region ?? 'Mysterious Village',
       currentActivity: character.currentActivity ?? 'idle',
-      hourlyXp: character.hourlyXp ?? 0,
-      hourlyCopper: character.hourlyCopper ?? 0,
+      hourlyXp: Math.max(1, character.hourlyXp ?? 1),
+      hourlyCopper: Math.max(1, character.hourlyCopper ?? 1),
       professionLocked: typeof character.professionLocked === 'boolean' ? character.professionLocked : true,
       nextQuestUnlockTime: character.nextQuestUnlockTime ?? 0,
       companionUnlocked: Boolean(character.companionUnlocked),
@@ -233,7 +245,7 @@ export function RPGInterface() {
     };
     const progression = applyProgression(character.xp ?? 0, autoState, autoState.gold - (character.gold ?? 0));
     mergedCharacter.xp = (character.xp ?? 0) + progression.xpGain;
-    mergedCharacter.hourlyXp = progression.hourlyXp;
+    mergedCharacter.hourlyXp = Math.max(1, progression.hourlyXp);
     mergedCharacter.hourlyCopper = Math.max(1, Math.floor((autoState.gold - (character.gold ?? 0)) / 24) || 1);
     if (progression.levelUp) mergedCharacter.level = progression.nextLevel;
 
@@ -367,8 +379,8 @@ export function RPGInterface() {
       dayCount: 1,
       region: 'Mysterious Village',
       currentActivity: 'idle',
-      hourlyXp: 0,
-      hourlyCopper: 0,
+      hourlyXp: 1,
+      hourlyCopper: 1,
       mainQuestChoices: [],
       completedChapterIds: [],
       discoveredLocations: ['market-square'],
@@ -608,8 +620,8 @@ export function RPGInterface() {
   if (!character) return null;
 
   const regionLabel = character.region || 'Mysterious Village';
-  const rateXp = character.hourlyXp ?? 0;
-  const rateGold = character.hourlyCopper ?? 0;
+  const rateXp = Math.max(1, character.hourlyXp ?? 1);
+  const rateGold = Math.max(1, character.hourlyCopper ?? 1);
   const currentActivity = autonomous.state?.professionLabel || character.profession || 'Working';
   const canOpenMainQuest = (character.nextQuestUnlockTime ?? 0) <= Date.now();
   const hasActiveMainQuest = hasUnreadChapter && canOpenMainQuest;
@@ -691,7 +703,7 @@ export function RPGInterface() {
             <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>Day {character.dayCount} · {regionLabel}</p>
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{String(character.currentActivity || currentActivity).toUpperCase()}</p>
             <p className="text-sm" style={{ color: 'var(--ink)' }}>
-              +{rateXp} XP/hr · +{rateGold} copper/hr · Payment arrives tomorrow
+              +{rateXp} XP/hr · +{rateGold} gold/hr · Payment arrives tomorrow
             </p>
             <CountdownToESTMidnight />
             {hasUnreadChapter && !canOpenMainQuest ? (
@@ -801,6 +813,21 @@ export function RPGInterface() {
             >
               Create new character
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !mobileDevToolsEnabled;
+                setMobileDevToolsEnabled(next);
+                localStorage.setItem('nsg:mobile-dev-tools', next ? '1' : '0');
+              }}
+              className="text-xs tracking-wider uppercase transition-colors"
+              style={{ color: 'var(--ember)' }}
+            >
+              {mobileDevToolsEnabled ? 'Disable' : 'Enable'} Mobile Dev Tools
+            </button>
+            <p className="text-xs" style={{ color: 'var(--ink-ghost)' }}>
+              Tip: append <code>?devtools=1</code> to the URL on mobile to force-enable skip controls.
+            </p>
           </section>
         ) : null}
 
@@ -836,7 +863,7 @@ export function RPGInterface() {
       />
       {renderBottomNav(false)}
       <DevTimePanel
-        enabled={Boolean(import.meta.env.DEV) && Boolean(character)}
+        enabled={Boolean(character) && (Boolean(import.meta.env.DEV) || mobileDevToolsEnabled)}
         onSkipDays={async (days) => {
           if (!character || !autonomous.state) return null;
           const before = autonomous.state;
