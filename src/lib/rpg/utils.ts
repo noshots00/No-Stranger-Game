@@ -58,6 +58,11 @@ export interface MVPCharacter {
   answers?: [CreationAnswer, CreationAnswer, CreationAnswer];
   mainQuestChoices: MainQuestChoice[];
   discoveredLocations?: string[];
+  inventory: Array<{ itemId: string; quantity: number }>;
+  postedQuests: string[];
+  acceptedQuests: string[];
+  completedQuests: string[];
+  escrowedGold: number;
   pubkey?: string;
   npub?: string;
 }
@@ -284,6 +289,26 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       answers: legacyAnswers,
       mainQuestChoices,
       discoveredLocations,
+      inventory: Array.isArray(parsed.inventory)
+        ? parsed.inventory
+            .filter((entry): entry is { itemId: string; quantity: number } => (
+              Boolean(entry)
+              && typeof entry === 'object'
+              && typeof (entry as { itemId?: string }).itemId === 'string'
+              && typeof (entry as { quantity?: number }).quantity === 'number'
+            ))
+            .map((entry) => ({ itemId: entry.itemId, quantity: Math.max(0, Math.floor(entry.quantity)) }))
+        : [],
+      postedQuests: Array.isArray(parsed.postedQuests)
+        ? parsed.postedQuests.filter((id): id is string => typeof id === 'string')
+        : [],
+      acceptedQuests: Array.isArray(parsed.acceptedQuests)
+        ? parsed.acceptedQuests.filter((id): id is string => typeof id === 'string')
+        : [],
+      completedQuests: Array.isArray(parsed.completedQuests)
+        ? parsed.completedQuests.filter((id): id is string => typeof id === 'string')
+        : [],
+      escrowedGold: typeof parsed.escrowedGold === 'number' ? Math.max(0, Math.floor(parsed.escrowedGold)) : 0,
       chapterWindowIds,
       completedChapterIds: Array.isArray(parsed.completedChapterIds)
         ? parsed.completedChapterIds.filter((chapterId): chapterId is string => typeof chapterId === 'string')

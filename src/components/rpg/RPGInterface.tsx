@@ -43,10 +43,12 @@ import { TerritoryView } from './TerritoryView';
 import { SelfView } from './SelfView';
 import { DeadLetterOverlay } from './DeadLetterOverlay';
 import { EchoChamberOverlay } from './EchoChamberOverlay';
+import { QuestBoardView } from './QuestBoardView';
+import { DevTimePanel } from './DevTimePanel';
 import { Guttering } from './Guttering';
 import { WorldWelcome } from './WorldWelcome';
 
-type ActiveView = 'play' | 'chapter' | 'map' | 'profile' | 'settings';
+type ActiveView = 'play' | 'chapter' | 'map' | 'profile' | 'settings' | 'quests';
 
 export function RPGInterface() {
   const { user, metadata } = useCurrentUser();
@@ -66,6 +68,7 @@ export function RPGInterface() {
   const [syncFailed, setSyncFailed] = useState(false);
   const [showWorldWelcome, setShowWorldWelcome] = useState(false);
   const [showStuckRecovery, setShowStuckRecovery] = useState(false);
+  const [skipDelta, setSkipDelta] = useState<{ goldDelta: number; healthDelta: number; fromLocation: string; toLocation: string } | null>(null);
 
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
@@ -154,6 +157,7 @@ export function RPGInterface() {
       visibleTraits: autonomous.state.visibleTraits,
       hiddenTraits: autonomous.state.hiddenTraits,
       injuries: autonomous.state.injuries,
+      inventory: autonomous.state.inventory,
       dailyLogs: autonomous.state.dailyLogs,
       lastSimulatedTick: autonomous.state.lastSimulatedTick,
       exploreIntent: autonomous.state.exploreIntent,
@@ -219,6 +223,11 @@ export function RPGInterface() {
     setChapterOpened(false);
   };
 
+  const handleCharacterUpdate = (nextCharacter: MVPCharacter) => {
+    saveMVPCharacter(nextCharacter);
+    setCharacter(nextCharacter);
+  };
+
   const handleCreateStranger = () => {
     const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
     const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
@@ -238,6 +247,11 @@ export function RPGInterface() {
       mainQuestChoices: [],
       completedChapterIds: [],
       discoveredLocations: ['market-square'],
+      inventory: [],
+      postedQuests: [],
+      acceptedQuests: [],
+      completedQuests: [],
+      escrowedGold: 0,
       pubkey: user?.pubkey,
       npub,
     };
@@ -620,15 +634,22 @@ export function RPGInterface() {
         />
       ) : null}
 
+        {activeView === 'quests' ? (
+          <QuestBoardView
+            character={character}
+            activePlayersCount={networkPresence.data?.totalWorldOptedIn ?? 0}
+            followsPlayingCount={networkPresence.data?.totalOptedIn ?? 0}
+            topMembers={networkPresence.data?.topMembers ?? []}
+            onUpdateCharacter={handleCharacterUpdate}
+          />
+        ) : null}
+
         {activeView === 'profile' ? (
         <SelfView
           character={character}
           proofNodes={proofChain.data ?? []}
           relayRegions={relayRegions}
-          onUpdateCharacter={(nextCharacter) => {
-            saveMVPCharacter(nextCharacter);
-            setCharacter(nextCharacter);
-          }}
+          onUpdateCharacter={handleCharacterUpdate}
         />
       ) : null}
 
@@ -693,6 +714,7 @@ export function RPGInterface() {
           {[
             { key: 'profile', icon: '◉', label: 'Profile' },
             { key: 'play', icon: '✦', label: 'Play' },
+            { key: 'quests', icon: '📜', label: 'Quests' },
             { key: 'map', icon: '◈', label: 'Map' },
           ].map((item) => {
             const isActive = activeView === item.key || (item.key === 'play' && activeView === 'settings');
@@ -709,6 +731,49 @@ export function RPGInterface() {
           })}
         </div>
       </nav>
+      <DevTimePanel
+        enabled={Boolean(import.meta.env.DEV) && Boolean(character)}
+        onSkipDay={async () => {
+          if (!character || !autonomous.state) return null;
+          const before = autonomous.state;
+          const after = await autonomous.skipDays(1);
+          if (!after) return null;
+          const nextCharacter: MVPCharacter = {
+            ...character,
+            gold: after.gold,
+            health: after.health,
+            locationId: after.locationId,
+            visibleTraits: after.visibleTraits,
+            hiddenTraits: after.hiddenTraits,
+            injuries: after.injuries,
+            inventory: after.inventory,
+            dailyLogs: after.dailyLogs,
+            lastSimulatedTick: after.lastSimulatedTick,
+            exploreIntent: after.exploreIntent,
+            profession: after.professionLabel || character.profession,
+          };
+          handleCharacterUpdate(nextCharacter);
+          const delta = {
+            goldDelta: after.gold - before.gold,
+            healthDelta: after.health - before.health,
+            fromLocation: before.locationId,
+            toLocation: after.locationId,
+          };
+          setSkipDelta(delta);
+          setTimeout(() => setSkipDelta(null), 4000);
+          return delta;
+        }}
+      />
+      {skipDelta ? (
+        <div
+          className="fixed right-3 bottom-40 z-50 rounded-md px-3 py-2 text-xs"
+          style={{ background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--ink-ghost)' }}
+        >
+          Δ Gold {skipDelta.goldDelta >= 0 ? '+' : ''}{skipDelta.goldDelta} · Δ Health {skipDelta.healthDelta >= 0 ? '+' : ''}{skipDelta.healthDelta}
+          <br />
+          {skipDelta.fromLocation} → {skipDelta.toLocation}
+        </div>
+      ) : null}
     </div>
   );
 }

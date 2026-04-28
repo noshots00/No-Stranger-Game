@@ -4,6 +4,7 @@ import { useNostr } from '@nostrify/react';
 import type { MVPCharacter } from '@/lib/rpg/utils';
 import {
   AUTONOMOUS_SNAPSHOT_KIND,
+  addDaysToTickId,
   getCurrentUtcTickId,
   shouldSimulateTick,
   simulateAutonomousDay,
@@ -43,6 +44,7 @@ const defaultAutonomousState = (character: MVPCharacter): AutonomousState => ({
   visibleTraits: character.visibleTraits ?? [],
   hiddenTraits: character.hiddenTraits ?? deterministicHiddenTraits(character),
   injuries: character.injuries ?? [],
+  inventory: character.inventory ?? [],
   lastSimulatedTick: character.lastSimulatedTick,
   dailyLogs: character.dailyLogs ?? [],
   exploreIntent: character.exploreIntent,
@@ -53,6 +55,9 @@ const parseSnapshot = (event: NostrEvent | undefined): AutonomousState | null =>
   try {
     const parsed = JSON.parse(event.content) as AutonomousState;
     if (!parsed || typeof parsed !== 'object') return null;
+    if (!Array.isArray(parsed.inventory)) {
+      parsed.inventory = [];
+    }
     return parsed;
   } catch {
     return null;
@@ -99,19 +104,47 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
 
   const tickWindowId = getCurrentUtcTickId();
 
-  const runTick = async () => {
+  const runTickForWindow = async (targetTickWindowId: string) => {
     if (!character || !state) return null;
-    if (!shouldSimulateTick(state, tickWindowId)) return state;
+    if (!shouldSimulateTick(state, targetTickWindowId)) return state;
     setIsTicking(true);
     const result = simulateAutonomousDay({
       characterId: character.id,
-      tickWindowId,
+      tickWindowId: targetTickWindowId,
       state,
       choices: character.mainQuestChoices,
     });
     setState(result.state);
     setIsTicking(false);
     return result.state;
+  };
+
+  const runTick = async () => runTickForWindow(getCurrentUtcTickId());
+
+  const skipDays = async (count: number) => {
+    if (!character || !state) return null;
+    if (count <= 0) return state;
+
+    let simulated = state;
+    setIsTicking(true);
+    try {
+      let baseTick = simulated.lastSimulatedTick ?? getCurrentUtcTickId();
+      for (let i = 0; i < count; i++) {
+        const targetTick = addDaysToTickId(baseTick, 1);
+        const result = simulateAutonomousDay({
+          characterId: character.id,
+          tickWindowId: targetTick,
+          state: simulated,
+          choices: character.mainQuestChoices,
+        });
+        simulated = result.state;
+        baseTick = targetTick;
+      }
+      setState(simulated);
+      return simulated;
+    } finally {
+      setIsTicking(false);
+    }
   };
 
   const queueExploreIntent = (intent: string) => {
@@ -125,6 +158,8 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
     isTicking,
     relayLoaded,
     runTick,
+    runTickForWindow,
+    skipDays,
     queueExploreIntent,
   };
 }

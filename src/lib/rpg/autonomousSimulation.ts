@@ -14,10 +14,17 @@ export interface AutonomousState {
   visibleTraits: string[];
   hiddenTraits: string[];
   injuries: string[];
+  inventory: Array<{ itemId: string; quantity: number }>;
   lastSimulatedTick?: string;
   dailyLogs: Array<{ tick: string; line: string }>;
   exploreIntent?: string;
 }
+
+const HUNTING_LOOT_TABLE: Array<{ itemId: string; chance: number; min: number; max: number }> = [
+  { itemId: 'wolf-hide', chance: 0.25, min: 1, max: 2 },
+  { itemId: 'boar-meat', chance: 0.32, min: 1, max: 3 },
+  { itemId: 'herb-bundle', chance: 0.4, min: 1, max: 2 },
+];
 
 export interface SimulationInput {
   characterId: string;
@@ -52,6 +59,14 @@ export const getCurrentUtcTickId = (nowMs: number = Date.now()): string => {
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(now.getUTCDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+};
+
+export const addDaysToTickId = (tickId: string, days: number): string => {
+  const [year, month, day] = tickId.split('-').map((part) => Number(part));
+  if (!year || !month || !day) return tickId;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return getCurrentUtcTickId(date.getTime());
 };
 
 export const shouldSimulateTick = (
@@ -145,6 +160,23 @@ export const simulateAutonomousDay = ({
     logLines.unshift('Quest complete: Collect 15 Pristine Pelts. Trait gained: Perfect Shot (+crit, +pelt quality).');
   }
 
+  const nextInventory = [...state.inventory];
+  const likelyHunter = state.professionLabel.toLowerCase().includes('hunt') || state.locationId.includes('forest');
+  if (likelyHunter) {
+    for (const loot of HUNTING_LOOT_TABLE) {
+      if (random() <= loot.chance) {
+        const quantity = loot.min + Math.floor(random() * (loot.max - loot.min + 1));
+        const index = nextInventory.findIndex((entry) => entry.itemId === loot.itemId);
+        if (index >= 0) {
+          nextInventory[index] = { ...nextInventory[index], quantity: nextInventory[index].quantity + quantity };
+        } else {
+          nextInventory.push({ itemId: loot.itemId, quantity });
+        }
+        logLines.push(`You gathered ${quantity} ${loot.itemId.replace('-', ' ')}.`);
+      }
+    }
+  }
+
   const nextState: AutonomousState = {
     ...state,
     gold: Math.max(0, state.gold + delta),
@@ -154,6 +186,7 @@ export const simulateAutonomousDay = ({
     hiddenTraits: traitReveal.hiddenTraits,
     locationId: nextLocationId,
     injuries: healedInjuries,
+    inventory: nextInventory,
     lastSimulatedTick: tickWindowId,
     dailyLogs: [...logLines.map((line) => ({ tick: tickWindowId, line })), ...state.dailyLogs].slice(0, 40),
     exploreIntent: undefined,
