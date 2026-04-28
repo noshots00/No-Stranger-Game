@@ -55,12 +55,16 @@ const defaultAutonomousState = (character: MVPCharacter): AutonomousState => ({
 const parseSnapshot = (event: NostrEvent | undefined): AutonomousState | null => {
   if (!event) return null;
   try {
-    const parsed = JSON.parse(event.content) as AutonomousState;
+    const parsed = JSON.parse(event.content) as unknown;
     if (!parsed || typeof parsed !== 'object') return null;
-    if (!Array.isArray(parsed.inventory)) {
-      parsed.inventory = [];
+    const withNested = parsed as { state?: AutonomousState };
+    const direct = parsed as AutonomousState;
+    const state = withNested.state && typeof withNested.state === 'object' ? withNested.state : direct;
+    if (!state || typeof state.locationId !== 'string') return null;
+    if (!Array.isArray(state.inventory)) {
+      state.inventory = [];
     }
-    return parsed;
+    return state;
   } catch {
     return null;
   }
@@ -115,6 +119,7 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
       tickWindowId: targetTickWindowId,
       state,
       choices: character.mainQuestChoices,
+      professionLocked: character.professionLocked,
     });
     setState(result.state);
     setIsTicking(false);
@@ -138,6 +143,7 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
           tickWindowId: targetTick,
           state: simulated,
           choices: character.mainQuestChoices,
+          professionLocked: character.professionLocked,
         });
         simulated = result.state;
         baseTick = targetTick;

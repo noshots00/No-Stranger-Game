@@ -43,6 +43,7 @@ export interface SimulationInput {
   tickWindowId: string;
   state: AutonomousState;
   choices: MainQuestChoice[];
+  professionLocked?: boolean;
 }
 
 export interface SimulationOutput {
@@ -91,6 +92,7 @@ export const simulateAutonomousDay = ({
   tickWindowId,
   state,
   choices,
+  professionLocked = true,
 }: SimulationInput): SimulationOutput => {
   const random = createSeededRandom([
     characterId,
@@ -125,7 +127,7 @@ export const simulateAutonomousDay = ({
   let nextHealth = state.health;
   const nextInjuries = [...state.injuries];
   if (delta < 0) {
-    nextHealth = Math.max(0, nextHealth + delta);
+    nextHealth = Math.max(1, nextHealth + delta);
     if (nextHealth < 35 && random() < 0.25) {
       const injury = INJURY_CATALOG[Math.floor(random() * INJURY_CATALOG.length)];
       if (!nextInjuries.includes(injury.label)) nextInjuries.push(injury.label);
@@ -202,7 +204,7 @@ export const simulateAutonomousDay = ({
     ...state,
     gold: Math.max(0, state.gold + delta),
     health: nextHealth,
-    professionLabel: state.professionLabel,
+    professionLabel: professionLocked ? state.professionLabel : selectedRole.role,
     visibleTraits: nextVisibleTraits,
     hiddenTraits: traitReveal.hiddenTraits,
     locationId: nextLocationId,
