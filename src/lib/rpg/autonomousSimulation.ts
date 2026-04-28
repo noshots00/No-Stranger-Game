@@ -28,6 +28,8 @@ const HUNTING_LOOT_TABLE: Array<{ itemId: string; chance: number; min: number; m
   { itemId: 'herb-bundle', chance: 0.4, min: 1, max: 2 },
 ];
 
+const BASE_WAGE_MULTIPLIER = 2.5;
+
 const SHELTER_COSTS: Record<NonNullable<AutonomousState['shelterType']>, number> = {
   streets: 0,
   flophouse: 5,
@@ -100,20 +102,23 @@ export const simulateAutonomousDay = ({
   ].join('::'));
 
   const economy = resolveEconomy(state.locationId);
-  const traitWeightedRoles = economy.workTable.flatMap((role) => {
-    const entries = [role];
-    if (role.requiresTrait && state.visibleTraits.includes(role.requiresTrait)) entries.push(role, role);
-    if (state.professionLabel.toLowerCase().includes(role.role.split(' ')[0].toLowerCase())) entries.push(role);
-    return entries;
-  });
-  const selectedRole = traitWeightedRoles[Math.floor(random() * traitWeightedRoles.length)] ?? economy.workTable[0];
+  const selectedRole = economy.workTable.find((role) =>
+    role.role.toLowerCase().includes(state.professionLabel.toLowerCase())
+    || state.professionLabel.toLowerCase().includes(role.role.toLowerCase()),
+  ) ?? economy.workTable[0];
   const spread = selectedRole.maxIncome - selectedRole.minIncome;
-  const baseIncome = selectedRole.minIncome + Math.floor(random() * (spread + 1));
+  const roleIncome = selectedRole.minIncome + Math.floor(random() * (spread + 1));
+  const baseWage = BASE_WAGE_MULTIPLIER * Math.max(1, roleIncome) * 10;
+  const shelterCost = SHELTER_COSTS[state.shelterType ?? 'shared'] ?? 15;
+  let hourlyCopper = Math.floor(baseWage / 24);
+  if (hourlyCopper * 24 < shelterCost) {
+    hourlyCopper = Math.max(hourlyCopper, Math.ceil(shelterCost / 24));
+  }
+  const baseIncome = hourlyCopper * 24;
   const injuryIncomePenalty = state.injuries
     .map((injuryName) => resolveInjury(injuryName)?.incomeModifier ?? 0)
     .reduce((sum, penalty) => sum + penalty, 0);
   const income = Math.max(-5, baseIncome + injuryIncomePenalty);
-  const shelterCost = SHELTER_COSTS[state.shelterType ?? 'shared'] ?? 15;
   const upkeep = Math.max(economy.baseCostOfLiving, shelterCost) + Math.floor(random() * 2);
   const delta = income - upkeep;
 
@@ -197,7 +202,7 @@ export const simulateAutonomousDay = ({
     ...state,
     gold: Math.max(0, state.gold + delta),
     health: nextHealth,
-    professionLabel: selectedRole.role,
+    professionLabel: state.professionLabel,
     visibleTraits: nextVisibleTraits,
     hiddenTraits: traitReveal.hiddenTraits,
     locationId: nextLocationId,

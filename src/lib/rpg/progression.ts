@@ -4,6 +4,7 @@ export interface ProgressionResult {
   xpGain: number;
   levelUp: boolean;
   nextLevel: number;
+  hourlyXp: number;
   logLine?: string;
 }
 
@@ -29,6 +30,7 @@ export const applyProgression = (currentXp: number, state: AutonomousState, inco
     xpGain,
     levelUp,
     nextLevel,
+    hourlyXp: Math.max(1, Math.floor((nextXp / 24) + (nextLevel * 1.2))),
     logLine: levelUp ? `You feel yourself changing. Level ${nextLevel}.` : undefined,
   };
 };

@@ -102,6 +102,12 @@
 }
 
 @layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
   * {
     @apply border-border;
   }
@@ -109,6 +115,8 @@
   body {
     @apply bg-background text-foreground;
     line-height: 1.55;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
   }
 }
 

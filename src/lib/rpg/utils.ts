@@ -43,6 +43,11 @@ export interface MVPCharacter {
   gold?: number;
   health?: number;
   xp?: number;
+  dayCount: number;
+  region: string;
+  currentActivity: 'working' | 'exploring' | 'resting' | 'fighting' | 'idle';
+  hourlyXp: number;
+  hourlyCopper: number;
   locationId?: string;
   visibleTraits?: string[];
   hiddenTraits?: string[];
@@ -62,6 +67,9 @@ export interface MVPCharacter {
   hiddenAttributes?: Record<string, number>;
   raceProgress?: Record<string, number>;
   raceLocked?: boolean;
+  professionLocked: boolean;
+  nextQuestUnlockTime: number;
+  companionUnlocked: boolean;
   companionAffinities?: Record<string, number>;
   shelterType?: 'streets' | 'flophouse' | 'shared' | 'private' | 'home';
   inventory: Array<{ itemId: string; quantity: number }>;
@@ -281,6 +289,17 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
       gold: typeof parsed.gold === 'number' ? parsed.gold : 0,
       health: typeof parsed.health === 'number' ? parsed.health : 100,
       xp: typeof parsed.xp === 'number' ? parsed.xp : 0,
+      dayCount: typeof parsed.dayCount === 'number' ? Math.max(1, Math.floor(parsed.dayCount)) : 1,
+      region: typeof parsed.region === 'string' && parsed.region.trim() ? parsed.region : 'Mysterious Village',
+      currentActivity: parsed.currentActivity === 'working'
+        || parsed.currentActivity === 'exploring'
+        || parsed.currentActivity === 'resting'
+        || parsed.currentActivity === 'fighting'
+        || parsed.currentActivity === 'idle'
+        ? parsed.currentActivity
+        : 'idle',
+      hourlyXp: typeof parsed.hourlyXp === 'number' ? Math.max(0, Math.floor(parsed.hourlyXp)) : 0,
+      hourlyCopper: typeof parsed.hourlyCopper === 'number' ? Math.max(0, Math.floor(parsed.hourlyCopper)) : 0,
       locationId: typeof parsed.locationId === 'string' ? parsed.locationId : 'market_square',
       visibleTraits: Array.isArray(parsed.visibleTraits) ? parsed.visibleTraits.filter((trait): trait is string => typeof trait === 'string') : [],
       hiddenTraits: Array.isArray(parsed.hiddenTraits) ? parsed.hiddenTraits.filter((trait): trait is string => typeof trait === 'string') : ['Patient', 'Risk-Taker', 'Night Owl'],
@@ -303,6 +322,9 @@ export const loadMVPCharacter = (): MVPCharacter | null => {
         ? parsed.raceProgress as Record<string, number>
         : {},
       raceLocked: typeof parsed.raceLocked === 'boolean' ? parsed.raceLocked : false,
+      professionLocked: typeof parsed.professionLocked === 'boolean' ? parsed.professionLocked : true,
+      nextQuestUnlockTime: typeof parsed.nextQuestUnlockTime === 'number' ? parsed.nextQuestUnlockTime : 0,
+      companionUnlocked: typeof parsed.companionUnlocked === 'boolean' ? parsed.companionUnlocked : false,
       companionAffinities: parsed.companionAffinities && typeof parsed.companionAffinities === 'object'
         ? parsed.companionAffinities as Record<string, number>
         : { elara: 0, bran: 0, mira: 0, sera: 0 },

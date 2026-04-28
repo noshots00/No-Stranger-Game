@@ -16,8 +16,6 @@ import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
 import { useEchoChamber } from '@/hooks/useEchoChamber';
 import { useForgetting } from '@/hooks/useForgetting';
 import { useAutonomousState } from '@/hooks/useAutonomousState';
-import { useSideQuests } from '@/hooks/useSideQuests';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { trackTelemetry } from '@/lib/rpg/telemetry';
 import {
   CHAPTER_PROOF_KIND,
@@ -35,13 +33,12 @@ import {
   type NetworkPresenceMember,
   type QuestBunchAnswer,
 } from '@/lib/rpg/utils';
-import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
+import { DEFAULT_TIER3_POLICY, loadTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
 import { getActiveChapter } from '@/lib/rpg/chapterCatalog';
 import { AUTONOMOUS_SNAPSHOT_KIND } from '@/lib/rpg/autonomousSimulation';
 import { applyProgression } from '@/lib/rpg/progression';
 import { runRevelationPass } from '@/lib/rpg/revelationEngine';
-import { COMPANIONS } from '@/lib/rpg/companions';
-import { ChronicleView } from './ChronicleView';
+import { getDayCountSince, getNextESTMidnight } from '@/lib/rpg/dailyReset';
 import { ChapterView } from './ChapterView';
 import { TerritoryView } from './TerritoryView';
 import { SelfView } from './SelfView';
@@ -53,7 +50,39 @@ import { CharacterCreationFlow, type CreationResult } from './CharacterCreationF
 import { Guttering } from './Guttering';
 import { WorldWelcome } from './WorldWelcome';
 
-type ActiveView = 'play' | 'chapter' | 'map' | 'profile' | 'settings' | 'quests';
+type ActiveView = 'play' | 'chapter' | 'map' | 'character' | 'settings' | 'quests' | 'inventory';
+
+function CountdownToESTMidnight() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      setSeconds(Math.max(0, Math.floor((getNextESTMidnight(now) - now) / 1000)));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+  const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+  const secs = String(seconds % 60).padStart(2, '0');
+  return <p className="text-sm text-center">Tomorrow in <strong>{hrs}:{mins}:{secs}</strong></p>;
+}
+
+function SecondaryFeatureGrid({ onOpenBounties, onOpenJournal }: { onOpenBounties: () => void; onOpenJournal: () => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 mt-4">
+      <button type="button" className="rounded-md px-3 py-2 text-sm text-left" style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }} onClick={onOpenBounties}>
+        Tavern Bounties
+      </button>
+      <button type="button" className="rounded-md px-3 py-2 text-sm text-left" style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }} onClick={onOpenJournal}>
+        Journal
+      </button>
+    </div>
+  );
+}
 
 export function RPGInterface() {
   const { user, metadata } = useCurrentUser();
@@ -62,29 +91,27 @@ export function RPGInterface() {
   const [character, setCharacter] = useState<MVPCharacter | null>(null);
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
   const [activeView, setActiveView] = useState<ActiveView>('play');
-  const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
+  const [selectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
   const [revealPhase, setRevealPhase] = useState<'idle' | 'revealing'>('idle');
   const [revealIdentity, setRevealIdentity] = useState<{ consequence: string; race: string; profession: string; className: string } | null>(null);
   const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
   const [deadLetterOpen, setDeadLetterOpen] = useState(false);
   const [echoChamberOpen, setEchoChamberOpen] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
   const [showWorldWelcome, setShowWorldWelcome] = useState(false);
   const [showStuckRecovery, setShowStuckRecovery] = useState(false);
   const [skipDelta, setSkipDelta] = useState<{ goldDelta: number; healthDelta: number; fromLocation: string; toLocation: string } | null>(null);
 
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
-  const homeland = useHomeland(metadata?.nip05);
-  const ledger = useStrangersLedger();
+  useHomeland(metadata?.nip05);
+  useStrangersLedger();
   const proofChain = useProofChain(user?.pubkey);
   const relayRegions = useRelayRegions();
   const deadLetter = useDeadLetterOffice();
   const echoChamber = useEchoChamber();
-  const forgetting = useForgetting();
+  useForgetting();
   const autonomous = useAutonomousState(character, user?.pubkey);
-  const { sideQuests } = useSideQuests(character);
 
   useEffect(() => {
     const existing = loadMVPCharacter();
@@ -123,6 +150,14 @@ export function RPGInterface() {
       completedChapterIds: Array.isArray(character.completedChapterIds) ? character.completedChapterIds : [],
       mainQuestChoices: Array.isArray(character.mainQuestChoices) ? character.mainQuestChoices : [],
       hasCompletedFirstChapter: Boolean(character.hasCompletedFirstChapter),
+      dayCount: character.dayCount ?? 1,
+      region: character.region ?? 'Mysterious Village',
+      currentActivity: character.currentActivity ?? 'idle',
+      hourlyXp: character.hourlyXp ?? 0,
+      hourlyCopper: character.hourlyCopper ?? 0,
+      professionLocked: typeof character.professionLocked === 'boolean' ? character.professionLocked : true,
+      nextQuestUnlockTime: character.nextQuestUnlockTime ?? 0,
+      companionUnlocked: Boolean(character.companionUnlocked),
     };
     saveMVPCharacter(repaired);
     setCharacter(repaired);
@@ -153,51 +188,57 @@ export function RPGInterface() {
 
   useEffect(() => {
     if (!character || !autonomous.state || !autonomous.relayLoaded) return;
-    if (character.lastSimulatedTick === autonomous.state.lastSimulatedTick) return;
+    const autoState = autonomous.state;
+    if (character.lastSimulatedTick === autoState.lastSimulatedTick) return;
     const mergedCharacter: MVPCharacter = {
       ...character,
-      gold: autonomous.state.gold,
-      health: autonomous.state.health,
-      locationId: autonomous.state.locationId,
-      visibleTraits: autonomous.state.visibleTraits,
-      hiddenTraits: autonomous.state.hiddenTraits,
-      injuries: autonomous.state.injuries,
-      inventory: autonomous.state.inventory,
-      dailyLogs: autonomous.state.dailyLogs,
-      lastSimulatedTick: autonomous.state.lastSimulatedTick,
-      exploreIntent: autonomous.state.exploreIntent,
-      profession: autonomous.state.professionLabel || character.profession,
+      gold: autoState.gold,
+      health: autoState.health,
+      locationId: autoState.locationId,
+      visibleTraits: autoState.visibleTraits,
+      hiddenTraits: autoState.hiddenTraits,
+      injuries: autoState.injuries,
+      inventory: autoState.inventory,
+      dailyLogs: autoState.dailyLogs,
+      lastSimulatedTick: autoState.lastSimulatedTick,
+      exploreIntent: autoState.exploreIntent,
+      profession: autoState.professionLabel || character.profession,
+      dayCount: getDayCountSince(character.createdAt),
+      region: character.region || 'Mysterious Village',
+      currentActivity: autoState.exploreIntent ? 'exploring' : 'working',
     };
-    const progression = applyProgression(character.xp ?? 0, autonomous.state, autonomous.state.gold - (character.gold ?? 0));
+    const progression = applyProgression(character.xp ?? 0, autoState, autoState.gold - (character.gold ?? 0));
     mergedCharacter.xp = (character.xp ?? 0) + progression.xpGain;
+    mergedCharacter.hourlyXp = progression.hourlyXp;
+    mergedCharacter.hourlyCopper = Math.max(1, Math.floor((autoState.gold - (character.gold ?? 0)) / 24) || 1);
     if (progression.levelUp) mergedCharacter.level = progression.nextLevel;
 
-    const revelation = runRevelationPass(autonomous.state);
+    const revelation = runRevelationPass(autoState);
     if (revelation.logLines.length > 0) {
       mergedCharacter.visibleTraits = revelation.visibleTraits;
       mergedCharacter.hiddenTraits = revelation.hiddenTraits;
       mergedCharacter.dailyLogs = [
-        ...revelation.logLines.map((line) => ({ tick: autonomous.state.lastSimulatedTick ?? 'today', line })),
+        ...revelation.logLines.map((line) => ({ tick: autoState.lastSimulatedTick ?? 'today', line })),
         ...(mergedCharacter.dailyLogs ?? []),
       ].slice(0, 40);
     }
     if (progression.logLine) {
       mergedCharacter.dailyLogs = [
-        { tick: autonomous.state.lastSimulatedTick ?? 'today', line: progression.logLine },
+        { tick: autoState.lastSimulatedTick ?? 'today', line: progression.logLine },
         ...(mergedCharacter.dailyLogs ?? []),
       ].slice(0, 40);
     }
     saveMVPCharacter(mergedCharacter);
     setCharacter(mergedCharacter);
 
-    if (!user || !autonomous.state.lastSimulatedTick) return;
+    if (!user || !autoState.lastSimulatedTick) return;
     user.signer.signEvent({
       kind: AUTONOMOUS_SNAPSHOT_KIND,
-      content: JSON.stringify(autonomous.state),
+      content: JSON.stringify(autoState),
       tags: [
         ['t', 'no-stranger-game'],
         ['character', character.id],
-        ['window', autonomous.state.lastSimulatedTick],
+        ['window', autoState.lastSimulatedTick],
         ['alt', 'No Stranger Game autonomous daily snapshot'],
       ],
       created_at: Math.floor(Date.now() / 1000),
@@ -231,12 +272,11 @@ export function RPGInterface() {
   const chapterLines = activeChapter.chapterLines;
   const hasUnreadChapter = !hasChosenActiveChapter;
   const myClassLabel = character?.className || activeChapterChoice?.option;
-  const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
+  useConvergence(myClassLabel, networkPresence.data?.topMembers);
   const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
 
   const noteSyncFailure = () => {
-    setSyncFailed(true);
-    setTimeout(() => setSyncFailed(false), 10000);
+    // Sync failures are non-blocking for local progression.
   };
 
   const handleNewGame = () => {
@@ -268,12 +308,20 @@ export function RPGInterface() {
       profileTitle: 'Unnamed Drifter',
       profileBio: '',
       xp: 0,
+      dayCount: 1,
+      region: 'Mysterious Village',
+      currentActivity: 'idle',
+      hourlyXp: 0,
+      hourlyCopper: 0,
       mainQuestChoices: [],
       completedChapterIds: [],
       discoveredLocations: ['market-square'],
       hiddenAttributes: creation.hiddenAttributes,
       raceProgress: creation.raceProgress,
       raceLocked: creation.raceLocked,
+      professionLocked: true,
+      nextQuestUnlockTime: 0,
+      companionUnlocked: false,
       companionAffinities: { elara: 0, bran: 0, mira: 0, sera: 0 },
       shelterType: 'shared',
       inventory: [],
@@ -316,6 +364,13 @@ export function RPGInterface() {
   const handleMainQuestChoice = (questionId: string, option: string) => {
     navigator.vibrate?.(15);
     if (!character) return;
+    if ((character.nextQuestUnlockTime ?? 0) > Date.now()) {
+      toast({
+        title: 'Quest unavailable',
+        description: 'New main quest choices unlock after daily reset.',
+      });
+      return;
+    }
     const pendingAnswers = [...pendingBunch.answers.filter((answer) => answer.questionId !== questionId), { questionId, option }];
     const withPending: MVPCharacter = { ...character, pendingQuestBunch: { questId: activeQuestId, answers: pendingAnswers } };
     saveMVPCharacter(withPending);
@@ -349,7 +404,7 @@ export function RPGInterface() {
       ...character,
       mainQuestChoices: [...character.mainQuestChoices, { questId: activeQuestId, prompt: 'Quest bunch: Chapter One arc completed.', option: finalChoice, consequence: consequenceByArc, chosenAt: Math.floor(Date.now() / 1000) }],
       level: isChapterOne ? 1 : character.level + 1,
-      race: isChapterOne ? (character.raceLocked ? character.race : 'Unspoken') : identity.race,
+      race: character.raceLocked ? character.race : (isChapterOne ? 'Unspoken' : identity.race),
       profession: isChapterOne ? basicProfession : identity.profession,
       className: isChapterOne ? basicArchetype : identity.className,
       discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
@@ -357,6 +412,8 @@ export function RPGInterface() {
       completedChapterIds: Array.from(new Set([...(character.completedChapterIds ?? []), activeQuestId])),
       pendingQuestBunch: undefined,
       hasCompletedFirstChapter: true,
+      nextQuestUnlockTime: getNextESTMidnight(),
+      companionUnlocked: (Array.from(new Set([...(character.completedChapterIds ?? []), activeQuestId])).length + 1) >= 3,
       companionAffinities: {
         ...(character.companionAffinities ?? { elara: 0, bran: 0, mira: 0, sera: 0 }),
         elara: (character.companionAffinities?.elara ?? 0) + (finalChoice === 'B' ? 2 : 0),
@@ -371,7 +428,7 @@ export function RPGInterface() {
     markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${finalChoice}`);
     setRevealIdentity({
       consequence: consequenceByArc,
-      race: isChapterOne ? (character.raceLocked ? character.race : 'Unspoken') : identity.race,
+      race: character.raceLocked ? character.race : (isChapterOne ? 'Unspoken' : identity.race),
       profession: isChapterOne ? basicProfession : identity.profession,
       className: isChapterOne ? basicArchetype : identity.className,
     });
@@ -492,13 +549,12 @@ export function RPGInterface() {
 
   if (!character) return null;
 
-  const activeLocationLabel = autonomous.state?.locationId?.replaceAll('_', ' ') ?? 'market square';
-  const publicSnippet = `${character.characterName}, Level ${character.level} ${character.className}`;
-  const regionLabel = 'Mysterious Village';
-  const rateXp = Math.max(1, Math.floor((autonomous.state?.visibleTraits.length ?? 1) * 0.4));
-  const rateGold = Math.max(1, Math.floor((autonomous.state?.gold ?? 0) / Math.max(1, character.level)));
+  const regionLabel = character.region || 'Mysterious Village';
+  const rateXp = character.hourlyXp ?? 0;
+  const rateGold = character.hourlyCopper ?? 0;
   const currentActivity = autonomous.state?.professionLabel || character.profession || 'Working';
-  const hasActiveMainQuest = hasUnreadChapter;
+  const canOpenMainQuest = (character.nextQuestUnlockTime ?? 0) <= Date.now();
+  const hasActiveMainQuest = hasUnreadChapter && canOpenMainQuest;
   const socialAccomplishments = (networkPresence.data?.topMembers ?? []).slice(0, 4).map((member) => {
     const discovery = member.discoveredLocations?.[0] ?? 'a forgotten place';
     return `${member.characterName} discovered ${discovery}.`;
@@ -558,9 +614,10 @@ export function RPGInterface() {
         <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
           <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
             {[
-              { key: 'profile', icon: '◉', label: 'Profile' },
+              { key: 'character', icon: '◉', label: 'Character' },
               { key: 'play', icon: '✦', label: 'Play' },
               { key: 'map', icon: '◈', label: 'Map' },
+              { key: 'inventory', icon: '▣', label: 'Inventory' },
             ].map((item) => {
             const isActive = (item.key === 'play' && (activeView === 'play' || activeView === 'settings' || hasActiveMainQuest)) || activeView === item.key;
               return (
@@ -594,57 +651,58 @@ export function RPGInterface() {
       <div className="mx-auto max-w-2xl px-4 pt-8 space-y-5">
         {activeView === 'play' ? (
           <section className="space-y-4">
-            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>{publicSnippet}</p>
-            <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{regionLabel}</p>
+            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>Day {character.dayCount} · {regionLabel}</p>
+            <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{String(character.currentActivity || currentActivity).toUpperCase()}</p>
             <p className="text-sm" style={{ color: 'var(--ink)' }}>
-              Health {character.health ?? 100} · XP {character.xp ?? 0} · Level {character.level} · Gold {character.gold ?? 0}
+              +{rateXp} XP/hr · +{rateGold} copper/hr · Payment arrives tomorrow
             </p>
-            <p className="font-cormorant text-lg" style={{ color: 'var(--ink)' }}>
-              Earning {rateXp} experience/hr and {rateGold} gold/hr — {String(currentActivity).toUpperCase()}
-            </p>
-            <p className="font-cormorant text-lg" style={{ color: 'var(--ink-dim)' }}>
-              Your companion has something to talk to you about.
-            </p>
-            {[
-              'Ask about the old tower dreams',
-              'Ask who in town owes you a debt',
-              'Ask where hunters vanish at dusk',
-            ].map((choice) => (
-              <button
-                key={choice}
-                type="button"
-                className="w-full text-left rounded-md px-3 py-3 font-cormorant text-lg"
-                style={{ background: 'var(--surface)', color: 'var(--ink)' }}
-                onClick={() => {
-                  autonomous.queueExploreIntent(choice);
-                  toast({ title: 'The memory takes root.', description: 'Your companion will return to this thread.' });
-                }}
-              >
-                {choice}
-              </button>
-            ))}
-            <div className="rounded-md p-3" style={{ background: 'var(--surface-dim)' }}>
-              <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Main Path</p>
+            <CountdownToESTMidnight />
+            {hasUnreadChapter && !canOpenMainQuest ? (
               <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-                {hasUnreadChapter ? 'Your Main Quest is ready in Chapter.' : 'Today’s Main Quest is complete.'}
+                Main quest unlocks at next daily reset.
               </p>
-              {sideQuests.length > 0 ? (
+            ) : null}
+            <div className="h-px w-full" style={{ background: 'var(--ink-ghost)' }} />
+            <div className="rounded-md p-3 space-y-2" style={{ background: 'var(--surface)' }}>
+              {!character.companionUnlocked ? (
+                <p className="font-cormorant text-lg" style={{ color: 'var(--ink-dim)' }}>
+                  A companion has not yet joined your story.
+                </p>
+              ) : (
                 <>
-                  <p className="mt-2 text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Rare Side Quests</p>
-                  {sideQuests.map((quest) => (
-                    <p key={quest.id} className="text-sm" style={{ color: 'var(--ink-dim)' }}>{quest.title}</p>
+                  <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Companion Dialogue</p>
+                  {[
+                    'Ask about the old tower dreams',
+                    'Ask who in town owes you a debt',
+                    'Ask where hunters vanish at dusk',
+                  ].map((choice) => (
+                    <button
+                      key={choice}
+                      type="button"
+                      className="w-full text-left rounded-md px-3 py-3 font-cormorant text-lg"
+                      style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}
+                      onClick={() => autonomous.queueExploreIntent(choice)}
+                    >
+                      {choice}
+                    </button>
                   ))}
                 </>
-              ) : null}
+              )}
             </div>
-            <div className="rounded-md p-3" style={{ background: 'var(--surface-dim)' }}>
-              <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Companion Affinity (v1)</p>
-              {COMPANIONS.map((companion) => (
-                <p key={companion.id} className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-                  {companion.name}: {character.companionAffinities?.[companion.id] ?? 0}
+            <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
+              <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Across the World</p>
+              {socialAccomplishments.length > 0 ? socialAccomplishments.map((line) => (
+                <p key={line} className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>{line}</p>
+              )) : (
+                <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
+                  The roads are quiet tonight, but not empty.
                 </p>
-              ))}
-            </div>
+              )}
+            </section>
+            <SecondaryFeatureGrid
+              onOpenBounties={() => setActiveView('quests')}
+              onOpenJournal={() => setActiveView('character')}
+            />
           </section>
         ) : null}
 
@@ -659,10 +717,6 @@ export function RPGInterface() {
             const nextCharacter = { ...character, exploreIntent: intent };
             saveMVPCharacter(nextCharacter);
             setCharacter(nextCharacter);
-            toast({
-              title: 'The road receives your intention',
-              description: 'Your character will carry this impulse into the next dawn.',
-            });
           }}
         />
       ) : null}
@@ -677,7 +731,7 @@ export function RPGInterface() {
           />
         ) : null}
 
-        {activeView === 'profile' ? (
+        {activeView === 'character' ? (
         <SelfView
           character={character}
           proofNodes={proofChain.data ?? []}
@@ -685,6 +739,19 @@ export function RPGInterface() {
           onUpdateCharacter={handleCharacterUpdate}
         />
       ) : null}
+
+        {activeView === 'inventory' ? (
+          <section className="rounded-xl p-5 space-y-3" style={{ background: 'var(--surface)' }}>
+            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>Inventory</p>
+            {(character.inventory ?? []).length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>Your pack is light today.</p>
+            ) : character.inventory.map((entry) => (
+              <p key={entry.itemId} className="text-sm" style={{ color: 'var(--ink-dim)' }}>
+                {entry.itemId}: {entry.quantity}
+              </p>
+            ))}
+          </section>
+        ) : null}
 
         {activeView === 'settings' ? (
           <section className="rounded-xl p-5 space-y-4" style={{ background: 'var(--surface)' }}>
@@ -710,18 +777,6 @@ export function RPGInterface() {
         />
       ) : null}
 
-      {activeView === 'play' ? (
-      <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
-        <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Across the World</p>
-        {socialAccomplishments.length > 0 ? socialAccomplishments.map((line) => (
-          <p key={line} className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>{line}</p>
-        )) : (
-          <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
-            The roads are quiet tonight, but not empty.
-          </p>
-        )}
-      </section>
-      ) : null}
       </div>
 
       <DeadLetterOverlay
@@ -745,10 +800,10 @@ export function RPGInterface() {
       <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
         <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
           {[
-            { key: 'profile', icon: '◉', label: 'Profile' },
+            { key: 'character', icon: '◉', label: 'Character' },
             { key: 'play', icon: '✦', label: 'Play' },
-            { key: 'quests', icon: '📜', label: 'Quests' },
             { key: 'map', icon: '◈', label: 'Map' },
+            { key: 'inventory', icon: '▣', label: 'Inventory' },
           ].map((item) => {
             const isActive = activeView === item.key || (item.key === 'play' && activeView === 'settings');
             return (
@@ -784,6 +839,9 @@ export function RPGInterface() {
             lastSimulatedTick: after.lastSimulatedTick,
             exploreIntent: after.exploreIntent,
             profession: after.professionLabel || character.profession,
+            dayCount: getDayCountSince(character.createdAt),
+            region: character.region,
+            currentActivity: 'working',
           };
           handleCharacterUpdate(nextCharacter);
           const delta = {
