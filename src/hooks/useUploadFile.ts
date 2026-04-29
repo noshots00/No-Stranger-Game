@@ -1,26 +1,10 @@
-import { useMutation } from "@tanstack/react-query";
-import { BlossomUploader } from '@nostrify/nostrify/uploaders';
-
-import { useCurrentUser } from "./useCurrentUser";
+import { useMutation } from '@tanstack/react-query';
 
 export function useUploadFile() {
-  const { user } = useCurrentUser();
-
   return useMutation({
-    mutationFn: async (file: File) => {
-      if (!user) {
-        throw new Error('Must be logged in to upload files');
-      }
-
-      const uploader = new BlossomUploader({
-        servers: [
-          'https://blossom.primal.net/',
-        ],
-        signer: user.signer,
-      });
-
-      const tags = await uploader.upload(file);
-      return tags;
+    mutationFn: async (_file: File): Promise<string[][]> => {
+      console.warn('[useUploadFile] File upload not implemented in MVP');
+      return [];
     },
   });
 }

@@ -249,6 +249,7 @@ export default function GameContainer() {
                   onTravel={(id) => {
                     playSFX('travel');
                     if (id === 'quests') {
+                      dialogue.handleMapInteraction('questsTab');
                       setOpenTavernBoard(true);
                       return;
                     }
@@ -256,8 +257,7 @@ export default function GameContainer() {
                       navigate('/play');
                     }
                     dialogue.handleMapInteraction(id);
-                    // Auto-navigate to play screen for discover actions and travel
-                    if (id !== 'quests' && id !== 'tavern') {
+                    if (id !== 'tavern') {
                       navigate('/play');
                     }
                   }}
