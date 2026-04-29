@@ -14,6 +14,7 @@ import { NostrLoginProvider } from '@nostrify/react/login';
 import { AppProvider } from '@/components/AppProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
+import { VersionBadge } from '@/components/VersionBadge';
 import AppRouter from './AppRouter';
 
 const head = createHead({
@@ -56,6 +57,7 @@ export function App() {
                 <DMProvider config={{ enabled: true }}>
                   <TooltipProvider>
                     <Toaster />
+                    <VersionBadge />
                     <Suspense>
                       <AppRouter />
                     </Suspense>
