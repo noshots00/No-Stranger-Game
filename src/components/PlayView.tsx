@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import type { ChoiceOption, DialogueLine } from '@/hooks/useDialogueEngine';
 import { GlobalNostrFeed } from '@/components/GlobalNostrFeed';
 
@@ -29,6 +31,12 @@ export default function PlayView({
   onNameSubmit,
   scrollRef,
 }: PlayViewProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [history, currentPrompt, inputMode]);
+
   return (
     <div className="flex flex-col h-full bg-stone-950 text-stone-200 overflow-hidden font-sans select-none">
       <header className="px-4 py-3 bg-stone-900/90 backdrop-blur border-b border-stone-800 text-center shrink-0 z-10 safe-area-pt">
@@ -37,7 +45,7 @@ export default function PlayView({
         </span>
       </header>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth space-y-5 pb-6" role="log" aria-live="polite">
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth space-y-5" role="log" aria-live="polite">
         {import.meta.env.DEV && (
           <div className="rounded border border-stone-700 bg-stone-900/70 px-3 py-2 text-[10px] font-mono text-stone-400">
             step={step} | history={history.length} | input={inputMode} | prompt={currentPrompt?.length ?? 0}
@@ -109,6 +117,8 @@ export default function PlayView({
         )}
 
         {step === 'idle_play' && <GlobalNostrFeed />}
+
+        <div ref={bottomRef} className="h-1" />
       </main>
     </div>
   );

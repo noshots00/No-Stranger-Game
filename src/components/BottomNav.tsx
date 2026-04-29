@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { TabId } from '@/types/game';
 
@@ -6,10 +6,12 @@ interface BottomNavProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   unlocks: { map: boolean; character: boolean };
+  onForceSave?: () => void;
 }
 
-export default function BottomNav({ activeTab, onTabChange, unlocks }: BottomNavProps) {
+export default function BottomNav({ activeTab, onTabChange, unlocks, onForceSave }: BottomNavProps) {
   const navRef = useRef<HTMLElement>(null);
+  const [saveFlash, setSaveFlash] = useState(false);
 
   useEffect(() => {
     const updateSafeArea = () => {
@@ -21,6 +23,12 @@ export default function BottomNav({ activeTab, onTabChange, unlocks }: BottomNav
     window.addEventListener('resize', updateSafeArea);
     return () => window.removeEventListener('resize', updateSafeArea);
   }, []);
+
+  const handleSave = () => {
+    onForceSave?.();
+    setSaveFlash(true);
+    setTimeout(() => setSaveFlash(false), 1200);
+  };
 
   const tabs: Array<{ id: TabId; icon: string; label: string; unlocked: boolean }> = [
     { id: 'play', icon: '▶️', label: 'Play', unlocked: true },
@@ -69,6 +77,21 @@ export default function BottomNav({ activeTab, onTabChange, unlocks }: BottomNav
             </button>
           );
         })}
+
+        {onForceSave && (
+          <button
+            onClick={handleSave}
+            aria-label="Save game"
+            className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-lg transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] ${
+              saveFlash ? 'bg-emerald-900/30 text-emerald-400' : 'hover:bg-stone-800/40 text-stone-500'
+            }`}
+          >
+            <span className="text-xl mb-0.5">💾</span>
+            <span className={`text-[10px] font-mono uppercase tracking-widest ${saveFlash ? 'text-emerald-400' : ''}`}>
+              {saveFlash ? 'Saved' : 'Save'}
+            </span>
+          </button>
+        )}
       </div>
     </nav>
   );

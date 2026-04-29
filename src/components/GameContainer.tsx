@@ -35,7 +35,7 @@ export default function GameContainer() {
     void window.nostr.getPublicKey().then(setPubkey).catch(() => setPubkey(undefined));
   }, []);
 
-  const { state, loading, save } = useNostrPersistence(pubkey);
+  const { state, loading, save, forceSave } = useNostrPersistence(pubkey);
   const dialogue = useDialogueEngine(state, save);
   const { playSFX } = useAudioEngine(dialogue.region);
   const hasVisibleDialogueState =
@@ -101,23 +101,84 @@ export default function GameContainer() {
 
   useIdleLoop(simulationContext, handleSimulationComplete);
 
-  const mapLocations = useMemo<MapLocation[]>(
-    () => [
-      { id: 'forest', name: 'Forest', icon: '🌲', status: 'available' },
+  const isTutorialDone = dialogue.step === 'idle_play';
+  const acts = dialogue.unlocks.activities;
+
+  const mapLocations = useMemo<MapLocation[]>(() => {
+    const forestSubs: MapLocation[] = isTutorialDone
+      ? [
+          {
+            id: 'hunt',
+            name: 'Hunt',
+            icon: '🏹',
+            status: 'available' as const,
+            notification: !acts.hunt,
+            discovered: acts.hunt,
+            description: 'Your character has the option to hunt animals in the forest.',
+          },
+          {
+            id: 'forage',
+            name: 'Forage',
+            icon: '🌿',
+            status: 'available' as const,
+            notification: !acts.forage,
+            discovered: acts.forage,
+            description: 'Your character can forage for food and herbs in the forest.',
+          },
+          {
+            id: 'explore',
+            name: 'Explore',
+            icon: '🧭',
+            status: 'available' as const,
+            notification: !acts.explore,
+            discovered: acts.explore,
+            description: 'Your character will explore deeper into the forest.',
+          },
+        ]
+      : [];
+
+    const villageSubs: MapLocation[] = [];
+    if (dialogue.unlocks.tavern) {
+      villageSubs.push({
+        id: 'tavern',
+        name: 'Tavern',
+        icon: '🍺',
+        status: 'available' as const,
+        notification: false,
+        discovered: true,
+      });
+    }
+    if (dialogue.unlocks.quests) {
+      villageSubs.push({
+        id: 'quests',
+        name: 'Player Quests',
+        icon: '📜',
+        status: 'available' as const,
+        notification: !acts.questsTab,
+        discovered: acts.questsTab,
+        description: 'Accept and complete daily quests at the tavern bounty board.',
+      });
+    }
+
+    return [
+      {
+        id: 'forest',
+        name: 'Forest',
+        icon: '🌲',
+        status: 'available' as const,
+        subLocations: forestSubs.length ? forestSubs : undefined,
+      },
       {
         id: 'village',
         name: 'Village',
         icon: '🏘️',
-        status: dialogue.unlocks.tavern ? 'visited' : 'new',
-        notification: !dialogue.unlocks.tavern,
-        subLocations: [
-          ...(dialogue.unlocks.tavern ? [{ id: 'tavern', name: 'Tavern', icon: '🍺', status: 'new' as const, notification: true }] : []),
-          ...(dialogue.unlocks.activities.questsTab ? [{ id: 'quests', name: 'Player Quests', icon: '📜', status: 'available' as const, notification: true }] : []),
-        ],
+        status: dialogue.unlocks.tavern ? ('visited' as const) : ('new' as const),
+        notification: !dialogue.unlocks.tavern || villageSubs.some((s) => s.notification),
+        discovered: dialogue.unlocks.tavern,
+        subLocations: villageSubs.length ? villageSubs : undefined,
       },
-    ],
-    [dialogue.unlocks.activities.questsTab, dialogue.unlocks.tavern],
-  );
+    ];
+  }, [acts, dialogue.unlocks.quests, dialogue.unlocks.tavern, isTutorialDone]);
 
   if (loading || !state) {
     return <div className="h-[100dvh] flex items-center justify-center bg-stone-950 text-stone-400">Syncing with the clearing...</div>;
@@ -195,13 +256,39 @@ export default function GameContainer() {
                       navigate('/play');
                     }
                     dialogue.handleMapInteraction(id);
+                    // Auto-navigate to play screen for discover actions and travel
+                    if (id !== 'quests' && id !== 'tavern') {
+                      navigate('/play');
+                    }
                   }}
                   isTutorialPhase={dialogue.step !== 'idle_play'}
                 />
               )
             }
           />
-          <Route path="character" element={<CharacterScreen state={state} />} />
+          <Route
+            path="character"
+            element={
+              <CharacterScreen
+                state={state}
+                completedQuestIds={state.completedQuestIds}
+                onApplyModifiers={(mods) => {
+                  const nextModifiers = { ...state.character.modifiers };
+                  Object.entries(mods).forEach(([key, value]) => {
+                    nextModifiers[key] = (nextModifiers[key] ?? 0) + value;
+                  });
+                  save({ character: { ...state.character, modifiers: nextModifiers, traits: [...new Set([...state.character.traits, ...Object.keys(mods)])] } });
+                }}
+                onCompleteQuest={(id) => {
+                  if (state.completedQuestIds.includes(id)) return;
+                  playSFX('quest');
+                  save({ completedQuestIds: [...state.completedQuestIds, id] });
+                  broadcast('QUEST_COMPLETE');
+                }}
+                estMidnightTimestamp={getNextEstMidnight()}
+              />
+            }
+          />
           <Route path="*" element={<Navigate to="/play" replace />} />
         </Routes>
       </main>
@@ -223,6 +310,7 @@ export default function GameContainer() {
           navigate('/play');
         }}
         unlocks={{ map: dialogue.unlocks.map, character: dialogue.unlocks.profile }}
+        onForceSave={() => void forceSave()}
       />
     </div>
   );

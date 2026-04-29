@@ -89,6 +89,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
   const [lastFarewellChoice, setLastFarewellChoice] = useState<'f1' | 'f2' | 'f3' | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const rebuiltStepRef = useRef<TutorialStep | null>(null);
+  const prevUnlocksRef = useRef(unlocks);
 
   const persist = useCallback(
     (nextStep: TutorialStep, extras?: DeepPartial<GameState>) => {
@@ -299,15 +300,11 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
               text:
                 "You have completed the tutorial. The game is now fully unlocked. Log in at least once a day to complete new quests. Quests are the primary way to unlock more of the game and progress the story. Every choice you make irrevocably affects the fate of your character. As your character explores the world he will discover new locations. Please note that he will not explore those locations until you have first visited them at least once from the map screen.\n\nThe game resets each day at midnight EST. You will automatically collect all of the rewards of your character's toils, including his wages, experience points, and any items he has found. It may seem like nothing is happening right now, but log in tomorrow to see your character's progress. Be patient, it can take some time to get rolling.\n\nEnjoy the game, explore, have fun, look forward to frequent updates, and if you need help you can find me on Nostr.",
             });
-            addLine({ text: 'Unlocked activity: Hunt in the Forest', isSystem: true });
-            addLine({ text: 'Unlocked activity: Forage in the Forest', isSystem: true });
-            addLine({ text: 'Unlocked activity: Explore the Forest', isSystem: true });
-            addLine({ text: 'Unlocked activity: Explore the Village', isSystem: true });
-            addLine({ text: 'Unlocked activity: Player Quests unlocked in Tavern', isSystem: true });
+            addLine({ text: 'New items have been added to the map!', isSystem: true });
             setUnlocks((prev) => ({
               ...prev,
               quests: true,
-              activities: { ...prev.activities, hunt: true, forage: true, explore: true, questsTab: true },
+              activities: { ...prev.activities, hunt: false, forage: false, explore: false, questsTab: false },
             }));
             setStep('idle_play');
             persist('idle_play');
@@ -381,9 +378,25 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
       if (locationId === 'tavern' && unlocks.tavern) {
         addLine({ text: 'Traveling to tavern...', isSystem: true });
         advance('tavern_visit');
+        return;
+      }
+      // Activity discovery - clicking an undiscovered activity on the map
+      const activityKey = locationId as keyof typeof unlocks.activities;
+      if (activityKey in unlocks.activities && !unlocks.activities[activityKey]) {
+        setUnlocks((prev) => ({
+          ...prev,
+          activities: { ...prev.activities, [activityKey]: true },
+        }));
+        const activityLabels: Record<string, string> = {
+          hunt: 'Hunting in the Forest',
+          forage: 'Foraging in the Forest',
+          explore: 'Exploring the Forest',
+          questsTab: 'Player Quests in the Tavern',
+        };
+        addLine({ text: `Activity Unlocked: ${activityLabels[activityKey] ?? locationId}`, isSystem: true });
       }
     },
-    [addLine, advance, step, unlocks.tavern],
+    [addLine, advance, step, unlocks],
   );
 
   const handleSimulationLog = useCallback(
@@ -434,6 +447,13 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
     rebuiltStepRef.current = step;
     advance(normalizeStep(step));
   }, [advance, history.length, step]);
+
+  // Auto-persist unlocks whenever they change (fixes stale-closure persist bug)
+  useEffect(() => {
+    if (prevUnlocksRef.current === unlocks) return;
+    prevUnlocksRef.current = unlocks;
+    save({ unlocks });
+  }, [unlocks, save]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
