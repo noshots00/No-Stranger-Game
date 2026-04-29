@@ -23,12 +23,45 @@ function makeLineId(text: string): string {
   return `${text.slice(0, 10)}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+const validSteps = new Set<TutorialStep>([
+  'intro_1',
+  'intro_2',
+  'intro_3',
+  'name_input',
+  'vignettes',
+  'post_vignettes',
+  'map_reveal',
+  'boar_encounter',
+  'village_arrival',
+  'deckard_approach',
+  'village_return',
+  'deckard_lore',
+  'deckard_farewell',
+  'tavern_prompt',
+  'tavern_visit',
+  'tutorial_complete',
+  'idle_play',
+]);
+
+function normalizeStep(raw: string | undefined): TutorialStep {
+  if (!raw) return 'intro_1';
+  const legacyMap: Record<string, TutorialStep> = {
+    intro_forest: 'intro_1',
+    map_unlock: 'map_reveal',
+    boar_encounter_overlay: 'boar_encounter',
+    village_arrival_scene: 'village_arrival',
+    deckard_dialogue: 'deckard_lore',
+  };
+  const mapped = legacyMap[raw] ?? raw;
+  return validSteps.has(mapped as TutorialStep) ? (mapped as TutorialStep) : 'intro_1';
+}
+
 export function useDialogueEngine(state: GameState | null, save: (patch: DeepPartial<GameState>) => void) {
   const { broadcast } = usePlayerBroadcast();
   const [history, setHistory] = useState<DialogueLine[]>([]);
   const [currentPrompt, setCurrentPrompt] = useState<ChoiceOption[] | null>(null);
   const [inputMode, setInputMode] = useState<'text' | 'none'>('none');
-  const [step, setStep] = useState<TutorialStep>(state?.tutorial.step ?? 'intro_1');
+  const [step, setStep] = useState<TutorialStep>(normalizeStep(state?.tutorial.step));
   const [playerName, setPlayerName] = useState(state?.tutorial.name ?? '');
   const [playerRace, setPlayerRace] = useState(state?.tutorial.race || 'Elf');
   const [unlocks, setUnlocks] = useState<GameUnlocks>(
@@ -267,7 +300,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
 
   useEffect(() => {
     if (!state) return;
-    setStep(state.tutorial.step);
+    setStep(normalizeStep(state.tutorial.step));
     setPlayerName(state.tutorial.name);
     setPlayerRace(state.tutorial.race || 'Elf');
     setUnlocks(state.unlocks);
@@ -288,7 +321,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
       setInputMode('none');
       return;
     }
-    advance(step);
+    advance(normalizeStep(step));
   }, [advance, history.length, step]);
 
   useEffect(() => {
