@@ -33,6 +33,23 @@ export default function BottomNav({ activeTab, onTabChange, unlocks }: BottomNav
       <div className="flex items-center justify-around max-w-md mx-auto h-[64px] px-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
+          if (tab.id === 'play') {
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange('play')}
+                aria-label={tab.label}
+                className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-lg transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] ${
+                  isActive ? 'bg-amber-900/20 text-amber-400' : 'hover:bg-stone-800/40 text-stone-500'
+                }`}
+              >
+                <span className="text-xl mb-0.5">▶️</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest">Play</span>
+                {isActive && <span className="absolute top-0 w-6 h-[2px] bg-amber-500 rounded-full" />}
+              </button>
+            );
+          }
+
           return (
             <button
               key={tab.id}

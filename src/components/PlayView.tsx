@@ -88,7 +88,7 @@ export default function PlayView({
           </div>
         )}
 
-        {currentPrompt && inputMode === 'none' && step !== 'vignettes' && (
+        {currentPrompt && step !== 'vignettes' && (
           <div className="space-y-3 mt-2 animate-slideUp">
             {currentPrompt.map((opt) => (
               <button

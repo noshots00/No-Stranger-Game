@@ -87,118 +87,121 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
       setInputMode('none');
       persist(next);
 
-      switch (next) {
-        case 'intro_1':
-          addLine({ text: 'You find yourself in a dense forest.' });
-          setPrompt([{ id: 'c1', label: 'Where am I?', nextStep: 'intro_2' }]);
-          break;
-        case 'intro_2':
-          addLine({ text: 'You are in a forest.' });
-          setPrompt([{ id: 'c2', label: 'How did I get here?', nextStep: 'intro_3' }]);
-          break;
-        case 'intro_3':
-          addLine({ text: "You don't remember anything." });
-          setPrompt([{ id: 'c3', label: 'Who am I?', nextStep: 'name_input' }]);
-          break;
-        case 'name_input':
-          setInputMode('text');
-          break;
-        case 'vignettes':
-          break;
-        case 'post_vignettes':
-          addLine({ text: `You are beginning to remember... your name is ${playerName} and you are a level 1 ${playerRace} peasant.` });
-          setPrompt([{ id: 'continue', label: 'Continue...', nextStep: 'map_reveal' }]);
-          break;
-        case 'map_reveal':
-          addLine({ text: `Unlocked Race: ${playerRace}`, isSystem: true });
-          addLine({ text: 'Soandso has found something.' });
-          setPrompt([
-            {
-              id: 'map',
-              label: 'Check the map.',
-              nextStep: 'map_reveal',
-              onChoose: () =>
-                setUnlocks((prev) => ({
-                  ...prev,
-                  map: true,
-                })),
-            },
-          ]);
-          break;
-        case 'boar_encounter':
-          addLine({ text: 'A wild boar bursts from the brush and charges!' });
-          setPrompt([
-            { id: 'b1', label: 'Attack!', modifiers: { strength: 5, bravery: 3 }, nextStep: 'village_arrival' },
-            { id: 'b2', label: 'Run away!', modifiers: { survival: 5, caution: 2 }, nextStep: 'village_arrival' },
-            { id: 'b3', label: 'Evade the thrust', modifiers: { agility: 5, evasion: 3 }, nextStep: 'village_arrival' },
-            { id: 'b4', label: 'Cast a spell!', modifiers: { wisdom: 5, arcane: 4 }, nextStep: 'village_arrival' },
-          ]);
-          break;
-        case 'village_arrival':
-          addLine({ text: 'You find a village in a clearing in the forest.' });
-          addLine({ text: 'Region updated: Amnesia Village', isSystem: true });
-          if (state) save({ character: { ...state.character, region: 'Amnesia Village' } });
-          setPrompt([{ id: 'va1', label: "I hope someone here can tell me what's going on.", nextStep: 'deckard_approach' }]);
-          break;
-        case 'deckard_approach':
-          addLine({ text: 'Some people are approaching you: an old man and two young girls.' });
-          setPrompt([
-            { id: 'da', label: 'Acknowledge them but wait', modifiers: { wisdom: 2, resolve: 2 }, nextStep: 'deckard_lore' },
-            { id: 'db', label: 'Be wary', modifiers: { survival: 2 }, guard: 'distrusting', nextStep: 'deckard_lore' },
-            { id: 'dc', label: 'Leave the area quickly', guard: 'leave_quick', nextStep: 'village_return' },
-          ]);
-          break;
-        case 'village_return':
-          addLine({ text: 'You step back into the trees. The village watches silently.' });
-          addLine({ text: 'Revisit the village when ready.' });
-          setStep('idle_play');
-          persist('idle_play');
-          break;
-        case 'deckard_lore':
-          addLine({ speaker: 'Deckard', text: 'My name is Deckard, this is my village.' });
-          addLine({ text: '"Blinks... we all woke up here. Just me first. Now we get a new one every day."' });
-          addLine({ text: '"Survival is the name of the game here. Dangerous place. Wolves, boar... skeletons."' });
-          addLine({ text: '"That is enough for today... I am weary. Visit the tavern. Work, eat, contribute."' });
-          setPrompt([
-            { id: 'f1', label: 'Thank you for everything.', modifiers: { grateful: 3, polite: 2, liked: 2 }, nextStep: 'deckard_farewell' },
-            { id: 'f2', label: 'Wait, I have more questions!', modifiers: { curious: 2, hasty: 1 }, nextStep: 'deckard_farewell' },
-            { id: 'f3', label: 'Am I allowed to come and go freely?', modifiers: { loneWolf: 2, distrustful: 2 }, nextStep: 'deckard_farewell' },
-          ]);
-          break;
-        case 'deckard_farewell':
-          addLine({ text: 'Deckard shambles off to a large tent. His companions steady him.' });
-          addLine({ text: 'New activities unlocked on map!', isSystem: true });
-          addLine({ text: 'Your profile has been unlocked!', isSystem: true });
-          setUnlocks((prev) => ({ ...prev, profile: true, tavern: true }));
-          setPrompt([{ id: 'visit_tavern', label: 'Visit the tavern next.', nextStep: 'tavern_prompt' }]);
-          break;
-        case 'tavern_prompt':
-          addLine({ text: 'A warm glow spills from the tavern doors.' });
-          setPrompt([{ id: 'enter_tavern', label: 'Step inside.', nextStep: 'tavern_visit' }]);
-          break;
-        case 'tavern_visit':
-          addLine({ text: 'You did not realize how hungry you were until the Tavern Keep served you stew. Bunks fill every corner.' });
-          setPrompt([{ id: 'settle', label: 'I guess this will be my home for a while.', nextStep: 'tutorial_complete' }]);
-          break;
-        case 'tutorial_complete':
-          addLine({ text: 'Tutorial Complete. Log in daily for quests. Every choice is permanent.' });
-          addLine({ text: 'Unlocked activity: Hunt in the Forest', isSystem: true });
-          addLine({ text: 'Unlocked activity: Forage in the Forest', isSystem: true });
-          addLine({ text: 'Unlocked activity: Explore the Forest', isSystem: true });
-          addLine({ text: 'Player Quests unlocked in Tavern', isSystem: true });
-          setUnlocks((prev) => ({
-            ...prev,
-            quests: true,
-            activities: { ...prev.activities, hunt: true, forage: true, explore: true, questsTab: true },
-          }));
-          setStep('idle_play');
-          persist('idle_play');
-          break;
-        case 'idle_play':
-          setCurrentPrompt(null);
-          setInputMode('none');
-          break;
-      }
+      // Defer prompt/input transitions to avoid render races after state resets.
+      setTimeout(() => {
+        switch (next) {
+          case 'intro_1':
+            addLine({ text: 'You find yourself in a dense forest.' });
+            setPrompt([{ id: 'c1', label: 'Where am I?', nextStep: 'intro_2' }]);
+            break;
+          case 'intro_2':
+            addLine({ text: 'You are in a forest.' });
+            setPrompt([{ id: 'c2', label: 'How did I get here?', nextStep: 'intro_3' }]);
+            break;
+          case 'intro_3':
+            addLine({ text: "You don't remember anything." });
+            setPrompt([{ id: 'c3', label: 'Who am I?', nextStep: 'name_input' }]);
+            break;
+          case 'name_input':
+            setInputMode('text');
+            break;
+          case 'vignettes':
+            break;
+          case 'post_vignettes':
+            addLine({ text: `You are beginning to remember... your name is ${playerName || 'Traveler'} and you are a level 1 ${playerRace || 'Human'} peasant.` });
+            setPrompt([{ id: 'continue', label: 'Continue...', nextStep: 'map_reveal' }]);
+            break;
+          case 'map_reveal':
+            addLine({ text: `Unlocked Race: ${playerRace}`, isSystem: true });
+            addLine({ text: 'Soandso has found something.' });
+            setPrompt([
+              {
+                id: 'map',
+                label: 'Check the map.',
+                nextStep: 'map_reveal',
+                onChoose: () =>
+                  setUnlocks((prev) => ({
+                    ...prev,
+                    map: true,
+                  })),
+              },
+            ]);
+            break;
+          case 'boar_encounter':
+            addLine({ text: 'A wild boar bursts from the brush and charges!' });
+            setPrompt([
+              { id: 'b1', label: 'Attack!', modifiers: { strength: 5, bravery: 3 }, nextStep: 'village_arrival' },
+              { id: 'b2', label: 'Run away!', modifiers: { survival: 5, caution: 2 }, nextStep: 'village_arrival' },
+              { id: 'b3', label: 'Evade the thrust', modifiers: { agility: 5, evasion: 3 }, nextStep: 'village_arrival' },
+              { id: 'b4', label: 'Cast a spell!', modifiers: { wisdom: 5, arcane: 4 }, nextStep: 'village_arrival' },
+            ]);
+            break;
+          case 'village_arrival':
+            addLine({ text: 'You find a village in a clearing in the forest.' });
+            addLine({ text: 'Region updated: Amnesia Village', isSystem: true });
+            if (state) save({ character: { ...state.character, region: 'Amnesia Village' } });
+            setPrompt([{ id: 'va1', label: "I hope someone here can tell me what's going on.", nextStep: 'deckard_approach' }]);
+            break;
+          case 'deckard_approach':
+            addLine({ text: 'Some people are approaching you: an old man and two young girls.' });
+            setPrompt([
+              { id: 'da', label: 'Acknowledge them but wait', modifiers: { wisdom: 2, resolve: 2 }, nextStep: 'deckard_lore' },
+              { id: 'db', label: 'Be wary', modifiers: { survival: 2 }, guard: 'distrusting', nextStep: 'deckard_lore' },
+              { id: 'dc', label: 'Leave the area quickly', guard: 'leave_quick', nextStep: 'village_return' },
+            ]);
+            break;
+          case 'village_return':
+            addLine({ text: 'You step back into the trees. The village watches silently.' });
+            addLine({ text: 'Revisit the village when ready.' });
+            setStep('idle_play');
+            persist('idle_play');
+            break;
+          case 'deckard_lore':
+            addLine({ speaker: 'Deckard', text: 'My name is Deckard, this is my village.' });
+            addLine({ text: '"Blinks... we all woke up here. Just me first. Now we get a new one every day."' });
+            addLine({ text: '"Survival is the name of the game here. Dangerous place. Wolves, boar... skeletons."' });
+            addLine({ text: '"That is enough for today... I am weary. Visit the tavern. Work, eat, contribute."' });
+            setPrompt([
+              { id: 'f1', label: 'Thank you for everything.', modifiers: { grateful: 3, polite: 2, liked: 2 }, nextStep: 'deckard_farewell' },
+              { id: 'f2', label: 'Wait, I have more questions!', modifiers: { curious: 2, hasty: 1 }, nextStep: 'deckard_farewell' },
+              { id: 'f3', label: 'Am I allowed to come and go freely?', modifiers: { loneWolf: 2, distrustful: 2 }, nextStep: 'deckard_farewell' },
+            ]);
+            break;
+          case 'deckard_farewell':
+            addLine({ text: 'Deckard shambles off to a large tent. His companions steady him.' });
+            addLine({ text: 'New activities unlocked on map!', isSystem: true });
+            addLine({ text: 'Your profile has been unlocked!', isSystem: true });
+            setUnlocks((prev) => ({ ...prev, profile: true, tavern: true }));
+            setPrompt([{ id: 'visit_tavern', label: 'Visit the tavern next.', nextStep: 'tavern_prompt' }]);
+            break;
+          case 'tavern_prompt':
+            addLine({ text: 'A warm glow spills from the tavern doors.' });
+            setPrompt([{ id: 'enter_tavern', label: 'Step inside.', nextStep: 'tavern_visit' }]);
+            break;
+          case 'tavern_visit':
+            addLine({ text: 'You did not realize how hungry you were until the Tavern Keep served you stew. Bunks fill every corner.' });
+            setPrompt([{ id: 'settle', label: 'I guess this will be my home for a while.', nextStep: 'tutorial_complete' }]);
+            break;
+          case 'tutorial_complete':
+            addLine({ text: 'Tutorial Complete. Log in daily for quests. Every choice is permanent.' });
+            addLine({ text: 'Unlocked activity: Hunt in the Forest', isSystem: true });
+            addLine({ text: 'Unlocked activity: Forage in the Forest', isSystem: true });
+            addLine({ text: 'Unlocked activity: Explore the Forest', isSystem: true });
+            addLine({ text: 'Player Quests unlocked in Tavern', isSystem: true });
+            setUnlocks((prev) => ({
+              ...prev,
+              quests: true,
+              activities: { ...prev.activities, hunt: true, forage: true, explore: true, questsTab: true },
+            }));
+            setStep('idle_play');
+            persist('idle_play');
+            break;
+          case 'idle_play':
+            setCurrentPrompt(null);
+            setInputMode('none');
+            break;
+        }
+      }, 0);
     },
     [addLine, persist, playerName, playerRace, save, setPrompt, state],
   );
