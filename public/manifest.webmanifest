@@ -1,11 +1,11 @@
 {
   "name": "No Stranger Game",
-  "short_name": "Stranger",
+  "short_name": "NoStranger",
   "description": "A seasonal, choice-driven RPG that lives inside your Nostr client.",
-  "start_url": "/game",
+  "start_url": "/play",
   "display": "standalone",
-  "background_color": "#07070a",
-  "theme_color": "#07070a",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
   "icons": [
     {
       "src": "/icon-192.png",

@@ -10,6 +10,19 @@ export default defineConfig(() => ({
     host: "::",
     port: 8080,
   },
+  build: {
+    target: 'es2022',
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string) => {
+          if (id.includes('node_modules')) return 'vendor';
+          if (id.includes('/services/audioManager') || id.includes('/hooks/useAudioEngine')) return 'audio';
+          if (id.includes('/components/GameContainer') || id.includes('/components/PlayView')) return 'game';
+          return undefined;
+        },
+      },
+    },
+  },
   plugins: [
     react(),
   ],
