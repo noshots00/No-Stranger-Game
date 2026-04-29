@@ -6,15 +6,15 @@ export default function CharacterScreen({ state }: { state: GameState }) {
   const [showInventory, setShowInventory] = useState(false);
 
   const visibleStats = useMemo(
-    () => [
-      ['STR', 10],
-      ['DEX', 10],
-      ['CON', 10],
-      ['INT', 10],
-      ['WIS', 10],
-      ['CHA', 10],
+    (): Array<[string, number]> => [
+      ['STR', 10 + (state.character.modifiers.strength ?? 0)],
+      ['DEX', 10 + (state.character.modifiers.agility ?? 0)],
+      ['CON', 10 + (state.character.modifiers.survival ?? 0)],
+      ['INT', 10 + (state.character.modifiers.arcane ?? 0)],
+      ['WIS', 10 + (state.character.modifiers.wisdom ?? 0)],
+      ['CHA', 10 + (state.character.modifiers.liked ?? 0)],
     ],
-    [],
+    [state.character.modifiers],
   );
 
   return (
@@ -25,9 +25,9 @@ export default function CharacterScreen({ state }: { state: GameState }) {
         </div>
         <div>
           <h1 className="text-2xl font-serif text-amber-50 tracking-wide">{state.tutorial.name || 'Traveler'}</h1>
-          <p className="text-sm font-mono text-stone-400 mt-0.5">Level 1 {state.tutorial.race || 'Elf'} Peasant</p>
+          <p className="text-sm font-mono text-stone-400 mt-0.5">Level {Math.max(1, Math.floor(state.character.xpAccumulated / 100) + 1)} {state.tutorial.race || 'Elf'} {state.character.profession}</p>
           <div className="flex gap-3 mt-2 text-xs font-mono text-stone-500">
-            <span className="bg-stone-900 px-2 py-0.5 rounded border border-stone-800">HP {state.character.health}/100</span>
+            <span className="bg-stone-900 px-2 py-0.5 rounded border border-stone-800">HP {state.character.health}/{state.character.maxHealth}</span>
             <span className="bg-stone-900 px-2 py-0.5 rounded border border-stone-800">{state.character.copperAccumulated}c</span>
             <span className="bg-stone-900 px-2 py-0.5 rounded border border-stone-800">{state.character.xpAccumulated} XP</span>
           </div>
@@ -41,7 +41,7 @@ export default function CharacterScreen({ state }: { state: GameState }) {
             <div key={stat} className="flex flex-col items-center p-3 bg-stone-900/60 border border-stone-800 rounded-lg">
               <span className="text-[10px] uppercase tracking-widest text-stone-500 font-mono">{stat}</span>
               <span className="text-2xl font-serif text-amber-400 mt-1">{value}</span>
-              <span className="text-[10px] text-stone-600 font-mono">+0</span>
+              <span className="text-[10px] text-stone-600 font-mono">{value >= 10 ? '+' : ''}{value - 10}</span>
             </div>
           ))}
         </div>
@@ -73,8 +73,8 @@ export default function CharacterScreen({ state }: { state: GameState }) {
           <h3 className="text-xs font-mono text-stone-400 mb-3 uppercase tracking-wider">Inventory</h3>
           <div className="grid grid-cols-4 gap-2">
             {[...Array.from({ length: 8 })].map((_, i) => (
-              <div key={i} className="aspect-square bg-stone-950 border border-stone-800 rounded flex items-center justify-center text-stone-600 text-xs">
-                {i === 0 ? '🗡️' : i === 1 ? '🪵' : ''}
+              <div key={i} className="aspect-square bg-stone-950 border border-stone-800 rounded flex items-center justify-center text-stone-400 text-xs text-center px-1">
+                {state.character.inventory[i] ?? ''}
               </div>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import type { DeepPartial, GameState, TutorialStep } from '@/types/game';
+import { SimplePool } from 'nostr-tools';
 
 const RELAYS = ['wss://relay.nostr.band', 'wss://nos.lol', 'wss://relay.damus.io'];
 const D_TAG = 'character-state';
@@ -65,6 +66,7 @@ function createDefaultState(): GameState {
       maxHealth: 100,
       copperAccumulated: 0,
       xpAccumulated: 0,
+      inventory: [],
     },
     completedQuestIds: [],
   };
@@ -92,7 +94,7 @@ function deepMergeState(base: GameState, patch: DeepPartial<GameState>): GameSta
       ...patch.character,
       modifiers: { ...base.character.modifiers, ...patchModifiers },
     },
-    completedQuestIds: patch.completedQuestIds ?? base.completedQuestIds,
+    completedQuestIds: Array.from(new Set([...(base.completedQuestIds ?? []), ...(patch.completedQuestIds ?? [])])),
     timestamp: patch.timestamp ?? Date.now(),
   };
 }
@@ -101,6 +103,7 @@ class NostrPersistence {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private subscribers = new Set<(state: GameState) => void>();
   private currentState: GameState = createDefaultState();
+  private pool = new SimplePool();
 
   loadLocal(): GameState {
     try {
@@ -164,64 +167,19 @@ class NostrPersistence {
   }
 
   private async fetchRemoteState(pubkey: string): Promise<GameState | null> {
-    for (const relay of RELAYS) {
-      const event = await this.fetchLatestEvent(relay, pubkey);
-      if (!event?.content) continue;
-      try {
-        const parsed = JSON.parse(event.content) as DeepPartial<GameState>;
-        return deepMergeState(createDefaultState(), parsed);
-      } catch {
-        continue;
-      }
+    try {
+      const events = await this.pool.querySync(
+        RELAYS,
+        { kinds: [EVENT_KIND], authors: [pubkey], '#d': [D_TAG], limit: 1 },
+        { maxWait: 4500 },
+      );
+      const latest = [...events].sort((a, b) => b.created_at - a.created_at)[0];
+      if (!latest?.content) return null;
+      const parsed = JSON.parse(latest.content) as DeepPartial<GameState>;
+      return deepMergeState(createDefaultState(), parsed);
+    } catch {
+      return null;
     }
-    return null;
-  }
-
-  private fetchLatestEvent(relayUrl: string, pubkey: string): Promise<NostrEventPayload | null> {
-    return new Promise((resolve) => {
-      const ws = new WebSocket(relayUrl);
-      const reqId = crypto.randomUUID();
-      let resolved = false;
-      let latest: NostrEventPayload | null = null;
-      const finish = (value: NostrEventPayload | null): void => {
-        if (resolved) return;
-        resolved = true;
-        try {
-          ws.send(JSON.stringify(['CLOSE', reqId]));
-        } catch {
-          // noop
-        }
-        ws.close();
-        resolve(value);
-      };
-
-      const timer = setTimeout(() => finish(latest), 4500);
-
-      ws.onopen = () => {
-        ws.send(
-          JSON.stringify([
-            'REQ',
-            reqId,
-            { kinds: [EVENT_KIND], authors: [pubkey], '#d': [D_TAG], limit: 1 },
-          ]),
-        );
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data as string) as [string, string, NostrEventPayload];
-        if (data[0] === 'EVENT' && data[2]?.pubkey === pubkey) latest = data[2];
-        if (data[0] === 'EOSE') {
-          clearTimeout(timer);
-          finish(latest);
-        }
-      };
-
-      ws.onerror = () => {
-        clearTimeout(timer);
-        finish(latest);
-      };
-      ws.onclose = () => clearTimeout(timer);
-    });
   }
 
   private async publish(pubkey: string, state: GameState): Promise<boolean> {
@@ -243,41 +201,12 @@ class NostrPersistence {
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('NIP-07 timeout')), 5000)),
       ]);
-
-      for (const relay of RELAYS) {
-        const ok = await this.publishToRelay(relay, signed);
-        if (ok) return true;
-      }
-      return false;
+      const publishJobs = this.pool.publish(RELAYS, signed);
+      await Promise.any(publishJobs.map((job) => job.then(() => true)));
+      return true;
     } catch {
       return false;
     }
-  }
-
-  private publishToRelay(relayUrl: string, event: NostrEventPayload): Promise<boolean> {
-    return new Promise((resolve) => {
-      const ws = new WebSocket(relayUrl);
-      const timer = setTimeout(() => {
-        ws.close();
-        resolve(false);
-      }, 5000);
-
-      ws.onopen = () => ws.send(JSON.stringify(['EVENT', event]));
-      ws.onmessage = (message) => {
-        const data = JSON.parse(message.data as string) as [string, string, boolean];
-        if (data[0] === 'OK') {
-          clearTimeout(timer);
-          ws.close();
-          resolve(Boolean(data[2]));
-        }
-      };
-      ws.onerror = () => {
-        clearTimeout(timer);
-        ws.close();
-        resolve(false);
-      };
-      ws.onclose = () => clearTimeout(timer);
-    });
   }
 }
 

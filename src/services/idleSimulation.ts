@@ -1,4 +1,4 @@
-import { getEstNow } from '@/utils/time';
+import { getEstDayId } from '@/utils/time';
 
 export interface SimulationContext {
   profession: string;
@@ -60,9 +60,9 @@ function seededRandom(seed: number): number {
 }
 
 export function runSimulation(ctx: SimulationContext): SimulationResult {
-  const now = getEstNow();
+  const nowTs = Date.now();
   const lastSim = new Date(ctx.lastSimTime);
-  const elapsedMs = now.getTime() - lastSim.getTime();
+  const elapsedMs = nowTs - lastSim.getTime();
 
   if (elapsedMs <= 0 || Number.isNaN(ctx.lastSimTime)) {
     return {
@@ -70,7 +70,7 @@ export function runSimulation(ctx: SimulationContext): SimulationResult {
       xpEarned: 0,
       healthDelta: 0,
       day: ctx.day,
-      lastSimTime: now.getTime(),
+      lastSimTime: nowTs,
       logs: [],
       newHourlyCopper: ctx.hourlyCopper,
       newHourlyXp: ctx.hourlyXp,
@@ -78,7 +78,8 @@ export function runSimulation(ctx: SimulationContext): SimulationResult {
   }
 
   const hoursElapsed = Math.min(24, elapsedMs / 3_600_000);
-  const crossedMidnight = now.getHours() === 0 && lastSim.getHours() !== 0;
+  const dayDelta = getEstDayId(nowTs) === getEstDayId(ctx.lastSimTime) ? 0 : Math.max(1, Math.floor(elapsedMs / 86_400_000));
+  const crossedMidnight = dayDelta > 0;
   const baseWage = BASE_WAGES[ctx.profession] ?? BASE_WAGES.Peasant;
   const baseXp = BASE_XP[ctx.profession] ?? BASE_XP.Peasant;
   const wageMult =
@@ -97,21 +98,22 @@ export function runSimulation(ctx: SimulationContext): SimulationResult {
 
   if (crossedMidnight) {
     const shelterCost = SHELTER_COSTS[ctx.shelter] ?? 5;
-    const netDaily = copperEarned - shelterCost;
+    const totalShelterCost = shelterCost * dayDelta;
+    const netDaily = copperEarned - totalShelterCost;
     if (netDaily < 0) {
-      copperEarned = shelterCost;
-      logs.push(`Survival stipend covered ${shelterCost}c shelter cost.`);
+      copperEarned = totalShelterCost;
+      logs.push(`Survival stipend covered ${totalShelterCost}c shelter cost.`);
     } else {
       copperEarned = netDaily;
-      logs.push(`Paid ${shelterCost}c for ${ctx.shelter}.`);
+      logs.push(`Paid ${totalShelterCost}c for ${ctx.shelter}.`);
     }
-    healthDelta = 5;
-    logs.push('A new day dawns. You wake refreshed.');
+    healthDelta = 5 * dayDelta;
+    logs.push(dayDelta > 1 ? `${dayDelta} days pass. You wake refreshed.` : 'A new day dawns. You wake refreshed.');
   }
 
-  const roll = seededRandom(now.getTime() + ctx.hourlyCopper * 100);
+  const roll = seededRandom(nowTs + ctx.hourlyCopper * 100);
   if (roll > 0.85 && ctx.traits.includes('Curious')) logs.push('You noticed something unusual while working.');
-  if (ctx.traits.includes('Night Owl') && now.getHours() < 6) {
+  if (ctx.traits.includes('Night Owl') && new Date(nowTs).getHours() < 6) {
     logs.push('Worked through the quiet hours. +3% yield.');
     xpEarned += 2;
   }
@@ -120,8 +122,8 @@ export function runSimulation(ctx: SimulationContext): SimulationResult {
     copperEarned,
     xpEarned,
     healthDelta,
-    day: crossedMidnight ? ctx.day + 1 : ctx.day,
-    lastSimTime: now.getTime(),
+    day: crossedMidnight ? ctx.day + dayDelta : ctx.day,
+    lastSimTime: nowTs,
     logs,
     newHourlyCopper: effectiveHourlyCopper,
     newHourlyXp: hourlyXp,

@@ -1,13 +1,7 @@
-const EST_OFFSET_HOURS = -5;
+import { getNextEstMidnight } from '@/utils/time';
 
 export function getNextESTMidnight(nowMs: number = Date.now()): number {
-  const estNowMs = nowMs + (EST_OFFSET_HOURS * 60 * 60 * 1000);
-  const estNow = new Date(estNowMs);
-  const year = estNow.getUTCFullYear();
-  const month = estNow.getUTCMonth();
-  const day = estNow.getUTCDate();
-  const nextEstMidnightUtcMs = Date.UTC(year, month, day + 1, 0 - EST_OFFSET_HOURS, 0, 0, 0);
-  return nextEstMidnightUtcMs;
+  return getNextEstMidnight(nowMs);
 }
 
 export function getDayCountSince(startedAtMs: number, nowMs: number = Date.now()): number {

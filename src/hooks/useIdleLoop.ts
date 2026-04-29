@@ -7,19 +7,30 @@ export function useIdleLoop(
   onSimulationComplete: (result: SimulationResult) => void,
 ) {
   const lastRunRef = useRef(0);
+  const contextRef = useRef<SimulationContext | null>(context);
+  const onSimulationCompleteRef = useRef(onSimulationComplete);
+
+  useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
+
+  useEffect(() => {
+    onSimulationCompleteRef.current = onSimulationComplete;
+  }, [onSimulationComplete]);
 
   const triggerSimulation = useCallback(() => {
-    if (!context) return;
+    const currentContext = contextRef.current;
+    if (!currentContext) return;
 
     const now = Date.now();
     if (now - lastRunRef.current < 1500) return;
     lastRunRef.current = now;
 
-    const result = runSimulation(context);
-    if (result.copperEarned > 0 || result.xpEarned > 0 || result.day !== context.day || result.logs.length > 0) {
-      onSimulationComplete(result);
+    const result = runSimulation(currentContext);
+    if (result.copperEarned > 0 || result.xpEarned > 0 || result.day !== currentContext.day || result.logs.length > 0) {
+      onSimulationCompleteRef.current(result);
     }
-  }, [context, onSimulationComplete]);
+  }, []);
 
   useEffect(() => {
     triggerSimulation();
@@ -37,5 +48,12 @@ export function useIdleLoop(
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onFocus);
     };
+  }, [triggerSimulation]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') triggerSimulation();
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(interval);
   }, [triggerSimulation]);
 }

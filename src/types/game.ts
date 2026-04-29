@@ -63,6 +63,7 @@ export interface GameState {
     maxHealth: number;
     copperAccumulated: number;
     xpAccumulated: number;
+    inventory: string[];
   };
   completedQuestIds: string[];
 }

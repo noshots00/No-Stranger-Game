@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { LoginArea } from '@/components/auth/LoginArea';
@@ -110,6 +110,33 @@ export function RPGInterface() {
   const [showStuckRecovery, setShowStuckRecovery] = useState(false);
   const [skipDelta, setSkipDelta] = useState<{ goldDelta: number; healthDelta: number; fromLocation: string; toLocation: string } | null>(null);
   const [mobileDevToolsEnabled, setMobileDevToolsEnabled] = useState(false);
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncErrorAtRef = useRef(0);
+
+  function noteSyncFailure() {
+    const now = Date.now();
+    if (now - lastSyncErrorAtRef.current < 20_000) return;
+    lastSyncErrorAtRef.current = now;
+    toast({
+      title: 'Network sync delayed',
+      description: 'Local progress is safe. Relay sync will retry in the background.',
+    });
+  }
+
+  const persistCharacter = (nextCharacter: MVPCharacter) => {
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+    }
+    saveDebounceRef.current = setTimeout(() => {
+      saveMVPCharacter(nextCharacter);
+    }, 100);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    };
+  }, []);
 
   const wasTickPublished = (characterId: string, tick: string): boolean => {
     try {
@@ -195,7 +222,7 @@ export function RPGInterface() {
       nextQuestUnlockTime: character.nextQuestUnlockTime ?? 0,
       companionUnlocked: Boolean(character.companionUnlocked),
     };
-    saveMVPCharacter(repaired);
+    persistCharacter(repaired);
     setCharacter(repaired);
     setShowStuckRecovery(false);
   };
@@ -264,7 +291,7 @@ export function RPGInterface() {
         ...(mergedCharacter.dailyLogs ?? []),
       ].slice(0, 40);
     }
-    saveMVPCharacter(mergedCharacter);
+    persistCharacter(mergedCharacter);
     setCharacter(mergedCharacter);
 
     if (!user || !autoState.lastSimulatedTick) return;
@@ -321,10 +348,6 @@ export function RPGInterface() {
   useConvergence(myClassLabel, networkPresence.data?.topMembers);
   const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
 
-  const noteSyncFailure = () => {
-    // Sync failures are non-blocking for local progression.
-  };
-
   const renderBottomNav = (inChapterMode: boolean) => (
     <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
       <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
@@ -356,7 +379,7 @@ export function RPGInterface() {
   };
 
   const handleCharacterUpdate = (nextCharacter: MVPCharacter) => {
-    saveMVPCharacter(nextCharacter);
+    persistCharacter(nextCharacter);
     setCharacter(nextCharacter);
   };
 
@@ -400,7 +423,7 @@ export function RPGInterface() {
       pubkey: user?.pubkey,
       npub,
     };
-    saveMVPCharacter(newCharacter);
+    persistCharacter(newCharacter);
     setCharacter(newCharacter);
     setScreen('home');
     setActiveView('chapter');
@@ -444,7 +467,7 @@ export function RPGInterface() {
     }
     const pendingAnswers = [...pendingBunch.answers.filter((answer) => answer.questionId !== questionId), { questionId, option }];
     const withPending: MVPCharacter = { ...character, pendingQuestBunch: { questId: activeQuestId, answers: pendingAnswers } };
-    saveMVPCharacter(withPending);
+    persistCharacter(withPending);
     setCharacter(withPending);
     if (pendingAnswers.length < questBunchSteps.length) return;
 
@@ -490,7 +513,7 @@ export function RPGInterface() {
       },
     };
     const now = Math.floor(Date.now() / 1000);
-    saveMVPCharacter(updatedCharacter);
+    persistCharacter(updatedCharacter);
     setCharacter(updatedCharacter);
     markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${finalChoice}`);
     setRevealIdentity({
@@ -554,7 +577,7 @@ export function RPGInterface() {
       }).then((signedProofEvent) => {
         presenceNostr.event(signedProofEvent).catch(() => noteSyncFailure());
         const withHead: MVPCharacter = { ...updatedCharacter, chapterProofHead: signedProofEvent.id };
-        saveMVPCharacter(withHead);
+        persistCharacter(withHead);
         setCharacter(withHead);
       }).catch(() => noteSyncFailure());
     }
@@ -764,7 +787,7 @@ export function RPGInterface() {
           onExplore={(intent) => {
             autonomous.queueExploreIntent(intent);
             const nextCharacter = { ...character, exploreIntent: intent };
-            saveMVPCharacter(nextCharacter);
+            persistCharacter(nextCharacter);
             setCharacter(nextCharacter);
           }}
         />

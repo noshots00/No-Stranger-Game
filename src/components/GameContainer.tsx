@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { AudioInitializer } from '@/components/AudioInitializer';
@@ -12,6 +12,7 @@ import { useDialogueEngine } from '@/hooks/useDialogueEngine';
 import { useIdleLoop } from '@/hooks/useIdleLoop';
 import { useNostrPersistence } from '@/hooks/useNostrPersistence';
 import { usePlayerBroadcast } from '@/hooks/usePlayerBroadcast';
+import type { SimulationResult } from '@/services/idleSimulation';
 import type { TabId } from '@/types/game';
 import { getNextEstMidnight } from '@/utils/time';
 
@@ -60,22 +61,26 @@ export default function GameContainer() {
     };
   }, []);
 
-  useIdleLoop(
-    state
-      ? {
-          profession: state.character.profession,
-          location: state.character.region,
-          shelter: state.character.shelter,
-          traits: state.character.traits,
-          hourlyCopper: state.character.hourlyCopper,
-          hourlyXp: state.character.hourlyXp,
-          lastSimTime: state.character.lastSimTime,
-          day: state.character.day,
-          health: state.character.health,
-          maxHealth: state.character.maxHealth,
-        }
-      : null,
-    (result) => {
+  const simulationContext = useMemo(
+    () =>
+      state
+        ? {
+            profession: state.character.profession,
+            location: state.character.region,
+            shelter: state.character.shelter,
+            traits: state.character.traits,
+            hourlyCopper: state.character.hourlyCopper,
+            hourlyXp: state.character.hourlyXp,
+            lastSimTime: state.character.lastSimTime,
+            day: state.character.day,
+            health: state.character.health,
+            maxHealth: state.character.maxHealth,
+          }
+        : null,
+    [state],
+  );
+
+  const handleSimulationComplete = useCallback((result: SimulationResult) => {
       if (!state) return;
       result.logs.forEach((line) => dialogue.handleSimulationLog(line));
       save({
@@ -93,8 +98,9 @@ export default function GameContainer() {
       if (result.day > state.character.day) {
         broadcast('DAILY_SURVIVAL', { name: state.tutorial.name || 'Traveler', day: String(result.day) });
       }
-    },
-  );
+    }, [broadcast, dialogue, save, state]);
+
+  useIdleLoop(simulationContext, handleSimulationComplete);
 
   const mapLocations = useMemo<MapLocation[]>(
     () => [

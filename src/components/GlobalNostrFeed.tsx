@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMemo } from 'react';
+import { useNostr } from '@nostrify/react';
+import { useQuery } from '@tanstack/react-query';
 
 interface FeedPost {
   id: string;
@@ -9,87 +11,34 @@ interface FeedPost {
   isGamePost: boolean;
 }
 
-const RELAYS = ['wss://relay.nostr.band', 'wss://nos.lol', 'wss://relay.damus.io'];
 const GAME_TAG = 'no-stranger';
 const MAX_POSTS = 12;
-const SUBSCRIPTION_TIMEOUT_MS = 4000;
 
 export function GlobalNostrFeed() {
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reqIdRef = useRef('');
-  const mountedRef = useRef(true);
+  const { nostr } = useNostr();
+  const feedQuery = useQuery({
+    queryKey: ['nostr', 'global-feed', GAME_TAG],
+    queryFn: async () => {
+      const events = await nostr.query([{ kinds: [1], limit: MAX_POSTS * 2, '#t': [GAME_TAG] }]);
+      const items = events
+        .filter((evt) => typeof evt.content === 'string' && evt.content.trim().length > 0)
+        .map<FeedPost>((evt) => ({
+          id: evt.id,
+          author: evt.pubkey.slice(0, 6),
+          content: evt.content,
+          timestamp: evt.created_at * 1000,
+          relay: 'pool',
+          isGamePost: evt.tags.some((tag) => tag[0] === 't' && tag[1] === GAME_TAG),
+        }))
+        .slice(0, MAX_POSTS);
+      return items;
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
-  const cleanup = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(['CLOSE', reqIdRef.current]));
-      wsRef.current.close();
-    }
-    wsRef.current = null;
-    mountedRef.current = false;
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    reqIdRef.current = crypto.randomUUID();
-    setLoading(true);
-    setPosts([]);
-
-    const connectRelay = (relayUrl: string, attempt = 0) => {
-      if (!mountedRef.current) return;
-      const ws = new WebSocket(relayUrl);
-      wsRef.current = ws;
-      const timeout = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          ws.close();
-          if (attempt < RELAYS.length - 1) connectRelay(RELAYS[attempt + 1], attempt + 1);
-        }
-      }, SUBSCRIPTION_TIMEOUT_MS);
-
-      ws.onopen = () => {
-        clearTimeout(timeout);
-        ws.send(JSON.stringify(['REQ', reqIdRef.current, { kinds: [1], limit: MAX_POSTS * 2, '#t': [GAME_TAG] }]));
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data as string) as [string, string, { id: string; pubkey: string; content: string; created_at: number; tags: string[][] }];
-        if (data[0] === 'EVENT' && data[2]?.content) {
-          const evt = data[2];
-          const isGame = evt.tags.some((tag) => tag[0] === 't' && tag[1] === GAME_TAG);
-          setPosts((prev) => {
-            if (prev.some((post) => post.id === evt.id) || prev.length >= MAX_POSTS) return prev;
-            return [
-              {
-                id: evt.id,
-                author: evt.pubkey.slice(0, 6),
-                content: evt.content,
-                timestamp: evt.created_at * 1000,
-                relay: relayUrl,
-                isGamePost: isGame,
-              },
-              ...prev,
-            ].slice(0, MAX_POSTS);
-          });
-        } else if (data[0] === 'EOSE') {
-          setLoading(false);
-        }
-      };
-
-      ws.onerror = () => clearTimeout(timeout);
-      ws.onclose = () => {
-        clearTimeout(timeout);
-        if (mountedRef.current && attempt < RELAYS.length - 1) {
-          setTimeout(() => connectRelay(RELAYS[attempt + 1], attempt + 1), 1500);
-        } else if (mountedRef.current) {
-          setLoading(false);
-        }
-      };
-    };
-
-    connectRelay(RELAYS[0]);
-    return cleanup;
-  }, [cleanup]);
+  const posts = useMemo(() => feedQuery.data ?? [], [feedQuery.data]);
+  const loading = feedQuery.isLoading;
 
   const formatTime = (timestamp: number) => {
     const diff = Date.now() - timestamp;

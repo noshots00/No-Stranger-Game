@@ -5,8 +5,9 @@ export type SoundId = 'tap' | 'travel' | 'quest' | 'discovery' | 'injury' | 'lev
 class AudioManager {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private ambientGain: GainNode | null = null;
+  private ambientBus: GainNode | null = null;
   private currentAmbientOsc: OscillatorNode | null = null;
+  private currentAmbientGain: GainNode | null = null;
   private muted = false;
   private initialized = false;
   private sfxBuffers = new Map<SoundId, AudioBuffer>();
@@ -15,10 +16,10 @@ class AudioManager {
     if (this.initialized) return;
     this.context = new AudioContext();
     this.masterGain = this.context.createGain();
-    this.ambientGain = this.context.createGain();
+    this.ambientBus = this.context.createGain();
     this.masterGain.gain.value = 0.4;
-    this.ambientGain.gain.value = 0;
-    this.ambientGain.connect(this.masterGain);
+    this.ambientBus.gain.value = 1;
+    this.ambientBus.connect(this.masterGain);
     this.masterGain.connect(this.context.destination);
     this.initialized = true;
     if (this.context.state === 'suspended') await this.context.resume();
@@ -49,29 +50,40 @@ class AudioManager {
   }
 
   setAmbient(region: AmbientRegion): void {
-    if (!this.context || !this.ambientGain || !this.masterGain) return;
+    if (!this.context || !this.ambientBus || !this.masterGain) return;
     const now = this.context.currentTime;
-    this.ambientGain.gain.cancelScheduledValues(now);
-    this.ambientGain.gain.linearRampToValueAtTime(0, now + 0.25);
-
-    if (this.currentAmbientOsc) {
-      this.currentAmbientOsc.stop(now + 0.3);
-      this.currentAmbientOsc.disconnect();
-      this.currentAmbientOsc = null;
-    }
+    const fadeOutEnd = now + 0.5;
+    const targetGain = this.muted ? 0 : 0.35;
+    const oldOsc = this.currentAmbientOsc;
+    const oldGain = this.currentAmbientGain;
 
     const osc = this.context.createOscillator();
     osc.type = 'sine';
     osc.frequency.value = this.getAmbientFrequency(region);
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, now);
 
     const filter = this.context.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 900;
     osc.connect(filter);
-    filter.connect(this.ambientGain);
+    filter.connect(gain);
+    gain.connect(this.ambientBus);
     osc.start(now);
     this.currentAmbientOsc = osc;
-    this.ambientGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.35, now + 1.5);
+    this.currentAmbientGain = gain;
+    gain.gain.linearRampToValueAtTime(targetGain, now + 1.1);
+
+    if (oldOsc && oldGain) {
+      oldGain.gain.cancelScheduledValues(now);
+      oldGain.gain.setValueAtTime(oldGain.gain.value, now);
+      oldGain.gain.linearRampToValueAtTime(0.0001, fadeOutEnd);
+      oldOsc.stop(fadeOutEnd + 0.05);
+      window.setTimeout(() => {
+        oldOsc.disconnect();
+        oldGain.disconnect();
+      }, 700);
+    }
   }
 
   playSFX(id: SoundId, volume = 0.6): void {

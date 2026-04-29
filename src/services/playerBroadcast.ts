@@ -1,3 +1,5 @@
+import { SimplePool } from 'nostr-tools';
+
 const BROADCAST_TEMPLATES = {
   RACE_REVEAL: 'A traveler awakens as {race}. The forest hums in recognition.',
   PROFESSION_UNLOCK: 'A traveler takes up the {profession} trade. The village notes their skill.',
@@ -53,6 +55,7 @@ class PlayerBroadcastService {
     'wss://relay.damus.io',
     'wss://relay.snort.social',
   ];
+  private pool = new SimplePool();
 
   constructor() {
     this.loadQueue();
@@ -118,43 +121,12 @@ class PlayerBroadcastService {
         tags: [['t', 'no-stranger']],
         pubkey,
       });
-
-      for (const relay of this.relays) {
-        const ok = await this.sendToRelay(relay, signed);
-        if (ok) return true;
-      }
-      return false;
+      const publishJobs = this.pool.publish(this.relays, signed);
+      await Promise.any(publishJobs.map((job) => job.then(() => true)));
+      return true;
     } catch {
       return false;
     }
-  }
-
-  private sendToRelay(
-    url: string,
-    event: { id: string; pubkey: string; created_at: number; kind: number; tags: string[][]; content: string; sig: string },
-  ): Promise<boolean> {
-    return new Promise((resolve) => {
-      const ws = new WebSocket(url);
-      const timeout = setTimeout(() => {
-        ws.close();
-        resolve(false);
-      }, 4000);
-      ws.onopen = () => ws.send(JSON.stringify(['EVENT', event]));
-      ws.onmessage = (message) => {
-        const data = JSON.parse(message.data as string) as [string, string, boolean];
-        if (data[0] === 'OK') {
-          clearTimeout(timeout);
-          ws.close();
-          resolve(Boolean(data[2]));
-        }
-      };
-      ws.onerror = () => {
-        clearTimeout(timeout);
-        ws.close();
-        resolve(false);
-      };
-      ws.onclose = () => clearTimeout(timeout);
-    });
   }
 
   private saveQueue(): void {

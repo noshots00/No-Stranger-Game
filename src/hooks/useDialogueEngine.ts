@@ -75,6 +75,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
   );
   const [appliedGuards, setAppliedGuards] = useState<Set<string>>(new Set(state?.tutorial.guards ?? []));
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rebuiltStepRef = useRef<TutorialStep | null>(null);
 
   const persist = useCallback(
     (nextStep: TutorialStep, extras?: DeepPartial<GameState>) => {
@@ -154,7 +155,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
               {
                 id: 'map',
                 label: 'Check the map.',
-                nextStep: 'map_reveal',
+                nextStep: 'boar_encounter',
                 onChoose: () =>
                   setUnlocks((prev) => ({
                     ...prev,
@@ -188,9 +189,8 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
             break;
           case 'village_return':
             addLine({ text: 'You step back into the trees. The village watches silently.' });
-            addLine({ text: 'Revisit the village when ready.' });
-            setStep('idle_play');
-            persist('idle_play');
+            addLine({ text: 'You return to the village after gathering your nerve.' });
+            setPrompt([{ id: 'return_deckard', label: 'Speak with Deckard.', nextStep: 'deckard_lore' }]);
             break;
           case 'deckard_lore':
             addLine({ speaker: 'Deckard', text: 'My name is Deckard, this is my village.' });
@@ -239,7 +239,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
         }
       }, 0);
     },
-    [addLine, currentPrompt?.length, history.length, inputMode, persist, playerName, playerRace, save, setPrompt, state, step],
+    [addLine, persist, playerName, playerRace, save, setPrompt, state, step],
   );
 
   const handleChoice = useCallback(
@@ -306,6 +306,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
   useEffect(() => {
     if (!state) return;
     const normalized = normalizeStep(state.tutorial.step);
+    if (normalized === step && rebuiltStepRef.current === normalized) return;
     setStep(normalized);
     setPlayerName(state.tutorial.name);
     setPlayerRace(state.tutorial.race || 'Elf');
@@ -326,10 +327,11 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
         },
       });
     }
-  }, [save, state]);
+  }, [save, state, step]);
 
   useEffect(() => {
     if (history.length !== 0) return;
+    if (rebuiltStepRef.current === step) return;
 
     // Rebuild prompt/history deterministically after refresh or state restore.
     if (step === 'idle_play') return;
@@ -340,8 +342,10 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
     if (step === 'vignettes') {
       setCurrentPrompt(null);
       setInputMode('none');
+      rebuiltStepRef.current = step;
       return;
     }
+    rebuiltStepRef.current = step;
     advance(normalizeStep(step));
   }, [advance, history.length, step]);
 

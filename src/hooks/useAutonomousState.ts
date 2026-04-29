@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import type { MVPCharacter } from '@/lib/rpg/utils';
@@ -75,6 +75,10 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
   const [state, setState] = useState<AutonomousState | null>(null);
   const [isTicking, setIsTicking] = useState(false);
   const [relayLoaded, setRelayLoaded] = useState(false);
+  const characterIdentity = useMemo(
+    () => (character ? `${character.id}:${character.createdAt}` : null),
+    [character?.createdAt, character?.id],
+  );
 
   useEffect(() => {
     if (!character) {
@@ -82,7 +86,7 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
       return;
     }
     setState(defaultAutonomousState(character));
-  }, [character]);
+  }, [characterIdentity]);
 
   useEffect(() => {
     if (!character || !userPubkey) return;
@@ -106,7 +110,7 @@ export function useAutonomousState(character: MVPCharacter | null, userPubkey?: 
     return () => {
       mounted = false;
     };
-  }, [character, userPubkey, nostr]);
+  }, [characterIdentity, userPubkey, nostr]);
 
   const tickWindowId = getCurrentUtcTickId();
 
