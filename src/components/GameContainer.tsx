@@ -117,14 +117,22 @@ export default function GameContainer() {
     return <div className="h-[100dvh] flex items-center justify-center bg-stone-950 text-stone-400">Syncing with the clearing...</div>;
   }
 
+  const renderDialogueRecovery = (
+    <div className="h-full flex items-center justify-center px-6 text-center text-stone-300">
+      <div className="space-y-2">
+        <p className="text-sm font-mono uppercase tracking-wider text-stone-400">Recovering Dialogue State</p>
+        <p className="text-xs text-stone-500">step={dialogue.step} input={dialogue.inputMode} history={dialogue.history.length} prompt={dialogue.currentPrompt?.length ?? 0}</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-[100dvh] bg-stone-950 text-stone-200">
       {!audioReady && <AudioInitializer onReady={() => setAudioReady(true)} />}
       <main className="flex-1 overflow-hidden relative">
         <Routes>
-          <Route path="/" element={<Navigate to="/play" replace />} />
           <Route
-            path="/play"
+            index
             element={
               hasVisibleDialogueState ? (
                 <PlayView
@@ -143,17 +151,12 @@ export default function GameContainer() {
                   scrollRef={dialogue.scrollRef}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center px-6 text-center text-stone-300">
-                  <div className="space-y-2">
-                    <p className="text-sm font-mono uppercase tracking-wider text-stone-400">Recovering Dialogue State</p>
-                    <p className="text-xs text-stone-500">step={dialogue.step} input={dialogue.inputMode} history={dialogue.history.length} prompt={dialogue.currentPrompt?.length ?? 0}</p>
-                  </div>
-                </div>
+                renderDialogueRecovery
               )
             }
           />
           <Route
-            path="/map"
+            path="map"
             element={
               openTavernBoard ? (
                 <TavernBounties
@@ -190,7 +193,8 @@ export default function GameContainer() {
               )
             }
           />
-          <Route path="/character" element={<CharacterScreen state={state} />} />
+          <Route path="character" element={<CharacterScreen state={state} />} />
+          <Route path="*" element={<Navigate to="/play" replace />} />
         </Routes>
       </main>
 
@@ -200,7 +204,15 @@ export default function GameContainer() {
           playSFX('tap');
           setOpenTavernBoard(false);
           setActiveTab(tab);
-          navigate(`/${tab}`);
+          if (tab === 'map') {
+            navigate('/play/map');
+            return;
+          }
+          if (tab === 'character') {
+            navigate('/play/character');
+            return;
+          }
+          navigate('/play');
         }}
         unlocks={{ map: dialogue.unlocks.map, character: dialogue.unlocks.profile }}
       />
