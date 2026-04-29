@@ -265,14 +265,16 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
 
   const handleNameSubmit = useCallback(
     (name: string) => {
-      if (!name.trim()) return;
-      setPlayerName(name.trim());
-      addLine({ text: `Name set: ${name.trim()}` });
+      const trimmedName = name.trim();
+      if (!trimmedName) return;
+      setPlayerName(trimmedName);
+      addLine({ text: `Name set: ${trimmedName}` });
       setInputMode('none');
-      persist('vignettes', { tutorial: { ...state?.tutorial, name: name.trim() } });
+      // Only override the name field here; avoid re-introducing stale step values.
+      persist('vignettes', { tutorial: { name: trimmedName } });
       setStep('vignettes');
     },
-    [addLine, persist, state?.tutorial],
+    [addLine, persist],
   );
 
   const completeVignettes = useCallback(
