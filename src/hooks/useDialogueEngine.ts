@@ -115,6 +115,9 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
 
   const advance = useCallback(
     (next: TutorialStep) => {
+      if (import.meta.env.DEV) {
+        console.debug('[DialogueEngine][advance]', { from: step, to: next, history: history.length, inputMode, promptCount: currentPrompt?.length ?? 0 });
+      }
       setStep(next);
       setCurrentPrompt(null);
       setInputMode('none');
@@ -236,7 +239,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
         }
       }, 0);
     },
-    [addLine, persist, playerName, playerRace, save, setPrompt, state],
+    [addLine, currentPrompt?.length, history.length, inputMode, persist, playerName, playerRace, save, setPrompt, state, step],
   );
 
   const handleChoice = useCallback(
@@ -300,12 +303,28 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
 
   useEffect(() => {
     if (!state) return;
-    setStep(normalizeStep(state.tutorial.step));
+    const normalized = normalizeStep(state.tutorial.step);
+    setStep(normalized);
     setPlayerName(state.tutorial.name);
     setPlayerRace(state.tutorial.race || 'Elf');
     setUnlocks(state.unlocks);
     setAppliedGuards(new Set(state.tutorial.guards));
-  }, [state]);
+    if (import.meta.env.DEV) {
+      console.debug('[DialogueEngine][rehydrate-state]', {
+        persistedStep: state.tutorial.step,
+        normalizedStep: normalized,
+      });
+    }
+    if (state.tutorial.step !== normalized) {
+      save({
+        tutorial: {
+          ...state.tutorial,
+          step: normalized,
+          completed: normalized === 'idle_play',
+        },
+      });
+    }
+  }, [save, state]);
 
   useEffect(() => {
     if (history.length !== 0) return;

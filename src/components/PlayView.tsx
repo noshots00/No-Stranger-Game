@@ -35,6 +35,12 @@ export default function PlayView({
       </header>
 
       <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth space-y-5 pb-[84px]" role="log" aria-live="polite">
+        {import.meta.env.DEV && (
+          <div className="rounded border border-stone-700 bg-stone-900/70 px-3 py-2 text-[10px] font-mono text-stone-400">
+            step={step} | history={history.length} | input={inputMode} | prompt={currentPrompt?.length ?? 0}
+          </div>
+        )}
+
         {history.map((line) => (
           <div key={line.id} className="animate-fadeIn">
             <p

@@ -37,6 +37,28 @@ export default function GameContainer() {
   const { state, loading, save } = useNostrPersistence(pubkey);
   const dialogue = useDialogueEngine(state, save);
   const { playSFX } = useAudioEngine(dialogue.region);
+  const hasVisibleDialogueState =
+    dialogue.history.length > 0 ||
+    Boolean(dialogue.currentPrompt?.length) ||
+    dialogue.inputMode === 'text' ||
+    dialogue.step === 'vignettes' ||
+    dialogue.step === 'idle_play';
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const onError = (event: ErrorEvent) => {
+      console.error('[GameContainer][window.error]', event.message, event.filename, event.lineno);
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('[GameContainer][unhandledrejection]', event.reason);
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+    };
+  }, []);
 
   useIdleLoop(
     state
@@ -104,21 +126,30 @@ export default function GameContainer() {
           <Route
             path="/play"
             element={
-              <PlayView
-                day={state.character.day}
-                region={dialogue.region}
-                history={dialogue.history}
-                currentPrompt={dialogue.currentPrompt}
-                inputMode={dialogue.inputMode}
-                step={dialogue.step}
-                onChoice={(opt) => {
-                  playSFX('tap');
-                  dialogue.handleChoice(opt);
-                }}
-                onNameSubmit={dialogue.handleNameSubmit}
-                onCompleteVignettes={dialogue.completeVignettes}
-                scrollRef={dialogue.scrollRef}
-              />
+              hasVisibleDialogueState ? (
+                <PlayView
+                  day={state.character.day}
+                  region={dialogue.region}
+                  history={dialogue.history}
+                  currentPrompt={dialogue.currentPrompt}
+                  inputMode={dialogue.inputMode}
+                  step={dialogue.step}
+                  onChoice={(opt) => {
+                    playSFX('tap');
+                    dialogue.handleChoice(opt);
+                  }}
+                  onNameSubmit={dialogue.handleNameSubmit}
+                  onCompleteVignettes={dialogue.completeVignettes}
+                  scrollRef={dialogue.scrollRef}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center px-6 text-center text-stone-300">
+                  <div className="space-y-2">
+                    <p className="text-sm font-mono uppercase tracking-wider text-stone-400">Recovering Dialogue State</p>
+                    <p className="text-xs text-stone-500">step={dialogue.step} input={dialogue.inputMode} history={dialogue.history.length} prompt={dialogue.currentPrompt?.length ?? 0}</p>
+                  </div>
+                </div>
+              )
             }
           />
           <Route
