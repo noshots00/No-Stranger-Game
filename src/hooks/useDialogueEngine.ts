@@ -275,7 +275,20 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
   }, [state]);
 
   useEffect(() => {
-    if (history.length === 0 && step === 'intro_1') advance('intro_1');
+    if (history.length !== 0) return;
+
+    // Rebuild prompt/history deterministically after refresh or state restore.
+    if (step === 'idle_play') return;
+    if (step === 'intro_1') {
+      advance('intro_1');
+      return;
+    }
+    if (step === 'vignettes') {
+      setCurrentPrompt(null);
+      setInputMode('none');
+      return;
+    }
+    advance(step);
   }, [advance, history.length, step]);
 
   useEffect(() => {
