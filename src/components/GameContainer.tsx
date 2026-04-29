@@ -42,7 +42,6 @@ export default function GameContainer() {
     dialogue.history.length > 0 ||
     Boolean(dialogue.currentPrompt?.length) ||
     dialogue.inputMode === 'text' ||
-    dialogue.step === 'vignettes' ||
     dialogue.step === 'idle_play';
 
   useEffect(() => {
@@ -154,7 +153,6 @@ export default function GameContainer() {
                     dialogue.handleChoice(opt);
                   }}
                   onNameSubmit={dialogue.handleNameSubmit}
-                  onCompleteVignettes={dialogue.completeVignettes}
                   scrollRef={dialogue.scrollRef}
                 />
               ) : (

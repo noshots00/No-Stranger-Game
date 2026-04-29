@@ -29,6 +29,9 @@ const validSteps = new Set<TutorialStep>([
   'intro_3',
   'name_input',
   'vignettes',
+  'vignette_1',
+  'vignette_2',
+  'vignette_3',
   'post_vignettes',
   'map_reveal',
   'map_explore',
@@ -54,6 +57,7 @@ function normalizeStep(raw: string | undefined): TutorialStep {
   if (!raw) return 'intro_1';
   const legacyMap: Record<string, TutorialStep> = {
     intro_forest: 'intro_1',
+    vignettes: 'vignette_1',
     map_unlock: 'map_reveal',
     boar_encounter_overlay: 'boar_encounter',
     village_arrival_scene: 'village_arrival',
@@ -126,14 +130,14 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
   );
 
   const advance = useCallback(
-    (next: TutorialStep) => {
+    (next: TutorialStep, extras?: DeepPartial<GameState>) => {
       if (import.meta.env.DEV) {
         console.debug('[DialogueEngine][advance]', { from: step, to: next, history: history.length, inputMode, promptCount: currentPrompt?.length ?? 0 });
       }
       setStep(next);
       setCurrentPrompt(null);
       setInputMode('none');
-      persist(next);
+      persist(next, extras);
 
       // Defer prompt/input transitions to avoid render races after state resets.
       setTimeout(() => {
@@ -154,11 +158,40 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
             setInputMode('text');
             break;
           case 'vignettes':
+          case 'vignette_1':
+            addLine({ text: 'A fragment of memory surfaces... a vast landscape stretches before you.' });
+            setPrompt([
+              { id: 'v1a', label: 'Ancient trees, their roots deep in the earth', modifiers: { nature: 2, patience: 1 }, nextStep: 'vignette_2' },
+              { id: 'v1b', label: 'Caverns of crystal, forge-light flickering in the deep', modifiers: { craft: 2, endurance: 1 }, nextStep: 'vignette_2' },
+              { id: 'v1c', label: 'Open fields, a village in the distance', modifiers: { adaptable: 2, curiosity: 1 }, nextStep: 'vignette_2' },
+              { id: 'v1d', label: 'A mountain fortress, banners in the wind', modifiers: { strength: 2, courage: 1 }, nextStep: 'vignette_2' },
+            ]);
             break;
-          case 'post_vignettes':
-            addLine({ text: `You are beginning to remember... your name is ${playerName || 'Traveler'} and you are a level 1 ${playerRace || 'Human'} peasant.` });
+          case 'vignette_2':
+            addLine({ text: 'Another memory... hands — YOUR hands — doing something.' });
+            setPrompt([
+              { id: 'v2a', label: 'Tracing runes on bark, feeling the pulse of living wood', modifiers: { nature: 2, wisdom: 1 }, nextStep: 'vignette_3' },
+              { id: 'v2b', label: 'Shaping metal at an anvil, each strike precise', modifiers: { craft: 2, strength: 1 }, nextStep: 'vignette_3' },
+              { id: 'v2c', label: 'Writing in a ledger, counting coin at a market stall', modifiers: { adaptable: 2, cunning: 1 }, nextStep: 'vignette_3' },
+              { id: 'v2d', label: 'Gripping a weapon, training in a yard', modifiers: { strength: 2, bravery: 1 }, nextStep: 'vignette_3' },
+            ]);
+            break;
+          case 'vignette_3':
+            addLine({ text: 'The fog lifts... you catch a glimpse of your reflection in a still pool.' });
+            setPrompt([
+              { id: 'v3_elf', label: 'Slender features, leaf-shaped ears, ancient eyes', nextStep: 'post_vignettes' },
+              { id: 'v3_dwarf', label: 'Stout frame, thick beard, eyes like flint', nextStep: 'post_vignettes' },
+              { id: 'v3_human', label: 'Weathered but warm features, a determined gaze', nextStep: 'post_vignettes' },
+              { id: 'v3_orc', label: 'Broad build, tusked jaw, fierce but knowing eyes', nextStep: 'post_vignettes' },
+            ]);
+            break;
+          case 'post_vignettes': {
+            const raceName = (extras?.tutorial as { race?: string } | undefined)?.race || playerRace || 'Human';
+            const charName = (extras?.tutorial as { name?: string } | undefined)?.name || playerName || 'Traveler';
+            addLine({ text: `You are beginning to remember... your name is ${charName} and you are a level 1 ${raceName} peasant.` });
             setPrompt([{ id: 'continue', label: 'Continue...', nextStep: 'map_reveal' }]);
             break;
+          }
           case 'map_reveal':
             addLine({ text: `Unlocked Race: ${playerRace}`, isSystem: true });
             addLine({ text: 'Soandso has found something.' });
@@ -167,19 +200,16 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
                 id: 'map',
                 label: 'Check the map.',
                 nextStep: 'map_explore',
-                onChoose: () =>
-                  setUnlocks((prev) => ({
-                    ...prev,
-                    map: true,
-                  })),
               },
             ]);
             break;
           case 'map_explore':
+            setUnlocks((prev) => ({ ...prev, map: true }));
             addLine({ text: 'The map is now open. Visit the village.' });
             setCurrentPrompt(null);
             break;
           case 'boar_encounter':
+            setUnlocks((prev) => ({ ...prev, map: true }));
             addLine({ text: 'A wild boar bursts from the brush and charges!' });
             setPrompt([
               { id: 'b1', label: 'Attack', modifiers: { strength: 5, bravery: 3 }, nextStep: 'village_arrival' },
@@ -311,7 +341,20 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
       if (step === 'tavern_visit') {
         broadcast('TAVERN_SETTLED');
       }
-      advance(option.nextStep);
+      const raceMap: Record<string, string> = {
+        v3_elf: 'Elf',
+        v3_dwarf: 'Dwarf',
+        v3_human: 'Human',
+        v3_orc: 'Orc',
+      };
+      const raceForChoice = raceMap[option.id];
+      if (step === 'vignette_3' && raceForChoice) {
+        setPlayerRace(raceForChoice);
+        broadcast('RACE_REVEAL', { race: raceForChoice });
+      }
+      const extras: DeepPartial<GameState> | undefined =
+        step === 'vignette_3' ? { tutorial: { race: raceForChoice } } : undefined;
+      advance(option.nextStep, extras);
     },
     [addLine, advance, appliedGuards, applyModifiers, broadcast, step],
   );
@@ -323,20 +366,9 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
       setPlayerName(trimmedName);
       addLine({ text: `Name set: ${trimmedName}` });
       setInputMode('none');
-      // Only override the name field here; avoid re-introducing stale step values.
-      persist('vignettes', { tutorial: { name: trimmedName } });
-      setStep('vignettes');
+      advance('vignette_1', { tutorial: { name: trimmedName } });
     },
-    [addLine, persist],
-  );
-
-  const completeVignettes = useCallback(
-    (race: string) => {
-      setPlayerRace(race);
-      broadcast('RACE_REVEAL', { race });
-      advance('post_vignettes');
-    },
-    [advance, broadcast],
+    [addLine, advance],
   );
 
   const handleMapInteraction = useCallback(
@@ -398,12 +430,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
       advance('intro_1');
       return;
     }
-    if (step === 'vignettes') {
-      setCurrentPrompt(null);
-      setInputMode('none');
-      rebuiltStepRef.current = step;
-      return;
-    }
+
     rebuiltStepRef.current = step;
     advance(normalizeStep(step));
   }, [advance, history.length, step]);
@@ -443,7 +470,6 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
     region,
     handleChoice,
     handleNameSubmit,
-    completeVignettes,
     handleMapInteraction,
     handleSimulationLog,
     scrollRef,

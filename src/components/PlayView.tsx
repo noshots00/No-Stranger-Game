@@ -10,7 +10,6 @@ interface PlayViewProps {
   step: string;
   onChoice: (choice: ChoiceOption) => void;
   onNameSubmit: (name: string) => void;
-  onCompleteVignettes: (race: string) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -28,7 +27,6 @@ export default function PlayView({
   step,
   onChoice,
   onNameSubmit,
-  onCompleteVignettes,
   scrollRef,
 }: PlayViewProps) {
   return (
@@ -96,16 +94,7 @@ export default function PlayView({
           </form>
         )}
 
-        {step === 'vignettes' && (
-          <div className="p-4 bg-stone-900/50 border border-stone-800 rounded-lg text-center text-stone-400 animate-fadeIn">
-            <p className="text-sm">[Vignette Sequence Active]</p>
-            <button onClick={() => onCompleteVignettes('Elf')} className="mt-3 px-4 py-2 rounded border border-stone-700 bg-stone-800 hover:bg-stone-700 text-xs font-mono">
-              Finish Vignettes
-            </button>
-          </div>
-        )}
-
-        {currentPrompt && step !== 'vignettes' && (
+        {currentPrompt && (
           <div className="space-y-3 mt-2 animate-slideUp">
             {currentPrompt.map((opt) => (
               <button
