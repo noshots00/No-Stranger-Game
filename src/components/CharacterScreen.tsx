@@ -1,9 +1,19 @@
 import { useMemo, useState } from 'react';
 
 import type { GameState } from '@/types/game';
+import TavernBounties from '@/components/TavernBounties';
 
-export default function CharacterScreen({ state }: { state: GameState }) {
+interface CharacterScreenProps {
+  state: GameState;
+  completedQuestIds: string[];
+  onApplyModifiers: (mods: Record<string, number>) => void;
+  onCompleteQuest: (questId: string) => void;
+  estMidnightTimestamp: number;
+}
+
+export default function CharacterScreen({ state, completedQuestIds, onApplyModifiers, onCompleteQuest, estMidnightTimestamp }: CharacterScreenProps) {
   const [showInventory, setShowInventory] = useState(false);
+  const [showBounties, setShowBounties] = useState(false);
 
   const visibleStats = useMemo(
     (): Array<[string, number]> => [
@@ -17,8 +27,30 @@ export default function CharacterScreen({ state }: { state: GameState }) {
     [state.character.modifiers],
   );
 
+  if (showBounties) {
+    return (
+      <div className="flex flex-col h-full">
+        <button
+          onClick={() => setShowBounties(false)}
+          className="px-4 py-2 text-xs font-mono text-stone-400 hover:text-stone-200 text-left border-b border-stone-800 bg-stone-950 shrink-0"
+        >
+          &larr; Back to Character
+        </button>
+        <div className="flex-1 overflow-hidden">
+          <TavernBounties
+            currentDay={state.character.day}
+            completedQuestIds={completedQuestIds}
+            onApplyModifiers={onApplyModifiers}
+            onCompleteQuest={onCompleteQuest}
+            estMidnightTimestamp={estMidnightTimestamp}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-[100dvh] bg-stone-950 text-stone-200 overflow-y-auto px-4 py-5 scroll-smooth">
+    <div className="flex flex-col h-full bg-stone-950 text-stone-200 overflow-y-auto px-4 py-5 scroll-smooth">
       <header className="flex items-center gap-4 mb-6 pb-4 border-b border-stone-800">
         <div className="relative w-20 h-20 shrink-0 rounded-full border-2 border-amber-700/40 bg-stone-900 overflow-hidden shadow-lg">
           <div className="w-full h-full flex items-center justify-center text-3xl opacity-40">👤</div>
@@ -98,6 +130,17 @@ export default function CharacterScreen({ state }: { state: GameState }) {
           </div>
         </div>
       )}
+
+      {state.unlocks.quests && (
+        <button
+          onClick={() => setShowBounties(true)}
+          className="w-full py-4 mb-4 bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 rounded-lg text-amber-200 font-mono text-sm tracking-wide transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+        >
+          <span className="text-lg">📜</span>
+          Bounty Board
+        </button>
+      )}
+
       <div className="h-6" />
     </div>
   );
