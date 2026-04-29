@@ -12,6 +12,7 @@ import { useDialogueEngine } from '@/hooks/useDialogueEngine';
 import { useIdleLoop } from '@/hooks/useIdleLoop';
 import { useNostrPersistence } from '@/hooks/useNostrPersistence';
 import { usePlayerBroadcast } from '@/hooks/usePlayerBroadcast';
+import { clearPersistedGameState } from '@/services/nostrPersistence';
 import type { TabId } from '@/types/game';
 import { getNextEstMidnight } from '@/utils/time';
 
@@ -23,6 +24,7 @@ export default function GameContainer() {
   const [openTavernBoard, setOpenTavernBoard] = useState(false);
   const [pubkey, setPubkey] = useState<string>();
   const { broadcast } = usePlayerBroadcast();
+  const isDev = import.meta.env.DEV;
 
   useEffect(() => {
     const nextTab = location.pathname.includes('/map') ? 'map' : location.pathname.includes('/character') ? 'character' : 'play';
@@ -120,6 +122,18 @@ export default function GameContainer() {
   return (
     <div className="flex flex-col h-[100dvh] bg-stone-950 text-stone-200">
       {!audioReady && <AudioInitializer onReady={() => setAudioReady(true)} />}
+      {isDev && (
+        <button
+          type="button"
+          onClick={() => {
+            clearPersistedGameState();
+            window.location.assign('/play');
+          }}
+          className="fixed left-2 top-2 z-50 rounded-md border border-red-400/50 bg-red-950/90 px-3 py-1 text-[10px] font-mono uppercase tracking-wide text-red-100 hover:bg-red-900"
+        >
+          Reset Game State
+        </button>
+      )}
       <main className="flex-1 overflow-hidden relative">
         <Routes>
           <Route path="/" element={<Navigate to="/play" replace />} />

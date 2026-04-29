@@ -283,6 +283,10 @@ class NostrPersistence {
 
 export const nostrPersistence = new NostrPersistence();
 
+export function clearPersistedGameState(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export function withTutorialStep(state: GameState, step: TutorialStep): GameState {
   return deepMergeState(state, {
     tutorial: {
