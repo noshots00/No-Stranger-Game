@@ -284,7 +284,19 @@ class NostrPersistence {
 export const nostrPersistence = new NostrPersistence();
 
 export function clearPersistedGameState(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  const keysToDelete: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key === STORAGE_KEY || key.startsWith('nsg_')) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach((key) => localStorage.removeItem(key));
+}
+
+export function deleteCharacterState(): void {
+  clearPersistedGameState();
 }
 
 export function withTutorialStep(state: GameState, step: TutorialStep): GameState {
