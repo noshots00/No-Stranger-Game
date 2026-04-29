@@ -47,6 +47,24 @@ export default function CharacterScreen({ state }: { state: GameState }) {
         </div>
       </section>
 
+      <section className="mb-4 p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
+        <h3 className="text-[10px] uppercase tracking-widest text-stone-500 font-mono mb-2">Field Notes</h3>
+        <div className="grid grid-cols-3 gap-2 text-xs font-mono text-stone-300">
+          <div className="rounded border border-stone-800 bg-stone-950/60 px-2 py-1">Day {state.character.day}</div>
+          <div className="rounded border border-stone-800 bg-stone-950/60 px-2 py-1">{state.character.region}</div>
+          <div className="rounded border border-stone-800 bg-stone-950/60 px-2 py-1">{state.character.shelter}</div>
+        </div>
+      </section>
+
+      <section className="mb-4 p-3 bg-stone-900/40 border border-stone-800 rounded-lg">
+        <h3 className="text-[10px] uppercase tracking-widest text-stone-500 font-mono mb-2">Known Locations</h3>
+        <div className="flex flex-wrap gap-2 text-xs font-mono">
+          <span className="px-2 py-1 rounded border border-stone-700 bg-stone-950/60 text-stone-300">Forest</span>
+          {state.unlocks.map && <span className="px-2 py-1 rounded border border-stone-700 bg-stone-950/60 text-stone-300">Village</span>}
+          {state.unlocks.tavern && <span className="px-2 py-1 rounded border border-stone-700 bg-stone-950/60 text-stone-300">Tavern</span>}
+        </div>
+      </section>
+
       {state.character.traits.length > 0 && (
         <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-lg mb-4">
           <h3 className="text-[10px] uppercase tracking-widest text-stone-500 font-mono mb-2">Discovered Traits</h3>

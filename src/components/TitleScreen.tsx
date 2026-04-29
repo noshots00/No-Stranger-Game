@@ -17,7 +17,7 @@ export default function TitleScreen() {
       <div className="flex flex-col gap-4 w-full max-w-xs game-login">
         <LoginArea className="w-full flex justify-center" />
       </div>
-      <div className={`absolute bottom-6 w-2 h-2 rounded-full ${user ? 'bg-emerald-500' : 'bg-yellow-500'}`} />
+      <div className="absolute bottom-6 w-2 h-2 rounded-full bg-yellow-500" />
     </div>
   );
 }

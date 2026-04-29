@@ -111,9 +111,10 @@ export default function GameContainer() {
         icon: '🏘️',
         status: dialogue.unlocks.tavern ? 'visited' : 'new',
         notification: !dialogue.unlocks.tavern,
-        subLocations: dialogue.unlocks.activities.questsTab
-          ? [{ id: 'quests', name: 'Player Quests', icon: '📜', status: 'available', notification: true }]
-          : undefined,
+        subLocations: [
+          ...(dialogue.unlocks.tavern ? [{ id: 'tavern', name: 'Tavern', icon: '🍺', status: 'new' as const, notification: true }] : []),
+          ...(dialogue.unlocks.activities.questsTab ? [{ id: 'quests', name: 'Player Quests', icon: '📜', status: 'available' as const, notification: true }] : []),
+        ],
       },
     ],
     [dialogue.unlocks.activities.questsTab, dialogue.unlocks.tavern],
@@ -135,7 +136,7 @@ export default function GameContainer() {
   return (
     <div className="flex flex-col h-[100dvh] bg-stone-950 text-stone-200">
       {!audioReady && <AudioInitializer onReady={() => setAudioReady(true)} />}
-      <main className="flex-1 overflow-hidden relative">
+      <main className="flex-1 overflow-hidden relative pb-[76px]">
         <Routes>
           <Route
             index
@@ -191,6 +192,9 @@ export default function GameContainer() {
                     if (id === 'quests') {
                       setOpenTavernBoard(true);
                       return;
+                    }
+                    if (id === 'tavern') {
+                      navigate('/play');
                     }
                     dialogue.handleMapInteraction(id);
                   }}

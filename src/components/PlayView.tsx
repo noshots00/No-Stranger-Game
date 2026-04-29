@@ -14,6 +14,11 @@ interface PlayViewProps {
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
+const SPEAKER_AVATARS: Record<string, string> = {
+  Deckard: '👴',
+  'Tavern Keep': '🍺',
+};
+
 export default function PlayView({
   day,
   region,
@@ -27,14 +32,14 @@ export default function PlayView({
   scrollRef,
 }: PlayViewProps) {
   return (
-    <div className="flex flex-col h-[100dvh] h-[calc(var(--vh,1vh)*100)] bg-stone-950 text-stone-200 overflow-hidden font-sans select-none">
+    <div className="flex flex-col h-full bg-stone-950 text-stone-200 overflow-hidden font-sans select-none">
       <header className="px-4 py-3 bg-stone-900/90 backdrop-blur border-b border-stone-800 text-center shrink-0 z-10 safe-area-pt">
         <span className="text-sm font-mono tracking-wide text-stone-400">
           Day {day} - {region}
         </span>
       </header>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth space-y-5 pb-[84px]" role="log" aria-live="polite">
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth space-y-5 pb-6" role="log" aria-live="polite">
         {import.meta.env.DEV && (
           <div className="rounded border border-stone-700 bg-stone-900/70 px-3 py-2 text-[10px] font-mono text-stone-400">
             step={step} | history={history.length} | input={inputMode} | prompt={currentPrompt?.length ?? 0}
@@ -49,9 +54,15 @@ export default function PlayView({
               }`}
             >
               {line.speaker ? (
-                <>
-                  <span className="font-semibold text-stone-100">{line.speaker}:</span> <span>{line.text}</span>
-                </>
+                <span className="flex items-start gap-3">
+                  <span className="w-8 h-8 rounded-full bg-stone-800 border border-stone-700 flex items-center justify-center text-sm shrink-0">
+                    {SPEAKER_AVATARS[line.speaker] ?? '👤'}
+                  </span>
+                  <span className="inline-block">
+                    <span className="block font-semibold text-stone-100 text-sm">{line.speaker}</span>
+                    <span>{line.text}</span>
+                  </span>
+                </span>
               ) : (
                 line.text
               )}

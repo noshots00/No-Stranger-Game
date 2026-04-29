@@ -16,7 +16,7 @@ const Index = () => {
   // Redirect to game if already logged in
   useEffect(() => {
     if (user) {
-      navigate('/game');
+      navigate('/play');
     }
   }, [user, navigate]);
 
@@ -42,7 +42,7 @@ const Index = () => {
         </p>
         <div className="text-center">
           <Link 
-            to="/game" 
+            to="/play" 
             className="text-purple-400 hover:text-purple-300 text-sm"
           >
             Or click here to go directly to the game →
