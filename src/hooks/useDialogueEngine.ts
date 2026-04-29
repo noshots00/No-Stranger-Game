@@ -79,16 +79,18 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
 
   const persist = useCallback(
     (nextStep: TutorialStep, extras?: DeepPartial<GameState>) => {
+      const { tutorial: extraTutorial, ...restExtras } = extras ?? {};
       save({
+        ...restExtras,
         tutorial: {
           step: nextStep,
           completed: nextStep === 'idle_play',
           name: playerName,
           race: playerRace,
           guards: Array.from(appliedGuards),
+          ...extraTutorial,
         },
         unlocks,
-        ...extras,
       });
     },
     [appliedGuards, playerName, playerRace, save, unlocks],
@@ -336,6 +338,7 @@ export function useDialogueEngine(state: GameState | null, save: (patch: DeepPar
     // Rebuild prompt/history deterministically after refresh or state restore.
     if (step === 'idle_play') return;
     if (step === 'intro_1') {
+      rebuiltStepRef.current = step;
       advance('intro_1');
       return;
     }
