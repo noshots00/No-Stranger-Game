@@ -1,9 +1,16 @@
+/* Tailwind layers:
+   - base: resets and foundational styles
+   - components: reusable component classes
+   - utilities: small one-purpose helper classes */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* :root holds the default (light mode) design tokens.
+     These CSS variables are reused across the app for consistency. */
   :root {
+    /* Core surface/text colors used by the design system */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -32,6 +39,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
+    /* Shared corner radius token for cards, buttons, inputs, etc. */
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
@@ -50,6 +58,7 @@
 
     --sidebar-ring: 217.2 91.2% 59.8%;
 
+    /* Custom game palette (hex values) used for atmospheric styling */
     --void: #07070a;
     --surface: #0e0e13;
     --surface-dim: #12121a;
@@ -60,8 +69,18 @@
     --ember-dim: #8b7340;
     --crimson: #8b2d2d;
     --mist: #4a5568;
+    --facsimile-bg-start: #020304;
+    --facsimile-bg-end: #07080b;
+    --facsimile-panel: rgba(9, 10, 14, 0.97);
+    --facsimile-panel-soft: rgba(13, 15, 21, 0.9);
+    --facsimile-panel-border: rgba(150, 139, 114, 0.34);
+    --facsimile-ink: #e2dbc9;
+    --facsimile-ink-muted: #a89f8b;
+    --facsimile-accent: rgba(168, 126, 72, 0.7);
+    --facsimile-accent-soft: rgba(168, 126, 72, 0.18);
   }
 
+  /* When the .dark class is present, these variables replace :root values. */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -98,34 +117,270 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --facsimile-bg-start: #020304;
+    --facsimile-bg-end: #07080b;
+    --facsimile-panel: rgba(9, 10, 14, 0.97);
+    --facsimile-panel-soft: rgba(13, 15, 21, 0.9);
+    --facsimile-panel-border: rgba(150, 139, 114, 0.34);
+    --facsimile-ink: #e2dbc9;
+    --facsimile-ink-muted: #a89f8b;
+    --facsimile-accent: rgba(168, 126, 72, 0.74);
+    --facsimile-accent-soft: rgba(168, 126, 72, 0.22);
   }
 }
 
 @layer base {
+  /* Apply the shared border color token to all elements. */
   * {
     @apply border-border;
   }
 
+  /* Body inherits global background and text colors from theme variables. */
   body {
     @apply bg-background text-foreground;
   }
 }
 
 @layer utilities {
+  .facsimile-shell {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 14% 10%, var(--facsimile-accent-soft), transparent 38%),
+      radial-gradient(circle at 86% 6%, rgba(96, 104, 120, 0.08), transparent 36%),
+      linear-gradient(160deg, var(--facsimile-bg-start), var(--facsimile-bg-end));
+  }
+
+  .facsimile-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(0, 0, 0, 0.45), transparent 45%),
+      radial-gradient(circle at 50% 120%, rgba(0, 0, 0, 0.55), transparent 40%);
+    z-index: 0;
+  }
+
+  .mystery-ui {
+    color: var(--facsimile-ink);
+  }
+
+  .mystery-ui .mystery-muted {
+    color: var(--facsimile-ink-muted);
+  }
+
+  .mystery-ui .facsimile-phone-frame {
+    background: #000 !important;
+    border-color: #000 !important;
+  }
+
+  .mystery-ui .facsimile-panel,
+  .mystery-ui header,
+  .mystery-ui .facsimile-scroll,
+  .mystery-ui .rounded-lg {
+    border-color: #000 !important;
+    background-color: #000 !important;
+  }
+
+  .mystery-ui .facsimile-shell,
+  .mystery-ui .facsimile-phone-content,
+  .mystery-ui main,
+  .mystery-ui section,
+  .mystery-ui article,
+  .mystery-ui nav,
+  .mystery-ui aside,
+  .mystery-ui div {
+    background-color: #000;
+  }
+
+  .mystery-ui h1,
+  .mystery-ui h2,
+  .mystery-ui h3 {
+    color: var(--facsimile-ink);
+  }
+
+  .mystery-ui p,
+  .mystery-ui li,
+  .mystery-ui button {
+    color: var(--facsimile-ink-muted);
+  }
+
+  .mystery-ui .facsimile-nav-button.is-active,
+  .mystery-ui .facsimile-nav-primary {
+    color: var(--facsimile-ink);
+    border-color: rgba(168, 126, 72, 0.7);
+  }
+
+  .mystery-ui button {
+    background-color: #000 !important;
+    border-color: #000 !important;
+  }
+
+  .facsimile-phone-frame {
+    position: relative;
+    width: min(100%, 360px);
+    height: 780px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 2rem;
+    border: 1px solid rgba(161, 161, 170, 0.32);
+    background: rgba(9, 11, 20, 0.82);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    background-image: linear-gradient(180deg, rgba(18, 16, 14, 0.22), rgba(0, 0, 0, 0));
+  }
+
+  .facsimile-phone-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .facsimile-bottom-nav {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.5rem calc(env(safe-area-inset-bottom, 0px) + 0.45rem);
+  }
+
+  .facsimile-nav-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    min-height: 2.9rem;
+    border-radius: 0.9rem;
+    border: 1px solid var(--facsimile-panel-border);
+    background: var(--facsimile-panel-soft);
+    color: var(--facsimile-ink-muted);
+    transition: transform 160ms ease, color 160ms ease, background-color 160ms ease;
+  }
+
+  .facsimile-nav-button.is-active {
+    color: var(--facsimile-ink);
+    background: rgba(26, 29, 39, 0.92);
+  }
+
+  .facsimile-nav-primary {
+    min-height: 3.8rem;
+    border-radius: 1rem;
+    border: 1px solid var(--facsimile-accent);
+    background: var(--facsimile-panel-soft);
+    color: #e5d6bb;
+    transform: none;
+  }
+
+  .facsimile-nav-primary.is-active {
+    box-shadow: none;
+  }
+
+  .facsimile-glow {
+    position: absolute;
+    inset: -12rem -4rem auto -4rem;
+    z-index: -1;
+    height: 24rem;
+    opacity: 0.1;
+    filter: blur(88px);
+    background: linear-gradient(120deg, rgba(176, 129, 71, 0.1), rgba(96, 104, 120, 0.05), transparent);
+  }
+
+  .facsimile-panel {
+    position: relative;
+    border-radius: 1.25rem;
+    border: 1px solid var(--facsimile-panel-border);
+    background: var(--facsimile-panel);
+    padding: 1.25rem;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+  }
+
+  .facsimile-kicker {
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--facsimile-ink-muted);
+  }
+
+  .facsimile-halo {
+    position: absolute;
+    right: -5rem;
+    top: -5rem;
+    width: 16rem;
+    height: 16rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle at center, rgba(176, 129, 71, 0.32), transparent 72%);
+    filter: blur(22px);
+  }
+
+  .facsimile-choice {
+    border: 1px solid rgba(161, 161, 170, 0.28);
+    background: rgba(39, 39, 42, 0.28);
+    transition: border-color 180ms ease, transform 180ms ease, background-color 180ms ease;
+  }
+
+  .facsimile-choice:hover,
+  .facsimile-choice:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(245, 158, 11, 0.68);
+    background: rgba(63, 63, 70, 0.42);
+    outline: none;
+  }
+
+  .dialogue-line-reveal {
+    animation: dialogueLineReveal 1200ms ease-out both;
+  }
+
+  .facsimile-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(161, 161, 170, 0.2) transparent;
+  }
+
+  .facsimile-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .facsimile-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .facsimile-scroll::-webkit-scrollbar-thumb {
+    background: rgba(161, 161, 170, 0.2);
+    border-radius: 9999px;
+  }
+
+  .facsimile-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(161, 161, 170, 0.32);
+  }
+
+  /* Utility classes below are optional helpers you add in JSX className.
+     Most of these are animation/effect classes for the RPG mood. */
+
+  /* Slow breathing opacity effect (good for ambient UI elements) */
   .breathe {
     animation: breath 4s ease-in-out infinite;
   }
 
+  /* Entry animation: fade + rise into place */
   .emerge {
     animation: emerge 800ms ease-out both;
   }
 
+  /* Stagger helpers to delay .emerge on sequential elements */
   .emerge-delay-1 { animation-delay: 200ms; }
   .emerge-delay-2 { animation-delay: 400ms; }
   .emerge-delay-3 { animation-delay: 600ms; }
   .emerge-delay-4 { animation-delay: 800ms; }
   .emerge-delay-5 { animation-delay: 1000ms; }
 
+  /* "Typing/reveal" style line animation using width clipping */
   .ink-spread {
     display: inline-block;
     overflow: hidden;
@@ -133,20 +388,24 @@
     animation: inkSpread 2s ease-out both;
   }
 
+  /* Warm glowing pulse effect for highlighted containers */
   .smolder {
     animation: smolder 5s ease-in-out infinite;
   }
 
+  /* Base state for interactive choice cards/buttons */
   .choice-smudge {
     opacity: 1;
     transition: box-shadow 350ms ease, transform 200ms ease;
   }
 
+  /* Hover/focus glow for keyboard and mouse accessibility feedback */
   .choice-smudge:hover,
   .choice-smudge:focus-visible {
     box-shadow: 0 0 12px rgba(201, 165, 90, 0.15);
   }
 
+  /* Used for a "discarded" option: mostly hidden and non-interactive */
   .choice-faded {
     opacity: 0.05;
     filter: blur(4px);
@@ -155,28 +414,34 @@
     animation: dissolve 1.5s ease-in forwards;
   }
 
+  /* Reveal animation for story/chapter text lines */
   .chapter-line {
     animation: chapterReveal 900ms ease-out both;
   }
 
+  /* Slight irregular opacity shifts to mimic candle/fire flicker */
   .flicker {
     animation: flicker 3s ease-in-out infinite;
   }
 
+  /* Horizontal moving fog gradient background */
   .fog-drift {
     background: linear-gradient(90deg, transparent, rgba(14, 14, 19, 0.8), transparent);
     background-size: 200% 100%;
     animation: fogDrift 12s linear infinite;
   }
 
+  /* Highlighted-to-normal name transition */
   .name-shimmer {
     animation: nameShimmer 2s ease-out forwards;
   }
 
+  /* Softer, subtler flicker variant */
   .candle-flicker-soft {
     animation: candleFlickerSoft 4.2s ease-in-out infinite;
   }
 
+  /* Base style for floating smoke particles */
   .smoke-wisp {
     position: absolute;
     pointer-events: none;
@@ -186,10 +451,13 @@
     animation: smokeWisp 6.5s ease-in-out infinite;
   }
 
+  /* Three positioned smoke variants with staggered timing */
   .smoke-wisp-1 { width: 110px; height: 58px; left: -18px; top: 18px; animation-delay: 0ms; }
   .smoke-wisp-2 { width: 124px; height: 62px; right: -16px; top: 96px; animation-delay: 1200ms; }
   .smoke-wisp-3 { width: 96px; height: 52px; left: 26%; bottom: 8px; animation-delay: 2400ms; }
 
+  /* Targeted styling override for login buttons inside .game-login.
+     !important is used here to win against stronger library styles. */
   .game-login .flex > button {
     background: var(--surface) !important;
     color: var(--ink) !important;
@@ -211,11 +479,13 @@
     outline-offset: 1px !important;
   }
 
+  /* Adds extra bottom padding on devices with a safe-area inset (mobile) */
   .pb-safe {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
   }
 }
 
+/* Keyframes are animation "timelines" referenced by utility classes above. */
 @keyframes breath {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
@@ -292,4 +562,9 @@
 @keyframes chapterReveal {
   from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes dialogueLineReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }

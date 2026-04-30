@@ -1,712 +1,628 @@
-import { useEffect, useState } from 'react';
-import { nip19 } from 'nostr-tools';
-import { useNostr } from '@nostrify/react';
-import { LoginArea } from '@/components/auth/LoginArea';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { PRESENCE_RELAYS, useNetworkPresence } from '@/hooks/useNetworkPresence';
-import { useToast } from '@/hooks/useToast';
-import { useEchoes } from '@/hooks/useEchoes';
-import { useScryingPool } from '@/hooks/useScryingPool';
-import { useHomeland } from '@/hooks/useHomeland';
-import { useStrangersLedger } from '@/hooks/useStrangersLedger';
-import { useConvergence } from '@/hooks/useConvergence';
-import { useProofChain } from '@/hooks/useProofChain';
-import { useRelayRegions } from '@/hooks/useRelayRegions';
-import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
-import { useEchoChamber } from '@/hooks/useEchoChamber';
-import { useForgetting } from '@/hooks/useForgetting';
-import { useAutonomousState } from '@/hooks/useAutonomousState';
-import { trackTelemetry } from '@/lib/rpg/telemetry';
-import {
-  CHAPTER_PROOF_KIND,
-  getChapterWindowId,
-  markCanonicalChoiceForWindow,
-  resolveCanonicalChoiceFromEvents,
-} from '@/lib/rpg/proof';
-import {
-  clearMVPCharacter,
-  computeQuestBunchIdentity,
-  loadMVPCharacter,
-  saveMVPCharacter,
-  isCharacterLikelyStuck,
-  type MVPCharacter,
-  type NetworkPresenceMember,
-  type QuestBunchAnswer,
-} from '@/lib/rpg/utils';
-import { DEFAULT_TIER3_POLICY, loadTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
-import { getActiveChapter } from '@/lib/rpg/chapterCatalog';
-import { AUTONOMOUS_SNAPSHOT_KIND } from '@/lib/rpg/autonomousSimulation';
-import { ChapterView } from './ChapterView';
-import { TerritoryView } from './TerritoryView';
-import { SelfView } from './SelfView';
-import { DeadLetterOverlay } from './DeadLetterOverlay';
-import { EchoChamberOverlay } from './EchoChamberOverlay';
-import { Guttering } from './Guttering';
-import { WorldWelcome } from './WorldWelcome';
+import { useEffect, useRef, useState } from 'react';
 
-type ActiveView = 'play' | 'chapter' | 'map' | 'profile' | 'settings';
+const mockChoices = [
+  'Follow the lantern glow into the orchard ruins',
+  'Return to the well and listen for the iron key',
+  'Climb the watch stair and mark every signal fire',
+];
+
+const mockSignals = [
+  'Ravenhall gate opens at first bell.',
+  'Archivist seeks one bearer of unfinished oaths.',
+  'Floodplain caravan expects tribute before moonrise.',
+];
+
+const socialStats = {
+  totalPlayers: 1284,
+  follows: 43,
+  followers: 57,
+};
+
+const socialFeed = [
+  'Mira reached level 9 in tracking near the Floodplain Trail.',
+  'Thorn unlocked a new skill: Iron Parry.',
+  'Lysa discovered the Silent Archive beneath the old chapel.',
+  'Corvin earned 24 copper from market contracts.',
+  'Nessa defeated a wolf pack and gained 2 pelts.',
+  'Eldric completed quest: Ash Bell on the Eastern Stair.',
+];
+
+const socialChatMessages = [
+  'Mira: Anyone heading to the old well tonight?',
+  'Thorn: I can join after market reset.',
+  'You: I will scout the orchard path first.',
+];
+
+const mockEventLog = [
+  'You traveled to the forest.',
+  'You visited the wishing well.',
+  'You met a new character: Fairy of the Well.',
+  'You reached level 5 in hiking.',
+  'You reached level 2 in foraging.',
+  'You gained a wolf pelt after hunting in the forest.',
+  'You worked for 5 hours and earned 15 copper.',
+  'You unlocked a new skill: Bash.',
+];
+
+const currentLocation = 'Forest';
+
+const locationActions: Record<string, string[]> = {
+  Town: ['Visit the tavern', 'Visit the market'],
+  Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
+};
+
+const characterStats = [
+  ['Strength', '14'],
+  ['Dexterity', '12'],
+  ['Constitution', '13'],
+  ['Intelligence', '15'],
+  ['Wisdom', '11'],
+  ['Charisma', '10'],
+];
+
+const characterSkills = ['Hiking 5', 'Foraging 2', 'Tracking 3', 'Negotiation 2', 'First Aid 1'];
+const characterTraits = ['Observant', 'Cautious', 'Loyal to companions', 'Restless at dusk'];
+const characterRelationships = ['Fairy of the Well (Ally)', 'Warden Elira (Mentor)', 'Market Broker (Rival)'];
+const characterAffinities = ['Forests', 'Ancient ruins', 'Quiet weather', 'Old maps'];
+const characterAfflictions = ['Old knee wound', 'Night terrors'];
+const characterBlessings = ['Wellkeeper’s Favor', 'Dawnlight Protection'];
+const characterCurses = ['Debt Mark of Ravenhall'];
+
+type MobileTab = 'character' | 'quests' | 'play' | 'map' | 'social';
+type DialogueRole = 'npc' | 'player' | 'exposition' | 'developer';
+
+type DialogueEntry = {
+  id: string;
+  role: DialogueRole;
+  speaker: string;
+  text: string;
+};
+
+type QuestItem = {
+  id: string;
+  title: string;
+  briefing: string;
+  createdAt: number;
+};
+
+const DIALOGUE_STORAGE_KEY = 'nsg:facsimile-dialogue-history';
+const NPC_NAME = 'Warden Elira';
+const NPC_AVATAR_URL = 'https://api.dicebear.com/8.x/adventurer/svg?seed=Elira';
+
+const INITIAL_DIALOGUE: DialogueEntry[] = [
+  {
+    id: 'exp-intro-1',
+    role: 'exposition',
+    speaker: 'Exposition',
+    text: 'Night folds over Ravenhall. The orchard bells ring once for each oath still unpaid.',
+  },
+  {
+    id: 'npc-intro-1',
+    role: 'npc',
+    speaker: NPC_NAME,
+    text: 'You arrived late, stranger. The oath still waits, but the city has already begun to choose without you.',
+  },
+  {
+    id: 'npc-intro-2',
+    role: 'npc',
+    speaker: NPC_NAME,
+    text: 'At dawn the orchard looked empty, but every tree carried a blade-mark under the bark.',
+  },
+  {
+    id: 'npc-intro-3',
+    role: 'npc',
+    speaker: NPC_NAME,
+    text: 'Three couriers crossed the bridge before sunrise. None of them reached the square.',
+  },
+  {
+    id: 'npc-intro-4',
+    role: 'npc',
+    speaker: NPC_NAME,
+    text: 'If you choose the well, listen for metal against stone. If you choose the stair, count the silent fires.',
+  },
+  {
+    id: 'npc-intro-5',
+    role: 'npc',
+    speaker: NPC_NAME,
+    text: 'Whatever road you take, do not give your true name to the first voice that offers shelter.',
+  },
+  {
+    id: 'npc-intro-6',
+    role: 'npc',
+    speaker: NPC_NAME,
+    text: 'Now decide. The city is already writing this chapter, with or without your hand on the page.',
+  },
+  {
+    id: 'dev-intro-1',
+    role: 'developer',
+    speaker: 'Developer Note',
+    text: 'This dialogue box can include narrative exposition and direct system messages while preserving your story log.',
+  },
+];
+
+const CHOICE_RESPONSES: Record<string, string[]> = {
+  'Follow the lantern glow into the orchard ruins':
+    ['Then follow close and keep your hands open. The orchard keeps what it can close a fist around.'],
+  'Return to the well and listen for the iron key':
+    ['The well remembers every promise dropped into it. If you listen long enough, one of them will answer.'],
+  'Climb the watch stair and mark every signal fire': [
+    'From the stair you will see who calls for help and who calls for witnesses. Mark both.',
+    'When the third flame flickers, do not wave back. That signal is meant for someone already dead.',
+    'Count seven breaths after the bell, then look east. A door in the wall will open only once.',
+    'If you survive what you see up there, return before dawn. I will be waiting by the archive steps.',
+  ],
+};
+
+const LOOP_OPTION = 'tell me more';
+
+const mockQuests: QuestItem[] = [
+  {
+    id: 'quest-003',
+    title: 'Ash Bell on the Eastern Stair',
+    briefing:
+      'Climb to the third landing before dawn. Count three silent signals, then return to Elira with what you saw.',
+    createdAt: 3,
+  },
+  {
+    id: 'quest-002',
+    title: 'Whispers in the Well',
+    briefing:
+      'Visit the old well at moonrise. Listen for the iron key and record the first name you hear.',
+    createdAt: 2,
+  },
+  {
+    id: 'quest-001',
+    title: 'Lanterns in the Orchard',
+    briefing:
+      'Follow the lantern trail into the orchard ruins and map every marked tree before first light.',
+    createdAt: 1,
+  },
+];
 
 export function RPGInterface() {
-  const { user, metadata } = useCurrentUser();
-  const { nostr } = useNostr();
-  const { toast } = useToast();
-  const [character, setCharacter] = useState<MVPCharacter | null>(null);
-  const [screen, setScreen] = useState<'creation' | 'home'>('creation');
-  const [activeView, setActiveView] = useState<ActiveView>('play');
-  const [characterNameInput, setCharacterNameInput] = useState('');
-  const [selectedNetworkMember, _setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
-  const [chapterOpened, setChapterOpened] = useState(false);
-  const [revealPhase, setRevealPhase] = useState<'idle' | 'revealing'>('idle');
-  const [revealIdentity, setRevealIdentity] = useState<{ consequence: string; race: string; profession: string; className: string } | null>(null);
-  const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
-  const [deadLetterOpen, setDeadLetterOpen] = useState(false);
-  const [echoChamberOpen, setEchoChamberOpen] = useState(false);
-  const [_syncFailed, setSyncFailed] = useState(false);
-  const [showWorldWelcome, setShowWorldWelcome] = useState(false);
-  const [showStuckRecovery, setShowStuckRecovery] = useState(false);
-
-  const networkPresence = useNetworkPresence(user?.pubkey);
-  const echoes = useEchoes(user?.pubkey);
-  const _homeland = useHomeland(metadata?.nip05);
-  const _ledger = useStrangersLedger();
-  const proofChain = useProofChain(user?.pubkey);
-  const relayRegions = useRelayRegions();
-  const deadLetter = useDeadLetterOffice();
-  const echoChamber = useEchoChamber();
-  const _forgetting = useForgetting();
-  const autonomous = useAutonomousState(character, user?.pubkey);
+  const [activeTab, setActiveTab] = useState<MobileTab>('play');
+  const [dialogueHistory, setDialogueHistory] = useState<DialogueEntry[]>(INITIAL_DIALOGUE);
+  const [isChoiceResolved, setIsChoiceResolved] = useState(false);
+  const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
+  const [completedQuestIds, setCompletedQuestIds] = useState<string[]>([]);
+  const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
+  const pendingNpcTimersRef = useRef<number[]>([]);
 
   useEffect(() => {
-    const existing = loadMVPCharacter();
-    if (existing) {
-      if (isCharacterLikelyStuck(existing)) {
-        setShowStuckRecovery(true);
-      }
-      setCharacter(existing);
-      setScreen('home');
+    try {
+      const raw = localStorage.getItem(DIALOGUE_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as DialogueEntry[];
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      setDialogueHistory(parsed);
+      setIsChoiceResolved(parsed.some((entry) => entry.role === 'player'));
+    } catch {
+      setDialogueHistory(INITIAL_DIALOGUE);
+      setIsChoiceResolved(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DIALOGUE_STORAGE_KEY, JSON.stringify(dialogueHistory));
+  }, [dialogueHistory]);
+
+  useEffect(() => {
+    const container = dialogueScrollRef.current;
+    if (!container) return;
+    if (typeof container.scrollTo === 'function') {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
       return;
     }
-    setScreen('creation');
+    container.scrollTop = container.scrollHeight;
+  }, [dialogueHistory, activeTab]);
+
+  useEffect(() => {
+    return () => {
+      pendingNpcTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      pendingNpcTimersRef.current = [];
+    };
   }, []);
 
-  const repairCharacter = () => {
-    if (!character) return;
-    try {
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        if (key.startsWith(`nsg:chapter-proof:${character.id}:`) || (character.pubkey && key.startsWith(`nsg:chapter-proof:${character.pubkey}:`))) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach((key) => localStorage.removeItem(key));
-    } catch {
-      // Ignore storage errors.
-    }
-    const repaired: MVPCharacter = {
-      ...character,
-      level: 1,
-      className: character.className || 'Wanderer',
-      profession: character.profession || 'Woodcutter',
-      pendingQuestBunch: undefined,
-      completedChapterIds: Array.isArray(character.completedChapterIds) ? character.completedChapterIds : [],
-      mainQuestChoices: Array.isArray(character.mainQuestChoices) ? character.mainQuestChoices : [],
-      hasCompletedFirstChapter: Boolean(character.hasCompletedFirstChapter),
-    };
-    saveMVPCharacter(repaired);
-    setCharacter(repaired);
-    setShowStuckRecovery(false);
+  const clearPendingNpcTimers = () => {
+    pendingNpcTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    pendingNpcTimersRef.current = [];
   };
 
-  useEffect(() => {
-    setTier3Policy(loadTier3Policy());
-  }, []);
-
-  useEffect(() => {
-    if (!character?.hasCompletedFirstChapter) return;
-    if (localStorage.getItem('nsg:welcomed') === 'true') return;
-    setShowWorldWelcome(true);
-  }, [character?.hasCompletedFirstChapter]);
-
-  useEffect(() => {
-    if (!user?.pubkey) return;
-    const chapterWindowId = getChapterWindowId();
-    nostr.query(
-      [{ kinds: [CHAPTER_PROOF_KIND], authors: [user.pubkey], '#window': [chapterWindowId], limit: 20 }],
-      { signal: AbortSignal.timeout(5000) },
-    ).then((events) => {
-      const canonical = resolveCanonicalChoiceFromEvents(events, chapterWindowId, user.pubkey);
-      if (canonical) trackTelemetry('proof_chain_loaded', { canonicalId: canonical.id });
-    }).catch(() => noteSyncFailure());
-  }, [nostr, user?.pubkey]);
-
-  useEffect(() => {
-    if (!character || !autonomous.state || !autonomous.relayLoaded) return;
-    if (character.lastSimulatedTick === autonomous.state.lastSimulatedTick) return;
-    const mergedCharacter: MVPCharacter = {
-      ...character,
-      gold: autonomous.state.gold,
-      health: autonomous.state.health,
-      locationId: autonomous.state.locationId,
-      visibleTraits: autonomous.state.visibleTraits,
-      hiddenTraits: autonomous.state.hiddenTraits,
-      injuries: autonomous.state.injuries,
-      dailyLogs: autonomous.state.dailyLogs,
-      lastSimulatedTick: autonomous.state.lastSimulatedTick,
-      exploreIntent: autonomous.state.exploreIntent,
-      profession: autonomous.state.professionLabel || character.profession,
+  const handleChoiceSelect = (choice: string) => {
+    if (isChoiceResolved) return;
+    clearPendingNpcTimers();
+    const playerLine: DialogueEntry = {
+      id: `player-${Date.now()}`,
+      role: 'player',
+      speaker: 'You',
+      text: choice,
     };
-    saveMVPCharacter(mergedCharacter);
-    setCharacter(mergedCharacter);
-
-    if (!user || !autonomous.state.lastSimulatedTick) return;
-    user.signer.signEvent({
-      kind: AUTONOMOUS_SNAPSHOT_KIND,
-      content: JSON.stringify(autonomous.state),
-      tags: [
-        ['t', 'no-stranger-game'],
-        ['character', character.id],
-        ['window', autonomous.state.lastSimulatedTick],
-        ['alt', 'No Stranger Game autonomous daily snapshot'],
-      ],
-      created_at: Math.floor(Date.now() / 1000),
-    }).then((event) => {
-      nostr.group([...PRESENCE_RELAYS]).event(event).catch(() => noteSyncFailure());
-    }).catch(() => noteSyncFailure());
-  }, [autonomous.relayLoaded, autonomous.state, character, nostr, user]);
-
-  useEffect(() => {
-    if (!character) return;
-    autonomous.runTick().catch(() => {});
-  }, [character?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!character) return;
-    const interval = setInterval(() => {
-      autonomous.runTick().catch(() => {});
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, [character?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const activeChapter = getActiveChapter(character?.completedChapterIds ?? []);
-  const activeQuestId = activeChapter.id;
-  const questBunchSteps = activeChapter.questBunch;
-
-  const pendingBunch = character?.pendingQuestBunch?.questId === activeQuestId ? character.pendingQuestBunch : { questId: activeQuestId, answers: [] as QuestBunchAnswer[] };
-  const answeredQuestionIds = new Set(pendingBunch.answers.map((answer) => answer.questionId));
-  const currentQuestStep = questBunchSteps.find((step) => !answeredQuestionIds.has(step.questionId));
-  const hasChosenActiveChapter = character?.mainQuestChoices.some((choice) => choice.questId === activeQuestId) ?? false;
-  const activeChapterChoice = character?.mainQuestChoices.find((choice) => choice.questId === activeQuestId);
-  const chapterLines = activeChapter.chapterLines;
-  const hasUnreadChapter = !hasChosenActiveChapter;
-  const myClassLabel = character?.className || activeChapterChoice?.option;
-  const _convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
-  const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
-
-  const noteSyncFailure = () => {
-    setSyncFailed(true);
-    setTimeout(() => setSyncFailed(false), 10000);
-  };
-
-  const handleNewGame = () => {
-    clearMVPCharacter();
-    setCharacter(null);
-    setScreen('creation');
-    setActiveView('play');
-    setChapterOpened(false);
-  };
-
-  const handleCreateStranger = () => {
-    const normalizedCharacterName = characterNameInput.trim() || 'Nameless Stranger';
-    const npub = user ? nip19.npubEncode(user.pubkey) : undefined;
-    const newCharacter: MVPCharacter = {
-      id: user?.pubkey ?? `temp-${Date.now()}`,
-      createdAt: Date.now(),
-      level: 1,
-      role: 'stranger',
-      characterName: normalizedCharacterName,
-      gender: 'Unknown',
-      race: 'Unspoken',
-      profession: 'Woodcutter',
-      startingCity: 'Dawnharbor',
-      className: 'Wanderer',
-      profileTitle: 'Unnamed Drifter',
-      profileBio: '',
-      mainQuestChoices: [],
-      completedChapterIds: [],
-      discoveredLocations: ['market-square'],
-      pubkey: user?.pubkey,
-      npub,
+    const npcResponses = (CHOICE_RESPONSES[choice] ?? [
+      'The city listens, and the path shifts beneath your feet.',
+    ]);
+    const npcTurnId = `npc-turn-${Date.now()}`;
+    const initialNpcLine: DialogueEntry = {
+      id: npcTurnId,
+      role: 'npc',
+      speaker: NPC_NAME,
+      text: npcResponses[0] ?? '',
     };
-    saveMVPCharacter(newCharacter);
-    setCharacter(newCharacter);
-    setScreen('home');
-    setActiveView('chapter');
-    setChapterOpened(false);
-    setRevealPhase('idle');
-    setRevealIdentity(null);
-
-    if (user) {
-      const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
-      user.signer.signEvent({
-        kind: 30000,
-        content: JSON.stringify({
-          app: 'no-stranger-game',
-          level: 1,
-          role: 'stranger',
-          characterName: normalizedCharacterName,
-          classLabel: 'Unchosen',
-          discoveredLocations: ['market-square'],
-          createdAt: newCharacter.createdAt,
-        }),
-        tags: [['d', 'opt-in'], ['t', 'no-stranger-game'], ['alt', 'No Stranger Game player presence opt-in']],
-        created_at: Math.floor(Date.now() / 1000),
-      }).then((signedEvent) => {
-        presenceNostr.event(signedEvent).then(() => networkPresence.refetch()).catch(() => noteSyncFailure());
-      }).catch(() => noteSyncFailure());
-    }
-  };
-
-  const handleMainQuestChoice = (questionId: string, option: string) => {
-    navigator.vibrate?.(15);
-    if (!character) return;
-    const pendingAnswers = [...pendingBunch.answers.filter((answer) => answer.questionId !== questionId), { questionId, option }];
-    const withPending: MVPCharacter = { ...character, pendingQuestBunch: { questId: activeQuestId, answers: pendingAnswers } };
-    saveMVPCharacter(withPending);
-    setCharacter(withPending);
-    if (pendingAnswers.length < questBunchSteps.length) return;
-
-    const chapterWindowId = getChapterWindowId();
-    const identityKey = `${character.id}:${character.createdAt}:${activeQuestId}`;
-    const finalStepQuestionId = questBunchSteps[questBunchSteps.length - 1]?.questionId;
-    const finalChoice = pendingAnswers.find((a) => a.questionId === finalStepQuestionId)?.option ?? option;
-    const aCount = pendingAnswers.filter((answer) => answer.option === 'A').length;
-    const bCount = pendingAnswers.filter((answer) => answer.option === 'B').length;
-    const cCount = pendingAnswers.filter((answer) => answer.option === 'C').length;
-    const dCount = pendingAnswers.filter((answer) => answer.option === 'D').length;
-    const eCount = pendingAnswers.filter((answer) => answer.option === 'E').length;
-    const identity = computeQuestBunchIdentity(pendingAnswers, `${character.id}:${chapterWindowId}:${pendingAnswers.map((answer) => `${answer.questionId}:${answer.option}`).join('|')}`);
-    const basicArchetype = finalChoice === 'A' ? 'Shieldbearer' : finalChoice === 'B' ? 'Magician' : finalChoice === 'C' ? 'Thief' : finalChoice === 'D' ? 'Soldier' : 'Wanderer';
-    const basicProfession = finalChoice === 'A' ? 'Woodcutter' : finalChoice === 'B' ? 'Miner' : finalChoice === 'C' ? 'Hunter' : finalChoice === 'D' ? 'Tanner' : 'Beggar';
-    const isChapterOne = activeQuestId === 'market-money-001';
-    const consequenceByArc = finalChoice === 'A'
-      ? `You choose duty at the edge of dawn. Your road carries ${aCount} vows and ${cCount} shadows. ${identity.hook}`
-      : finalChoice === 'B'
-        ? `You choose endurance over glory. Your road carries ${bCount} hard bargains and ${aCount} mercies. ${identity.hook}`
-        : finalChoice === 'C'
-          ? `You choose memory over comfort. Your road carries ${cCount} secrets and ${bCount} burdens. ${identity.hook}`
-          : finalChoice === 'D'
-            ? `You choose risk without witness. Your road carries ${dCount} dangerous turns and ${eCount} quiet debts. ${identity.hook}`
-            : `You choose silence and resolve. Your road carries ${eCount} buried vows and ${dCount} unanswered names. ${identity.hook}`;
-
-    const updatedCharacter: MVPCharacter = {
-      ...character,
-      mainQuestChoices: [...character.mainQuestChoices, { questId: activeQuestId, prompt: 'Quest bunch: Chapter One arc completed.', option: finalChoice, consequence: consequenceByArc, chosenAt: Math.floor(Date.now() / 1000) }],
-      level: isChapterOne ? 1 : character.level + 1,
-      race: isChapterOne ? 'Unspoken' : identity.race,
-      profession: isChapterOne ? basicProfession : identity.profession,
-      className: isChapterOne ? basicArchetype : identity.className,
-      discoveredLocations: Array.from(new Set([...(character.discoveredLocations ?? ['market-square']), (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'A' ? 'old-library' : (pendingAnswers.find((a) => a.questionId === `${activeQuestId}-q1`)?.option ?? 'A') === 'B' ? 'coin-vault' : 'silent-alley'])),
-      chapterWindowIds: Array.from(new Set([...(character.chapterWindowIds ?? []), chapterWindowId])),
-      completedChapterIds: Array.from(new Set([...(character.completedChapterIds ?? []), activeQuestId])),
-      pendingQuestBunch: undefined,
-      hasCompletedFirstChapter: true,
-    };
-    const now = Math.floor(Date.now() / 1000);
-    saveMVPCharacter(updatedCharacter);
-    setCharacter(updatedCharacter);
-    markCanonicalChoiceForWindow(chapterWindowId, identityKey, `${chapterWindowId}:${finalChoice}`);
-    setRevealIdentity({
-      consequence: consequenceByArc,
-      race: isChapterOne ? 'Unspoken' : identity.race,
-      profession: isChapterOne ? basicProfession : identity.profession,
-      className: isChapterOne ? basicArchetype : identity.className,
+    setDialogueHistory((prev) => [...prev, playerLine, initialNpcLine]);
+    npcResponses.slice(1).forEach((line, index) => {
+      const timerId = window.setTimeout(() => {
+        setDialogueHistory((prev) =>
+          prev.map((entry) =>
+            entry.id === npcTurnId ? { ...entry, text: `${entry.text}\n${line}` } : entry
+          )
+        );
+      }, 3000 * (index + 1));
+      pendingNpcTimersRef.current.push(timerId);
     });
-    setRevealPhase('revealing');
-    setChapterOpened(true);
-
-    if (user) {
-      const presenceNostr = nostr.group([...PRESENCE_RELAYS]);
-      const questBunchId = `${activeQuestId}:${chapterWindowId}:${pendingAnswers.length}`;
-      const prevProofHead = character.chapterProofHead ?? 'genesis';
-      const proofPayload = {
-        app: 'no-stranger-game',
-        chapterId: activeQuestId,
-        chapterWindowId,
-        selectedOption: finalChoice,
-        prompt: 'Quest bunch: Chapter One arc completed.',
-        consequence: consequenceByArc,
-        characterId: character.id,
-        recordedAt: now,
-      };
-      user.signer.signEvent({
-        kind: 30000,
-        content: JSON.stringify({
-          app: 'no-stranger-game',
-          level: updatedCharacter.level,
-          role: 'stranger',
-          characterName: updatedCharacter.characterName,
-          classLabel: updatedCharacter.className,
-          race: updatedCharacter.race,
-          profession: updatedCharacter.profession,
-          startingCity: updatedCharacter.startingCity,
-          questBunchId,
-          questAnswers: pendingAnswers,
-          discoveredLocations: updatedCharacter.discoveredLocations ?? [],
-          createdAt: updatedCharacter.createdAt,
-        }),
-        tags: [['d', 'opt-in'], ['t', 'no-stranger-game'], ['alt', 'No Stranger Game player presence opt-in']],
-        created_at: now,
-      }).then((signedEvent) => presenceNostr.event(signedEvent).catch(() => noteSyncFailure())).catch(() => noteSyncFailure());
-
-      user.signer.signEvent({
-        kind: CHAPTER_PROOF_KIND,
-        content: JSON.stringify(proofPayload),
-        tags: [
-          ['chapter', activeQuestId],
-          ['window', chapterWindowId],
-          ['choice', finalChoice],
-          ['prev', prevProofHead],
-          ['t', 'no-stranger-game'],
-          ['alt', 'No Stranger Game chapter choice proof'],
-        ],
-        created_at: now,
-      }).then((signedProofEvent) => {
-        presenceNostr.event(signedProofEvent).catch(() => noteSyncFailure());
-        const withHead: MVPCharacter = { ...updatedCharacter, chapterProofHead: signedProofEvent.id };
-        saveMVPCharacter(withHead);
-        setCharacter(withHead);
-      }).catch(() => noteSyncFailure());
-    }
-
-    setTimeout(() => {
-      setRevealPhase('idle');
-      setActiveView('play');
-      setChapterOpened(false);
-    }, 12000);
+    setIsChoiceResolved(true);
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--void)' }}>
-        <h1 className="font-cormorant text-5xl md:text-6xl font-light tracking-wide emerge" style={{ color: 'var(--ink)' }}>
-          No Stranger Game
-        </h1>
-        <p className="mt-6 text-sm tracking-[0.25em] uppercase emerge emerge-delay-2" style={{ color: 'var(--ink-ghost)' }}>
-          An RPG that lives inside your social network
-        </p>
-        <div className="mt-8 space-y-4 max-w-xs text-center">
-          <p className="font-cormorant text-sm italic emerge emerge-delay-2" style={{ color: 'var(--ink-ghost)' }}>
-            Every day, a letter arrives.
-          </p>
-          <p className="font-cormorant text-sm italic emerge emerge-delay-3" style={{ color: 'var(--ink-ghost)' }}>
-            Every choice closes a door.
-          </p>
-          <p className="font-cormorant text-sm italic emerge emerge-delay-4" style={{ color: 'var(--ink-ghost)' }}>
-            No one else could be here.
-          </p>
-        </div>
-        <div className="mt-12 w-full max-w-xs emerge emerge-delay-5 game-login">
-          <LoginArea className="w-full flex flex-col gap-3" />
-        </div>
-        <details className="mt-8 max-w-xs text-center emerge emerge-delay-5">
-          <summary className="text-xs cursor-pointer" style={{ color: 'var(--ink-ghost)' }}>
-            New to Nostr? Start here.
-          </summary>
-          <div className="mt-3 space-y-2 text-xs" style={{ color: 'var(--ink-ghost)' }}>
-            <p>Nostr is a protocol for sovereign identity. Your account belongs to you - not a company.</p>
-            <p>
-              <strong>On mobile:</strong> create an account with{' '}
-              <a href="https://primal.net" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Primal</a>
-              {' '}then sign in here.
-            </p>
-            <p>
-              <strong>On desktop:</strong> install{' '}
-              <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>Alby</a>
-              {' '}or{' '}
-              <a href="https://nos2x.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--ember-dim)' }}>nos2x</a>.
+  const handleTellMeMore = () => {
+    clearPendingNpcTimers();
+    const bridgeLine: DialogueEntry = {
+      id: `npc-loop-${Date.now()}`,
+      role: 'npc',
+      speaker: NPC_NAME,
+      text: 'The wind shifts. Ask again and I will open another thread of the same road.',
+    };
+    setDialogueHistory((prev) => [...prev, bridgeLine]);
+    setIsChoiceResolved(false);
+  };
+
+  const handleResetStory = () => {
+    clearPendingNpcTimers();
+    localStorage.removeItem(DIALOGUE_STORAGE_KEY);
+    setDialogueHistory(INITIAL_DIALOGUE);
+    setIsChoiceResolved(false);
+  };
+
+  const navItems: Array<{ key: MobileTab; label: string; icon: string; isPrimary?: boolean }> = [
+    { key: 'character', label: 'Character', icon: '◉' },
+    { key: 'quests', label: 'Quests', icon: '☰' },
+    { key: 'play', label: 'Play', icon: '✦', isPrimary: true },
+    { key: 'map', label: 'Map', icon: '◈' },
+    { key: 'social', label: 'Social', icon: '◎' },
+  ];
+
+  const renderTabPanel = () => {
+    if (activeTab === 'character') {
+      return (
+        <section className="facsimile-panel space-y-4">
+          <div className="space-y-1 text-center">
+            <h2 className="text-lg font-semibold text-[var(--facsimile-ink)]">Ari of Ember Gate</h2>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">
+              Human · Ranger · Scout
             </p>
           </div>
-        </details>
-        <div className="mt-12 h-2 w-2 rounded-full smolder" style={{ background: 'var(--ember)' }} />
-      </div>
-    );
-  }
-
-  if (screen === 'creation') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--void)' }}>
-        <p className="text-sm tracking-[0.25em] uppercase emerge" style={{ color: 'var(--ink-ghost)' }}>
-          Season III
-        </p>
-        <h2 className="mt-12 font-cormorant text-3xl font-light emerge emerge-delay-1" style={{ color: 'var(--ink)' }}>
-          What name will you carry?
-        </h2>
-        <div className="mt-10 w-full max-w-sm emerge emerge-delay-2">
-          <input
-            type="text"
-            placeholder="Name your stranger"
-            className="w-full bg-transparent border-0 border-b text-center font-cormorant text-2xl font-light tracking-wide focus:outline-none focus:ring-0"
-            style={{ color: 'var(--ink)', borderColor: 'var(--ink-ghost)' }}
-            value={characterNameInput}
-            onChange={(event) => setCharacterNameInput(event.target.value)}
-            autoFocus
-          />
-        </div>
-        <p className="mt-8 text-xs emerge emerge-delay-3" style={{ color: 'var(--ink-ghost)' }}>
-          Begin as a stranger. Discover who you are through your choices.
-        </p>
-        <button type="button" onClick={handleCreateStranger} className="mt-10 font-cormorant text-lg tracking-wide transition-all duration-500 hover:tracking-wider emerge emerge-delay-4" style={{ color: 'var(--ember)' }}>
-          Step through →
-        </button>
-      </div>
-    );
-  }
-
-  if (!character) return null;
-
-  const _activeLocationLabel = autonomous.state?.locationId?.replaceAll('_', ' ') ?? 'market square';
-  const publicSnippet = `${character.characterName}, Level ${character.level} ${character.className}`;
-  const regionLabel = 'Mysterious Village';
-  const rateXp = Math.max(1, Math.floor((autonomous.state?.visibleTraits.length ?? 1) * 0.4));
-  const rateGold = Math.max(1, Math.floor((autonomous.state?.gold ?? 0) / Math.max(1, character.level)));
-  const currentActivity = autonomous.state?.professionLabel || character.profession || 'Working';
-  const hasActiveMainQuest = hasUnreadChapter;
-  const socialAccomplishments = (networkPresence.data?.topMembers ?? []).slice(0, 4).map((member) => {
-    const discovery = member.discoveredLocations?.[0] ?? 'a forgotten place';
-    return `${member.characterName} discovered ${discovery}.`;
-  });
-
-  if (showStuckRecovery) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--void)' }}>
-        <div className="max-w-md space-y-4 rounded-xl p-6" style={{ background: 'var(--surface)' }}>
-          <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>A torn page was found.</p>
-          <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-            This character comes from an older season build and can no longer continue safely.
-          </p>
-          <div className="flex gap-3">
-            <button type="button" onClick={repairCharacter} className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--ember)', color: 'var(--void)' }}>
-              Repair Character
-            </button>
-            <button type="button" onClick={handleNewGame} className="px-3 py-2 rounded-md text-sm" style={{ background: 'var(--surface-dim)', color: 'var(--ink)' }}>
-              Hard Reset
-            </button>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="col-span-1">
+              <img
+                src={NPC_AVATAR_URL}
+                alt="Character portrait"
+                className="h-full w-full min-h-20 rounded-lg border border-[var(--facsimile-panel-border)] object-cover"
+              />
+            </div>
+            <div className="col-span-3">
+              <p className="text-xs text-[var(--facsimile-ink-muted)]">
+                A cautious ranger from the floodplain roads, known for well-maps and steady hands.
+                Travels between town and forest while carrying an unresolved oath to Ravenhall.
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
-    );
-  }
+          <p className="text-[11px] text-[var(--facsimile-ink-muted)]">
+            Shareable profile link: <span className="text-[var(--facsimile-ink)]">nostr-game://profile/ari-ember-gate</span>
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            {characterStats.map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between border-b border-[var(--facsimile-panel-border)]/50 py-0.5">
+                <p className="uppercase tracking-[0.12em] text-[var(--facsimile-ink-muted)]">{label}</p>
+                <p className="text-[var(--facsimile-ink)]">{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
+            <p><span className="text-[var(--facsimile-ink)]">Skills:</span> {characterSkills.join(', ')}</p>
+            <p><span className="text-[var(--facsimile-ink)]">Characteristics:</span> {characterTraits.join(', ')}</p>
+            <p><span className="text-[var(--facsimile-ink)]">Relationships:</span> {characterRelationships.join(', ')}</p>
+            <p><span className="text-[var(--facsimile-ink)]">Affinities:</span> {characterAffinities.join(', ')}</p>
+            <p><span className="text-[var(--facsimile-ink)]">Afflictions:</span> {characterAfflictions.join(', ')}</p>
+            <p><span className="text-[var(--facsimile-ink)]">Blessings:</span> {characterBlessings.join(', ')}</p>
+            <p><span className="text-[var(--facsimile-ink)]">Curses:</span> {characterCurses.join(', ')}</p>
+          </div>
+        </section>
+      );
+    }
 
-  if (hasActiveMainQuest || activeView === 'chapter') {
-    return (
-      <div className="min-h-screen pb-24 pb-safe" style={{ background: 'var(--void)' }}>
-        <Guttering />
-        <button
-          type="button"
-          onClick={() => setActiveView('settings')}
-          className="fixed right-4 top-4 z-50 text-xs px-2 py-1 rounded-md"
-          style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
-        >
-          Settings
-        </button>
-        <ChapterView
-          chapterOpened={chapterOpened}
-          onOpenChapter={() => setChapterOpened(true)}
-          hasChosenMarketQuest={hasChosenActiveChapter}
-          chapterLines={chapterLines}
-          mainQuestFlavorLine={echoes.data?.mainQuestFlavorLine}
-          marketConsequence={activeChapterChoice?.consequence}
-          marketOption={activeChapterChoice?.option}
-          currentQuestStep={currentQuestStep}
-          pendingBunch={pendingBunch}
-          questBunchStepsLength={questBunchSteps.length}
-          onChoose={handleMainQuestChoice}
-          deadLetterEnabled={tier3Policy.deadLetterEnabled && !tier3Policy.killSwitchEnabled}
-          onOpenDeadLetter={() => setDeadLetterOpen(true)}
-          revealPhase={revealPhase}
-          revealIdentity={revealIdentity ?? undefined}
-        />
-        <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
-          <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
-            {[
-              { key: 'profile', icon: '◉', label: 'Profile' },
-              { key: 'play', icon: '✦', label: 'Play' },
-              { key: 'map', icon: '◈', label: 'Map' },
-            ].map((item) => {
-            const isActive = (item.key === 'play' && (activeView === 'play' || activeView === 'settings' || hasActiveMainQuest)) || activeView === item.key;
+    if (activeTab === 'quests') {
+      const sortedQuests = [...mockQuests].sort((a, b) => b.createdAt - a.createdAt);
+
+      return (
+        <section className="facsimile-panel space-y-5">
+          <p className="facsimile-kicker">Quests</p>
+          <div className="space-y-3">
+            {sortedQuests.map((quest) => {
+              const isExpanded = expandedQuestId === quest.id;
+              const isCompleted = completedQuestIds.includes(quest.id);
+
               return (
-                <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
-                  <span className="text-lg transition-all duration-300" style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
-                    {item.icon}
-                  </span>
-                  <span className="text-[9px] tracking-[0.2em] uppercase transition-opacity" style={{ color: isActive ? 'var(--ink-dim)' : 'var(--ink-ghost)', opacity: isActive ? 1 : 0.5 }}>
-                    {item.label}
-                  </span>
-                </button>
+                <div key={quest.id} className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedQuestId(isExpanded ? null : quest.id)}
+                    className="w-full px-3 py-2 text-left"
+                  >
+                    <p className={`text-sm ${isCompleted ? 'line-through opacity-70' : ''}`}>{quest.title}</p>
+                  </button>
+                  {isExpanded ? (
+                    <div className="border-t border-[var(--facsimile-panel-border)] px-3 py-2">
+                      <p className="text-xs text-[var(--facsimile-ink-muted)]">{quest.briefing}</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCompletedQuestIds((prev) =>
+                            prev.includes(quest.id) ? prev.filter((id) => id !== quest.id) : [...prev, quest.id]
+                          )
+                        }
+                        className="mt-2 text-[11px] uppercase tracking-[0.14em] text-[var(--facsimile-ink)]"
+                      >
+                        {isCompleted ? 'Mark Incomplete' : 'Mark Complete'}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
           </div>
-        </nav>
-      </div>
-    );
-  }
+        </section>
+      );
+    }
 
-  return (
-    <div className="min-h-screen pb-24" style={{ background: 'var(--void)' }}>
-      <Guttering />
-      <button
-        type="button"
-        onClick={() => setActiveView('settings')}
-        className="fixed right-4 top-4 z-50 text-xs px-2 py-1 rounded-md"
-        style={{ background: 'var(--surface-dim)', color: 'var(--ink-dim)' }}
-      >
-        Settings
-      </button>
-      <div className="mx-auto max-w-2xl px-4 pt-8 space-y-5">
-        {activeView === 'play' ? (
-          <section className="space-y-4">
-            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>{publicSnippet}</p>
-            <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>{regionLabel}</p>
-            <p className="text-sm" style={{ color: 'var(--ink)' }}>
-              Health {character.health ?? 100} · Experience {character.level * 100} · Gold {character.gold ?? 0}
-            </p>
-            <p className="font-cormorant text-lg" style={{ color: 'var(--ink)' }}>
-              Earning {rateXp} experience/hr and {rateGold} gold/hr — {String(currentActivity).toUpperCase()}
-            </p>
-            <p className="font-cormorant text-lg" style={{ color: 'var(--ink-dim)' }}>
-              Your companion has something to talk to you about.
-            </p>
-            {[
-              'Ask about the old tower dreams',
-              'Ask who in town owes you a debt',
-              'Ask where hunters vanish at dusk',
-            ].map((choice) => (
+    if (activeTab === 'map') {
+      return (
+        <section className="facsimile-panel space-y-4">
+          <p className="facsimile-kicker">Map</p>
+          <h2 className="text-2xl font-semibold text-[var(--facsimile-ink)]">District Lines</h2>
+          <ul className="space-y-3 text-sm text-[var(--facsimile-ink-muted)]">
+            <li className="border-l border-amber-500/40 pl-3">Old Orchard Ruins</li>
+            <li className="border-l border-amber-500/40 pl-3">Iron Well Quarter</li>
+            <li className="border-l border-amber-500/40 pl-3">Signal Stair Bastion</li>
+          </ul>
+        </section>
+      );
+    }
+
+    if (activeTab === 'social') {
+      return (
+        <section className="facsimile-panel space-y-4">
+          <p className="facsimile-kicker">Social</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Players</p>
+              <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.totalPlayers}</p>
+            </div>
+            <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Follows</p>
+              <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.follows}</p>
+            </div>
+            <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Followers</p>
+              <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.followers}</p>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
+            <div className="facsimile-scroll max-h-64 overflow-y-auto px-3 py-2">
+              <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
+                {socialFeed.map((line) => (
+                  <li key={line} className="border-l border-[var(--facsimile-accent)]/50 pl-2">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
+            {mockSignals.map((signal) => (
+              <li key={signal} className="border-l border-[var(--facsimile-panel-border)] pl-2">
+                {signal}
+              </li>
+            ))}
+          </ul>
+          <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
+            <div className="mb-2 grid grid-cols-3 gap-1.5">
+              {['Guild', 'Market', 'Player Quests'].map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-[11px] text-[var(--facsimile-ink)]"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="facsimile-scroll mb-2 max-h-24 overflow-y-auto rounded-md bg-black/35 p-2">
+              <ul className="space-y-1 text-xs text-[var(--facsimile-ink-muted)]">
+                {socialChatMessages.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Type message..."
+                className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] placeholder:text-[var(--facsimile-ink-muted)] focus:outline-none"
+              />
               <button
-                key={choice}
                 type="button"
-                className="w-full text-left rounded-md px-3 py-3 font-cormorant text-lg"
-                style={{ background: 'var(--surface)', color: 'var(--ink)' }}
-                onClick={() => {
-                  autonomous.queueExploreIntent(choice);
-                  toast({ title: 'The memory takes root.', description: 'Your companion will return to this thread.' });
-                }}
+                className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)]"
               >
-                {choice}
+                Send
+              </button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section className="flex flex-col gap-3">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleResetStory}
+            className="text-[10px] uppercase tracking-[0.16em] text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]"
+          >
+            Reset Story
+          </button>
+        </div>
+        <div
+          ref={dialogueScrollRef}
+          className="facsimile-scroll h-[30rem] overflow-y-auto rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2"
+        >
+          <div className="space-y-1">
+            {dialogueHistory.map((entry, index) => {
+              const previousRole = dialogueHistory[index - 1]?.role;
+              const showNpcAvatar = entry.role === 'npc' && previousRole !== 'npc';
+
+              if (entry.role === 'player') {
+                return (
+                  <div key={entry.id} className="py-0.5 pl-5">
+                    <p className="text-xs leading-5 text-[var(--facsimile-ink)]">- {entry.text}</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={entry.id} className="dialogue-line-reveal py-0.5">
+                  <div
+                    className={`text-sm leading-6 ${
+                      entry.role === 'developer'
+                        ? 'rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]'
+                        : entry.role === 'exposition'
+                          ? 'rounded-md border border-violet-400/35 bg-violet-950/25 px-2 py-1 italic tracking-[0.01em] text-violet-100'
+                          : 'text-[var(--facsimile-ink)]'
+                    }`}
+                  >
+                    {entry.role === 'npc'
+                      ? entry.text.split('\n').map((line, lineIndex) => (
+                          <p key={`${entry.id}-${line}`} className={lineIndex > 0 ? 'pl-5' : ''}>
+                            {lineIndex === 0 && showNpcAvatar ? (
+                              <button
+                                type="button"
+                                className="mr-1 inline-flex align-text-top"
+                                onClick={() => setActiveTab('character')}
+                                aria-label="Open character sheet"
+                              >
+                                <img
+                                  src={NPC_AVATAR_URL}
+                                  alt={NPC_NAME}
+                                  className="inline-block h-4 w-4 rounded-full border border-[var(--facsimile-accent)] bg-[var(--facsimile-panel)] object-cover"
+                                />
+                              </button>
+                            ) : null}
+                            {line}
+                          </p>
+                        ))
+                      : <p>{entry.role === 'developer' ? `[DEV NOTE] ${entry.text}` : entry.text}</p>}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="-mt-1">
+              <ul className="space-y-1 pl-4">
+                {isChoiceResolved ? (
+                  <li key={LOOP_OPTION}>
+                    <button
+                      type="button"
+                    className="w-full text-left text-xs text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]"
+                      onClick={handleTellMeMore}
+                    >
+                      - {LOOP_OPTION}
+                    </button>
+                  </li>
+                ) : (
+                  mockChoices.map((choice) => (
+                    <li key={choice}>
+                      <button
+                        type="button"
+                        className="w-full text-left text-xs text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]"
+                        onClick={() => handleChoiceSelect(choice)}
+                      >
+                        - {choice}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
+          <div className="facsimile-scroll h-20 overflow-y-auto px-2 py-2">
+            <ul className="space-y-1 pl-4 text-[11px] text-[var(--facsimile-ink-muted)]">
+              {mockEventLog.map((eventLine) => (
+                <li key={eventLine} className="list-disc">
+                  {eventLine}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            {(locationActions[currentLocation] ?? []).map((action) => (
+              <button
+                key={action}
+                type="button"
+                className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
+              >
+                {action}
               </button>
             ))}
-          </section>
-        ) : null}
-
-        {activeView === 'map' ? (
-        <TerritoryView
-          discoveredLocations={character.discoveredLocations ?? []}
-          glimmerLocationIds={scryingPool.glimmers.map((g) => g.locationId)}
-          level={character.level}
-          visibleTraits={character.visibleTraits}
-          onExplore={(intent) => {
-            autonomous.queueExploreIntent(intent);
-            const nextCharacter = { ...character, exploreIntent: intent };
-            saveMVPCharacter(nextCharacter);
-            setCharacter(nextCharacter);
-            toast({
-              title: 'The road receives your intention',
-              description: 'Your character will carry this impulse into the next dawn.',
-            });
-          }}
-        />
-      ) : null}
-
-        {activeView === 'profile' ? (
-        <SelfView
-          character={character}
-          proofNodes={proofChain.data ?? []}
-          relayRegions={relayRegions}
-          onUpdateCharacter={(nextCharacter) => {
-            saveMVPCharacter(nextCharacter);
-            setCharacter(nextCharacter);
-          }}
-        />
-      ) : null}
-
-        {activeView === 'settings' ? (
-          <section className="rounded-xl p-5 space-y-4" style={{ background: 'var(--surface)' }}>
-            <p className="font-cormorant text-2xl" style={{ color: 'var(--ink)' }}>Settings</p>
-            <button
-              type="button"
-              onClick={handleNewGame}
-              className="text-xs tracking-wider uppercase transition-colors"
-              style={{ color: 'var(--crimson)' }}
-            >
-              Create new character
-            </button>
-          </section>
-        ) : null}
-
-      {showWorldWelcome ? (
-        <WorldWelcome
-          characterName={character.characterName}
-          onDismiss={() => {
-            localStorage.setItem('nsg:welcomed', 'true');
-            setShowWorldWelcome(false);
-          }}
-        />
-      ) : null}
-
-      {activeView === 'play' ? (
-      <section className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)' }}>
-        <p className="text-xs tracking-[0.18em] uppercase" style={{ color: 'var(--ink-ghost)' }}>Across the World</p>
-        {socialAccomplishments.length > 0 ? socialAccomplishments.map((line) => (
-          <p key={line} className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>{line}</p>
-        )) : (
-          <p className="font-cormorant text-sm" style={{ color: 'var(--ink-dim)' }}>
-            The roads are quiet tonight, but not empty.
-          </p>
-        )}
+          </div>
+        </div>
       </section>
-      ) : null}
-      </div>
+    );
+  };
 
-      <DeadLetterOverlay
-        isOpen={deadLetterOpen}
-        onClose={() => setDeadLetterOpen(false)}
-        isPending={deadLetter.isPending}
-        onSeal={(payload) => {
-          deadLetter.mutate(payload, { onSuccess: () => setDeadLetterOpen(false) });
-        }}
-      />
-      <EchoChamberOverlay
-        isOpen={echoChamberOpen}
-        targetName={selectedNetworkMember?.characterName ?? 'stranger'}
-        onClose={() => setEchoChamberOpen(false)}
-        isPending={echoChamber.isPending}
-        onSend={(payload) => {
-          if (!selectedNetworkMember) return;
-          echoChamber.mutate({ targetPubkey: selectedNetworkMember.pubkey, ...payload }, { onSuccess: () => setEchoChamberOpen(false) });
-        }}
-      />
-      <nav className="fixed inset-x-0 bottom-0 z-40 pb-safe" style={{ background: 'linear-gradient(to top, var(--void), transparent)' }}>
-        <div className="mx-auto flex max-w-sm items-center justify-around px-6 py-3">
-          {[
-            { key: 'profile', icon: '◉', label: 'Profile' },
-            { key: 'play', icon: '✦', label: 'Play' },
-            { key: 'map', icon: '◈', label: 'Map' },
-          ].map((item) => {
-            const isActive = activeView === item.key || (item.key === 'play' && activeView === 'settings');
+  return (
+    <main className="facsimile-shell mystery-ui min-h-screen p-2 sm:p-6">
+      <div className="facsimile-phone-frame mx-auto">
+        <div className="facsimile-glow" aria-hidden />
+        <section className="facsimile-phone-content flex w-full flex-col gap-3 px-3 py-2">
+          <header className="sticky top-0 z-20 rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel)] px-2 py-1.5 backdrop-blur">
+            <div className="relative flex items-center justify-between">
+              <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">Day 37</p>
+              <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.16em] text-[var(--facsimile-ink-muted)]">
+                v0.2.6-dev
+              </p>
+              <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">{currentLocation}</p>
+            </div>
+          </header>
+          {renderTabPanel()}
+        </section>
+        <nav className="facsimile-bottom-nav" aria-label="Primary game navigation">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.key;
             return (
-              <button key={item.key} type="button" onClick={() => setActiveView(item.key as ActiveView)} className="relative flex flex-col items-center gap-1 py-2 px-3 transition-all duration-300" aria-label={item.label}>
-                <span className="text-lg transition-all duration-300" style={{ color: isActive ? 'var(--ember)' : 'var(--ink-ghost)' }}>
-                  {item.icon}
-                </span>
-                <span className="text-[9px] tracking-[0.2em] uppercase transition-opacity" style={{ color: isActive ? 'var(--ink-dim)' : 'var(--ink-ghost)', opacity: isActive ? 1 : 0.5 }}>
-                  {item.label}
-                </span>
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setActiveTab(item.key)}
+                className={`facsimile-nav-button ${item.isPrimary ? 'facsimile-nav-primary' : ''} ${isActive ? 'is-active' : ''}`}
+                aria-label={item.label}
+              >
+                <span className="text-base">{item.icon}</span>
+                <span className="text-[10px] uppercase tracking-[0.16em]">{item.label}</span>
               </button>
             );
           })}
-        </div>
-      </nav>
-    </div>
+        </nav>
+      </div>
+    </main>
   );
 }
