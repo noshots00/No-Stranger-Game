@@ -16,7 +16,6 @@ import { useDeadLetterOffice } from '@/hooks/useDeadLetterOffice';
 import { useEchoChamber } from '@/hooks/useEchoChamber';
 import { useForgetting } from '@/hooks/useForgetting';
 import { useAutonomousState } from '@/hooks/useAutonomousState';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { trackTelemetry } from '@/lib/rpg/telemetry';
 import {
   CHAPTER_PROOF_KIND,
@@ -34,10 +33,9 @@ import {
   type NetworkPresenceMember,
   type QuestBunchAnswer,
 } from '@/lib/rpg/utils';
-import { DEFAULT_TIER3_POLICY, loadTier3Policy, saveTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
+import { DEFAULT_TIER3_POLICY, loadTier3Policy, type Tier3PolicySettings } from '@/lib/rpg/policy';
 import { getActiveChapter } from '@/lib/rpg/chapterCatalog';
 import { AUTONOMOUS_SNAPSHOT_KIND } from '@/lib/rpg/autonomousSimulation';
-import { ChronicleView } from './ChronicleView';
 import { ChapterView } from './ChapterView';
 import { TerritoryView } from './TerritoryView';
 import { SelfView } from './SelfView';
@@ -56,26 +54,26 @@ export function RPGInterface() {
   const [screen, setScreen] = useState<'creation' | 'home'>('creation');
   const [activeView, setActiveView] = useState<ActiveView>('play');
   const [characterNameInput, setCharacterNameInput] = useState('');
-  const [selectedNetworkMember, setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
+  const [selectedNetworkMember, _setSelectedNetworkMember] = useState<NetworkPresenceMember | null>(null);
   const [chapterOpened, setChapterOpened] = useState(false);
   const [revealPhase, setRevealPhase] = useState<'idle' | 'revealing'>('idle');
   const [revealIdentity, setRevealIdentity] = useState<{ consequence: string; race: string; profession: string; className: string } | null>(null);
   const [tier3Policy, setTier3Policy] = useState<Tier3PolicySettings>(DEFAULT_TIER3_POLICY);
   const [deadLetterOpen, setDeadLetterOpen] = useState(false);
   const [echoChamberOpen, setEchoChamberOpen] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
+  const [_syncFailed, setSyncFailed] = useState(false);
   const [showWorldWelcome, setShowWorldWelcome] = useState(false);
   const [showStuckRecovery, setShowStuckRecovery] = useState(false);
 
   const networkPresence = useNetworkPresence(user?.pubkey);
   const echoes = useEchoes(user?.pubkey);
-  const homeland = useHomeland(metadata?.nip05);
-  const ledger = useStrangersLedger();
+  const _homeland = useHomeland(metadata?.nip05);
+  const _ledger = useStrangersLedger();
   const proofChain = useProofChain(user?.pubkey);
   const relayRegions = useRelayRegions();
   const deadLetter = useDeadLetterOffice();
   const echoChamber = useEchoChamber();
-  const forgetting = useForgetting();
+  const _forgetting = useForgetting();
   const autonomous = useAutonomousState(character, user?.pubkey);
 
   useEffect(() => {
@@ -203,7 +201,7 @@ export function RPGInterface() {
   const chapterLines = activeChapter.chapterLines;
   const hasUnreadChapter = !hasChosenActiveChapter;
   const myClassLabel = character?.className || activeChapterChoice?.option;
-  const convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
+  const _convergence = useConvergence(myClassLabel, networkPresence.data?.topMembers);
   const scryingPool = useScryingPool(character?.discoveredLocations ?? [], networkPresence.data?.topMembers);
 
   const noteSyncFailure = () => {
@@ -468,7 +466,7 @@ export function RPGInterface() {
 
   if (!character) return null;
 
-  const activeLocationLabel = autonomous.state?.locationId?.replaceAll('_', ' ') ?? 'market square';
+  const _activeLocationLabel = autonomous.state?.locationId?.replaceAll('_', ' ') ?? 'market square';
   const publicSnippet = `${character.characterName}, Level ${character.level} ${character.className}`;
   const regionLabel = 'Mysterious Village';
   const rateXp = Math.max(1, Math.floor((autonomous.state?.visibleTraits.length ?? 1) * 0.4));
