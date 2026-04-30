@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import type { NostrEvent } from '@nostrify/nostrify';
 import {
   applyChoice,
   createInitialQuestState,
@@ -29,14 +31,6 @@ const mockSignals = [
   'Archivist seeks one bearer of unfinished oaths.',
   'Floodplain caravan expects tribute before moonrise.',
 ];
-
-const socialStats = {
-  totalPlayers: 1284,
-  follows: 43,
-  followers: 57,
-};
-
-const kindridSpirits = socialStats.follows + socialStats.followers;
 
 const socialFeed = [
   'Mira reached level 9 in tracking near the Floodplain Trail.',
@@ -95,6 +89,9 @@ const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DAILY_XP = 1440;
 const NPC_AVATAR_URL = 'https://api.dicebear.com/8.x/adventurer/svg?seed=Elira';
 const CLASS_UNLOCK_POINTS = 5;
+const CHARACTER_START_KIND = 10031;
+const CHARACTER_START_D_TAG = 'character-start';
+const FOLLOW_LIST_KIND = 3;
 
 const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
   const classScores: Array<{ name: 'Warrior' | 'Rogue' | 'Mage'; score: number }> = [
@@ -126,6 +123,70 @@ export function RPGInterface() {
   const completedQuestCountRef = useRef(0);
 
   const questStateStorageKey = user ? `${QUEST_STATE_STORAGE_KEY}:${user.pubkey}` : QUEST_STATE_STORAGE_KEY;
+  const socialQuery = useQuery({
+    queryKey: ['rpg-social-presence', user?.pubkey ?? 'anonymous'],
+    queryFn: async () => {
+      const loginEvents = await nostr.query([
+        {
+          kinds: [CHARACTER_START_KIND],
+          '#d': [CHARACTER_START_D_TAG],
+          '#t': ['no-stranger-game'],
+          limit: 200,
+        },
+      ]);
+
+      const playerPubkeys = Array.from(new Set(loginEvents.map((event) => event.pubkey)));
+      if (!user?.pubkey || playerPubkeys.length === 0) {
+        return {
+          totalPlayers: playerPubkeys.length,
+          kindredSpirits: 0,
+        };
+      }
+
+      const contactListEvents = await nostr.query([
+        {
+          kinds: [FOLLOW_LIST_KIND],
+          authors: Array.from(new Set([user.pubkey, ...playerPubkeys])),
+          limit: Math.max(20, playerPubkeys.length + 5),
+        },
+      ]);
+
+      const latestByAuthor = new Map<string, NostrEvent>();
+      contactListEvents.forEach((event) => {
+        const existing = latestByAuthor.get(event.pubkey);
+        if (!existing || event.created_at > existing.created_at) {
+          latestByAuthor.set(event.pubkey, event);
+        }
+      });
+
+      const extractFollowSet = (event: NostrEvent | undefined): Set<string> => {
+        if (!event) return new Set();
+        return new Set(
+          event.tags
+            .filter(([name, value]) => name === 'p' && Boolean(value))
+            .map(([, value]) => value)
+        );
+      };
+
+      const myFollows = extractFollowSet(latestByAuthor.get(user.pubkey));
+      const kindredSpirits = playerPubkeys.filter((pubkey) => {
+        if (pubkey === user.pubkey) return false;
+        if (!myFollows.has(pubkey)) return false;
+        const theirFollows = extractFollowSet(latestByAuthor.get(pubkey));
+        return theirFollows.has(user.pubkey);
+      }).length;
+
+      return {
+        totalPlayers: playerPubkeys.length,
+        kindredSpirits,
+      };
+    },
+    staleTime: 60_000,
+  });
+  const socialStats = socialQuery.data ?? {
+    totalPlayers: 0,
+    kindredSpirits: 0,
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -594,7 +655,7 @@ export function RPGInterface() {
             </div>
             <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
               <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Kindrid Spirits</p>
-              <p className="text-sm text-[var(--facsimile-ink)]">{kindridSpirits}</p>
+              <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.kindredSpirits}</p>
             </div>
           </div>
           <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
