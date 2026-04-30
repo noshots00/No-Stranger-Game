@@ -221,7 +221,9 @@ export function RPGInterface() {
 
   // ─── Social Presence Query ────────────────────────────────────────
   // This asks Nostr: "How many people are playing this game?" and
-  // "How many of them are mutual follows with me?" (Kindred Spirits).
+  // "How many of them are connected to me?" (Kindred Spirits).
+  // A Kindred Spirit is anyone who plays the game AND is either someone
+  // you follow or someone who follows you (union, no double-counting).
   // useQuery handles caching so we don't spam relays on every render.
   const socialQuery = useQuery({
     queryKey: ['rpg-social-presence', user?.pubkey ?? 'anonymous'],
@@ -246,7 +248,9 @@ export function RPGInterface() {
         };
       }
 
-      // Step 2: Fetch everyone's follow lists so we can check mutual follows.
+      // Step 2: Fetch follow lists for the current user AND all other players.
+      // We need the current user's list to find "who I follow that plays",
+      // and every player's list to find "who follows me that plays".
       const contactListEvents = await nostr.query([
         {
           kinds: [FOLLOW_LIST_KIND],
@@ -276,15 +280,30 @@ export function RPGInterface() {
         );
       };
 
-      // Step 3: Count "Kindred Spirits" = other players where BOTH of you
-      // follow each other (mutual follows).
+      // Step 3: Count "Kindred Spirits" — the unique set of other players who
+      // are connected to you in either direction (you follow them OR they follow
+      // you).  We use a Set to avoid double-counting someone who is both.
       const myFollows = extractFollowSet(latestByAuthor.get(user.pubkey));
-      const kindredSpirits = playerPubkeys.filter((pubkey) => {
-        if (pubkey === user.pubkey) return false;
-        if (!myFollows.has(pubkey)) return false;
+      const playerSet = new Set(playerPubkeys);
+      const kindredSet = new Set<string>();
+
+      // Add players that I follow.
+      for (const followedPubkey of myFollows) {
+        if (followedPubkey !== user.pubkey && playerSet.has(followedPubkey)) {
+          kindredSet.add(followedPubkey);
+        }
+      }
+
+      // Add players that follow me.
+      for (const pubkey of playerPubkeys) {
+        if (pubkey === user.pubkey) continue;
         const theirFollows = extractFollowSet(latestByAuthor.get(pubkey));
-        return theirFollows.has(user.pubkey);
-      }).length;
+        if (theirFollows.has(user.pubkey)) {
+          kindredSet.add(pubkey);
+        }
+      }
+
+      const kindredSpirits = kindredSet.size;
 
       return {
         totalPlayers: playerPubkeys.length,
