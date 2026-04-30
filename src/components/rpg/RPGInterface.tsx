@@ -437,7 +437,7 @@ export function RPGInterface() {
                 <button
                   key={label}
                   type="button"
-                  className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-[11px] text-[var(--facsimile-ink)]"
+                  className="social-channel-button rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-[11px] text-[var(--facsimile-ink)]"
                 >
                   {label}
                 </button>
@@ -578,7 +578,7 @@ export function RPGInterface() {
               <button
                 key={action}
                 type="button"
-                className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
+                className="location-action-button w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
               >
                 {action}
               </button>
