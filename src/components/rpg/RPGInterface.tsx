@@ -1066,7 +1066,7 @@ export function RPGInterface() {
             <div className="relative flex items-center justify-between">
               <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">Day {dayCounter}</p>
               <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.16em] text-[var(--facsimile-ink-muted)]">
-                v0.4.3-dev
+                v0.4.4-dev
               </p>
               <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">{currentLocation}</p>
             </div>
