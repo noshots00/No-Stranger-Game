@@ -59,3 +59,41 @@ Used for in-game private messaging mechanics (Dead Letter Office / Echo Chamber)
 
 ### 5 - Event Deletion
 Used for The Forgetting mechanic to request deletion of prior proof events.
+
+### 10031 - Character Start Timestamp
+Replaceable event storing the canonical first-login timestamp used to calculate the character day counter.
+
+**Tags:**
+- `d` - Always `character-start`
+- `t` - Always `no-stranger-game`
+- `alt` - Human-readable description
+
+**Content:** JSON string containing:
+```json
+{
+  "startTimestamp": 1777545600000
+}
+```
+
+### 10032 - Quest Save Checkpoint
+Replaceable event storing per-player quest progression checkpoints for resume-on-login behavior.
+
+**Tags:**
+- `d` - Always `quest-state`
+- `t` - Always `no-stranger-game`
+- `alt` - Human-readable description
+
+**Content:** JSON string containing:
+```json
+{
+  "savedAtMs": 1777545660000,
+  "state": {
+    "activeQuestId": "quest-002-boar-ambush",
+    "progressByQuestId": {},
+    "modifiers": {},
+    "flags": ["quest001-complete"],
+    "playerName": "Ari",
+    "dialogueLog": []
+  }
+}
+```

@@ -5,13 +5,14 @@ import { NIP19Page } from "./pages/NIP19Page";
 import NotFound from "./pages/NotFound";
 import Messages from "./pages/Messages";
 import { RPGInterface } from "./components/rpg/RPGInterface";
+import { TitleScreen } from "./components/rpg/TitleScreen";
 
 export function AppRouter() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ScrollToTop />
       <Routes>
-        <Route path="/" element={<RPGInterface />} />
+        <Route path="/" element={<TitleScreen />} />
         <Route path="/game" element={<RPGInterface />} />
         <Route path="/messages" element={<Messages />} />
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}

@@ -222,12 +222,16 @@
 
   .mystery-ui .location-action-button,
   .mystery-ui .social-channel-button {
-    border-color: rgba(161, 161, 170, 0.45) !important;
+    border: 1px solid rgba(161, 161, 170, 0.9) !important;
   }
 
   .mystery-ui .location-action-button:hover,
   .mystery-ui .social-channel-button:hover {
     border-color: rgba(168, 126, 72, 0.7) !important;
+  }
+
+  .mystery-ui .old-well-button {
+    border: 1px solid #fff !important;
   }
 
   .facsimile-phone-frame {
