@@ -32,7 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
+import type { DialogueLogEntry, WorldEventLogEntry } from '@/components/rpg/quests/types';
 
 const mockSignals = [
   'Ravenhall gate opens at first bell.',
@@ -233,6 +233,49 @@ const formatPlayerChoiceDialogueLine = (playerName: string, label: string): stri
   const action = imperativePhraseToThirdPerson(raw);
   return `${displayName} ${action}!`;
 };
+
+const DIALOGUE_NARRATOR_CLASSES =
+  'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
+
+const DIALOGUE_PLAYER_LABEL_CLASSES =
+  'mb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--facsimile-player-label)]';
+
+const DIALOGUE_PLAYER_BODY_CLASSES =
+  'font-sans text-sm font-semibold leading-6 text-[var(--facsimile-player-ink)]';
+
+function DialogueLineBlock({
+  line,
+  playerLabel,
+}: {
+  line: Pick<DialogueLogEntry, 'speaker' | 'text'>;
+  playerLabel: string;
+}) {
+  if (line.speaker === 'Narrator') {
+    return <p className={DIALOGUE_NARRATOR_CLASSES}>{line.text}</p>;
+  }
+  if (line.speaker === 'Dev Message') {
+    return (
+      <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]">
+        {line.text}
+      </p>
+    );
+  }
+  if (line.speaker === PLAYER_ACTION_SPEAKER) {
+    return (
+      <div>
+        <p className={DIALOGUE_PLAYER_LABEL_CLASSES}>{playerLabel}</p>
+        <p className={DIALOGUE_PLAYER_BODY_CLASSES}>{line.text}</p>
+      </div>
+    );
+  }
+  const voiceLabel = line.speaker === 'You' ? playerLabel : line.speaker;
+  return (
+    <div>
+      <p className={DIALOGUE_PLAYER_LABEL_CLASSES}>{voiceLabel}</p>
+      <p className={DIALOGUE_PLAYER_BODY_CLASSES}>{line.text}</p>
+    </div>
+  );
+}
 
 const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
   const classScores: Array<{ name: 'Warrior' | 'Rogue' | 'Mage'; score: number }> = [
@@ -488,6 +531,10 @@ export function RPGInterface() {
   const explorationLevel = useMemo(() => getLevelFromXp(explorationXp), [explorationXp]);
   const characterLevel = useMemo(() => getCharacterLevel(questState), [questState]);
   const characterClass = useMemo(() => getCharacterClass(questState.modifiers), [questState.modifiers]);
+  const playerLineLabel = useMemo(
+    () => questState.playerName.trim() || 'Stranger',
+    [questState.playerName]
+  );
   const oldestPendingQuestId = useMemo(() => {
     const pending = visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id));
     if (pending.length === 0) return null;
@@ -956,19 +1003,7 @@ export function RPGInterface() {
           <div className="space-y-1">
             {playDialogueLines.map((line) => (
               <div key={line.id} className="dialogue-line-reveal py-0.5">
-                {line.speaker === 'Narrator' ? (
-                  <p className="text-sm leading-6 italic text-sky-200">{line.text}</p>
-                ) : line.speaker === 'Dev Message' ? (
-                  <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]">
-                    {line.text}
-                  </p>
-                ) : line.speaker === PLAYER_ACTION_SPEAKER ? (
-                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">{line.text}</p>
-                ) : (
-                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">
-                    <span className="text-[var(--facsimile-ink-muted)]">{line.speaker}:</span> {line.text}
-                  </p>
-                )}
+                <DialogueLineBlock line={line} playerLabel={playerLineLabel} />
               </div>
             ))}
             {activeQuest && activeStep ? (
@@ -1145,18 +1180,11 @@ export function RPGInterface() {
                 </p>
                 {row.kind === 'world' ? (
                   <p className="text-sm text-[var(--facsimile-ink-muted)]">{row.text}</p>
-                ) : row.speaker === 'Narrator' ? (
-                  <p className="text-sm leading-6 italic text-sky-200">{row.text}</p>
-                ) : row.speaker === 'Dev Message' ? (
-                  <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100">
-                    {row.text}
-                  </p>
-                ) : row.speaker === PLAYER_ACTION_SPEAKER ? (
-                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">{row.text}</p>
                 ) : (
-                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">
-                    <span className="text-[var(--facsimile-ink-muted)]">{row.speaker}:</span> {row.text}
-                  </p>
+                  <DialogueLineBlock
+                    line={{ speaker: row.speaker, text: row.text }}
+                    playerLabel={playerLineLabel}
+                  />
                 )}
               </div>
             ))}

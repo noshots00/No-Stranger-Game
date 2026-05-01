@@ -78,6 +78,10 @@
     --facsimile-ink-muted: #a89f8b;
     --facsimile-accent: rgba(168, 126, 72, 0.7);
     --facsimile-accent-soft: rgba(168, 126, 72, 0.18);
+    /* Dialogue: narrator (cool story) vs player (warm decisive) */
+    --facsimile-narrator-ink: #b8dff3;
+    --facsimile-player-ink: #f2d7a4;
+    --facsimile-player-label: rgba(242, 215, 164, 0.72);
   }
 
   /* When the .dark class is present, these variables replace :root values. */
@@ -126,6 +130,9 @@
     --facsimile-ink-muted: #a89f8b;
     --facsimile-accent: rgba(168, 126, 72, 0.74);
     --facsimile-accent-soft: rgba(168, 126, 72, 0.22);
+    --facsimile-narrator-ink: #b8dff3;
+    --facsimile-player-ink: #f2d7a4;
+    --facsimile-player-label: rgba(242, 215, 164, 0.72);
   }
 }
 
