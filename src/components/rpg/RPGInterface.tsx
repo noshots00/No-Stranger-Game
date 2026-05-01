@@ -12,7 +12,7 @@ import {
   startQuest,
   submitPlayerName,
 } from '@/components/rpg/quests/engine';
-import { SKILLS_WITH_DAILY_XP } from '@/components/rpg/quests/skills-config';
+import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   DAILY_XP,
@@ -26,7 +26,7 @@ import {
   PLAY_WORLD_RECENT_MAX,
 } from './constants';
 import type { MobileTab } from './constants';
-import { appendDialogue, appendUniqueWorldEntries, getLevelUpLines, getRewardLines } from './helpers';
+import { appendDialogue, appendUniqueWorldEntries, buildDayReportDialogueLines, getLevelUpLines, getRewardLines } from './helpers';
 import {
   formatPlayerChoiceDialogueLine,
   groupChronicleRows,
@@ -209,9 +209,10 @@ export function RPGInterface() {
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
     const xpToGrant = daysToGrant * DAILY_XP;
+    const skillGrants = distributeDailySkillXp(xpToGrant);
     const nextSkills = { ...questState.skills };
-    for (const key of SKILLS_WITH_DAILY_XP) {
-      nextSkills[key] = questState.skills[key] + xpToGrant;
+    for (const key of SKILL_XP_KEYS) {
+      nextSkills[key] = questState.skills[key] + (skillGrants[key] ?? 0);
     }
     const updatedState = {
       ...questState,
@@ -219,15 +220,11 @@ export function RPGInterface() {
       skills: nextSkills,
       lastDailyXpDay: dayCounter,
     };
-    const rewardLines = getRewardLines(questState.modifiers, updatedState.modifiers);
-    const levelUpLines = getLevelUpLines(questState, updatedState);
-    const dayLineBase = `Day ${dayCounter}: You gained ${xpToGrant} XP.`;
-    const dayLine =
-      rewardLines.length > 0 ? `${dayLineBase} ${rewardLines.join(' ')}` : dayLineBase;
-    updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [
-      dayLine,
-      ...levelUpLines,
-    ]);
+    const dayLine = `Day ${dayCounter} began.`;
+    updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
+
+    const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState);
+    updatedState.dialogueLog = [...updatedState.dialogueLog, ...reportLines];
 
     setQuestState(updatedState);
     void persistQuestCheckpoint(updatedState);
@@ -362,8 +359,9 @@ export function RPGInterface() {
           appendDialogue('Dev Message', INTRO_DEV_MESSAGE),
         ],
         worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, [
-          `You remembered your name is ${submittedName}`,
-          `${submittedName} is exploring the ${nextState.currentLocation}.`,
+          'You found yourself in a forest.',
+          `${submittedName} remembered his name.`,
+          `${submittedName} is exploring the forest.`,
         ]),
       };
       setQuestState(updatedState);
@@ -467,9 +465,9 @@ export function RPGInterface() {
 
   return (
     <>
-    <main className="candlelit-shell relative min-h-[100dvh] w-full overflow-x-hidden">
+    <main className="candlelit-shell relative h-[100dvh] max-h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 pb-32 pt-6 sm:px-8 sm:pt-10">
+      <div className="relative z-[2] mx-auto flex h-[100dvh] w-full max-w-2xl flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] sm:px-8 sm:pt-2">
         <GameHeader
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
@@ -478,32 +476,38 @@ export function RPGInterface() {
           onLogout={handleLogout}
           onResetStory={handleResetStory}
         />
-        <div className="emerge">{renderTabPanel()}</div>
+        <div
+          className={`emerge min-h-0 flex-1 ${activeTab === 'play' ? 'overflow-hidden' : 'overflow-y-auto pr-1'}`}
+        >
+          {renderTabPanel()}
+        </div>
       </div>
-      <nav className="candlelit-bottom-nav" aria-label="Primary game navigation">
-        {navItems.map((item) => {
-          const isActive = activeTab === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setActiveTab(item.key)}
-              className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
-              aria-label={item.label}
-            >
-              {item.key === 'quests' && pendingQuestCount > 0 ? (
-                <span className="absolute right-2 top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[9px] font-medium leading-none text-[var(--candle-ink)]">
-                  {pendingQuestCount}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40">
+        <nav className="candlelit-bottom-nav pointer-events-auto mx-auto w-full max-w-2xl" aria-label="Primary game navigation">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setActiveTab(item.key)}
+                className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
+                aria-label={item.label}
+              >
+                {item.key === 'quests' && pendingQuestCount > 0 ? (
+                  <span className="absolute right-2 top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[9px] font-medium leading-none text-[var(--candle-ink)]">
+                    {pendingQuestCount}
+                  </span>
+                ) : null}
+                <span className="text-lg leading-none" aria-hidden>
+                  {item.icon}
                 </span>
-              ) : null}
-              <span className="text-lg leading-none" aria-hidden>
-                {item.icon}
-              </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.16em]">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+                <span className="text-[10px] font-medium uppercase tracking-[0.16em]">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
     </main>
     <ChronicleDialog
       isOpen={isChronicleOpen}
