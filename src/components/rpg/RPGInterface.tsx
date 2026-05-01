@@ -158,10 +158,15 @@ const getLevelUpLines = (
   nextState: { skills: { explorationXp: number }; modifiers: Record<string, number> }
 ): string[] => {
   const lines: string[] = [];
+  const formatSkillName = (value: string): string =>
+    value
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[_-]/g, ' ')
+      .toLowerCase();
   const previousExplorationLevel = getLevelFromXp(prevState.skills.explorationXp);
   const nextExplorationLevel = getLevelFromXp(nextState.skills.explorationXp);
   if (nextExplorationLevel > previousExplorationLevel) {
-    lines.push(`Your Exploration reached level ${nextExplorationLevel}.`);
+    lines.push(`Your skill in exploration reached level ${nextExplorationLevel}!`);
   }
 
   Object.keys(nextState.modifiers).forEach((key) => {
@@ -169,11 +174,64 @@ const getLevelUpLines = (
     const previous = prevState.modifiers[key] ?? 0;
     const current = nextState.modifiers[key] ?? 0;
     if (current > previous) {
-      lines.push(`Your ${key} increased to ${current}.`);
+      lines.push(`Your skill in ${formatSkillName(key)} reached level ${current}!`);
     }
   });
 
   return lines;
+};
+
+/** Dialogue speaker for lines generated from the player's choice (not "You:" colon style). */
+const PLAYER_ACTION_SPEAKER = 'PlayerAction';
+
+const IMPERATIVE_VERB_THIRD: Record<string, string> = {
+  strike: 'strikes',
+  cast: 'casts',
+  try: 'tries',
+  run: 'runs',
+  draw: 'draws',
+  hide: 'hides',
+  jump: 'jumps',
+  duck: 'ducks',
+  dodge: 'dodges',
+  go: 'goes',
+};
+
+const imperativePhraseToThirdPerson = (phrase: string): string => {
+  const trimmed = phrase.trim();
+  if (!trimmed) return 'acts';
+  const withoutBang = trimmed.replace(/!+\s*$/, '');
+  const m = withoutBang.match(/^([A-Za-z]+)([\s\S]*)$/);
+  if (!m) return `${withoutBang}`;
+  const verb = m[1].toLowerCase();
+  const rest = m[2];
+  const irregular = IMPERATIVE_VERB_THIRD[verb];
+  if (irregular) return `${irregular}${rest}`;
+  if (/[sxz]$|ch$|sh$/i.test(verb)) return `${verb}es${rest}`;
+  if (/[^aeiou]y$/i.test(verb)) return `${verb.slice(0, -1)}ies${rest}`;
+  return `${verb}s${rest}`;
+};
+
+const isChoiceQuestionLike = (label: string): boolean => {
+  const t = label.trim().toLowerCase();
+  const first = t.split(/\s+/)[0] ?? '';
+  return ['who', 'what', 'where', 'when', 'why', 'how'].includes(first) || /\b(i|me|my)\b/.test(t);
+};
+
+/** Narrates the player's selected choice using their character name (third person for actions). */
+const formatPlayerChoiceDialogueLine = (playerName: string, label: string): string => {
+  const displayName = playerName.trim() || 'Stranger';
+  const raw = label.trim().replace(/!+\s*$/, '');
+  if (!raw) return `${displayName} acts!`;
+
+  if (isChoiceQuestionLike(raw)) {
+    const quoted = raw.endsWith('?') ? raw : `${raw}?`;
+    const sentence = quoted.charAt(0).toUpperCase() + quoted.slice(1);
+    return `${displayName} asked, "${sentence}"`;
+  }
+
+  const action = imperativePhraseToThirdPerson(raw);
+  return `${displayName} ${action}!`;
 };
 
 const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
@@ -605,7 +663,10 @@ export function RPGInterface() {
       const nextStep = getCurrentStep(nextState, activeQuest);
       const nextLog = [
         ...nextState.dialogueLog,
-        appendDialogue('You', selectedChoice.label),
+        appendDialogue(
+          PLAYER_ACTION_SPEAKER,
+          formatPlayerChoiceDialogueLine(prev.playerName, selectedChoice.label)
+        ),
       ];
 
       if (nextStep.type === 'message') {
@@ -901,6 +962,8 @@ export function RPGInterface() {
                   <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]">
                     {line.text}
                   </p>
+                ) : line.speaker === PLAYER_ACTION_SPEAKER ? (
+                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">{line.text}</p>
                 ) : (
                   <p className="text-sm leading-6 text-[var(--facsimile-ink)]">
                     <span className="text-[var(--facsimile-ink-muted)]">{line.speaker}:</span> {line.text}
@@ -1088,6 +1151,8 @@ export function RPGInterface() {
                   <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100">
                     {row.text}
                   </p>
+                ) : row.speaker === PLAYER_ACTION_SPEAKER ? (
+                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">{row.text}</p>
                 ) : (
                   <p className="text-sm leading-6 text-[var(--facsimile-ink)]">
                     <span className="text-[var(--facsimile-ink-muted)]">{row.speaker}:</span> {row.text}
