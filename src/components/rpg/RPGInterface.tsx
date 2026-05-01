@@ -626,11 +626,13 @@ export function RPGInterface() {
     const events = socialLobbyQuery.data ?? [];
     const pubkeys = new Set(events.map((e) => e.pubkey));
     if (user?.pubkey) pubkeys.delete(user.pubkey);
-    return Array.from(pubkeys);
+    return Array.from(pubkeys).sort();
   }, [socialLobbyQuery.data, user?.pubkey]);
 
+  const lobbyAuthorPubkeysKey = lobbyAuthorPubkeys.join('|');
+
   const lobbyNamesQuery = useQuery({
-    queryKey: ['rpg-lobby-names', ...lobbyAuthorPubkeys],
+    queryKey: ['rpg-lobby-names', lobbyAuthorPubkeysKey],
     enabled: lobbyAuthorPubkeys.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
