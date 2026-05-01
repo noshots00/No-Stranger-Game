@@ -21,6 +21,7 @@ import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   fetchOrCreateCharacterStartTimestamp,
   fetchQuestStateSnapshot,
+  publishCharacterStartTimestamp,
   publishQuestStateSnapshot,
 } from '@/components/rpg/gameProfile';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -788,11 +789,22 @@ export function RPGInterface() {
     });
   }, [questState.activeQuestId, questState.dialogueLog.length]);
 
-  const handleResetStory = () => {
+  const handleResetStory = async () => {
     localStorage.removeItem(questStateStorageKey);
     setQuestState(createInitialQuestState());
     setNameInput('');
     setNameInputError(null);
+    setDevDayOffsetMs(0);
+    const now = Date.now();
+    setCharacterStartTimestamp(now);
+    localStorage.setItem(CHARACTER_START_TS_STORAGE_KEY, String(now));
+    if (user?.signer) {
+      try {
+        await publishCharacterStartTimestamp(nostr, user.signer, now);
+      } catch (error) {
+        console.warn('Failed to publish reset character start timestamp; day may revert after reload.', error);
+      }
+    }
   };
 
   const handleLogout = async () => {
