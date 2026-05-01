@@ -1142,15 +1142,18 @@ There is an important distinction between **writing new tests** and **running ex
 
 ### Running Tests (Executing the Test Suite)
 
-Do **not** run the full test script after every small edit in the same task. That script (`npm test`) runs install, TypeScript, ESLint, Vitest, and a production build—it is expensive and repeating it many times per session wastes time.
+Do **not** run heavyweight validation after every small edit in the same task. Use the cheaper scripts during iteration and reserve full verification for completion.
 
 **When to run:**
 
-- **During iteration** (multiple edits toward one goal): Use the editor and faster checks as needed. Running `npm test` repeatedly mid-task is optional, not required after each change.
-- **Once before you finish**: Before you declare the task done, create a commit, or hand off to the user, run **`npm test` exactly once** (unless the user explicitly asked you to skip validation). Fix failures until it passes.
-- **Skip an extra final run** if you already ran `npm test` successfully in the same session with **no further code changes** after that run.
+- **During iteration** (multiple edits toward one goal): Prefer `npm run check` and optionally `npm run test:quick`. Avoid running `npm test`/`npm run verify` after each small change.
+- **Once before you finish**: Before you declare the task done, create a commit, or hand off to the user, run **`npm run verify` exactly once** (unless the user explicitly asked you to skip validation). Fix failures until it passes.
+- **Skip an extra final run** if you already ran `npm run verify` successfully in the same session with **no further code changes** after that run.
 
-**What `npm test` covers:** TypeScript (`tsc --noEmit`), ESLint, Vitest, and a production build—use it as the single authoritative gate at task completion, not as a hook on every keystroke.
+**Script intent:**
+- `npm run check`: fast typecheck + cached lint
+- `npm run test:quick`: changed-tests smoke check
+- `npm run verify` (and `npm test` alias): full gate (`check` + full tests + build)
 
 ### Test Setup
 
@@ -1183,19 +1186,20 @@ describe('MyComponent', () => {
 
 ## Validating Your Changes
 
-Validate **once at task completion**, not after every intermediate edit. Prefer a single successful **`npm test`** run right before you finish (it already runs TypeScript, ESLint, Vitest, and a production build).
+Validate **once at task completion**, not after every intermediate edit. Prefer a single successful **`npm run verify`** run right before you finish.
 
-**Your task is not finished until** either `npm test` has passed after your final code changes, or you have documented why validation was skipped because the user asked you to skip it.
+**Your task is not finished until** either `npm run verify` (or `npm test`) has passed after your final code changes, or you have documented why validation was skipped because the user asked you to skip it.
 
 ### Validation Priority Order
 
 Use this order **when choosing what to run** (not as an excuse to run everything repeatedly):
 
-1. **Full script at the end** (Required for completion): `npm test` once after your last substantive edit.
-2. **During long sessions** (Optional): Faster feedback only if useful—for example rely on the IDE for TypeScript errors, or run a narrower command if the project adds one later; avoid chaining duplicate full runs.
+1. **Iteration checks** (Optional but recommended): `npm run check` and, when helpful, `npm run test:quick`.
+2. **Full script at the end** (Required for completion): `npm run verify` (or `npm test`) once after your last substantive edit.
+3. **Avoid duplicate full runs**: if full verification already passed and code did not change after, do not rerun.
 
 **Minimum Requirements before finishing:**
-- `npm test` passes with no errors (covers type-check, lint, tests, and build), unless the user explicitly waived validation.
+- `npm run verify` (or `npm test`) passes with no errors (covers type-check, lint, tests, and build), unless the user explicitly waived validation.
 - Fix critical issues that would break CI or the app.
 - Create a git commit when your changes are complete and validated.
 

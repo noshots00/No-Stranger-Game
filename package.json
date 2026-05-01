@@ -4,9 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm i --silent && vite",
-    "build": "npm i --silent && vite build -l error && node -e \"const fs=require('node:fs');fs.copyFileSync('dist/index.html','dist/404.html')\" && echo 'Project built successfully!'",
-    "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && node -e \"const fs=require('node:fs');fs.copyFileSync('dist/index.html','dist/404.html')\" && echo 'All tests passed!'"
+    "dev": "vite",
+    "build": "vite build -l error && node -e \"const fs=require('node:fs');fs.copyFileSync('dist/index.html','dist/404.html')\" && echo 'Project built successfully!'",
+    "check": "tsc --noEmit && eslint . --cache --cache-location .eslintcache",
+    "test:quick": "vitest run --changed --reporter=dot --silent",
+    "test:full": "vitest run --reporter=dot --silent",
+    "verify": "npm run check && npm run test:full && npm run build && echo 'Verification passed!'",
+    "test": "npm run verify"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.6",
