@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
-import { PLAY_DIALOGUE_RECENT_MAX, PLAY_WORLD_RECENT_MAX } from '../constants';
+import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
 import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
 
 type PlayTabProps = {
@@ -31,7 +31,7 @@ export function PlayTab({
   activeQuest,
   activeStep,
   dialogueLogLength,
-  worldEventLogLength,
+  worldEventLogLength: _worldEventLogLength,
   nameInput,
   onNameInputChange,
   nameInputError,
@@ -39,7 +39,7 @@ export function PlayTab({
   onNameSubmit,
   dialogueScrollRef,
   eventLogScrollRef,
-  onDialogueScroll,
+  onDialogueScroll: _onDialogueScroll,
   visibleLocationActions,
   showOriginStartHint,
 }: PlayTabProps) {
@@ -71,13 +71,11 @@ export function PlayTab({
     }, CHOICE_FADE_MS);
   };
 
+  const visibleWorldLines = playWorldLines.slice(-2);
+
   return (
-    <section className="flex flex-col gap-4">
-      <div
-        ref={dialogueScrollRef}
-        onScroll={onDialogueScroll}
-        className="facsimile-scroll max-h-[30rem] min-h-[12rem] overflow-y-auto pr-1"
-      >
+    <section className="flex h-full flex-col justify-end gap-1.5">
+      <div ref={dialogueScrollRef} className="min-h-0 flex-1 overflow-hidden pr-1">
         <div className="space-y-4">
           {playDialogueBlocks.map((block, blockIndex) => (
             <div
@@ -145,27 +143,8 @@ export function PlayTab({
           Showing the last {PLAY_DIALOGUE_RECENT_MAX} dialogue lines. Older lines are in the chronicle.
         </p>
       ) : null}
-      <div className={playWorldLines.length > 0 ? 'echo-log' : 'echo-log opacity-60'}>
-        <p className="mb-1 font-serif text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]">
-          World
-        </p>
-        <div ref={eventLogScrollRef} className="facsimile-scroll max-h-24 overflow-y-auto pr-1">
-          {playWorldLines.length > 0 ? (
-            <p className="font-serif text-xs italic leading-relaxed text-[var(--candle-ink-faint)]">
-              {playWorldLines.map((entry) => entry.text).join(' · ')}
-            </p>
-          ) : (
-            <p className="font-serif text-xs italic text-[var(--candle-ink-faint)]">The road is quiet.</p>
-          )}
-        </div>
-      </div>
-      {worldEventLogLength > PLAY_WORLD_RECENT_MAX ? (
-        <p className="text-center font-serif text-[10px] text-[var(--candle-ink-faint)]">
-          Showing the last {PLAY_WORLD_RECENT_MAX} world events. Older events are in the chronicle.
-        </p>
-      ) : null}
       {visibleLocationActions.length > 0 ? (
-        <div className="space-y-2 border-t border-[var(--candle-rule)] pt-4">
+        <div className="space-y-2 border-t border-[var(--candle-rule)] pt-3">
           <div className="grid grid-cols-2 gap-2">
             {visibleLocationActions.map((action) => (
               <button
@@ -179,6 +158,41 @@ export function PlayTab({
           </div>
         </div>
       ) : null}
+      <div className="echo-log flex flex-col gap-1.5 py-1">
+        <div ref={eventLogScrollRef} className="max-h-[2.6rem] overflow-hidden pr-1">
+          {visibleWorldLines.length > 0 ? (
+            <ul className="space-y-1 font-sans text-[11px] leading-snug">
+              {visibleWorldLines.map((entry, index) => (
+                <li
+                  key={`${entry.atMs}-${index}-${entry.text}`}
+                  className="italic text-[var(--candle-ember)]/80"
+                >
+                  {entry.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-sans text-[11px] italic leading-snug text-[var(--candle-ember)]/70">
+              The road is quiet.
+            </p>
+          )}
+        </div>
+        <div className="flex items-end gap-2 border-t border-[var(--candle-rule)] pt-1">
+          <input
+            type="text"
+            placeholder="Say something..."
+            disabled
+            className="min-h-[40px] flex-1 border-0 bg-transparent px-0 py-1 font-serif text-xs text-[var(--candle-ink-soft)] placeholder:text-[var(--candle-ink-faint)] opacity-70 focus:outline-none"
+          />
+          <button
+            type="button"
+            disabled
+            className="min-h-[40px] px-1 font-serif text-xs text-[var(--candle-ink-faint)] opacity-70"
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
