@@ -55,6 +55,8 @@ export type QuestContext = {
   currentLocation: string;
   completedQuestIds: string[];
   flags: string[];
+  /** Exploration skill level from `skills.explorationXp`. */
+  explorationLevel: number;
 };
 
 export type QuestProgress = {
@@ -81,6 +83,8 @@ export type QuestState = {
   progressByQuestId: Record<string, QuestProgress>;
   modifiers: ModifierMap;
   flags: string[];
+  /** Player location label (e.g. Forest, Silver Lake). */
+  currentLocation: string;
   playerName: string;
   experience: number; // Legacy aggregate XP field kept for migration compatibility.
   skills: {

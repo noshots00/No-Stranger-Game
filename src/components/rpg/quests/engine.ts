@@ -81,6 +81,7 @@ export const createInitialQuestState = (): QuestState => ({
   progressByQuestId: {},
   modifiers: {},
   flags: [],
+  currentLocation: 'Forest',
   playerName: '',
   experience: 0,
   skills: {
@@ -99,9 +100,15 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     : legacyExperience;
   const dialogueLog = normalizeDialogueLog(state.dialogueLog);
   const worldEventLog = normalizeWorldEventLog(state.worldEventLog ?? []);
+  const currentLocation =
+    typeof state.currentLocation === 'string' && state.currentLocation.trim().length > 0
+      ? state.currentLocation
+      : initial.currentLocation;
+
   return {
     ...initial,
     ...state,
+    currentLocation,
     experience: legacyExperience,
     skills: {
       explorationXp,
@@ -160,10 +167,11 @@ export const getCompletedQuestIds = (state: QuestState): string[] =>
     .filter(([, progress]) => progress.isCompleted)
     .map(([questId]) => questId);
 
-export const getQuestContext = (state: QuestState, currentLocation: string): QuestContext => ({
-  currentLocation,
+export const getQuestContext = (state: QuestState): QuestContext => ({
+  currentLocation: state.currentLocation,
   completedQuestIds: getCompletedQuestIds(state),
   flags: state.flags,
+  explorationLevel: getLevelFromXp(state.skills.explorationXp),
 });
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>
