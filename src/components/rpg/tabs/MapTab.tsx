@@ -1,4 +1,4 @@
-import { SILVER_LAKE_FLAG } from '../constants';
+import { AIRSHIP_FLAG, SILVER_LAKE_FLAG } from '../constants';
 
 type MapTabProps = {
   currentLocation: string;
@@ -22,21 +22,38 @@ export function MapTab({ currentLocation, flags, onLocationChange }: MapTabProps
           The Forest
         </button>
       </div>
-      {flags.includes(SILVER_LAKE_FLAG) ? (
+      {flags.includes(SILVER_LAKE_FLAG) || flags.includes(AIRSHIP_FLAG) ? (
         <ul className="space-y-4 border-t border-[var(--candle-rule)] pt-6">
-          <li>
-            <button
-              type="button"
-              onClick={() => onLocationChange('Silver Lake')}
-              className={`font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
-                currentLocation === 'Silver Lake'
-                  ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
-                  : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
-              }`}
-            >
-              Silver Lake
-            </button>
-          </li>
+          {flags.includes(SILVER_LAKE_FLAG) ? (
+            <li>
+              <button
+                type="button"
+                onClick={() => onLocationChange('Silver Lake')}
+                className={`font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
+                  currentLocation === 'Silver Lake'
+                    ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+                    : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
+                }`}
+              >
+                Silver Lake
+              </button>
+            </li>
+          ) : null}
+          {flags.includes(AIRSHIP_FLAG) ? (
+            <li>
+              <button
+                type="button"
+                onClick={() => onLocationChange('Airship')}
+                className={`font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
+                  currentLocation === 'Airship'
+                    ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+                    : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
+                }`}
+              >
+                Airship
+              </button>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </section>

@@ -7,6 +7,7 @@ If you have any questions please reach out to me on Nostr.
 Thank you for playing!`;
 
 export const SILVER_LAKE_FLAG = 'silver-lake-unlocked';
+export const AIRSHIP_FLAG = 'airship-discovered';
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';
@@ -38,6 +39,7 @@ export const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
   Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
   'Silver Lake': [],
+  Airship: [],
 };
 export const HIDDEN_LOCATION_ACTIONS = new Set([
   'Interact with the old well',

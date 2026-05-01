@@ -318,8 +318,11 @@ export function RPGInterface() {
       const rewardLines = getRewardLines(prev.modifiers, nextState.modifiers);
       const levelUpLines = getLevelUpLines(prev, nextState);
       const boarLines = activeQuest.id === 'quest-002-boar-ambush' ? [boarLine] : [];
+      const airshipLines =
+        activeQuest.id === 'quest-005-airship' ? [`${prev.playerName} discovered the airship.`] : [];
       const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [
         ...boarLines,
+        ...airshipLines,
         ...rewardLines,
         ...levelUpLines,
       ]);
