@@ -2,8 +2,10 @@ import type { DialogueLogEntry } from './quests/types';
 
 export const PLAYER_ACTION_SPEAKER = 'PlayerAction';
 export const QUEST_DIVIDER_SPEAKER = 'QuestDivider';
+/** Speaker id for end-of-day summary blocks (grouped as `report` voice). */
+export const DAY_REPORT_SPEAKER = 'Day Report';
 
-export type DialogueVoice = 'narrator' | 'dev' | 'player' | 'divider';
+export type DialogueVoice = 'narrator' | 'dev' | 'player' | 'divider' | 'report';
 
 export type DialogueVoiceBlockModel = {
   role: DialogueVoice;
@@ -22,8 +24,11 @@ export const dialogueVoiceRole = (speaker: string): DialogueVoice => {
   if (speaker === 'Narrator') return 'narrator';
   if (speaker === 'Dev Message') return 'dev';
   if (speaker === QUEST_DIVIDER_SPEAKER) return 'divider';
+  if (speaker === DAY_REPORT_SPEAKER) return 'report';
   return 'player';
 };
+
+const isDayReportTitle = (text: string): boolean => /^Day\s+\d+\s+Report$/i.test(text.trim());
 
 export const groupDialogueLinesByVoice = (lines: DialogueLogEntry[]): DialogueVoiceBlockModel[] => {
   if (lines.length === 0) return [];
@@ -31,7 +36,8 @@ export const groupDialogueLinesByVoice = (lines: DialogueLogEntry[]): DialogueVo
   for (const line of lines) {
     const role = dialogueVoiceRole(line.speaker);
     const last = blocks[blocks.length - 1];
-    if (last && last.role === role) {
+    const startNewReport = role === 'report' && isDayReportTitle(line.text);
+    if (last && last.role === role && !startNewReport) {
       last.lines.push(line);
     } else {
       blocks.push({ role, lines: [line] });
@@ -55,6 +61,7 @@ export const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleS
     while (i < sortedRows.length && sortedRows[i].kind === 'dialogue') {
       const d = sortedRows[i] as Extract<ChronicleMergedRow, { kind: 'dialogue' }>;
       if (dialogueVoiceRole(d.speaker) !== role) break;
+      if (role === 'report' && lines.length > 0 && isDayReportTitle(d.text)) break;
       lines.push({
         id: d.id,
         speaker: d.speaker,

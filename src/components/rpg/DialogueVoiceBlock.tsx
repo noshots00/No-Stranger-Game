@@ -15,7 +15,7 @@ const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
   'font-serif text-sm font-medium leading-relaxed text-[var(--candle-wax)]';
 
 const DIALOGUE_DEV_MESSAGE_CLASSES =
-  'rounded-lg border border-[var(--candle-rule)] bg-black/35 px-3 py-2 font-serif text-sm italic leading-relaxed text-[var(--candle-ink-soft)] shadow-[inset_0_0_0_1px_rgba(230,161,87,0.06)]';
+  'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[12px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
 
 export function DialogueVoiceBlock({
   role,
@@ -61,6 +61,36 @@ export function DialogueVoiceBlock({
     return (
       <div className="py-1.5">
         <div className="mx-auto h-px w-[88%] bg-[var(--candle-rule)]" />
+      </div>
+    );
+  }
+
+  if (role === 'report') {
+    const [titleLine, ...bodyLines] = lines;
+    const shellPlay =
+      'rounded-lg border border-[var(--candle-rule)] bg-black/30 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
+    const shellChronicle =
+      'rounded-lg border border-[var(--candle-rule)] bg-[rgba(0,0,0,0.28)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
+    return (
+      <div className={`py-0.5 ${presentation === 'play' ? shellPlay : shellChronicle}`}>
+        <div
+          className="mx-auto mb-2 flex aspect-[3/4] w-full max-w-[300px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-black/40 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
+          aria-label="Day report illustration placeholder"
+        >
+          Image 300 x 400
+        </div>
+        {titleLine ? (
+          <p className="font-cormorant text-base font-medium tracking-[0.04em] text-[var(--candle-wax)]">
+            {titleLine.text}
+          </p>
+        ) : null}
+        {bodyLines.length > 0 ? (
+          <ul className="mt-2 list-disc space-y-1 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+            {bodyLines.map((line) => (
+              <li key={line.id}>{line.text}</li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     );
   }
