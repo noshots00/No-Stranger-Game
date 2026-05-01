@@ -30,6 +30,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Guard against accidental non-isolated deploys
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "This workflow only deploys from main."
+            exit 1
+          fi
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
