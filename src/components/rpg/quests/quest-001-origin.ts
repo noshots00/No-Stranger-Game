@@ -11,11 +11,11 @@ export const quest001Origin: QuestDefinition = {
     start: {
       id: 'start',
       type: 'choice',
-      text: 'You find yourself in a forest.',
+      text: 'You wake on damp pine needles. Trees close in on every side—no path, no memory of arriving.',
       choices: [
         {
           id: 'q1-how-did-i-get-here',
-          label: 'how did I get here',
+          label: 'How did I get here?',
           nextStepId: 'memory-gap',
         },
       ],

@@ -86,7 +86,7 @@ export const createInitialQuestState = (): QuestState => ({
   skills: {
     explorationXp: 0,
   },
-  lastDailyXpDay: 0,
+  lastDailyXpDay: 1,
   dialogueLog: [],
   worldEventLog: [],
 });
@@ -106,7 +106,12 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     skills: {
       explorationXp,
     },
-    lastDailyXpDay: typeof state.lastDailyXpDay === 'number' ? state.lastDailyXpDay : initial.lastDailyXpDay,
+    lastDailyXpDay:
+      typeof state.lastDailyXpDay === 'number'
+        ? state.lastDailyXpDay === 0
+          ? 1
+          : state.lastDailyXpDay
+        : initial.lastDailyXpDay,
     dialogueLog,
     worldEventLog,
   };

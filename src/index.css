@@ -355,8 +355,26 @@
     outline: none;
   }
 
+  /* Play dialogue choices: undo mystery-ui flat black buttons */
+  .mystery-ui .dialogue-option-button.facsimile-choice {
+    border: 1px solid rgba(161, 161, 170, 0.28) !important;
+    background: rgba(39, 39, 42, 0.28) !important;
+  }
+
+  .mystery-ui .dialogue-option-button.facsimile-choice:hover,
+  .mystery-ui .dialogue-option-button.facsimile-choice:focus-visible {
+    border-color: rgba(245, 158, 11, 0.68) !important;
+    background: rgba(63, 63, 70, 0.42) !important;
+  }
+
   .dialogue-line-reveal {
-    animation: dialogueLineReveal 1200ms ease-out both;
+    animation: dialogueLineReveal 520ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dialogue-line-reveal {
+      animation: dialogueLineRevealReduced 180ms ease-out both;
+    }
   }
 
   .facsimile-scroll {
@@ -586,6 +604,30 @@
 }
 
 @keyframes dialogueLineReveal {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    text-shadow: 0 0 14px rgba(251, 191, 36, 0.75);
+    transform: scale(0.99);
+  }
+  45% {
+    opacity: 0.88;
+    filter: blur(1px);
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    text-shadow: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes dialogueLineRevealReduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

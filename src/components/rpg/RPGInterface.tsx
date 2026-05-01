@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -67,6 +67,10 @@ const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
   Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
 };
+const HIDDEN_LOCATION_ACTIONS = new Set([
+  'Interact with the old well',
+  'Visit the abandoned cabin',
+]);
 
 const characterStats = [
   ['Strength', '1'],
@@ -99,6 +103,8 @@ const FOLLOW_LIST_KIND = 3;
 const GOLD_MODIFIER_KEYS = ['Gold', 'gold', 'Coins', 'coins'] as const;
 const PLAY_DIALOGUE_RECENT_MAX = 120;
 const PLAY_WORLD_RECENT_MAX = 40;
+const DIALOGUE_SCROLL_PIN_EPS = 80;
+const DIALOGUE_BREATHE_OVERFLOW_RATIO = 1.3;
 
 const appendUniqueWorldEntries = (
   existing: WorldEventLogEntry[],
@@ -226,8 +232,7 @@ const formatPlayerChoiceDialogueLine = (playerName: string, label: string): stri
 
   if (isChoiceQuestionLike(raw)) {
     const quoted = raw.endsWith('?') ? raw : `${raw}?`;
-    const sentence = quoted.charAt(0).toUpperCase() + quoted.slice(1);
-    return `${displayName} asked, "${sentence}"`;
+    return quoted.charAt(0).toUpperCase() + quoted.slice(1);
   }
 
   const action = imperativePhraseToThirdPerson(raw);
@@ -237,11 +242,15 @@ const formatPlayerChoiceDialogueLine = (playerName: string, label: string): stri
 const DIALOGUE_NARRATOR_CLASSES =
   'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
-const DIALOGUE_PLAYER_BLOCK_HEADER_CLASSES =
-  'mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--facsimile-player-label)]';
+/** Play tab: matches choice scale (text-xs) for parity with facsimile choices. */
+const DIALOGUE_NARRATOR_PLAY_CLASSES =
+  'font-sans text-xs leading-relaxed tracking-wide text-[var(--facsimile-narrator-ink)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-sans text-sm font-semibold leading-6 text-[var(--facsimile-player-ink)]';
+
+const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
+  'font-sans text-xs font-semibold leading-relaxed text-[var(--facsimile-player-ink)]';
 
 const DIALOGUE_DEV_MESSAGE_CLASSES =
   'rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]';
@@ -313,18 +322,23 @@ const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleSegment[
 function DialogueVoiceBlock({
   role,
   lines,
-  playerLabel,
+  presentation = 'chronicle',
 }: {
   role: DialogueVoice;
   lines: DialogueLogEntry[];
-  playerLabel: string;
+  presentation?: 'play' | 'chronicle';
 }) {
+  const narratorClasses =
+    presentation === 'play' ? DIALOGUE_NARRATOR_PLAY_CLASSES : DIALOGUE_NARRATOR_CLASSES;
+  const playerBodyClasses =
+    presentation === 'play' ? DIALOGUE_PLAYER_BODY_PLAY_CLASSES : DIALOGUE_PLAYER_BODY_CLASSES;
+
   if (role === 'narrator') {
     return (
-      <div className="border-l-2 border-sky-500/35 py-0.5 pl-3">
+      <div className="py-0.5">
         <div className="space-y-1.5">
           {lines.map((line) => (
-            <p key={line.id} className={DIALOGUE_NARRATOR_CLASSES}>
+            <p key={line.id} className={narratorClasses}>
               {line.text}
             </p>
           ))}
@@ -345,21 +359,20 @@ function DialogueVoiceBlock({
     );
   }
 
+  const playerShellClass =
+    presentation === 'play'
+      ? 'ml-auto w-[min(92%,22rem)] rounded-lg bg-[rgba(255,255,255,0.045)] px-3 py-2 ring-1 ring-[var(--facsimile-player-ink)]/15'
+      : 'ml-auto w-[min(92%,22rem)] rounded-lg border border-[var(--facsimile-player-ink)]/40 bg-[rgba(0,0,0,0.45)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
+
   return (
-    <div className="ml-auto w-[min(92%,22rem)] rounded-lg border border-[var(--facsimile-player-ink)]/40 bg-[rgba(0,0,0,0.45)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-      <p className={DIALOGUE_PLAYER_BLOCK_HEADER_CLASSES}>
-        Decision ·{' '}
-        <span className="normal-case tracking-normal text-[0.8125rem] text-[var(--facsimile-player-ink)]">
-          {playerLabel}
-        </span>
-      </p>
+    <div className={playerShellClass}>
       <div className="space-y-1.5">
         {lines.map((line) => (
           <div key={line.id}>
             {line.speaker === PLAYER_ACTION_SPEAKER || line.speaker === 'You' ? (
-              <p className={DIALOGUE_PLAYER_BODY_CLASSES}>{line.text}</p>
+              <p className={playerBodyClasses}>{line.text}</p>
             ) : (
-              <p className={DIALOGUE_PLAYER_BODY_CLASSES}>
+              <p className={playerBodyClasses}>
                 <span className="font-medium text-[var(--facsimile-player-label)]">{line.speaker}: </span>
                 {line.text}
               </p>
@@ -398,8 +411,22 @@ export function RPGInterface() {
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
   const eventLogScrollRef = useRef<HTMLDivElement | null>(null);
+  const dialoguePinnedRef = useRef(true);
+  const dialogueInstantScrollRef = useRef(false);
+  const prevDialogueOverflowRatioRef = useRef<number | null>(null);
   const completedQuestCountRef = useRef(0);
   const [isChronicleOpen, setIsChronicleOpen] = useState(false);
+
+  const handleDialogueScroll = () => {
+    const el = dialogueScrollRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    if (maxScroll <= 0) {
+      dialoguePinnedRef.current = true;
+      return;
+    }
+    dialoguePinnedRef.current = el.scrollTop >= maxScroll - DIALOGUE_SCROLL_PIN_EPS;
+  };
 
   const questStateStorageKey = user ? `${QUEST_STATE_STORAGE_KEY}:${user.pubkey}` : QUEST_STATE_STORAGE_KEY;
   const socialQuery = useQuery({
@@ -570,36 +597,51 @@ export function RPGInterface() {
     };
   }, [nostr, user]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeTab !== 'play') return;
-    const container = dialogueScrollRef.current;
-    if (!container) return;
+    const el = dialogueScrollRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const ratio = el.clientHeight > 0 ? el.scrollHeight / el.clientHeight : 1;
     const prefersReduced =
       typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (typeof container.scrollTo === 'function') {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: prefersReduced ? 'auto' : 'smooth',
-      });
+
+    if (dialogueInstantScrollRef.current) {
+      el.scrollTop = maxScroll;
+      dialogueInstantScrollRef.current = false;
+      dialoguePinnedRef.current = true;
+      prevDialogueOverflowRatioRef.current = ratio;
       return;
     }
-    container.scrollTop = container.scrollHeight;
+
+    if (!dialoguePinnedRef.current) {
+      prevDialogueOverflowRatioRef.current = ratio;
+      return;
+    }
+
+    const prevR = prevDialogueOverflowRatioRef.current;
+    const crossedIntoBreathe =
+      prevR !== null &&
+      prevR < DIALOGUE_BREATHE_OVERFLOW_RATIO &&
+      ratio >= DIALOGUE_BREATHE_OVERFLOW_RATIO &&
+      maxScroll > 0;
+
+    if (crossedIntoBreathe && !prefersReduced) {
+      const target = Math.max(0, Math.min(maxScroll, Math.floor(maxScroll / 2)));
+      el.scrollTo({ top: target, behavior: 'smooth' });
+      prevDialogueOverflowRatioRef.current = ratio;
+      return;
+    }
+
+    el.scrollTop = maxScroll;
+    prevDialogueOverflowRatioRef.current = ratio;
   }, [questState.dialogueLog, activeTab]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeTab !== 'play') return;
     const container = eventLogScrollRef.current;
     if (!container) return;
-    const prefersReduced =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (typeof container.scrollTo === 'function') {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: prefersReduced ? 'auto' : 'smooth',
-      });
-      return;
-    }
-    container.scrollTop = container.scrollHeight;
+    container.scrollTop = container.scrollHeight - container.clientHeight;
   }, [questState.worldEventLog, activeTab]);
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
@@ -621,14 +663,13 @@ export function RPGInterface() {
     () => visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id)).length,
     [visibleQuests, completedQuestIds]
   );
+  const visibleLocationActions = (locationActions[currentLocation] ?? []).filter(
+    (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
+  );
   const explorationXp = questState.skills.explorationXp;
   const explorationLevel = useMemo(() => getLevelFromXp(explorationXp), [explorationXp]);
   const characterLevel = useMemo(() => getCharacterLevel(questState), [questState]);
   const characterClass = useMemo(() => getCharacterClass(questState.modifiers), [questState.modifiers]);
-  const playerLineLabel = useMemo(
-    () => questState.playerName.trim() || 'Stranger',
-    [questState.playerName]
-  );
   const oldestPendingQuestId = useMemo(() => {
     const pending = visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id));
     if (pending.length === 0) return null;
@@ -998,6 +1039,7 @@ export function RPGInterface() {
                       <button
                         type="button"
                         onClick={() => {
+                          dialogueInstantScrollRef.current = true;
                           handleStartQuest(quest.id);
                           setActiveTab('play');
                         }}
@@ -1095,10 +1137,14 @@ export function RPGInterface() {
       );
     }
 
+    const showOriginStartHint =
+      activeQuest?.id === 'quest-001-origin' && activeStep?.id === 'start' && activeStep.type === 'choice';
+
     return (
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-2">
         <div
           ref={dialogueScrollRef}
+          onScroll={handleDialogueScroll}
           className="facsimile-scroll h-[30rem] overflow-y-auto rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2"
         >
           <div className="space-y-3">
@@ -1107,23 +1153,25 @@ export function RPGInterface() {
                 key={`${block.role}-${block.lines[0]?.id ?? `b-${blockIndex}`}`}
                 className="dialogue-line-reveal py-0.5"
               >
-                <DialogueVoiceBlock role={block.role} lines={block.lines} playerLabel={playerLineLabel} />
+                <DialogueVoiceBlock presentation="play" role={block.role} lines={block.lines} />
               </div>
             ))}
             {activeQuest && activeStep ? (
               <div className="dialogue-line-reveal py-0.5">
-                <div className="my-1 h-px w-full bg-[var(--facsimile-panel-border)]/60" />
                 {activeStep.type === 'choice' ? (
-                  <div className="-mt-1">
-                    <ul className="space-y-1 pl-4">
+                  <div className="space-y-2">
+                    {showOriginStartHint ? (
+                      <p className="facsimile-kicker px-0.5">Choose a reply to continue</p>
+                    ) : null}
+                    <ul className="space-y-1.5">
                       {activeStep.choices.map((choice) => (
                         <li key={choice.id}>
                           <button
                             type="button"
-                            className="w-full text-left text-xs text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]"
+                            className="dialogue-option-button facsimile-choice block w-full rounded-md px-3 py-2 text-left text-xs text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]"
                             onClick={() => handleStepChoice(choice.id)}
                           >
-                            - {choice.label}
+                            {choice.label}
                           </button>
                         </li>
                       ))}
@@ -1179,21 +1227,21 @@ export function RPGInterface() {
             Showing the last {PLAY_WORLD_RECENT_MAX} world events. Older events are in the chronicle.
           </p>
         ) : null}
-        <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
-          <div className="grid grid-cols-2 gap-1.5">
-            {(locationActions[currentLocation] ?? []).map((action) => (
-              <button
-                key={action}
-                type="button"
-                className={`location-action-button w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)] ${
-                  action === 'Interact with Old Well' ? 'old-well-button' : ''
-                }`}
-              >
-                {action}
-              </button>
-            ))}
+        {visibleLocationActions.length > 0 ? (
+          <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              {visibleLocationActions.map((action) => (
+                <button
+                  key={action}
+                  type="button"
+                  className="location-action-button w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
+                >
+                  {action}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
     );
   };
@@ -1203,7 +1251,7 @@ export function RPGInterface() {
     <main className="facsimile-shell mystery-ui min-h-screen p-2 sm:p-6">
       <div className="facsimile-phone-frame mx-auto">
         <div className="facsimile-glow" aria-hidden />
-        <section className="facsimile-phone-content flex w-full flex-col gap-3 px-3 py-2">
+        <section className="facsimile-phone-content flex w-full flex-col gap-2 px-3 py-2">
           <header className="sticky top-0 z-20 rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel)] px-2 py-1.5 backdrop-blur">
             <div className="relative flex items-center justify-between">
               <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">Day {dayCounter}</p>
@@ -1298,7 +1346,7 @@ export function RPGInterface() {
                   <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--facsimile-ink-muted)]">
                     {chronicleDateTimeFmt.format(first.atMs)}
                   </p>
-                  <DialogueVoiceBlock role={segment.role} lines={segment.lines} playerLabel={playerLineLabel} />
+                  <DialogueVoiceBlock role={segment.role} lines={segment.lines} />
                 </div>
               );
             })}
