@@ -219,15 +219,10 @@
 
   /* --- Navigation strip (mobile-first, safe-area) --- */
   .candlelit-bottom-nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 40;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.25rem;
-    padding: 0.5rem 0.75rem calc(env(safe-area-inset-bottom, 0px) + 0.55rem);
+    gap: 0.15rem;
+    padding: 0.2rem 0.45rem calc(env(safe-area-inset-bottom, 0px) + 0.28rem);
     background: linear-gradient(180deg, transparent, rgba(15, 12, 10, 0.92));
     backdrop-filter: blur(6px);
   }
@@ -238,9 +233,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.15rem;
-    min-height: 3rem;
-    border-radius: 0.85rem;
+    min-height: 1.6rem;
+    border-radius: 0.6rem;
     border: 1px solid transparent;
     background: transparent;
     color: var(--candle-ink-faint);
@@ -262,7 +256,7 @@
   .candlelit-nav-btn.is-active::after {
     content: "";
     position: absolute;
-    bottom: 0.35rem;
+    bottom: 0.2rem;
     left: 50%;
     width: 42%;
     height: 1px;

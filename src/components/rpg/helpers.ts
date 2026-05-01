@@ -1,6 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { QuestState, WorldEventLogEntry, DialogueLogEntry } from './quests/types';
-import { getSkillLevelUpLines } from './quests/engine';
+import { getQuestContext, getSkillLevelUpLines, getVisibleQuests } from './quests/engine';
+import { allQuests } from './quests/registry';
+import { DAY_REPORT_SPEAKER } from './dialogueFormat';
 import { parseQuestCheckpointPayload } from './gameProfile';
 import {
   CLASS_UNLOCK_POINTS,
@@ -130,6 +132,42 @@ export const getLevelUpLines = (prevState: QuestState, nextState: QuestState): s
   ...getSkillLevelUpLines(prevState, nextState),
   ...getModifierLevelUpLines(prevState, nextState),
 ];
+
+/** End-of-day summary lines for the main dialogue (title always; body when applicable). */
+export function buildDayReportDialogueLines(
+  prevDayNumber: number,
+  prevState: QuestState,
+  nextState: QuestState
+): DialogueLogEntry[] {
+  const lines: DialogueLogEntry[] = [
+    appendDialogue(DAY_REPORT_SPEAKER, `Day ${prevDayNumber} Report`),
+  ];
+
+  const xpDelta = nextState.experience - prevState.experience;
+  if (xpDelta > 0) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, `You gained ${xpDelta} experience.`));
+  }
+
+  for (const text of getRewardLines(prevState.modifiers, nextState.modifiers)) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
+  }
+
+  for (const text of getLevelUpLines(prevState, nextState)) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
+  }
+
+  const prevVisibleIds = new Set(
+    getVisibleQuests(allQuests, getQuestContext(prevState)).map((q) => q.id)
+  );
+  const newlyVisible = getVisibleQuests(allQuests, getQuestContext(nextState)).filter(
+    (q) => !prevVisibleIds.has(q.id)
+  );
+  for (const quest of newlyVisible) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, `A new quest awaits: ${quest.title}.`));
+  }
+
+  return lines;
+}
 
 export const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
   const classScores: Array<{ name: 'Warrior' | 'Rogue' | 'Mage'; score: number }> = [

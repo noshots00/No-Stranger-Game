@@ -499,10 +499,9 @@ export function RPGInterface() {
                     {pendingQuestCount}
                   </span>
                 ) : null}
-                <span className="text-lg leading-none" aria-hidden>
+                <span className="text-base leading-none" aria-hidden>
                   {item.icon}
                 </span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.16em]">{item.label}</span>
               </button>
             );
           })}

@@ -72,25 +72,27 @@ export function DialogueVoiceBlock({
     const shellChronicle =
       'rounded-lg border border-[var(--candle-rule)] bg-[rgba(0,0,0,0.28)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
     return (
-      <div className={`py-0.5 ${presentation === 'play' ? shellPlay : shellChronicle}`}>
+      <div className="py-0.5">
         <div
-          className="mx-auto mb-2 flex aspect-[3/4] w-full max-w-[300px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-black/40 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
+          className="mx-auto mb-2 flex aspect-[3/4] w-full max-w-[200px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-black/40 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
           aria-label="Day report illustration placeholder"
         >
-          Image 300 x 400
+          Image 200 x 266
         </div>
-        {titleLine ? (
-          <p className="font-cormorant text-base font-medium tracking-[0.04em] text-[var(--candle-wax)]">
-            {titleLine.text}
-          </p>
-        ) : null}
-        {bodyLines.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-1 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-            {bodyLines.map((line) => (
-              <li key={line.id}>{line.text}</li>
-            ))}
-          </ul>
-        ) : null}
+        <div className={presentation === 'play' ? shellPlay : shellChronicle}>
+          {titleLine ? (
+            <p className="font-cormorant text-base font-medium tracking-[0.04em] text-[var(--candle-wax)]">
+              {titleLine.text}
+            </p>
+          ) : null}
+          {bodyLines.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+              {bodyLines.map((line) => (
+                <li key={line.id}>{line.text}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </div>
     );
   }

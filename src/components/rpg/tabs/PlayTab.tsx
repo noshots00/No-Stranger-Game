@@ -39,7 +39,7 @@ export function PlayTab({
   onNameSubmit,
   dialogueScrollRef,
   eventLogScrollRef,
-  onDialogueScroll: _onDialogueScroll,
+  onDialogueScroll,
   visibleLocationActions,
   showOriginStartHint,
 }: PlayTabProps) {
@@ -71,11 +71,15 @@ export function PlayTab({
     }, CHOICE_FADE_MS);
   };
 
-  const visibleWorldLines = playWorldLines.slice(-2);
+  const visibleWorldLines = playWorldLines;
 
   return (
     <section className="flex h-full flex-col justify-end gap-1.5">
-      <div ref={dialogueScrollRef} className="min-h-0 flex-1 overflow-hidden pr-1">
+      <div
+        ref={dialogueScrollRef}
+        onScroll={onDialogueScroll}
+        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-1"
+      >
         <div className="space-y-4">
           {playDialogueBlocks.map((block, blockIndex) => (
             <div
@@ -159,7 +163,7 @@ export function PlayTab({
         </div>
       ) : null}
       <div className="echo-log flex flex-col gap-0.5 py-1">
-        <div ref={eventLogScrollRef} className="h-[5.2rem] overflow-y-auto pr-1">
+        <div ref={eventLogScrollRef} className="facsimile-scroll h-[5.2rem] overflow-y-auto pr-1">
           {visibleWorldLines.length > 0 ? (
             <ul className="space-y-1 font-sans text-[11px] leading-snug">
               {visibleWorldLines.map((entry, index) => (

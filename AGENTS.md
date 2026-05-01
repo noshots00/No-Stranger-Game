@@ -66,6 +66,13 @@ The AI assistant's behavior and knowledge is defined by the AGENTS.md file, whic
 1. Edit AGENTS.md directly
 2. The changes take effect in the next session
 
+### Response Brevity Rule
+
+- After implementing a user-requested change, keep the final summary extremely short.
+- Target a single sentence with no bullets unless the user asks for details.
+- Hard cap: summary text should be **40 characters max** whenever possible.
+- If essential safety or blocker info cannot fit in 40 characters, provide the minimum extra text needed.
+
 ## Nostr Protocol Integration
 
 This project comes with custom hooks for querying and publishing events on the Nostr network.
@@ -1091,13 +1098,18 @@ There is an important distinction between **writing new tests** and **running ex
 
 ### Running Tests (Executing the Test Suite)
 
-Do **not** run heavyweight validation after every small edit in the same task. Use the cheaper scripts during iteration and reserve full verification for completion.
+Use a **fast-feedback default**. Do not run heavyweight validation unless risk or user request justifies it.
 
 **When to run:**
 
-- **During iteration** (multiple edits toward one goal): Prefer `npm run check` and optionally `npm run test:quick`. Avoid running `npm test`/`npm run verify` after each small change.
-- **Once before you finish**: Before you declare the task done, create a commit, or hand off to the user, run **`npm run verify` exactly once** (unless the user explicitly asked you to skip validation). Fix failures until it passes.
-- **Skip an extra final run** if you already ran `npm run verify` successfully in the same session with **no further code changes** after that run.
+- **During iteration**: Prefer `npm run check`. Use `npm run test:quick` only when behavior changed in tested areas.
+- **Before finishing most tasks**: `npm run check` is sufficient for UI copy/style/layout and small refactors.
+- **Run full `npm run verify` only when**:
+  - the user explicitly asks for full verification,
+  - making release-critical changes,
+  - touching build tooling, dependency graph, or test infrastructure,
+  - doing broad/high-risk refactors where full-suite confidence is needed.
+- **Skip duplicate runs**: if a relevant validation already passed and no related files changed, do not rerun.
 
 **Script intent:**
 - `npm run check`: fast typecheck + cached lint
@@ -1135,20 +1147,23 @@ describe('MyComponent', () => {
 
 ## Validating Your Changes
 
-Validate **once at task completion**, not after every intermediate edit. Prefer a single successful **`npm run verify`** run right before you finish.
+Validate proportional to risk. Default to fast checks; escalate only when needed.
 
-**Your task is not finished until** either `npm run verify` (or `npm test`) has passed after your final code changes, or you have documented why validation was skipped because the user asked you to skip it.
+**Your task is not finished until** appropriate validation for the change scope is complete:
+- low/medium-risk edits: `npm run check`
+- high-risk/release/tooling edits: `npm run verify`
 
 ### Validation Priority Order
 
 Use this order **when choosing what to run** (not as an excuse to run everything repeatedly):
 
-1. **Iteration checks** (Optional but recommended): `npm run check` and, when helpful, `npm run test:quick`.
-2. **Full script at the end** (Required for completion): `npm run verify` (or `npm test`) once after your last substantive edit.
-3. **Avoid duplicate full runs**: if full verification already passed and code did not change after, do not rerun.
+1. **Default**: `npm run check`
+2. **Targeted confidence**: `npm run test:quick` when behavior changed and tests likely cover it
+3. **Full gate**: `npm run verify` only for explicitly requested or high-risk scenarios
 
 **Minimum Requirements before finishing:**
-- `npm run verify` (or `npm test`) passes with no errors (covers type-check, lint, tests, and build), unless the user explicitly waived validation.
+- `npm run check` passes with no errors for normal tasks.
+- `npm run verify` passes when the task matches the full-gate triggers above.
 - Fix critical issues that would break CI or the app.
 - Create a git commit when your changes are complete and validated.
 
@@ -1162,10 +1177,10 @@ When your changes are complete and validated, create a git commit with a descrip
 
 ### Versioning Policy
 
-Every commit must include a version increment.
+The patch version must increment on every completed change, not only on commits.
 
-- Update `package.json` `version` on every commit, including docs-only and configuration-only commits.
-- Do not create a commit if the version was not incremented in that commit.
+- After finishing any task that modifies non-trivial files (code, config, content, or docs), update `package.json` `version` before reporting completion.
+- When committing, the bump is already in place; do not bump again in the same commit.
 - Use semantic versioning progression:
   - patch for fixes/chore/docs/internal updates
   - minor for backward-compatible features
