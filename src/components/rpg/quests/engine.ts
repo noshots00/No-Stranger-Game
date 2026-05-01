@@ -9,6 +9,8 @@ import type {
   QuestStep,
 } from './types';
 
+const DEFAULT_WORLD_EVENT_LOG = ['You found yourself in a forest.'] as const;
+
 export const createInitialQuestState = (): QuestState => ({
   activeQuestId: 'quest-001-origin',
   progressByQuestId: {},
@@ -21,6 +23,7 @@ export const createInitialQuestState = (): QuestState => ({
   },
   lastDailyXpDay: 0,
   dialogueLog: [],
+  worldEventLog: [...DEFAULT_WORLD_EVENT_LOG],
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -29,6 +32,9 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const explorationXp = typeof state.skills?.explorationXp === 'number'
     ? state.skills.explorationXp
     : legacyExperience;
+  const rawLog = state.worldEventLog;
+  const worldEventLog =
+    Array.isArray(rawLog) && rawLog.every((line) => typeof line === 'string') ? rawLog : initial.worldEventLog;
   return {
     ...initial,
     ...state,
@@ -37,6 +43,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       explorationXp,
     },
     lastDailyXpDay: typeof state.lastDailyXpDay === 'number' ? state.lastDailyXpDay : initial.lastDailyXpDay,
+    worldEventLog,
   };
 };
 

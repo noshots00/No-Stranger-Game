@@ -93,7 +93,12 @@ Replaceable event storing per-player quest progression checkpoints for resume-on
     "modifiers": {},
     "flags": ["quest001-complete"],
     "playerName": "Ari",
-    "dialogueLog": []
+    "dialogueLog": [],
+    "worldEventLog": [
+      "You found yourself in a forest.",
+      "You remembered your name is Ari",
+      "Ari is exploring the Forest."
+    ]
   }
 }
 ```

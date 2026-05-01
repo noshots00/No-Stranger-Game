@@ -1,4 +1,5 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { normalizeQuestState } from '@/components/rpg/quests/engine';
 import type { QuestState } from '@/components/rpg/quests/types';
 
 const CHARACTER_START_KIND = 10031;
@@ -33,6 +34,10 @@ type QuestStateSnapshot = {
 function isQuestState(value: unknown): value is QuestState {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
+  const worldLogOk =
+    !('worldEventLog' in candidate) ||
+    (Array.isArray(candidate.worldEventLog) &&
+      candidate.worldEventLog.every((line) => typeof line === 'string'));
   return (
     (typeof candidate.activeQuestId === 'string' || candidate.activeQuestId === null) &&
     typeof candidate.progressByQuestId === 'object' &&
@@ -41,7 +46,8 @@ function isQuestState(value: unknown): value is QuestState {
     candidate.modifiers !== null &&
     Array.isArray(candidate.flags) &&
     typeof candidate.playerName === 'string' &&
-    Array.isArray(candidate.dialogueLog)
+    Array.isArray(candidate.dialogueLog) &&
+    worldLogOk
   );
 }
 
@@ -50,7 +56,7 @@ function parseQuestStateSnapshot(content: string): QuestStateSnapshot | null {
     const parsed = JSON.parse(content) as { savedAtMs?: number; state?: unknown };
     if (typeof parsed.savedAtMs !== 'number' || Number.isNaN(parsed.savedAtMs)) return null;
     if (!isQuestState(parsed.state)) return null;
-    return { savedAtMs: parsed.savedAtMs, state: parsed.state };
+    return { savedAtMs: parsed.savedAtMs, state: normalizeQuestState(parsed.state) };
   } catch {
     return null;
   }

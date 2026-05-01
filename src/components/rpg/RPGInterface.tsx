@@ -47,10 +47,6 @@ const socialChatMessages = [
   'You: I will scout the orchard path first.',
 ];
 
-const mockEventLog = [
-  'You found yourself in a forest.',
-];
-
 const INTRO_DEV_MESSAGE = `Welcome to No Stranger Game! Your character is autonomous! He will act according to his own needs and desires. The primary means of progressing the game is by completing quests. Every choice has a permanent and irrevocable impact on the trajectory of your character, tread CAREFULLY! The game is designed to take about three minutes of your time each day. Be patient... it may seem like nothing is happening... but the game is MASSIVE and changes take place over Days, not seconds. For now your character will explore the forest around him, seeking food and shelter. Soon he will discover a village, which will unlock the next part of the Main Quest. The forest is very large, and your character may discover other locales before the village, and it could take longer than you are anticipating. I recommend you take a few minutes to look around the game, and then check your character's progress tomorrow.
 
 If you have any questions please reach out to me on Nostr.
@@ -73,13 +69,13 @@ const characterStats = [
   ['Charisma', '1'],
 ];
 
-const characterSkills: string[] = [];
-const characterTraits: string[] = [];
-const characterRelationships: string[] = [];
-const characterAffinities: string[] = [];
-const characterAfflictions: string[] = [];
-const characterBlessings: string[] = [];
-const characterCurses: string[] = [];
+const _characterSkills: string[] = [];
+const _characterTraits: string[] = [];
+const _characterRelationships: string[] = [];
+const _characterAffinities: string[] = [];
+const _characterAfflictions: string[] = [];
+const _characterBlessings: string[] = [];
+const _characterCurses: string[] = [];
 
 type MobileTab = 'character' | 'quests' | 'play' | 'map' | 'social';
 const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
@@ -115,7 +111,6 @@ export function RPGInterface() {
   const [questState, setQuestState] = useState(createInitialQuestState);
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
-  const [eventLog, setEventLog] = useState<string[]>(mockEventLog);
   const [isQuestStateHydrated, setIsQuestStateHydrated] = useState(false);
   const [characterStartTimestamp, setCharacterStartTimestamp] = useState<number | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
@@ -390,7 +385,6 @@ export function RPGInterface() {
     setQuestState(createInitialQuestState());
     setNameInput('');
     setNameInputError(null);
-    setEventLog(mockEventLog);
   };
 
   const handleLogout = async () => {
@@ -453,18 +447,18 @@ export function RPGInterface() {
         nextLog.push(appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)));
       }
 
-      const updatedState = {
+      const boarLine = 'You fended off a wild boar!';
+      const withBoarLog =
+        activeQuest.id === 'quest-002-boar-ambush' && !nextState.worldEventLog.includes(boarLine)
+          ? { worldEventLog: [...nextState.worldEventLog, boarLine] }
+          : {};
+
+      return {
         ...nextState,
         dialogueLog: nextLog,
+        ...withBoarLog,
       };
-      return updatedState;
     });
-    if (activeQuest.id === 'quest-002-boar-ambush') {
-      setEventLog((prev) => {
-        if (prev.includes('You fended off a wild boar!')) return prev;
-        return [...prev, 'You fended off a wild boar!'];
-      });
-    }
   };
 
   const handleNameSubmit = () => {
@@ -496,14 +490,14 @@ export function RPGInterface() {
           appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)),
           appendDialogue('Dev Message', INTRO_DEV_MESSAGE),
         ],
+        worldEventLog: [
+          ...nextState.worldEventLog,
+          `You remembered your name is ${submittedName}`,
+          `${submittedName} is exploring the Forest.`,
+        ],
       };
       setQuestState(updatedState);
       void persistQuestCheckpoint(updatedState);
-      setEventLog((prev) => [
-        ...prev,
-        `You remembered your name is ${submittedName}`,
-        `${submittedName} is exploring the Forest.`,
-      ]);
       return;
     }
 
@@ -783,8 +777,8 @@ export function RPGInterface() {
         <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
           <div className="facsimile-scroll h-20 overflow-y-auto px-2 py-2">
             <ul className="space-y-1 pl-4 text-[11px] text-[var(--facsimile-ink-muted)]">
-              {eventLog.map((eventLine) => (
-                <li key={eventLine} className="list-disc">
+              {questState.worldEventLog.map((eventLine, index) => (
+                <li key={`${index}-${eventLine}`} className="list-disc">
                   {eventLine}
                 </li>
               ))}

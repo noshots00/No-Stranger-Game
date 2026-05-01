@@ -79,4 +79,6 @@ export type QuestState = {
     speaker: string;
     text: string;
   }>;
+  /** Short world chronicle lines shown on the play tab; persisted with quest checkpoints. */
+  worldEventLog: string[];
 };
