@@ -80,6 +80,7 @@ const normalizeWorldEventLog = (raw: unknown): WorldEventLogEntry[] => {
 export const createInitialSkills = (): QuestState['skills'] => ({
   explorationXp: 0,
   foragingXp: 0,
+  meleeAttackXp: 0,
 });
 
 export const createInitialQuestState = (): QuestState => ({
@@ -107,6 +108,10 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     typeof state.skills?.foragingXp === 'number' && Number.isFinite(state.skills.foragingXp)
       ? Math.max(0, Math.floor(state.skills.foragingXp))
       : 0;
+  const meleeAttackXp =
+    typeof state.skills?.meleeAttackXp === 'number' && Number.isFinite(state.skills.meleeAttackXp)
+      ? Math.max(0, Math.floor(state.skills.meleeAttackXp))
+      : 0;
   const dialogueLog = normalizeDialogueLog(state.dialogueLog);
   const worldEventLog = normalizeWorldEventLog(state.worldEventLog ?? []);
   const currentLocation =
@@ -122,6 +127,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     skills: {
       explorationXp,
       foragingXp,
+      meleeAttackXp,
     },
     lastDailyXpDay:
       typeof state.lastDailyXpDay === 'number'
@@ -196,6 +202,7 @@ export const getQuestContext = (state: QuestState): QuestContext => ({
   flags: state.flags,
   explorationLevel: getLevelFromXp(state.skills.explorationXp),
   foragingLevel: getLevelFromXp(state.skills.foragingXp),
+  meleeAttackLevel: getLevelFromXp(state.skills.meleeAttackXp),
 });
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>

@@ -59,6 +59,8 @@ export type QuestContext = {
   explorationLevel: number;
   /** Foraging skill level from `skills.foragingXp`. */
   foragingLevel: number;
+  /** Melee Attack skill level from `skills.meleeAttackXp`. */
+  meleeAttackLevel: number;
 };
 
 export type QuestProgress = {
@@ -92,6 +94,7 @@ export type QuestState = {
   skills: {
     explorationXp: number;
     foragingXp: number;
+    meleeAttackXp: number;
   };
   lastDailyXpDay: number;
   dialogueLog: DialogueLogEntry[];
