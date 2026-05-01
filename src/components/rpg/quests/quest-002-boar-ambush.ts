@@ -6,8 +6,7 @@ export const quest002BoarAmbush: QuestDefinition = {
   briefing: 'A wild boar charges from the treeline. Your instinct defines your path.',
   createdAt: 2,
   startStepId: 'boar-attack',
-  isAvailable: (context) =>
-    context.completedQuestIds.includes('quest-001-origin') || context.flags.includes('quest001-complete'),
+  isAvailable: (context) => context.explorationLevel >= 2,
   steps: {
     'boar-attack': {
       id: 'boar-attack',

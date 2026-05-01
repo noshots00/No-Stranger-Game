@@ -195,7 +195,10 @@ export const getLevelProgressFromXp = (xp: number) => {
   };
 };
 
-export const getCharacterLevel = (state: QuestState): number => getLevelFromXp(state.skills.explorationXp);
+export const getCharacterLevel = (state: QuestState): number =>
+  getLevelFromXp(state.skills.explorationXp) +
+  getLevelFromXp(state.skills.foragingXp) +
+  getLevelFromXp(state.skills.meleeAttackXp);
 
 export const getCompletedQuestIds = (state: QuestState): string[] =>
   Object.entries(state.progressByQuestId)

@@ -17,6 +17,22 @@ const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
 const DIALOGUE_DEV_MESSAGE_CLASSES =
   'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[12px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
 
+const QUEST_IMAGE_SOURCES: Record<string, string> = {
+  'The Forest Awakening': '/quest-images/horse.jpg',
+  'Boar in the Brush': '/quest-images/lakeside.jpg',
+  'Silver Lake': '/quest-images/night.jpg',
+  'Abandoned Shelter': '/quest-images/sunset.jpg',
+  'Airship?!': '/quest-images/horse.jpg',
+  'Wandering Skeleton': '/quest-images/lakeside.jpg',
+  'The Green Hand': '/quest-images/night.jpg',
+  'Wolf Attack': '/quest-images/sunset.jpg',
+  'The Waterfall': '/quest-images/horse.jpg',
+  'Find an Earring': '/quest-images/lakeside.jpg',
+  'Find a Bracelet': '/quest-images/night.jpg',
+  'Find a Shoe': '/quest-images/sunset.jpg',
+  'Find a Hat': '/quest-images/horse.jpg',
+};
+
 export function DialogueVoiceBlock({
   role,
   lines,
@@ -73,12 +89,6 @@ export function DialogueVoiceBlock({
       'rounded-lg border border-[var(--candle-rule)] bg-[rgba(0,0,0,0.28)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
     return (
       <div className="py-0.5">
-        <div
-          className="mx-auto mb-2 flex aspect-[3/4] w-full max-w-[200px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-black/40 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
-          aria-label="Day report illustration placeholder"
-        >
-          Image 200 x 266
-        </div>
         <div className={presentation === 'play' ? shellPlay : shellChronicle}>
           {titleLine ? (
             <p className="font-cormorant text-base font-medium tracking-[0.04em] text-[var(--candle-wax)]">
@@ -93,6 +103,31 @@ export function DialogueVoiceBlock({
             </ul>
           ) : null}
         </div>
+      </div>
+    );
+  }
+
+  if (role === 'quest_image') {
+    const questTitle = lines[0]?.text ?? '';
+    const imageSrc = QUEST_IMAGE_SOURCES[questTitle];
+
+    return (
+      <div className="py-0.5">
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={`${questTitle} illustration`}
+            className="mx-auto mb-2 aspect-[3/4] w-full max-w-[200px] rounded-md border border-[var(--candle-rule)] object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div
+            className="mx-auto mb-2 flex aspect-[3/4] w-full max-w-[200px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-black/40 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
+            aria-label="Quest illustration placeholder"
+          >
+            Image 200 x 266
+          </div>
+        )}
       </div>
     );
   }

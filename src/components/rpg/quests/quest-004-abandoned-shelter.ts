@@ -5,9 +5,10 @@ export const quest004AbandonedShelter: QuestDefinition = {
   title: 'Abandoned Shelter',
   briefing:
     'A collapsed lean-to in the brush. Something—or someone—left supplies behind. Explore carefully; your approach shapes what you find.',
-  createdAt: 4,
+  createdAt: 7,
   startStepId: 'shelter-intro',
-  isAvailable: (context) => context.explorationLevel >= 2,
+  isAvailable: (context) =>
+    context.completedQuestIds.includes('quest-001-origin') || context.flags.includes('quest001-complete'),
   steps: {
     'shelter-intro': {
       id: 'shelter-intro',
@@ -16,7 +17,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
       choices: [
         {
           id: 'shelter-crawl',
-          label: 'Crawl Inside',
+          label: 'At least Ill have somewhere to sleep.',
           nextStepId: 'shelter-loot',
           effects: {
             modifiersDelta: { MageClass: 1, Scoundrel: 1 },
@@ -74,6 +75,51 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['An old book with a strange symbol on the cover.'],
+          },
+        },
+        {
+          id: 'shelter-loot-placeholder-1',
+          label: 'place holder items 1',
+          completeQuest: true,
+          effects: {
+            flagsSet: ['abandoned-shelter-complete'],
+            questItemsAdd: ['place holder items 1'],
+          },
+        },
+        {
+          id: 'shelter-loot-placeholder-2',
+          label: 'place holder items 2',
+          completeQuest: true,
+          effects: {
+            flagsSet: ['abandoned-shelter-complete'],
+            questItemsAdd: ['place holder items 2'],
+          },
+        },
+        {
+          id: 'shelter-loot-placeholder-3',
+          label: 'place holder items 3',
+          completeQuest: true,
+          effects: {
+            flagsSet: ['abandoned-shelter-complete'],
+            questItemsAdd: ['place holder items 3'],
+          },
+        },
+        {
+          id: 'shelter-loot-placeholder-4',
+          label: 'place holder items 4',
+          completeQuest: true,
+          effects: {
+            flagsSet: ['abandoned-shelter-complete'],
+            questItemsAdd: ['place holder items 4'],
+          },
+        },
+        {
+          id: 'shelter-loot-placeholder-5',
+          label: 'place holder items 5',
+          completeQuest: true,
+          effects: {
+            flagsSet: ['abandoned-shelter-complete'],
+            questItemsAdd: ['place holder items 5'],
           },
         },
       ],

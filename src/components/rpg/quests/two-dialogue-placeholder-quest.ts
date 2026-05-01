@@ -1,4 +1,5 @@
-import type { QuestContext, QuestDefinition } from './types';
+import { createBranchingQuest } from './branching-quest-template';
+import type { QuestDefinition } from './types';
 
 export type TwoDialoguePlaceholderQuestOptions = {
   id: string;
@@ -34,15 +35,15 @@ export function createTwoDialoguePlaceholderQuest(
       ? { flagsSet: options.completionFlags }
       : undefined;
 
-  return {
+  return createBranchingQuest({
     id: options.id,
     title: options.title,
     briefing: options.briefing,
     createdAt: options.createdAt,
     startStepId: step1Id,
-    isAvailable: (context: QuestContext) => context.explorationLevel >= options.minExplorationLevel,
-    steps: {
-      [step1Id]: {
+    availability: { minExplorationLevel: options.minExplorationLevel },
+    steps: [
+      {
         id: step1Id,
         type: 'choice',
         text: dialogue1,
@@ -51,7 +52,7 @@ export function createTwoDialoguePlaceholderQuest(
           { id: `${p}-d1-b`, label: 'Choice b', nextStepId: step2Id },
         ],
       },
-      [step2Id]: {
+      {
         id: step2Id,
         type: 'choice',
         text: dialogue2,
@@ -70,6 +71,6 @@ export function createTwoDialoguePlaceholderQuest(
           },
         ],
       },
-    },
-  };
+    ],
+  });
 }

@@ -3,6 +3,7 @@ import { getCharacterLevel, getLevelFromXp } from '../quests/engine';
 import { getModifierMessageKind, getCharacterClass } from '../helpers';
 import { NPC_AVATAR_URL, characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
+import { nip19 } from 'nostr-tools';
 
 type CharacterTabProps = {
   questState: QuestState;
@@ -13,6 +14,7 @@ type CharacterTabProps = {
 export function CharacterTab({ questState, userPubkey, onOpenChronicle }: CharacterTabProps) {
   const characterLevel = getCharacterLevel(questState);
   const characterClass = getCharacterClass(questState.modifiers);
+  const profileNpub = userPubkey ? nip19.npubEncode(userPubkey) : null;
 
   const visibleSkillSheetParts: string[] = [];
   for (const key of SKILL_XP_KEYS) {
@@ -53,9 +55,10 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
       <p className="font-serif text-sm text-[var(--candle-ink-soft)]">
         Shareable profile link:{' '}
         <a
-          href={`https://ditto.pub/${userPubkey ?? ''}`}
+          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
           target="_blank"
           rel="noreferrer"
+          aria-disabled={!profileNpub}
           className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
         >
           your Ditto public profile

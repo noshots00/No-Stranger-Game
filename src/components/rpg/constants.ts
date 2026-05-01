@@ -8,6 +8,13 @@ Thank you for playing!`;
 
 export const SILVER_LAKE_FLAG = 'silver-lake-unlocked';
 export const AIRSHIP_FLAG = 'airship-discovered';
+export const WOLF_ATTACK_DAILY_FLAG = 'wolf-attack-daily-active';
+export const WOLF_ATTACK_DAILY_CHANCE = 0.2;
+export const DAILY_ITEM_QUEST_CHANCE = 0.05;
+export const EARRING_DAILY_FLAG = 'earring-daily-active';
+export const BRACELET_DAILY_FLAG = 'bracelet-daily-active';
+export const SHOE_DAILY_FLAG = 'shoe-daily-active';
+export const HAT_DAILY_FLAG = 'hat-daily-active';
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';

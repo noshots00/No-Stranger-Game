@@ -2,10 +2,11 @@ import type { DialogueLogEntry } from './quests/types';
 
 export const PLAYER_ACTION_SPEAKER = 'PlayerAction';
 export const QUEST_DIVIDER_SPEAKER = 'QuestDivider';
+export const QUEST_IMAGE_SPEAKER = 'QuestImage';
 /** Speaker id for end-of-day summary blocks (grouped as `report` voice). */
 export const DAY_REPORT_SPEAKER = 'Day Report';
 
-export type DialogueVoice = 'narrator' | 'dev' | 'player' | 'divider' | 'report';
+export type DialogueVoice = 'narrator' | 'dev' | 'player' | 'divider' | 'report' | 'quest_image';
 
 export type DialogueVoiceBlockModel = {
   role: DialogueVoice;
@@ -24,6 +25,7 @@ export const dialogueVoiceRole = (speaker: string): DialogueVoice => {
   if (speaker === 'Narrator') return 'narrator';
   if (speaker === 'Dev Message') return 'dev';
   if (speaker === QUEST_DIVIDER_SPEAKER) return 'divider';
+  if (speaker === QUEST_IMAGE_SPEAKER) return 'quest_image';
   if (speaker === DAY_REPORT_SPEAKER) return 'report';
   return 'player';
 };

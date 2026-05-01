@@ -15,6 +15,13 @@ import {
 import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
+  BRACELET_DAILY_FLAG,
+  DAILY_ITEM_QUEST_CHANCE,
+  WOLF_ATTACK_DAILY_CHANCE,
+  WOLF_ATTACK_DAILY_FLAG,
+  EARRING_DAILY_FLAG,
+  HAT_DAILY_FLAG,
+  SHOE_DAILY_FLAG,
   DAILY_XP,
   DAY_IN_MS,
   DIALOGUE_BREATHE_OVERFLOW_RATIO,
@@ -92,10 +99,10 @@ export function RPGInterface() {
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
   );
-  const oldestPendingQuestId = useMemo(() => {
+  const newestPendingQuestId = useMemo(() => {
     const pending = visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id));
     if (pending.length === 0) return null;
-    return [...pending].sort((a, b) => a.createdAt - b.createdAt)[0].id;
+    return [...pending].sort((a, b) => b.createdAt - a.createdAt)[0].id;
   }, [visibleQuests, completedQuestIds]);
 
   const chronicleDateTimeFmt = useMemo(
@@ -204,6 +211,11 @@ export function RPGInterface() {
     completedQuestCountRef.current = completedQuestIds.length;
   }, [completedQuestIds, isQuestStateHydrated, questState, persistQuestCheckpoint]);
 
+  const getDeterministicDailyRoll = (day: number, seedOffset = 0): number => {
+    const x = Math.sin(day * 12.9898 + 78.233 + seedOffset * 17.719) * 43758.5453;
+    return x - Math.floor(x);
+  };
+
   useEffect(() => {
     if (!isQuestStateHydrated) return;
     if (dayCounter <= questState.lastDailyXpDay) return;
@@ -221,6 +233,17 @@ export function RPGInterface() {
       skills: nextSkills,
       lastDailyXpDay: dayCounter,
     };
+    const dailyProbabilisticFlags: Array<{ flag: string; active: boolean }> = [
+      { flag: WOLF_ATTACK_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 1) < WOLF_ATTACK_DAILY_CHANCE },
+      { flag: EARRING_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 2) < DAILY_ITEM_QUEST_CHANCE },
+      { flag: BRACELET_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 3) < DAILY_ITEM_QUEST_CHANCE },
+      { flag: SHOE_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 4) < DAILY_ITEM_QUEST_CHANCE },
+      { flag: HAT_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 5) < DAILY_ITEM_QUEST_CHANCE },
+    ];
+    const probabilisticFlagSet = new Set(dailyProbabilisticFlags.map((entry) => entry.flag));
+    const retainedFlags = updatedState.flags.filter((flag) => !probabilisticFlagSet.has(flag));
+    const activeFlags = dailyProbabilisticFlags.filter((entry) => entry.active).map((entry) => entry.flag);
+    updatedState.flags = [...retainedFlags, ...activeFlags];
     const dayLine = `Day ${dayCounter} began.`;
     updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
 
@@ -232,8 +255,8 @@ export function RPGInterface() {
   }, [dayCounter, isQuestStateHydrated, questState, persistQuestCheckpoint, setQuestState]);
 
   useEffect(() => {
-    setExpandedQuestId(oldestPendingQuestId);
-  }, [oldestPendingQuestId]);
+    setExpandedQuestId(newestPendingQuestId);
+  }, [newestPendingQuestId]);
 
   useEffect(() => {
     if (questState.dialogueLog.length > 0) return;
@@ -320,9 +343,28 @@ export function RPGInterface() {
       const boarLines = activeQuest.id === 'quest-002-boar-ambush' ? [boarLine] : [];
       const airshipLines =
         activeQuest.id === 'quest-005-airship' ? [`${prev.playerName} discovered the airship.`] : [];
+      const greenHandLines =
+        activeQuest.id === 'quest-007-green-hand' && selectedChoice.id === 'green-hand-closer-look'
+          ? [`${prev.playerName} found the Green Hand!`]
+          : [];
+      const findItemQuestObjects: Record<string, { foundText: string; leaveText: string }> = {
+        'quest-010-find-earring': { foundText: 'an earring', leaveText: 'earring' },
+        'quest-011-find-bracelet': { foundText: 'a bracelet', leaveText: 'bracelet' },
+        'quest-012-find-shoe': { foundText: 'a shoe', leaveText: 'shoe' },
+        'quest-013-find-hat': { foundText: 'a hat', leaveText: 'hat' },
+      };
+      const findItemObject = findItemQuestObjects[activeQuest.id];
+      const findItemLines =
+        findItemObject && selectedChoice.id.endsWith('-pick-up')
+          ? [`${prev.playerName} found ${findItemObject.foundText}.`]
+          : findItemObject && selectedChoice.id.endsWith('-leave-it')
+            ? [`${prev.playerName} left the ${findItemObject.leaveText}.`]
+            : [];
       const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [
         ...boarLines,
         ...airshipLines,
+        ...greenHandLines,
+        ...findItemLines,
         ...rewardLines,
         ...levelUpLines,
       ]);
