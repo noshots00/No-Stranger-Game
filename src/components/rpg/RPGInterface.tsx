@@ -622,6 +622,45 @@ export function RPGInterface() {
     },
   });
 
+  const lobbyAuthorPubkeys = useMemo(() => {
+    const events = socialLobbyQuery.data ?? [];
+    const pubkeys = new Set(events.map((e) => e.pubkey));
+    if (user?.pubkey) pubkeys.delete(user.pubkey);
+    return Array.from(pubkeys);
+  }, [socialLobbyQuery.data, user?.pubkey]);
+
+  const lobbyNamesQuery = useQuery({
+    queryKey: ['rpg-lobby-names', ...lobbyAuthorPubkeys],
+    enabled: lobbyAuthorPubkeys.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const checkpoints = await nostr.query([
+        {
+          kinds: [NSG_QUEST_STATE_KIND],
+          authors: lobbyAuthorPubkeys,
+          '#d': [NSG_QUEST_STATE_D_TAG],
+          limit: lobbyAuthorPubkeys.length * 2,
+        },
+      ]);
+      const latest = new Map<string, NostrEvent>();
+      for (const ev of checkpoints) {
+        const existing = latest.get(ev.pubkey);
+        if (!existing || ev.created_at > existing.created_at) {
+          latest.set(ev.pubkey, ev);
+        }
+      }
+      const nameMap = new Map<string, string>();
+      for (const [pubkey, ev] of latest) {
+        const payload = parseQuestCheckpointPayload(ev.content);
+        const name = payload?.state?.playerName?.trim();
+        if (name) nameMap.set(pubkey, name);
+      }
+      return nameMap;
+    },
+  });
+
+  const lobbyNameMap = lobbyNamesQuery.data ?? new Map<string, string>();
+
   const handleLobbySend = () => {
     if (!user) return;
     const trimmed = lobbyInput.trim();
@@ -1364,7 +1403,7 @@ export function RPGInterface() {
                       {lobbyEvents.map((event) => (
                         <li key={event.id}>
                             <span className="text-[var(--facsimile-ink)]">
-                              {event.pubkey === user?.pubkey ? characterNameLabel : event.pubkey.slice(0, 8)}
+                              {event.pubkey === user?.pubkey ? characterNameLabel : (lobbyNameMap.get(event.pubkey) ?? event.pubkey.slice(0, 8))}
                             </span>{' '}
                           {truncatePlaintext(event.content, 280)}
                         </li>
