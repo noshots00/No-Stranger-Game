@@ -522,6 +522,31 @@ const [notes, reposts, genericReposts] = await Promise.all([
 
 The data may be transformed into a more appropriate format if needed, and multiple calls to `nostr.query()` may be made in a single queryFn.
 
+### Lightweight Relay Guardrails
+
+Use these defaults to reduce unnecessary relay load while keeping development fast:
+
+1. **Always bound queries**:
+   - Every `nostr.query()` filter must include a `limit`
+   - Prefer narrow filters (`authors`, `kinds`, `#e`, `#d`, `#t`) over broad queries
+2. **Prefer fewer requests**:
+   - Combine related event kinds in a single query when practical
+   - Avoid duplicate query calls from multiple components for the same data
+3. **Cache by default**:
+   - Use TanStack Query with sensible `staleTime`/`gcTime` for reads that do not need instant freshness
+   - Do not refetch on every re-render
+4. **Throttle writes**:
+   - Debounce rapid UI-driven publish actions
+   - Avoid publishing in tight loops (timers, animation ticks, per-keystroke handlers)
+5. **Choose storage semantics intentionally**:
+   - Use replaceable/addressable kinds for "latest state" style data
+   - Use regular events only when immutable history is intentionally needed
+6. **No unbounded polling**:
+   - Polling/subscriptions must have clear stop conditions and cleanup
+   - Do not create repeated background queries without user-visible benefit
+
+These are "light guardrails", not blockers: if a feature must deviate, document the reason in code comments near the query/publish logic.
+
 ### Event Validation
 
 When querying events, if the event kind being returned has required tags or required JSON fields in the content, the events should be filtered through a validator function. This is not generally needed for kinds such as 1, where all tags are optional and the content is freeform text, but is especially useful for custom kinds as well as kinds with strict requirements.
@@ -1210,3 +1235,14 @@ The goal is confidence **without** paying the full suite cost on every tiny chan
 If git is available in your environment (through a `shell` tool, or other git-specific tools), you should utilize `git log` to understand project history. Use `git status` and `git diff` to check the status of your changes, and if you make a mistake use `git checkout` to restore files.
 
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
+
+### Versioning Policy
+
+Every commit must include a version increment.
+
+- Update `package.json` `version` on every commit, including docs-only and configuration-only commits.
+- Do not create a commit if the version was not incremented in that commit.
+- Use semantic versioning progression:
+  - patch for fixes/chore/docs/internal updates
+  - minor for backward-compatible features
+  - major for breaking changes
