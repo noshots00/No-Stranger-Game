@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import {
   applyChoice,
@@ -28,6 +28,15 @@ import {
 } from '@/components/rpg/gameProfile';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import {
+  extractFollowPubkeysFromContactList,
+  NSG_SOCIAL_FEED_T,
+  NSG_SOCIAL_LOBBY_T,
+  NSG_SOCIAL_SIGNAL_T,
+  parsePinnedNoteIdsFromEnv,
+  truncatePlaintext,
+} from '@/components/rpg/social/socialTags';
 import {
   Dialog,
   DialogContent,
@@ -36,27 +45,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { DialogueLogEntry, QuestState, WorldEventLogEntry } from '@/components/rpg/quests/types';
-
-const mockSignals = [
-  'Ravenhall gate opens at first bell.',
-  'Archivist seeks one bearer of unfinished oaths.',
-  'Floodplain caravan expects tribute before moonrise.',
-];
-
-const socialFeed = [
-  'Mira reached level 9 in tracking near the Floodplain Trail.',
-  'Thorn unlocked a new skill: Iron Parry.',
-  'Lysa discovered the Silent Archive beneath the old chapel.',
-  'Corvin earned 24 copper from market contracts.',
-  'Nessa defeated a wolf pack and gained 2 pelts.',
-  'Eldric completed quest: Ash Bell on the Eastern Stair.',
-];
-
-const socialChatMessages = [
-  'Mira: Anyone heading to the old well tonight?',
-  'Thorn: I can join after market reset.',
-  'You: I will scout the orchard path first.',
-];
 
 const INTRO_DEV_MESSAGE = `Welcome to No Stranger Game! Your character is autonomous! He will act according to his own needs and desires. The primary means of progressing the game is by completing quests. Every choice has a permanent and irrevocable impact on the trajectory of your character, tread CAREFULLY! The game is designed to take about three minutes of your time each day. Be patient... it may seem like nothing is happening... but the game is MASSIVE and changes take place over Days, not seconds. For now your character will explore the forest around him, seeking food and shelter. Soon he will discover a village, which will unlock the next part of the Main Quest. The forest is very large, and your character may discover other locales before the village, and it could take longer than you are anticipating. I recommend you take a few minutes to look around the game, and then check your character's progress tomorrow.
 
@@ -213,6 +201,7 @@ const getLevelUpLines = (prevState: QuestState, nextState: QuestState): string[]
 
 /** Dialogue speaker for lines generated from the player's choice (not "You:" colon style). */
 const PLAYER_ACTION_SPEAKER = 'PlayerAction';
+const QUEST_DIVIDER_SPEAKER = 'QuestDivider';
 
 const IMPERATIVE_VERB_THIRD: Record<string, string> = {
   strike: 'strikes',
@@ -279,7 +268,7 @@ const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
 const DIALOGUE_DEV_MESSAGE_CLASSES =
   'rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]';
 
-type DialogueVoice = 'narrator' | 'dev' | 'player';
+type DialogueVoice = 'narrator' | 'dev' | 'player' | 'divider';
 
 type DialogueVoiceBlockModel = {
   role: DialogueVoice;
@@ -297,6 +286,7 @@ type ChronicleSegment =
 const dialogueVoiceRole = (speaker: string): DialogueVoice => {
   if (speaker === 'Narrator') return 'narrator';
   if (speaker === 'Dev Message') return 'dev';
+  if (speaker === QUEST_DIVIDER_SPEAKER) return 'divider';
   return 'player';
 };
 
@@ -383,6 +373,14 @@ function DialogueVoiceBlock({
     );
   }
 
+  if (role === 'divider') {
+    return (
+      <div className="py-1.5">
+        <div className="mx-auto h-px w-[88%] bg-[var(--facsimile-panel-border)]/70" />
+      </div>
+    );
+  }
+
   const playerShellClass =
     presentation === 'play'
       ? 'ml-auto w-[min(92%,22rem)] rounded-lg bg-[rgba(255,255,255,0.045)] px-3 py-2 ring-1 ring-[var(--facsimile-player-ink)]/15'
@@ -423,6 +421,8 @@ const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogu
 export function RPGInterface() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+  const { mutate: publishNostrEvent, isPending: isLobbySendPending } = useNostrPublish();
   const { logout } = useLoginActions();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
@@ -440,6 +440,10 @@ export function RPGInterface() {
   const prevDialogueOverflowRatioRef = useRef<number | null>(null);
   const completedQuestCountRef = useRef(0);
   const [isChronicleOpen, setIsChronicleOpen] = useState(false);
+  const [lobbyInput, setLobbyInput] = useState('');
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
+
+  const pinnedSignalIdsKey = useMemo(() => parsePinnedNoteIdsFromEnv().join('|'), []);
 
   const handleDialogueScroll = () => {
     const el = dialogueScrollRef.current;
@@ -455,6 +459,7 @@ export function RPGInterface() {
   const questStateStorageKey = user ? `${QUEST_STATE_STORAGE_KEY}:${user.pubkey}` : QUEST_STATE_STORAGE_KEY;
   const socialQuery = useQuery({
     queryKey: ['rpg-social-presence', user?.pubkey ?? 'anonymous'],
+    enabled: Boolean(user),
     queryFn: async () => {
       const loginEvents = await nostr.query([
         {
@@ -489,20 +494,11 @@ export function RPGInterface() {
         }
       });
 
-      const extractFollowSet = (event: NostrEvent | undefined): Set<string> => {
-        if (!event) return new Set();
-        return new Set(
-          event.tags
-            .filter(([name, value]) => name === 'p' && Boolean(value))
-            .map(([, value]) => value)
-        );
-      };
-
-      const myFollows = extractFollowSet(latestByAuthor.get(user.pubkey));
+      const myFollows = extractFollowPubkeysFromContactList(latestByAuthor.get(user.pubkey));
       const kindredSpirits = playerPubkeys.filter((pubkey) => {
         if (pubkey === user.pubkey) return false;
         if (!myFollows.has(pubkey)) return false;
-        const theirFollows = extractFollowSet(latestByAuthor.get(pubkey));
+        const theirFollows = extractFollowPubkeysFromContactList(latestByAuthor.get(pubkey));
         return theirFollows.has(user.pubkey);
       }).length;
 
@@ -516,6 +512,82 @@ export function RPGInterface() {
   const socialStats = socialQuery.data ?? {
     totalPlayers: 0,
     kindredSpirits: 0,
+  };
+
+  const socialFeedQuery = useQuery({
+    queryKey: ['rpg-social-feed', user?.pubkey ?? '', NSG_SOCIAL_FEED_T],
+    enabled: Boolean(user),
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!user) return [];
+      const contactLists = await nostr.query([
+        { kinds: [FOLLOW_LIST_KIND], authors: [user.pubkey], limit: 20 },
+      ]);
+      const myContact = contactLists.sort((a, b) => b.created_at - a.created_at)[0];
+      const myFollows = extractFollowPubkeysFromContactList(myContact);
+      if (myFollows.size === 0) return [];
+      const notes = await nostr.query([{ kinds: [1], '#t': [NSG_SOCIAL_FEED_T], limit: 200 }]);
+      return notes
+        .filter((event) => myFollows.has(event.pubkey))
+        .sort((a, b) => b.created_at - a.created_at);
+    },
+  });
+
+  const socialSignalsQuery = useQuery({
+    queryKey: ['rpg-social-signals', NSG_SOCIAL_SIGNAL_T, pinnedSignalIdsKey],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const ids = parsePinnedNoteIdsFromEnv();
+      const pinned: NostrEvent[] = [];
+      for (const id of ids) {
+        const rows = await nostr.query([{ kinds: [1], ids: [id], limit: 1 }]);
+        if (rows[0]) pinned.push(rows[0]);
+      }
+      const latest = await nostr.query([{ kinds: [1], '#t': [NSG_SOCIAL_SIGNAL_T], limit: 100 }]);
+      const pinSet = new Set(ids);
+      const pinnedOrdered = ids
+        .map((id) => pinned.find((event) => event.id === id))
+        .filter((event): event is NostrEvent => Boolean(event));
+      const rest = latest
+        .filter((event) => !pinSet.has(event.id))
+        .sort((a, b) => b.created_at - a.created_at);
+      return { pinned: pinnedOrdered, latest: rest };
+    },
+  });
+
+  const socialLobbyQuery = useQuery({
+    queryKey: ['rpg-social-lobby', NSG_SOCIAL_LOBBY_T],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const rows = await nostr.query([{ kinds: [1], '#t': [NSG_SOCIAL_LOBBY_T], limit: 150 }]);
+      return rows.sort((a, b) => a.created_at - b.created_at);
+    },
+  });
+
+  const handleLobbySend = () => {
+    if (!user) return;
+    const trimmed = lobbyInput.trim();
+    if (!trimmed) {
+      setLobbyError('Message cannot be empty.');
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setLobbyError('Message is too long.');
+      return;
+    }
+    setLobbyError(null);
+    publishNostrEvent(
+      { kind: 1, content: trimmed, tags: [['t', NSG_SOCIAL_LOBBY_T]] },
+      {
+        onSuccess: () => {
+          setLobbyInput('');
+          void queryClient.invalidateQueries({ queryKey: ['rpg-social-lobby', NSG_SOCIAL_LOBBY_T] });
+        },
+        onError: (error: unknown) => {
+          setLobbyError(error instanceof Error ? error.message : 'Failed to send.');
+        },
+      }
+    );
   };
 
   useEffect(() => {
@@ -906,6 +978,11 @@ export function RPGInterface() {
       } else if (!nextState.progressByQuestId[activeQuest.id]?.isCompleted) {
         nextLog.push(appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)));
       }
+      const wasCompleted = Boolean(prev.progressByQuestId[activeQuest.id]?.isCompleted);
+      const isCompleted = Boolean(nextState.progressByQuestId[activeQuest.id]?.isCompleted);
+      if (!wasCompleted && isCompleted) {
+        nextLog.push(appendDialogue(QUEST_DIVIDER_SPEAKER, ''));
+      }
 
       const boarLine = 'You fended off a wild boar!';
       const rewardLines = getRewardLines(prev.modifiers, nextState.modifiers);
@@ -1130,69 +1207,144 @@ export function RPGInterface() {
     }
 
     if (activeTab === 'social') {
+      const feedEvents = socialFeedQuery.data ?? [];
+      const signalsBundle = socialSignalsQuery.data ?? {
+        pinned: [] as NostrEvent[],
+        latest: [] as NostrEvent[],
+      };
+      const lobbyEvents = socialLobbyQuery.data ?? [];
+
       return (
         <section className="facsimile-panel space-y-4">
           <p className="facsimile-kicker">Social</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
-              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Strangers</p>
-              <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.totalPlayers}</p>
+          {user ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Strangers</p>
+                <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.totalPlayers}</p>
+              </div>
+              <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Kindred Spirits</p>
+                <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.kindredSpirits}</p>
+              </div>
             </div>
-            <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
-              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Kindrid Spirits</p>
-              <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.kindredSpirits}</p>
+          ) : null}
+          <div>
+            <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Activity</p>
+            <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
+              <div className="facsimile-scroll max-h-64 overflow-y-auto px-3 py-2">
+                {!user ? (
+                  <p className="text-xs text-[var(--facsimile-ink-muted)]">
+                    Log in to see activity from people you follow.
+                  </p>
+                ) : socialFeedQuery.isPending ? (
+                  <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading…</p>
+                ) : socialFeedQuery.isError ? (
+                  <p className="text-xs text-rose-300">Could not load the activity feed.</p>
+                ) : feedEvents.length === 0 ? (
+                  <p className="text-xs text-[var(--facsimile-ink-muted)]">
+                    No recent posts with tag <span className="text-[var(--facsimile-ink)]">{NSG_SOCIAL_FEED_T}</span>{' '}
+                    from people you follow.
+                  </p>
+                ) : (
+                  <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
+                    {feedEvents.map((event) => (
+                      <li key={event.id} className="border-l border-[var(--facsimile-accent)]/50 pl-2">
+                        <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
+                        {truncatePlaintext(event.content, 220)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
-          <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
-            <div className="facsimile-scroll max-h-64 overflow-y-auto px-3 py-2">
+          <div>
+            <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Signals</p>
+            {socialSignalsQuery.isPending ? (
+              <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading…</p>
+            ) : socialSignalsQuery.isError ? (
+              <p className="text-xs text-rose-300">Could not load signals.</p>
+            ) : (
               <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
-                {socialFeed.map((line) => (
-                  <li key={line} className="border-l border-[var(--facsimile-accent)]/50 pl-2">
-                    {line}
+                {signalsBundle.pinned.map((event) => (
+                  <li key={event.id} className="border-l border-amber-500/50 pl-2">
+                    <span className="text-[10px] uppercase tracking-[0.12em] text-amber-200/80">Pinned</span>{' '}
+                    <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
+                    {truncatePlaintext(event.content, 220)}
                   </li>
                 ))}
+                {signalsBundle.latest.map((event) => (
+                  <li key={event.id} className="border-l border-[var(--facsimile-panel-border)] pl-2">
+                    <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
+                    {truncatePlaintext(event.content, 220)}
+                  </li>
+                ))}
+                {signalsBundle.pinned.length === 0 && signalsBundle.latest.length === 0 ? (
+                  <li className="border-l border-[var(--facsimile-panel-border)] pl-2 text-[var(--facsimile-ink-muted)]">
+                    No signals yet. Post a kind 1 note with tag{' '}
+                    <span className="text-[var(--facsimile-ink)]">{NSG_SOCIAL_SIGNAL_T}</span>.
+                  </li>
+                ) : null}
               </ul>
-            </div>
+            )}
           </div>
-          <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
-            {mockSignals.map((signal) => (
-              <li key={signal} className="border-l border-[var(--facsimile-panel-border)] pl-2">
-                {signal}
-              </li>
-            ))}
-          </ul>
           <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
             <div className="mb-2 grid grid-cols-3 gap-1.5">
               {['Guild', 'Market', 'Player Quests'].map((label) => (
                 <button
                   key={label}
                   type="button"
-                  className="social-channel-button rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-[11px] text-[var(--facsimile-ink)]"
+                  disabled
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="social-channel-button cursor-not-allowed rounded-md border border-[var(--facsimile-panel-border)] bg-black/80 px-2 py-1 text-[11px] text-[var(--facsimile-ink-muted)] opacity-60"
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div className="facsimile-scroll mb-2 h-36 overflow-y-auto rounded-md bg-black/35 p-2">
-              <ul className="space-y-1 text-xs text-[var(--facsimile-ink-muted)]">
-                {socialChatMessages.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Type message..."
-                className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] placeholder:text-[var(--facsimile-ink-muted)] focus:outline-none"
-              />
-              <button
-                type="button"
-                className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)]"
-              >
-                Send
-              </button>
-            </div>
+            {user ? (
+              <>
+                <div className="facsimile-scroll mb-2 h-36 overflow-y-auto rounded-md bg-black/35 p-2">
+                  {socialLobbyQuery.isPending ? (
+                    <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading lobby…</p>
+                  ) : socialLobbyQuery.isError ? (
+                    <p className="text-xs text-rose-300">Could not load the lobby.</p>
+                  ) : (
+                    <ul className="space-y-1 text-xs text-[var(--facsimile-ink-muted)]">
+                      {lobbyEvents.map((event) => (
+                        <li key={event.id}>
+                          <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
+                          {truncatePlaintext(event.content, 280)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                {lobbyError ? <p className="mb-1 text-[11px] text-rose-300">{lobbyError}</p> : null}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={lobbyInput}
+                    onChange={(event) => setLobbyInput(event.target.value)}
+                    placeholder="Lobby message…"
+                    disabled={isLobbySendPending}
+                    className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] placeholder:text-[var(--facsimile-ink-muted)] focus:outline-none disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    disabled={isLobbySendPending}
+                    onClick={handleLobbySend}
+                    className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] disabled:opacity-60"
+                  >
+                    Send
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-[var(--facsimile-ink-muted)]">Log in to chat in the public lobby.</p>
+            )}
           </div>
         </section>
       );
