@@ -3,6 +3,8 @@ export type ModifierMap = Record<string, number>;
 export type ChoiceEffect = {
   modifiersDelta?: ModifierMap;
   flagsSet?: string[];
+  /** Display labels appended to `QuestState.questItems` (deduped, order preserved). */
+  questItemsAdd?: string[];
 };
 
 export type QuestChoice = {
@@ -100,4 +102,6 @@ export type QuestState = {
   dialogueLog: DialogueLogEntry[];
   /** World chronicle lines; persisted with quest checkpoints. */
   worldEventLog: WorldEventLogEntry[];
+  /** Quest reward item labels for the character sheet. */
+  questItems: string[];
 };

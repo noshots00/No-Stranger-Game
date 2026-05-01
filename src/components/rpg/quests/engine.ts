@@ -95,6 +95,7 @@ export const createInitialQuestState = (): QuestState => ({
   lastDailyXpDay: 1,
   dialogueLog: [],
   worldEventLog: [],
+  questItems: [],
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -114,6 +115,10 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       : 0;
   const dialogueLog = normalizeDialogueLog(state.dialogueLog);
   const worldEventLog = normalizeWorldEventLog(state.worldEventLog ?? []);
+  const questItemsRaw = state.questItems;
+  const questItems = Array.isArray(questItemsRaw)
+    ? questItemsRaw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+    : [];
   const currentLocation =
     typeof state.currentLocation === 'string' && state.currentLocation.trim().length > 0
       ? state.currentLocation
@@ -137,6 +142,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
         : initial.lastDailyXpDay,
     dialogueLog,
     worldEventLog,
+    questItems,
   };
 };
 
@@ -258,6 +264,19 @@ const mergeFlags = (current: string[], effect: ChoiceEffect | undefined): string
   return Array.from(new Set([...current, ...flags]));
 };
 
+const mergeQuestItems = (current: string[], effect: ChoiceEffect | undefined): string[] => {
+  const added = effect?.questItemsAdd?.filter((s) => typeof s === 'string' && s.trim().length > 0) ?? [];
+  if (added.length === 0) return current;
+  const seen = new Set(current);
+  const next = [...current];
+  for (const label of added) {
+    if (seen.has(label)) continue;
+    seen.add(label);
+    next.push(label);
+  }
+  return next;
+};
+
 const moveToStep = (
   state: QuestState,
   quest: QuestDefinition,
@@ -274,6 +293,7 @@ const moveToStep = (
     activeQuestId: isCompleted ? null : state.activeQuestId,
     modifiers: mergeModifiers(state.modifiers, choice.effects?.modifiersDelta),
     flags: mergeFlags(state.flags, choice.effects),
+    questItems: mergeQuestItems(state.questItems, choice.effects),
     progressByQuestId: {
       ...state.progressByQuestId,
       [quest.id]: {

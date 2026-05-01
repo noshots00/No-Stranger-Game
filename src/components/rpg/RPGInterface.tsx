@@ -105,6 +105,15 @@ const CHARACTER_START_KIND = 10031;
 const CHARACTER_START_D_TAG = 'character-start';
 const FOLLOW_LIST_KIND = 3;
 const GOLD_MODIFIER_KEYS = ['Gold', 'gold', 'Coins', 'coins'] as const;
+const HIDDEN_CLASS_MODIFIER_KEYS = ['WarriorClass', 'MageClass', 'RogueClass'] as const;
+const PRIMARY_STAT_MODIFIER_LABEL: Record<string, string> = {
+  Strength: 'strength',
+  Dexterity: 'dexterity',
+  Constitution: 'constitution',
+  Intelligence: 'intelligence',
+  Wisdom: 'wisdom',
+  Charisma: 'charisma',
+};
 const PLAY_DIALOGUE_RECENT_MAX = 120;
 const PLAY_WORLD_RECENT_MAX = 40;
 const DIALOGUE_SCROLL_PIN_EPS = 80;
@@ -132,6 +141,20 @@ const getGoldFromModifiers = (modifiers: Record<string, number>): number =>
   GOLD_MODIFIER_KEYS.reduce((total, key) => total + (modifiers[key] ?? 0), 0);
 
 const isItemModifierKey = (key: string): boolean => /^(item|items|inventory)[:_-]/i.test(key);
+
+type ModifierMessageKind = 'hidden_class' | 'primary_stat' | 'other';
+
+// Extension point: future categories (relationships/affinities/etc.) can branch here
+// without rewriting modifier world-event generation.
+const getModifierMessageKind = (key: string): ModifierMessageKind => {
+  if (HIDDEN_CLASS_MODIFIER_KEYS.includes(key as typeof HIDDEN_CLASS_MODIFIER_KEYS[number])) {
+    return 'hidden_class';
+  }
+  if (PRIMARY_STAT_MODIFIER_LABEL[key]) {
+    return 'primary_stat';
+  }
+  return 'other';
+};
 
 const toItemLabel = (key: string): string =>
   key
@@ -165,18 +188,18 @@ const getRewardLines = (
 
 const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => {
   const lines: string[] = [];
-  const formatSkillName = (value: string): string =>
-    value
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/[_-]/g, ' ')
-      .toLowerCase();
 
   Object.keys(nextState.modifiers).forEach((key) => {
     if (isItemModifierKey(key) || GOLD_MODIFIER_KEYS.includes(key as typeof GOLD_MODIFIER_KEYS[number])) return;
+    const kind = getModifierMessageKind(key);
+    if (kind === 'hidden_class') return;
     const previous = prevState.modifiers[key] ?? 0;
     const current = nextState.modifiers[key] ?? 0;
-    if (current > previous) {
-      lines.push(`Your skill in ${formatSkillName(key)} reached level ${current}!`);
+    const delta = current - previous;
+    if (delta <= 0) return;
+
+    if (kind === 'primary_stat') {
+      lines.push(`You gain ${delta} ${PRIMARY_STAT_MODIFIER_LABEL[key]}!`);
     }
   });
 
@@ -654,7 +677,10 @@ export function RPGInterface() {
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
   const nonZeroModifiers = useMemo(
-    () => Object.entries(questState.modifiers).filter(([, value]) => value !== 0),
+    () =>
+      Object.entries(questState.modifiers).filter(
+        ([name, value]) => value !== 0 && getModifierMessageKind(name) !== 'hidden_class'
+      ),
     [questState.modifiers]
   );
   const pendingQuestCount = useMemo(
@@ -1018,6 +1044,14 @@ export function RPGInterface() {
               <span className="text-[var(--facsimile-ink)]">Skills:</span>{' '}
               {visibleSkillSheetParts.length > 0 ? (
                 <span className="text-[var(--facsimile-ink-muted)]">{visibleSkillSheetParts.join(', ')}</span>
+              ) : (
+                <span className="text-[var(--facsimile-ink-muted)]">—</span>
+              )}
+            </p>
+            <p>
+              <span className="text-[var(--facsimile-ink)]">Quest Items:</span>{' '}
+              {questState.questItems.length > 0 ? (
+                <span className="text-[var(--facsimile-ink-muted)]">{questState.questItems.join(', ')}</span>
               ) : (
                 <span className="text-[var(--facsimile-ink-muted)]">—</span>
               )}
