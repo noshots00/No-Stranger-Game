@@ -124,6 +124,7 @@ const PLAY_DIALOGUE_RECENT_MAX = 120;
 const PLAY_WORLD_RECENT_MAX = 40;
 const DIALOGUE_SCROLL_PIN_EPS = 80;
 const DIALOGUE_BREATHE_OVERFLOW_RATIO = 1.3;
+const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-dev' : ''}`;
 
 const appendUniqueWorldEntries = (
   existing: WorldEventLogEntry[],
@@ -1597,7 +1598,7 @@ export function RPGInterface() {
             <div className="relative flex items-center justify-between">
               <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">Day {dayCounter}</p>
               <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.16em] text-[var(--facsimile-ink-muted)]">
-                v0.4.3-dev
+                {UI_VERSION_LABEL}
               </p>
               <p className={`${locationIndicatorClass} text-[10px] uppercase tracking-[0.2em]`}>{questState.currentLocation}</p>
             </div>

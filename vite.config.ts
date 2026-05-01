@@ -1,7 +1,12 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+
+const appVersion = JSON.parse(
+  fs.readFileSync(new URL("./package.json", import.meta.url), "utf-8")
+) as { version: string };
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
@@ -28,5 +33,8 @@ export default defineConfig(() => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion.version),
   },
 }));
