@@ -19,14 +19,14 @@ type GameHeaderProps = {
 
 export function GameHeader({
   dayCounter,
-  currentLocation: _currentLocation,
-  locationIndicatorClass: _locationIndicatorClass,
+  currentLocation,
+  locationIndicatorClass,
   onAdvanceDay,
   onLogout,
   onResetStory,
 }: GameHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 -mx-1 flex items-center justify-between gap-3 px-1 py-0 backdrop-blur-[6px]">
+    <header className="sticky top-0 z-20 -mx-1 flex items-center gap-2 px-1 py-0 backdrop-blur-[6px]">
       <p className="font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">Day {dayCounter}</p>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -63,6 +63,11 @@ export function GameHeader({
       </DropdownMenu>
       <p className="font-serif text-[10px] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
         {UI_VERSION_LABEL}
+      </p>
+      <p
+        className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
+      >
+        {currentLocation}
       </p>
     </header>
   );
