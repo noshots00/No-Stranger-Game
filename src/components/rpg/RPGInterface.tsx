@@ -16,6 +16,7 @@ import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/s
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   BRACELET_DAILY_FLAG,
+  DELAYED_QUEST_UNLOCKS,
   DAILY_ITEM_QUEST_CHANCE,
   WOLF_ATTACK_DAILY_CHANCE,
   WOLF_ATTACK_DAILY_FLAG,
@@ -243,7 +244,14 @@ export function RPGInterface() {
     const probabilisticFlagSet = new Set(dailyProbabilisticFlags.map((entry) => entry.flag));
     const retainedFlags = updatedState.flags.filter((flag) => !probabilisticFlagSet.has(flag));
     const activeFlags = dailyProbabilisticFlags.filter((entry) => entry.active).map((entry) => entry.flag);
-    updatedState.flags = [...retainedFlags, ...activeFlags];
+    let promotedFlags = [...retainedFlags, ...activeFlags];
+    for (const { pending, unlocked } of DELAYED_QUEST_UNLOCKS) {
+      if (promotedFlags.includes(pending)) {
+        promotedFlags = promotedFlags.filter((f) => f !== pending);
+        if (!promotedFlags.includes(unlocked)) promotedFlags.push(unlocked);
+      }
+    }
+    updatedState.flags = promotedFlags;
     const dayLine = `Day ${dayCounter} began.`;
     updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
 

@@ -11,6 +11,9 @@ import { quest010FindEarring } from './quest-010-find-earring';
 import { quest011FindBracelet } from './quest-011-find-bracelet';
 import { quest012FindShoe } from './quest-012-find-shoe';
 import { quest013FindHat } from './quest-013-find-hat';
+import { quest014MushroomPatch } from './quest-014-mushroom-patch';
+import { quest015FeverDream } from './quest-015-fever-dream';
+import { quest016SweetDream } from './quest-016-sweet-dream';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
@@ -27,6 +30,9 @@ export const allQuests: QuestDefinition[] = [
   quest011FindBracelet,
   quest012FindShoe,
   quest013FindHat,
+  quest014MushroomPatch,
+  quest015FeverDream,
+  quest016SweetDream,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(

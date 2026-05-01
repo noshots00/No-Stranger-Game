@@ -31,6 +31,9 @@ const QUEST_IMAGE_SOURCES: Record<string, string> = {
   'Find a Bracelet': '/quest-images/night.jpg',
   'Find a Shoe': '/quest-images/sunset.jpg',
   'Find a Hat': '/quest-images/horse.jpg',
+  'Mushroom Patch': '/quest-images/lakeside.jpg',
+  'Fever Dream': '/quest-images/night.jpg',
+  'Sweet Dream': '/quest-images/sunset.jpg',
 };
 
 export function DialogueVoiceBlock({

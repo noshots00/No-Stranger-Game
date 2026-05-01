@@ -15,6 +15,16 @@ export const EARRING_DAILY_FLAG = 'earring-daily-active';
 export const BRACELET_DAILY_FLAG = 'bracelet-daily-active';
 export const SHOE_DAILY_FLAG = 'shoe-daily-active';
 export const HAT_DAILY_FLAG = 'hat-daily-active';
+export const FEVER_DREAM_PENDING_FLAG = 'fever-dream-pending';
+export const FEVER_DREAM_UNLOCKED_FLAG = 'fever-dream-unlocked';
+export const SWEET_DREAM_PENDING_FLAG = 'sweet-dream-pending';
+export const SWEET_DREAM_UNLOCKED_FLAG = 'sweet-dream-unlocked';
+
+/** Pending flags promoted to unlocked on the next daily reset (one-day delay). */
+export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: string }> = [
+  { pending: FEVER_DREAM_PENDING_FLAG, unlocked: FEVER_DREAM_UNLOCKED_FLAG },
+  { pending: SWEET_DREAM_PENDING_FLAG, unlocked: SWEET_DREAM_UNLOCKED_FLAG },
+];
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';
