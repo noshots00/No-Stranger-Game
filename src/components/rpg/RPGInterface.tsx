@@ -23,20 +23,16 @@ import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   fetchOrCreateCharacterStartTimestamp,
   fetchQuestStateSnapshot,
+  NSG_QUEST_STATE_D_TAG,
+  NSG_QUEST_STATE_KIND,
+  parseQuestCheckpointPayload,
   publishCharacterStartTimestamp,
   publishQuestStateSnapshot,
 } from '@/components/rpg/gameProfile';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import {
-  extractFollowPubkeysFromContactList,
-  NSG_SOCIAL_FEED_T,
-  NSG_SOCIAL_LOBBY_T,
-  NSG_SOCIAL_SIGNAL_T,
-  parsePinnedNoteIdsFromEnv,
-  truncatePlaintext,
-} from '@/components/rpg/social/socialTags';
+import { extractFollowPubkeysFromContactList, NSG_SOCIAL_LOBBY_T, truncatePlaintext } from '@/components/rpg/social/socialTags';
 import {
   Dialog,
   DialogContent,
@@ -53,6 +49,28 @@ If you have any questions please reach out to me on Nostr.
 Thank you for playing!`;
 
 const SILVER_LAKE_FLAG = 'silver-lake-unlocked';
+const QUEST_ORIGIN_ID = 'quest-001-origin';
+
+function questStateHasRememberedName(state: QuestState): boolean {
+  const name = state.playerName?.trim();
+  if (!name) return false;
+  if (state.flags.includes('quest001-complete')) return true;
+  return Boolean(state.progressByQuestId[QUEST_ORIGIN_ID]?.isCompleted);
+}
+
+function findFirstRememberedCheckpoint(
+  events: NostrEvent[]
+): { namedAt: number; displayName: string } | null {
+  const sorted = [...events].sort((a, b) => a.created_at - b.created_at);
+  for (const ev of sorted) {
+    const payload = parseQuestCheckpointPayload(ev.content);
+    if (!payload) continue;
+    if (questStateHasRememberedName(payload.state)) {
+      return { namedAt: ev.created_at, displayName: payload.state.playerName.trim() };
+    }
+  }
+  return null;
+}
 
 const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
@@ -443,8 +461,6 @@ export function RPGInterface() {
   const [lobbyInput, setLobbyInput] = useState('');
   const [lobbyError, setLobbyError] = useState<string | null>(null);
 
-  const pinnedSignalIdsKey = useMemo(() => parsePinnedNoteIdsFromEnv().join('|'), []);
-
   const handleDialogueScroll = () => {
     const el = dialogueScrollRef.current;
     if (!el) return;
@@ -475,6 +491,7 @@ export function RPGInterface() {
         return {
           totalPlayers: playerPubkeys.length,
           kindredSpirits: 0,
+          kindredPubkeys: [] as string[],
         };
       }
 
@@ -495,16 +512,17 @@ export function RPGInterface() {
       });
 
       const myFollows = extractFollowPubkeysFromContactList(latestByAuthor.get(user.pubkey));
-      const kindredSpirits = playerPubkeys.filter((pubkey) => {
+      const kindredPubkeys = playerPubkeys.filter((pubkey) => {
         if (pubkey === user.pubkey) return false;
         if (!myFollows.has(pubkey)) return false;
         const theirFollows = extractFollowPubkeysFromContactList(latestByAuthor.get(pubkey));
         return theirFollows.has(user.pubkey);
-      }).length;
+      });
 
       return {
         totalPlayers: playerPubkeys.length,
-        kindredSpirits,
+        kindredSpirits: kindredPubkeys.length,
+        kindredPubkeys,
       };
     },
     staleTime: 60_000,
@@ -512,46 +530,86 @@ export function RPGInterface() {
   const socialStats = socialQuery.data ?? {
     totalPlayers: 0,
     kindredSpirits: 0,
+    kindredPubkeys: [] as string[],
   };
 
-  const socialFeedQuery = useQuery({
-    queryKey: ['rpg-social-feed', user?.pubkey ?? '', NSG_SOCIAL_FEED_T],
-    enabled: Boolean(user),
+  const kindredPubkeysKey = [...(socialQuery.data?.kindredPubkeys ?? [])].sort().join('|');
+
+  const socialActivityQuery = useQuery({
+    queryKey: ['rpg-social-activity', 'remembered-name', NSG_QUEST_STATE_KIND, NSG_QUEST_STATE_D_TAG],
     staleTime: 60_000,
     queryFn: async () => {
-      if (!user) return [];
-      const contactLists = await nostr.query([
-        { kinds: [FOLLOW_LIST_KIND], authors: [user.pubkey], limit: 20 },
+      const checkpoints = await nostr.query([
+        {
+          kinds: [NSG_QUEST_STATE_KIND],
+          '#t': ['no-stranger-game'],
+          '#d': [NSG_QUEST_STATE_D_TAG],
+          limit: 500,
+        },
       ]);
-      const myContact = contactLists.sort((a, b) => b.created_at - a.created_at)[0];
-      const myFollows = extractFollowPubkeysFromContactList(myContact);
-      if (myFollows.size === 0) return [];
-      const notes = await nostr.query([{ kinds: [1], '#t': [NSG_SOCIAL_FEED_T], limit: 200 }]);
-      return notes
-        .filter((event) => myFollows.has(event.pubkey))
-        .sort((a, b) => b.created_at - a.created_at);
+      const byAuthor = new Map<string, NostrEvent[]>();
+      for (const ev of checkpoints) {
+        const list = byAuthor.get(ev.pubkey) ?? [];
+        list.push(ev);
+        byAuthor.set(ev.pubkey, list);
+      }
+      const rows: { pubkey: string; displayName: string; namedAt: number }[] = [];
+      for (const [pubkey, events] of byAuthor) {
+        const found = findFirstRememberedCheckpoint(events);
+        if (!found) continue;
+        rows.push({ pubkey, displayName: found.displayName, namedAt: found.namedAt });
+      }
+      rows.sort((a, b) => b.namedAt - a.namedAt);
+      return rows.slice(0, 5);
     },
   });
 
-  const socialSignalsQuery = useQuery({
-    queryKey: ['rpg-social-signals', NSG_SOCIAL_SIGNAL_T, pinnedSignalIdsKey],
+  const socialKindredSignalsQuery = useQuery({
+    queryKey: ['rpg-social-kindred-signals', user?.pubkey ?? '', kindredPubkeysKey],
+    enabled: Boolean(user) && socialQuery.isSuccess,
     staleTime: 60_000,
     queryFn: async () => {
-      const ids = parsePinnedNoteIdsFromEnv();
-      const pinned: NostrEvent[] = [];
-      for (const id of ids) {
-        const rows = await nostr.query([{ kinds: [1], ids: [id], limit: 1 }]);
-        if (rows[0]) pinned.push(rows[0]);
+      const kindredPubkeys = [...(socialQuery.data?.kindredPubkeys ?? [])];
+      if (kindredPubkeys.length === 0) return [];
+
+      const checkpoints = await nostr.query([
+        {
+          kinds: [NSG_QUEST_STATE_KIND],
+          '#t': ['no-stranger-game'],
+          '#d': [NSG_QUEST_STATE_D_TAG],
+          limit: 400,
+        },
+      ]);
+      const byAuthor = new Map<string, NostrEvent[]>();
+      for (const ev of checkpoints) {
+        const list = byAuthor.get(ev.pubkey) ?? [];
+        list.push(ev);
+        byAuthor.set(ev.pubkey, list);
       }
-      const latest = await nostr.query([{ kinds: [1], '#t': [NSG_SOCIAL_SIGNAL_T], limit: 100 }]);
-      const pinSet = new Set(ids);
-      const pinnedOrdered = ids
-        .map((id) => pinned.find((event) => event.id === id))
-        .filter((event): event is NostrEvent => Boolean(event));
-      const rest = latest
-        .filter((event) => !pinSet.has(event.id))
-        .sort((a, b) => b.created_at - a.created_at);
-      return { pinned: pinnedOrdered, latest: rest };
+
+      type SignalRow = { pubkey: string; name: string; text: string; latestAt: number };
+      const candidates: SignalRow[] = [];
+      for (const pubkey of kindredPubkeys) {
+        const events = byAuthor.get(pubkey) ?? [];
+        if (events.length === 0) continue;
+        const latestEv = events.reduce((best, cur) => (cur.created_at > best.created_at ? cur : best));
+        const payload = parseQuestCheckpointPayload(latestEv.content);
+        if (!payload) continue;
+        const { state } = payload;
+        const name = state.playerName.trim() || 'Stranger';
+        const world = state.worldEventLog;
+        const last = world.length > 0 ? world[world.length - 1] : undefined;
+        const rawText =
+          last && typeof last === 'object' && last !== null && 'text' in last
+            ? String((last as { text: string }).text)
+            : '';
+        const text = rawText.trim()
+          ? truncatePlaintext(rawText, 220)
+          : `${name} updated their journey.`;
+        candidates.push({ pubkey, name, text, latestAt: latestEv.created_at });
+      }
+      candidates.sort((a, b) => b.latestAt - a.latestAt);
+      return candidates.slice(0, 5);
     },
   });
 
@@ -808,6 +866,10 @@ export function RPGInterface() {
     () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
     [questState.worldEventLog]
   );
+  const characterNameLabel = useMemo(() => {
+    const trimmed = questState.playerName.trim();
+    return trimmed.length > 0 ? trimmed : 'Stranger';
+  }, [questState.playerName]);
 
   const chronicleRows = useMemo((): ChronicleMergedRow[] => {
     if (!isChronicleOpen) return [];
@@ -1207,11 +1269,8 @@ export function RPGInterface() {
     }
 
     if (activeTab === 'social') {
-      const feedEvents = socialFeedQuery.data ?? [];
-      const signalsBundle = socialSignalsQuery.data ?? {
-        pinned: [] as NostrEvent[],
-        latest: [] as NostrEvent[],
-      };
+      const activityRows = socialActivityQuery.data ?? [];
+      const kindredSignalRows = socialKindredSignalsQuery.data ?? [];
       const lobbyEvents = socialLobbyQuery.data ?? [];
 
       return (
@@ -1233,25 +1292,19 @@ export function RPGInterface() {
             <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Activity</p>
             <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
               <div className="facsimile-scroll max-h-64 overflow-y-auto px-3 py-2">
-                {!user ? (
-                  <p className="text-xs text-[var(--facsimile-ink-muted)]">
-                    Log in to see activity from people you follow.
-                  </p>
-                ) : socialFeedQuery.isPending ? (
+                {socialActivityQuery.isPending ? (
                   <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading…</p>
-                ) : socialFeedQuery.isError ? (
-                  <p className="text-xs text-rose-300">Could not load the activity feed.</p>
-                ) : feedEvents.length === 0 ? (
+                ) : socialActivityQuery.isError ? (
+                  <p className="text-xs text-rose-300">Could not load activity.</p>
+                ) : activityRows.length === 0 ? (
                   <p className="text-xs text-[var(--facsimile-ink-muted)]">
-                    No recent posts with tag <span className="text-[var(--facsimile-ink)]">{NSG_SOCIAL_FEED_T}</span>{' '}
-                    from people you follow.
+                    No published character checkpoints with a remembered name yet.
                   </p>
                 ) : (
                   <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
-                    {feedEvents.map((event) => (
-                      <li key={event.id} className="border-l border-[var(--facsimile-accent)]/50 pl-2">
-                        <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
-                        {truncatePlaintext(event.content, 220)}
+                    {activityRows.map((row) => (
+                      <li key={row.pubkey} className="border-l border-[var(--facsimile-accent)]/50 pl-2">
+                        <span className="text-[var(--facsimile-ink)]">{row.displayName}</span> remembered their name.
                       </li>
                     ))}
                   </ul>
@@ -1261,29 +1314,24 @@ export function RPGInterface() {
           </div>
           <div>
             <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Signals</p>
-            {socialSignalsQuery.isPending ? (
+            {!user ? (
+              <p className="text-xs text-[var(--facsimile-ink-muted)]">Log in to see signals from kindred spirits.</p>
+            ) : socialKindredSignalsQuery.isPending ? (
               <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading…</p>
-            ) : socialSignalsQuery.isError ? (
+            ) : socialKindredSignalsQuery.isError ? (
               <p className="text-xs text-rose-300">Could not load signals.</p>
             ) : (
               <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
-                {signalsBundle.pinned.map((event) => (
-                  <li key={event.id} className="border-l border-amber-500/50 pl-2">
-                    <span className="text-[10px] uppercase tracking-[0.12em] text-amber-200/80">Pinned</span>{' '}
-                    <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
-                    {truncatePlaintext(event.content, 220)}
+                {kindredSignalRows.map((row) => (
+                  <li key={row.pubkey} className="border-l border-[var(--facsimile-panel-border)] pl-2">
+                    <span className="text-[var(--facsimile-ink)]">{row.name}</span>: {row.text}
                   </li>
                 ))}
-                {signalsBundle.latest.map((event) => (
-                  <li key={event.id} className="border-l border-[var(--facsimile-panel-border)] pl-2">
-                    <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
-                    {truncatePlaintext(event.content, 220)}
-                  </li>
-                ))}
-                {signalsBundle.pinned.length === 0 && signalsBundle.latest.length === 0 ? (
+                {kindredSignalRows.length === 0 ? (
                   <li className="border-l border-[var(--facsimile-panel-border)] pl-2 text-[var(--facsimile-ink-muted)]">
-                    No signals yet. Post a kind 1 note with tag{' '}
-                    <span className="text-[var(--facsimile-ink)]">{NSG_SOCIAL_SIGNAL_T}</span>.
+                    {socialStats.kindredPubkeys.length === 0
+                      ? 'No kindred spirits yet—mutual follows with other players who started here.'
+                      : 'No checkpoint data found for your kindred spirits on these relays yet.'}
                   </li>
                 ) : null}
               </ul>
@@ -1315,7 +1363,9 @@ export function RPGInterface() {
                     <ul className="space-y-1 text-xs text-[var(--facsimile-ink-muted)]">
                       {lobbyEvents.map((event) => (
                         <li key={event.id}>
-                          <span className="text-[var(--facsimile-ink)]">{event.pubkey.slice(0, 8)}</span>{' '}
+                            <span className="text-[var(--facsimile-ink)]">
+                              {event.pubkey === user?.pubkey ? characterNameLabel : event.pubkey.slice(0, 8)}
+                            </span>{' '}
                           {truncatePlaintext(event.content, 280)}
                         </li>
                       ))}

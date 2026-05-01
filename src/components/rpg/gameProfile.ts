@@ -4,8 +4,9 @@ import type { QuestState } from '@/components/rpg/quests/types';
 
 const CHARACTER_START_KIND = 10031;
 const CHARACTER_START_D_TAG = 'character-start';
-const QUEST_STATE_KIND = 10032;
-const QUEST_STATE_D_TAG = 'quest-state';
+/** Published quest checkpoint kind (see `publishQuestStateSnapshot`). */
+export const NSG_QUEST_STATE_KIND = 10032;
+export const NSG_QUEST_STATE_D_TAG = 'quest-state';
 
 type NostrClient = {
   query: (filters: NostrFilter[]) => Promise<NostrEvent[]>;
@@ -26,7 +27,7 @@ function parseStartTimestamp(content: string): number | null {
   }
 }
 
-type QuestStateSnapshot = {
+export type QuestCheckpointPayload = {
   savedAtMs: number;
   state: QuestState;
 };
@@ -72,7 +73,7 @@ function isQuestState(value: unknown): value is QuestState {
   );
 }
 
-function parseQuestStateSnapshot(content: string): QuestStateSnapshot | null {
+function parseQuestStateSnapshot(content: string): QuestCheckpointPayload | null {
   try {
     const parsed = JSON.parse(content) as { savedAtMs?: number; state?: unknown };
     if (typeof parsed.savedAtMs !== 'number' || Number.isNaN(parsed.savedAtMs)) return null;
@@ -81,6 +82,11 @@ function parseQuestStateSnapshot(content: string): QuestStateSnapshot | null {
   } catch {
     return null;
   }
+}
+
+/** Parse JSON payload from a published quest checkpoint event (`kind` 10032). */
+export function parseQuestCheckpointPayload(content: string): QuestCheckpointPayload | null {
+  return parseQuestStateSnapshot(content);
 }
 
 export async function fetchCharacterStartTimestamp(nostr: NostrClient, pubkey: string): Promise<number | null> {
@@ -135,17 +141,17 @@ export async function fetchOrCreateCharacterStartTimestamp(
 export async function fetchQuestStateSnapshot(
   nostr: NostrClient,
   pubkey: string
-): Promise<QuestStateSnapshot | null> {
+): Promise<QuestCheckpointPayload | null> {
   const events = await nostr.query([
     {
-      kinds: [QUEST_STATE_KIND],
+      kinds: [NSG_QUEST_STATE_KIND],
       authors: [pubkey],
       limit: 10,
     },
   ]);
 
   const matching = events
-    .filter((event) => event.tags.some(([name, value]) => name === 'd' && value === QUEST_STATE_D_TAG))
+    .filter((event) => event.tags.some(([name, value]) => name === 'd' && value === NSG_QUEST_STATE_D_TAG))
     .sort((a, b) => b.created_at - a.created_at);
 
   if (matching.length === 0) return null;
@@ -159,10 +165,10 @@ export async function publishQuestStateSnapshot(
 ): Promise<number> {
   const savedAtMs = Date.now();
   const draft = {
-    kind: QUEST_STATE_KIND,
+    kind: NSG_QUEST_STATE_KIND,
     content: JSON.stringify({ savedAtMs, state }),
     tags: [
-      ['d', QUEST_STATE_D_TAG],
+      ['d', NSG_QUEST_STATE_D_TAG],
       ['t', 'no-stranger-game'],
       ['alt', 'Quest state checkpoint for No Stranger Game'],
     ],
