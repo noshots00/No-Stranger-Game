@@ -31,13 +31,34 @@ type QuestStateSnapshot = {
   state: QuestState;
 };
 
+function isWorldEventLogRow(value: unknown): boolean {
+  if (typeof value === 'string') return true;
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.text === 'string';
+}
+
+function isDialogueLogRow(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.id === 'string' &&
+    typeof row.speaker === 'string' &&
+    typeof row.text === 'string' &&
+    (row.atMs === undefined || typeof row.atMs === 'number')
+  );
+}
+
 function isQuestState(value: unknown): value is QuestState {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
   const worldLogOk =
     !('worldEventLog' in candidate) ||
     (Array.isArray(candidate.worldEventLog) &&
-      candidate.worldEventLog.every((line) => typeof line === 'string'));
+      candidate.worldEventLog.every((line) => isWorldEventLogRow(line)));
+  const dialogueOk =
+    Array.isArray(candidate.dialogueLog) &&
+    candidate.dialogueLog.every((row) => isDialogueLogRow(row));
   return (
     (typeof candidate.activeQuestId === 'string' || candidate.activeQuestId === null) &&
     typeof candidate.progressByQuestId === 'object' &&
@@ -46,7 +67,7 @@ function isQuestState(value: unknown): value is QuestState {
     candidate.modifiers !== null &&
     Array.isArray(candidate.flags) &&
     typeof candidate.playerName === 'string' &&
-    Array.isArray(candidate.dialogueLog) &&
+    dialogueOk &&
     worldLogOk
   );
 }

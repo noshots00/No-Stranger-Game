@@ -1,5 +1,6 @@
 import type {
   ChoiceEffect,
+  DialogueLogEntry,
   ModifierMap,
   QuestChoice,
   QuestContext,
@@ -7,9 +8,73 @@ import type {
   QuestProgress,
   QuestState,
   QuestStep,
+  WorldEventLogEntry,
 } from './types';
 
-const DEFAULT_WORLD_EVENT_LOG = ['You found yourself in a forest.'] as const;
+const parseTimestampFromDialogueId = (id: string): number | null => {
+  const m = id.match(/-(\d{10,16})-[a-z0-9]+$/i);
+  if (!m) return null;
+  return Number(m[1]);
+};
+
+const normalizeDialogueLog = (entries: unknown): DialogueLogEntry[] => {
+  if (!Array.isArray(entries)) return [];
+  const now = Date.now();
+  return entries.map((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      return { id: `unknown-${now}-${index}`, speaker: 'Narrator', text: '', atMs: now + index };
+    }
+    const o = entry as Record<string, unknown>;
+    const id = typeof o.id === 'string' ? o.id : `line-${now}-${index}`;
+    const speaker = typeof o.speaker === 'string' ? o.speaker : 'Narrator';
+    const text = typeof o.text === 'string' ? o.text : '';
+    let atMs: number;
+    if (typeof o.atMs === 'number' && Number.isFinite(o.atMs)) {
+      atMs = o.atMs;
+    } else {
+      const parsed = parseTimestampFromDialogueId(id);
+      atMs = parsed ?? now + index;
+    }
+    return { id, speaker, text, atMs };
+  });
+};
+
+const normalizeWorldEventLog = (raw: unknown): WorldEventLogEntry[] => {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const anchor = Date.now();
+
+  if (raw.every((item) => typeof item === 'string')) {
+    const strings = raw as string[];
+    const unique = Array.from(new Set(strings));
+    const base = anchor - unique.length * 1000;
+    return unique.map((text, i) => ({ text, atMs: base + i * 1000 }));
+  }
+
+  if (
+    raw.every(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        typeof (item as Record<string, unknown>).text === 'string'
+    )
+  ) {
+    const rows = raw as Array<{ text: string; atMs?: number }>;
+    const seen = new Set<string>();
+    const out: WorldEventLogEntry[] = [];
+    rows.forEach((row, idx) => {
+      if (seen.has(row.text)) return;
+      seen.add(row.text);
+      const atMs =
+        typeof row.atMs === 'number' && Number.isFinite(row.atMs)
+          ? row.atMs
+          : anchor - (rows.length - idx) * 1000;
+      out.push({ text: row.text, atMs });
+    });
+    return out;
+  }
+
+  return [];
+};
 
 export const createInitialQuestState = (): QuestState => ({
   activeQuestId: 'quest-001-origin',
@@ -23,7 +88,7 @@ export const createInitialQuestState = (): QuestState => ({
   },
   lastDailyXpDay: 0,
   dialogueLog: [],
-  worldEventLog: [...DEFAULT_WORLD_EVENT_LOG],
+  worldEventLog: [],
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -32,9 +97,8 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const explorationXp = typeof state.skills?.explorationXp === 'number'
     ? state.skills.explorationXp
     : legacyExperience;
-  const rawLog = state.worldEventLog;
-  const worldEventLog =
-    Array.isArray(rawLog) && rawLog.every((line) => typeof line === 'string') ? rawLog : initial.worldEventLog;
+  const dialogueLog = normalizeDialogueLog(state.dialogueLog);
+  const worldEventLog = normalizeWorldEventLog(state.worldEventLog ?? []);
   return {
     ...initial,
     ...state,
@@ -43,6 +107,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       explorationXp,
     },
     lastDailyXpDay: typeof state.lastDailyXpDay === 'number' ? state.lastDailyXpDay : initial.lastDailyXpDay,
+    dialogueLog,
     worldEventLog,
   };
 };

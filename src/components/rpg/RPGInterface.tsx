@@ -25,6 +25,14 @@ import {
 } from '@/components/rpg/gameProfile';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
 
 const mockSignals = [
   'Ravenhall gate opens at first bell.',
@@ -88,6 +96,85 @@ const CLASS_UNLOCK_POINTS = 5;
 const CHARACTER_START_KIND = 10031;
 const CHARACTER_START_D_TAG = 'character-start';
 const FOLLOW_LIST_KIND = 3;
+const GOLD_MODIFIER_KEYS = ['Gold', 'gold', 'Coins', 'coins'] as const;
+const PLAY_DIALOGUE_RECENT_MAX = 120;
+const PLAY_WORLD_RECENT_MAX = 40;
+
+const appendUniqueWorldEntries = (
+  existing: WorldEventLogEntry[],
+  texts: string[],
+  baseAtMs = Date.now()
+): WorldEventLogEntry[] => {
+  if (texts.length === 0) return existing;
+  const seen = new Set(existing.map((e) => e.text));
+  const next = [...existing];
+  let offset = 0;
+  for (const text of texts) {
+    if (seen.has(text)) continue;
+    seen.add(text);
+    next.push({ text, atMs: baseAtMs + offset });
+    offset += 1;
+  }
+  return next;
+};
+
+const getGoldFromModifiers = (modifiers: Record<string, number>): number =>
+  GOLD_MODIFIER_KEYS.reduce((total, key) => total + (modifiers[key] ?? 0), 0);
+
+const isItemModifierKey = (key: string): boolean => /^(item|items|inventory)[:_-]/i.test(key);
+
+const toItemLabel = (key: string): string =>
+  key
+    .replace(/^(item|items|inventory)[:_-]?/i, '')
+    .replace(/[_-]/g, ' ')
+    .trim() || 'supplies';
+
+const getRewardLines = (
+  prevModifiers: Record<string, number>,
+  nextModifiers: Record<string, number>
+): string[] => {
+  const rewardLines: string[] = [];
+  const goldDelta = getGoldFromModifiers(nextModifiers) - getGoldFromModifiers(prevModifiers);
+  if (goldDelta > 0) {
+    rewardLines.push(`You gained ${goldDelta} gold.`);
+  }
+
+  const itemLines = Object.keys(nextModifiers)
+    .filter((key) => isItemModifierKey(key))
+    .map((key) => {
+      const previous = prevModifiers[key] ?? 0;
+      const current = nextModifiers[key] ?? 0;
+      const delta = current - previous;
+      if (delta <= 0) return null;
+      return `You found ${delta} ${toItemLabel(key)}.`;
+    })
+    .filter((line): line is string => Boolean(line));
+
+  return [...rewardLines, ...itemLines];
+};
+
+const getLevelUpLines = (
+  prevState: { skills: { explorationXp: number }; modifiers: Record<string, number> },
+  nextState: { skills: { explorationXp: number }; modifiers: Record<string, number> }
+): string[] => {
+  const lines: string[] = [];
+  const previousExplorationLevel = getLevelFromXp(prevState.skills.explorationXp);
+  const nextExplorationLevel = getLevelFromXp(nextState.skills.explorationXp);
+  if (nextExplorationLevel > previousExplorationLevel) {
+    lines.push(`Your Exploration reached level ${nextExplorationLevel}.`);
+  }
+
+  Object.keys(nextState.modifiers).forEach((key) => {
+    if (isItemModifierKey(key) || GOLD_MODIFIER_KEYS.includes(key as typeof GOLD_MODIFIER_KEYS[number])) return;
+    const previous = prevState.modifiers[key] ?? 0;
+    const current = nextState.modifiers[key] ?? 0;
+    if (current > previous) {
+      lines.push(`Your ${key} increased to ${current}.`);
+    }
+  });
+
+  return lines;
+};
 
 const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
   const classScores: Array<{ name: 'Warrior' | 'Rogue' | 'Mage'; score: number }> = [
@@ -115,7 +202,9 @@ export function RPGInterface() {
   const [characterStartTimestamp, setCharacterStartTimestamp] = useState<number | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
+  const eventLogScrollRef = useRef<HTMLDivElement | null>(null);
   const completedQuestCountRef = useRef(0);
+  const [isChronicleOpen, setIsChronicleOpen] = useState(false);
 
   const questStateStorageKey = user ? `${QUEST_STATE_STORAGE_KEY}:${user.pubkey}` : QUEST_STATE_STORAGE_KEY;
   const socialQuery = useQuery({
@@ -287,14 +376,36 @@ export function RPGInterface() {
   }, [nostr, user]);
 
   useEffect(() => {
+    if (activeTab !== 'play') return;
     const container = dialogueScrollRef.current;
     if (!container) return;
+    const prefersReduced =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (typeof container.scrollTo === 'function') {
-      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: prefersReduced ? 'auto' : 'smooth',
+      });
       return;
     }
     container.scrollTop = container.scrollHeight;
   }, [questState.dialogueLog, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'play') return;
+    const container = eventLogScrollRef.current;
+    if (!container) return;
+    const prefersReduced =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof container.scrollTo === 'function') {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: prefersReduced ? 'auto' : 'smooth',
+      });
+      return;
+    }
+    container.scrollTop = container.scrollHeight;
+  }, [questState.worldEventLog, activeTab]);
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
   const questContext = useMemo(
@@ -331,6 +442,49 @@ export function RPGInterface() {
     return Math.max(1, Math.floor(elapsed / DAY_IN_MS) + 1);
   }, [characterStartTimestamp, effectiveNow]);
 
+  const chronicleDateTimeFmt = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }),
+    []
+  );
+
+  const playDialogueLines = useMemo(
+    () => questState.dialogueLog.slice(-PLAY_DIALOGUE_RECENT_MAX),
+    [questState.dialogueLog]
+  );
+
+  const playWorldLines = useMemo(
+    () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
+    [questState.worldEventLog]
+  );
+
+  const chronicleRows = useMemo(() => {
+    if (!isChronicleOpen) return [];
+    type Row =
+      | { kind: 'dialogue'; atMs: number; id: string; speaker: string; text: string }
+      | { kind: 'world'; atMs: number; text: string };
+    const dialogueRows: Row[] = questState.dialogueLog.map((line) => ({
+      kind: 'dialogue' as const,
+      atMs: line.atMs,
+      id: line.id,
+      speaker: line.speaker,
+      text: line.text,
+    }));
+    const worldRows: Row[] = questState.worldEventLog.map((entry) => ({
+      kind: 'world' as const,
+      atMs: entry.atMs,
+      text: entry.text,
+    }));
+    return [...dialogueRows, ...worldRows].sort((a, b) => {
+      if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+      if (a.kind === b.kind) return 0;
+      return a.kind === 'dialogue' ? -1 : 1;
+    });
+  }, [isChronicleOpen, questState.dialogueLog, questState.worldEventLog]);
+
   useEffect(() => {
     if (!isQuestStateHydrated) return;
     if (completedQuestIds.length > completedQuestCountRef.current) {
@@ -354,6 +508,15 @@ export function RPGInterface() {
       },
       lastDailyXpDay: dayCounter,
     };
+    const rewardLines = getRewardLines(questState.modifiers, updatedState.modifiers);
+    const levelUpLines = getLevelUpLines(questState, updatedState);
+    const dayLineBase = `Day ${dayCounter}: You gained ${xpToGrant} XP.`;
+    const dayLine =
+      rewardLines.length > 0 ? `${dayLineBase} ${rewardLines.join(' ')}` : dayLineBase;
+    updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [
+      dayLine,
+      ...levelUpLines,
+    ]);
 
     setQuestState(updatedState);
     void persistQuestCheckpoint(updatedState);
@@ -392,11 +555,15 @@ export function RPGInterface() {
     navigate('/');
   };
 
-  const appendDialogue = (speaker: string, text: string) => ({
-    id: `${speaker}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    speaker,
-    text,
-  });
+  const appendDialogue = (speaker: string, text: string) => {
+    const atMs = Date.now();
+    return {
+      id: `${speaker}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
+      speaker,
+      text,
+      atMs,
+    };
+  };
 
   const handleStartQuest = (questId: string) => {
     const quest = questById[questId];
@@ -448,15 +615,19 @@ export function RPGInterface() {
       }
 
       const boarLine = 'You fended off a wild boar!';
-      const withBoarLog =
-        activeQuest.id === 'quest-002-boar-ambush' && !nextState.worldEventLog.includes(boarLine)
-          ? { worldEventLog: [...nextState.worldEventLog, boarLine] }
-          : {};
+      const rewardLines = getRewardLines(prev.modifiers, nextState.modifiers);
+      const levelUpLines = getLevelUpLines(prev, nextState);
+      const boarLines = activeQuest.id === 'quest-002-boar-ambush' ? [boarLine] : [];
+      const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [
+        ...boarLines,
+        ...rewardLines,
+        ...levelUpLines,
+      ]);
 
       return {
         ...nextState,
         dialogueLog: nextLog,
-        ...withBoarLog,
+        worldEventLog,
       };
     });
   };
@@ -490,11 +661,10 @@ export function RPGInterface() {
           appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)),
           appendDialogue('Dev Message', INTRO_DEV_MESSAGE),
         ],
-        worldEventLog: [
-          ...nextState.worldEventLog,
+        worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, [
           `You remembered your name is ${submittedName}`,
           `${submittedName} is exploring the Forest.`,
-        ],
+        ]),
       };
       setQuestState(updatedState);
       void persistQuestCheckpoint(updatedState);
@@ -558,6 +728,15 @@ export function RPGInterface() {
             >
               your Ditto public profile
             </a>
+          </p>
+          <p className="text-center">
+            <button
+              type="button"
+              onClick={() => setIsChronicleOpen(true)}
+              className="text-[11px] text-[var(--facsimile-ink)] underline decoration-[var(--facsimile-panel-border)] underline-offset-2 hover:decoration-[var(--facsimile-ink)]"
+            >
+              Open full chronicle (dialogue and world events)
+            </button>
           </p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             {characterStats.map(([label, value]) => (
@@ -714,7 +893,7 @@ export function RPGInterface() {
           className="facsimile-scroll h-[30rem] overflow-y-auto rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2"
         >
           <div className="space-y-1">
-            {questState.dialogueLog.map((line) => (
+            {playDialogueLines.map((line) => (
               <div key={line.id} className="dialogue-line-reveal py-0.5">
                 {line.speaker === 'Narrator' ? (
                   <p className="text-sm leading-6 italic text-sky-200">{line.text}</p>
@@ -774,17 +953,30 @@ export function RPGInterface() {
             ) : null}
           </div>
         </div>
+        {questState.dialogueLog.length > PLAY_DIALOGUE_RECENT_MAX ? (
+          <p className="text-center text-[10px] text-[var(--facsimile-ink-muted)]">
+            Showing the last {PLAY_DIALOGUE_RECENT_MAX} dialogue lines. Older lines are in the chronicle.
+          </p>
+        ) : null}
         <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
-          <div className="facsimile-scroll h-20 overflow-y-auto px-2 py-2">
+          <div
+            ref={eventLogScrollRef}
+            className="facsimile-scroll h-20 overflow-y-auto px-2 py-2"
+          >
             <ul className="space-y-1 pl-4 text-[11px] text-[var(--facsimile-ink-muted)]">
-              {questState.worldEventLog.map((eventLine, index) => (
-                <li key={`${index}-${eventLine}`} className="list-disc">
-                  {eventLine}
+              {playWorldLines.map((entry, index) => (
+                <li key={`${entry.atMs}-${index}-${entry.text}`} className="list-disc">
+                  {entry.text}
                 </li>
               ))}
             </ul>
           </div>
         </div>
+        {questState.worldEventLog.length > PLAY_WORLD_RECENT_MAX ? (
+          <p className="text-center text-[10px] text-[var(--facsimile-ink-muted)]">
+            Showing the last {PLAY_WORLD_RECENT_MAX} world events. Older events are in the chronicle.
+          </p>
+        ) : null}
         <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
           <div className="grid grid-cols-2 gap-1.5">
             {(locationActions[currentLocation] ?? []).map((action) => (
@@ -805,6 +997,7 @@ export function RPGInterface() {
   };
 
   return (
+    <>
     <main className="facsimile-shell mystery-ui min-h-screen p-2 sm:p-6">
       <div className="facsimile-phone-frame mx-auto">
         <div className="facsimile-glow" aria-hidden />
@@ -869,5 +1062,43 @@ export function RPGInterface() {
         </nav>
       </div>
     </main>
+    <Dialog open={isChronicleOpen} onOpenChange={setIsChronicleOpen}>
+      <DialogContent className="max-h-[85vh] max-w-lg border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel)] text-[var(--facsimile-ink)]">
+        <DialogHeader>
+          <DialogTitle>Chronicle</DialogTitle>
+          <DialogDescription className="text-[var(--facsimile-ink-muted)]">
+            Dialogue and world events, oldest first.
+          </DialogDescription>
+        </DialogHeader>
+        {isChronicleOpen ? (
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            {chronicleRows.map((row, index) => (
+              <div
+                key={row.kind === 'dialogue' ? row.id : `world-${row.atMs}-${index}-${row.text.slice(0, 24)}`}
+                className="border-b border-[var(--facsimile-panel-border)]/60 pb-2 last:border-b-0"
+              >
+                <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--facsimile-ink-muted)]">
+                  {chronicleDateTimeFmt.format(row.atMs)}
+                </p>
+                {row.kind === 'world' ? (
+                  <p className="text-sm text-[var(--facsimile-ink-muted)]">{row.text}</p>
+                ) : row.speaker === 'Narrator' ? (
+                  <p className="text-sm leading-6 italic text-sky-200">{row.text}</p>
+                ) : row.speaker === 'Dev Message' ? (
+                  <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100">
+                    {row.text}
+                  </p>
+                ) : (
+                  <p className="text-sm leading-6 text-[var(--facsimile-ink)]">
+                    <span className="text-[var(--facsimile-ink-muted)]">{row.speaker}:</span> {row.text}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

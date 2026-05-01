@@ -63,6 +63,19 @@ export type QuestProgress = {
   choiceHistory: string[];
 };
 
+export type DialogueLogEntry = {
+  id: string;
+  speaker: string;
+  text: string;
+  /** Wall-clock time when the line was created (for chronicle merge / sort). */
+  atMs: number;
+};
+
+export type WorldEventLogEntry = {
+  text: string;
+  atMs: number;
+};
+
 export type QuestState = {
   activeQuestId: string | null;
   progressByQuestId: Record<string, QuestProgress>;
@@ -74,11 +87,7 @@ export type QuestState = {
     explorationXp: number;
   };
   lastDailyXpDay: number;
-  dialogueLog: Array<{
-    id: string;
-    speaker: string;
-    text: string;
-  }>;
-  /** Short world chronicle lines shown on the play tab; persisted with quest checkpoints. */
-  worldEventLog: string[];
+  dialogueLog: DialogueLogEntry[];
+  /** World chronicle lines; persisted with quest checkpoints. */
+  worldEventLog: WorldEventLogEntry[];
 };
