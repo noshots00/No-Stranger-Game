@@ -3,6 +3,7 @@ import { quest002BoarAmbush } from './quest-002-boar-ambush';
 import { quest003SilverLake } from './quest-003-silver-lake';
 import { quest004AbandonedShelter } from './quest-004-abandoned-shelter';
 import { quest005Airship } from './quest-005-airship';
+import { quest006WanderingSkeleton } from './quest-006-wandering-skeleton';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
@@ -11,6 +12,7 @@ export const allQuests: QuestDefinition[] = [
   quest003SilverLake,
   quest004AbandonedShelter,
   quest005Airship,
+  quest006WanderingSkeleton,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(
