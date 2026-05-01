@@ -1142,12 +1142,15 @@ There is an important distinction between **writing new tests** and **running ex
 
 ### Running Tests (Executing the Test Suite)
 
-**ALWAYS run the test script** after making any code changes. This is mandatory regardless of whether you wrote new tests or not.
+Do **not** run the full test script after every small edit in the same task. That script (`npm test`) runs install, TypeScript, ESLint, Vitest, and a production build—it is expensive and repeating it many times per session wastes time.
 
-- **You must run the test script** to validate your changes
-- **Your task is not complete** until the test script passes without errors
-- **This applies to all changes** - bug fixes, new features, refactoring, or any code modifications
-- **The test script includes** TypeScript compilation, ESLint checks, and existing test validation
+**When to run:**
+
+- **During iteration** (multiple edits toward one goal): Use the editor and faster checks as needed. Running `npm test` repeatedly mid-task is optional, not required after each change.
+- **Once before you finish**: Before you declare the task done, create a commit, or hand off to the user, run **`npm test` exactly once** (unless the user explicitly asked you to skip validation). Fix failures until it passes.
+- **Skip an extra final run** if you already ran `npm test` successfully in the same session with **no further code changes** after that run.
+
+**What `npm test` covers:** TypeScript (`tsc --noEmit`), ESLint, Vitest, and a production build—use it as the single authoritative gate at task completion, not as a hook on every keystroke.
 
 ### Test Setup
 
@@ -1180,27 +1183,23 @@ describe('MyComponent', () => {
 
 ## Validating Your Changes
 
-**CRITICAL**: After making any code changes, you must validate your work by running available validation tools.
+Validate **once at task completion**, not after every intermediate edit. Prefer a single successful **`npm test`** run right before you finish (it already runs TypeScript, ESLint, Vitest, and a production build).
 
-**Your task is not considered finished until the code successfully type-checks and builds without errors.**
+**Your task is not finished until** either `npm test` has passed after your final code changes, or you have documented why validation was skipped because the user asked you to skip it.
 
 ### Validation Priority Order
 
-Run available tools in this priority order:
+Use this order **when choosing what to run** (not as an excuse to run everything repeatedly):
 
-1. **Type Checking** (Required): Ensure TypeScript compilation succeeds
-2. **Building/Compilation** (Required): Verify the project builds successfully
-3. **Linting** (Recommended): Check code style and catch potential issues
-4. **Tests** (If Available): Run existing test suite
-5. **Git Commit** (Required): Create a commit with your changes when finished
+1. **Full script at the end** (Required for completion): `npm test` once after your last substantive edit.
+2. **During long sessions** (Optional): Faster feedback only if useful—for example rely on the IDE for TypeScript errors, or run a narrower command if the project adds one later; avoid chaining duplicate full runs.
 
-**Minimum Requirements:**
-- Code must type-check without errors
-- Code must build/compile successfully
-- Fix any critical linting errors that would break functionality
-- Create a git commit when your changes are complete
+**Minimum Requirements before finishing:**
+- `npm test` passes with no errors (covers type-check, lint, tests, and build), unless the user explicitly waived validation.
+- Fix critical issues that would break CI or the app.
+- Create a git commit when your changes are complete and validated.
 
-The validation ensures code quality and catches errors before deployment, regardless of the development environment.
+The goal is confidence **without** paying the full suite cost on every tiny change.
 
 ### Using Git
 
