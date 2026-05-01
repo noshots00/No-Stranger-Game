@@ -237,42 +237,136 @@ const formatPlayerChoiceDialogueLine = (playerName: string, label: string): stri
 const DIALOGUE_NARRATOR_CLASSES =
   'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
-const DIALOGUE_PLAYER_LABEL_CLASSES =
-  'mb-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--facsimile-player-label)]';
+const DIALOGUE_PLAYER_BLOCK_HEADER_CLASSES =
+  'mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--facsimile-player-label)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-sans text-sm font-semibold leading-6 text-[var(--facsimile-player-ink)]';
 
-function DialogueLineBlock({
-  line,
+const DIALOGUE_DEV_MESSAGE_CLASSES =
+  'rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]';
+
+type DialogueVoice = 'narrator' | 'dev' | 'player';
+
+type DialogueVoiceBlockModel = {
+  role: DialogueVoice;
+  lines: DialogueLogEntry[];
+};
+
+type ChronicleMergedRow =
+  | { kind: 'dialogue'; atMs: number; id: string; speaker: string; text: string }
+  | { kind: 'world'; atMs: number; text: string };
+
+type ChronicleSegment =
+  | { type: 'world'; row: Extract<ChronicleMergedRow, { kind: 'world' }> }
+  | { type: 'dialogueBlock'; role: DialogueVoice; lines: DialogueLogEntry[] };
+
+const dialogueVoiceRole = (speaker: string): DialogueVoice => {
+  if (speaker === 'Narrator') return 'narrator';
+  if (speaker === 'Dev Message') return 'dev';
+  return 'player';
+};
+
+const groupDialogueLinesByVoice = (lines: DialogueLogEntry[]): DialogueVoiceBlockModel[] => {
+  if (lines.length === 0) return [];
+  const blocks: DialogueVoiceBlockModel[] = [];
+  for (const line of lines) {
+    const role = dialogueVoiceRole(line.speaker);
+    const last = blocks[blocks.length - 1];
+    if (last && last.role === role) {
+      last.lines.push(line);
+    } else {
+      blocks.push({ role, lines: [line] });
+    }
+  }
+  return blocks;
+};
+
+const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleSegment[] => {
+  const out: ChronicleSegment[] = [];
+  let i = 0;
+  while (i < sortedRows.length) {
+    const row = sortedRows[i];
+    if (row.kind === 'world') {
+      out.push({ type: 'world', row });
+      i += 1;
+      continue;
+    }
+    const role = dialogueVoiceRole(row.speaker);
+    const lines: DialogueLogEntry[] = [];
+    while (i < sortedRows.length && sortedRows[i].kind === 'dialogue') {
+      const d = sortedRows[i] as Extract<ChronicleMergedRow, { kind: 'dialogue' }>;
+      if (dialogueVoiceRole(d.speaker) !== role) break;
+      lines.push({
+        id: d.id,
+        speaker: d.speaker,
+        text: d.text,
+        atMs: d.atMs,
+      });
+      i += 1;
+    }
+    out.push({ type: 'dialogueBlock', role, lines });
+  }
+  return out;
+};
+
+function DialogueVoiceBlock({
+  role,
+  lines,
   playerLabel,
 }: {
-  line: Pick<DialogueLogEntry, 'speaker' | 'text'>;
+  role: DialogueVoice;
+  lines: DialogueLogEntry[];
   playerLabel: string;
 }) {
-  if (line.speaker === 'Narrator') {
-    return <p className={DIALOGUE_NARRATOR_CLASSES}>{line.text}</p>;
-  }
-  if (line.speaker === 'Dev Message') {
+  if (role === 'narrator') {
     return (
-      <p className="rounded-md border border-cyan-300/55 bg-cyan-950/35 px-2 py-1 text-sm leading-6 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.15)]">
-        {line.text}
-      </p>
-    );
-  }
-  if (line.speaker === PLAYER_ACTION_SPEAKER) {
-    return (
-      <div>
-        <p className={DIALOGUE_PLAYER_LABEL_CLASSES}>{playerLabel}</p>
-        <p className={DIALOGUE_PLAYER_BODY_CLASSES}>{line.text}</p>
+      <div className="border-l-2 border-sky-500/35 py-0.5 pl-3">
+        <div className="space-y-1.5">
+          {lines.map((line) => (
+            <p key={line.id} className={DIALOGUE_NARRATOR_CLASSES}>
+              {line.text}
+            </p>
+          ))}
+        </div>
       </div>
     );
   }
-  const voiceLabel = line.speaker === 'You' ? playerLabel : line.speaker;
+
+  if (role === 'dev') {
+    return (
+      <div className="space-y-1.5 py-0.5">
+        {lines.map((line) => (
+          <p key={line.id} className={DIALOGUE_DEV_MESSAGE_CLASSES}>
+            {line.text}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <p className={DIALOGUE_PLAYER_LABEL_CLASSES}>{voiceLabel}</p>
-      <p className={DIALOGUE_PLAYER_BODY_CLASSES}>{line.text}</p>
+    <div className="ml-auto w-[min(92%,22rem)] rounded-lg border border-[var(--facsimile-player-ink)]/40 bg-[rgba(0,0,0,0.45)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <p className={DIALOGUE_PLAYER_BLOCK_HEADER_CLASSES}>
+        Decision ·{' '}
+        <span className="normal-case tracking-normal text-[0.8125rem] text-[var(--facsimile-player-ink)]">
+          {playerLabel}
+        </span>
+      </p>
+      <div className="space-y-1.5">
+        {lines.map((line) => (
+          <div key={line.id}>
+            {line.speaker === PLAYER_ACTION_SPEAKER || line.speaker === 'You' ? (
+              <p className={DIALOGUE_PLAYER_BODY_CLASSES}>{line.text}</p>
+            ) : (
+              <p className={DIALOGUE_PLAYER_BODY_CLASSES}>
+                <span className="font-medium text-[var(--facsimile-player-label)]">{line.speaker}: </span>
+                {line.text}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -561,24 +655,26 @@ export function RPGInterface() {
     [questState.dialogueLog]
   );
 
+  const playDialogueBlocks = useMemo(
+    () => groupDialogueLinesByVoice(playDialogueLines),
+    [playDialogueLines]
+  );
+
   const playWorldLines = useMemo(
     () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
     [questState.worldEventLog]
   );
 
-  const chronicleRows = useMemo(() => {
+  const chronicleRows = useMemo((): ChronicleMergedRow[] => {
     if (!isChronicleOpen) return [];
-    type Row =
-      | { kind: 'dialogue'; atMs: number; id: string; speaker: string; text: string }
-      | { kind: 'world'; atMs: number; text: string };
-    const dialogueRows: Row[] = questState.dialogueLog.map((line) => ({
+    const dialogueRows: ChronicleMergedRow[] = questState.dialogueLog.map((line) => ({
       kind: 'dialogue' as const,
       atMs: line.atMs,
       id: line.id,
       speaker: line.speaker,
       text: line.text,
     }));
-    const worldRows: Row[] = questState.worldEventLog.map((entry) => ({
+    const worldRows: ChronicleMergedRow[] = questState.worldEventLog.map((entry) => ({
       kind: 'world' as const,
       atMs: entry.atMs,
       text: entry.text,
@@ -589,6 +685,11 @@ export function RPGInterface() {
       return a.kind === 'dialogue' ? -1 : 1;
     });
   }, [isChronicleOpen, questState.dialogueLog, questState.worldEventLog]);
+
+  const chronicleSegments = useMemo(
+    () => groupChronicleRows(chronicleRows),
+    [chronicleRows]
+  );
 
   useEffect(() => {
     if (!isQuestStateHydrated) return;
@@ -1000,10 +1101,13 @@ export function RPGInterface() {
           ref={dialogueScrollRef}
           className="facsimile-scroll h-[30rem] overflow-y-auto rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2"
         >
-          <div className="space-y-1">
-            {playDialogueLines.map((line) => (
-              <div key={line.id} className="dialogue-line-reveal py-0.5">
-                <DialogueLineBlock line={line} playerLabel={playerLineLabel} />
+          <div className="space-y-3">
+            {playDialogueBlocks.map((block, blockIndex) => (
+              <div
+                key={`${block.role}-${block.lines[0]?.id ?? `b-${blockIndex}`}`}
+                className="dialogue-line-reveal py-0.5"
+              >
+                <DialogueVoiceBlock role={block.role} lines={block.lines} playerLabel={playerLineLabel} />
               </div>
             ))}
             {activeQuest && activeStep ? (
@@ -1170,24 +1274,34 @@ export function RPGInterface() {
         </DialogHeader>
         {isChronicleOpen ? (
           <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-            {chronicleRows.map((row, index) => (
-              <div
-                key={row.kind === 'dialogue' ? row.id : `world-${row.atMs}-${index}-${row.text.slice(0, 24)}`}
-                className="border-b border-[var(--facsimile-panel-border)]/60 pb-2 last:border-b-0"
-              >
-                <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--facsimile-ink-muted)]">
-                  {chronicleDateTimeFmt.format(row.atMs)}
-                </p>
-                {row.kind === 'world' ? (
-                  <p className="text-sm text-[var(--facsimile-ink-muted)]">{row.text}</p>
-                ) : (
-                  <DialogueLineBlock
-                    line={{ speaker: row.speaker, text: row.text }}
-                    playerLabel={playerLineLabel}
-                  />
-                )}
-              </div>
-            ))}
+            {chronicleSegments.map((segment, index) => {
+              if (segment.type === 'world') {
+                const row = segment.row;
+                return (
+                  <div
+                    key={`world-${row.atMs}-${index}-${row.text.slice(0, 24)}`}
+                    className="border-b border-[var(--facsimile-panel-border)]/60 pb-3 last:border-b-0"
+                  >
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--facsimile-ink-muted)]">
+                      {chronicleDateTimeFmt.format(row.atMs)}
+                    </p>
+                    <p className="text-sm text-[var(--facsimile-ink-muted)]">{row.text}</p>
+                  </div>
+                );
+              }
+              const first = segment.lines[0];
+              return (
+                <div
+                  key={`dlg-${segment.role}-${first?.id ?? index}`}
+                  className="border-b border-[var(--facsimile-panel-border)]/60 pb-3 last:border-b-0"
+                >
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--facsimile-ink-muted)]">
+                    {chronicleDateTimeFmt.format(first.atMs)}
+                  </p>
+                  <DialogueVoiceBlock role={segment.role} lines={segment.lines} playerLabel={playerLineLabel} />
+                </div>
+              );
+            })}
           </div>
         ) : null}
       </DialogContent>
