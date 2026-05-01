@@ -163,7 +163,7 @@ export function PlayTab({
         </div>
       ) : null}
       <div className="echo-log flex flex-col gap-0.5 py-1">
-        <div ref={eventLogScrollRef} className="facsimile-scroll h-[5.2rem] overflow-y-auto pr-1">
+        <div ref={eventLogScrollRef} className="facsimile-scroll -mr-3 h-[5.2rem] overflow-y-auto pr-1">
           {visibleWorldLines.length > 0 ? (
             <ul className="space-y-1 font-sans text-[11px] leading-snug">
               {visibleWorldLines.map((entry, index) => (

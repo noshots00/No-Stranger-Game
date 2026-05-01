@@ -467,7 +467,7 @@ export function RPGInterface() {
     <>
     <main className="candlelit-shell relative h-[100dvh] max-h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex h-[100dvh] w-full max-w-2xl flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] sm:px-8 sm:pt-2">
+      <div className="relative z-[2] mx-auto flex h-[100dvh] w-full max-w-2xl flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] sm:px-8 sm:pt-2">
         <GameHeader
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
