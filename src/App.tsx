@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
 });
 
 const defaultConfig: AppConfig = {
-  theme: "light",
+  theme: "dark",
   relayMetadata: {
     relays: [
       { url: 'wss://relay.ditto.pub', read: true, write: true },
@@ -54,7 +54,7 @@ export function App() {
               <NostrSync />
               <NWCProvider>
                 <DMProvider config={{ enabled: true }}>
-                  <TooltipProvider>
+                  <TooltipProvider delayDuration={240}>
                     <Toaster />
                     <Suspense>
                       <AppRouter />

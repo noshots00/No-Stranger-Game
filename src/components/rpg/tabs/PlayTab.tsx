@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
 import { PLAY_DIALOGUE_RECENT_MAX, PLAY_WORLD_RECENT_MAX } from '../constants';
@@ -23,6 +23,8 @@ type PlayTabProps = {
   showOriginStartHint: boolean;
 };
 
+const CHOICE_FADE_MS = 1200;
+
 export function PlayTab({
   playDialogueBlocks,
   playWorldLines,
@@ -41,14 +43,42 @@ export function PlayTab({
   visibleLocationActions,
   showOriginStartHint,
 }: PlayTabProps) {
+  const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
+  const choiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (choiceTimeoutRef.current) {
+        clearTimeout(choiceTimeoutRef.current);
+        choiceTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleChoiceClick = (choiceId: string) => {
+    if (pendingChoiceId) return;
+    const reducedMotion =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) {
+      onStepChoice(choiceId);
+      return;
+    }
+    setPendingChoiceId(choiceId);
+    choiceTimeoutRef.current = setTimeout(() => {
+      onStepChoice(choiceId);
+      setPendingChoiceId(null);
+      choiceTimeoutRef.current = null;
+    }, CHOICE_FADE_MS);
+  };
+
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-4">
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
-        className="facsimile-scroll h-[30rem] overflow-y-auto rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2"
+        className="facsimile-scroll max-h-[30rem] min-h-[12rem] overflow-y-auto pr-1"
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
           {playDialogueBlocks.map((block, blockIndex) => (
             <div
               key={`${block.role}-${block.lines[0]?.id ?? `b-${blockIndex}`}`}
@@ -64,37 +94,43 @@ export function PlayTab({
                   {showOriginStartHint ? (
                     <p className="facsimile-kicker px-0.5">Choose a reply to continue</p>
                   ) : null}
-                  <ul className="space-y-1.5">
-                    {activeStep.choices.map((choice) => (
-                      <li key={choice.id}>
-                        <button
-                          type="button"
-                          className="dialogue-option-button facsimile-choice block w-full rounded-md px-3 py-2 text-left text-xs text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]"
-                          onClick={() => onStepChoice(choice.id)}
-                        >
-                          {choice.label}
-                        </button>
-                      </li>
-                    ))}
+                  <ul className="space-y-0">
+                    {activeStep.choices.map((choice) => {
+                      const isPending = pendingChoiceId !== null;
+                      const isChosen = pendingChoiceId === choice.id;
+                      const isFading = isPending && !isChosen;
+                      return (
+                        <li key={choice.id}>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            className={`choice-line ${isFading ? 'choice-fade-out' : ''}`}
+                            onClick={() => handleChoiceClick(choice.id)}
+                          >
+                            {choice.label}
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ) : null}
               {activeStep.type === 'input' ? (
-                <div className="mt-2 space-y-2">
+                <div className="mt-3 space-y-3 border-t border-[var(--candle-rule)] pt-4">
                   <input
                     type="text"
                     value={nameInput}
                     onChange={(event) => onNameInputChange(event.target.value)}
                     placeholder={activeStep.placeholder}
-                    className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] placeholder:text-[var(--facsimile-ink-muted)] focus:outline-none"
+                    className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)] focus:border-[var(--candle-flame-soft)] focus:outline-none"
                   />
                   {nameInputError ? (
-                    <p className="text-xs text-rose-300">{nameInputError}</p>
+                    <p className="font-serif text-xs text-rose-300/90">{nameInputError}</p>
                   ) : null}
                   <button
                     type="button"
                     onClick={onNameSubmit}
-                    className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)]"
+                    className="choice-line w-auto border-b border-transparent py-2 text-[var(--candle-wax)] hover:text-[var(--candle-ink)]"
                   >
                     {activeStep.submitLabel}
                   </button>
@@ -105,37 +141,37 @@ export function PlayTab({
         </div>
       </div>
       {dialogueLogLength > PLAY_DIALOGUE_RECENT_MAX ? (
-        <p className="text-center text-[10px] text-[var(--facsimile-ink-muted)]">
+        <p className="text-center font-serif text-[10px] text-[var(--candle-ink-faint)]">
           Showing the last {PLAY_DIALOGUE_RECENT_MAX} dialogue lines. Older lines are in the chronicle.
         </p>
       ) : null}
-      <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
-        <div
-          ref={eventLogScrollRef}
-          className="facsimile-scroll h-20 overflow-y-auto px-2 py-2"
-        >
-          <ul className="space-y-1 pl-4 text-[11px] text-[var(--facsimile-ink-muted)]">
-            {playWorldLines.map((entry, index) => (
-              <li key={`${entry.atMs}-${index}-${entry.text}`} className="list-disc">
-                {entry.text}
-              </li>
-            ))}
-          </ul>
+      <div className={playWorldLines.length > 0 ? 'echo-log' : 'echo-log opacity-60'}>
+        <p className="mb-1 font-serif text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]">
+          World
+        </p>
+        <div ref={eventLogScrollRef} className="facsimile-scroll max-h-24 overflow-y-auto pr-1">
+          {playWorldLines.length > 0 ? (
+            <p className="font-serif text-xs italic leading-relaxed text-[var(--candle-ink-faint)]">
+              {playWorldLines.map((entry) => entry.text).join(' · ')}
+            </p>
+          ) : (
+            <p className="font-serif text-xs italic text-[var(--candle-ink-faint)]">The road is quiet.</p>
+          )}
         </div>
       </div>
       {worldEventLogLength > PLAY_WORLD_RECENT_MAX ? (
-        <p className="text-center text-[10px] text-[var(--facsimile-ink-muted)]">
+        <p className="text-center font-serif text-[10px] text-[var(--candle-ink-faint)]">
           Showing the last {PLAY_WORLD_RECENT_MAX} world events. Older events are in the chronicle.
         </p>
       ) : null}
       {visibleLocationActions.length > 0 ? (
-        <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
-          <div className="grid grid-cols-2 gap-1.5">
+        <div className="space-y-2 border-t border-[var(--candle-rule)] pt-4">
+          <div className="grid grid-cols-2 gap-2">
             {visibleLocationActions.map((action) => (
               <button
                 key={action}
                 type="button"
-                className="location-action-button w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
+                className="min-h-[44px] rounded-lg border border-transparent px-2 py-2 text-left font-serif text-sm text-[var(--candle-ink-soft)] transition-colors hover:border-[var(--candle-rule)] hover:text-[var(--candle-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--candle-flame-soft)]"
               >
                 {action}
               </button>

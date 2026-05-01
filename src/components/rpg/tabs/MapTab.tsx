@@ -8,35 +8,37 @@ type MapTabProps = {
 
 export function MapTab({ currentLocation, flags, onLocationChange }: MapTabProps) {
   return (
-    <section className="facsimile-panel space-y-4">
-      <button
-        type="button"
-        onClick={() => onLocationChange('Forest')}
-        className={`text-2xl font-semibold transition-colors ${
-          currentLocation === 'Forest'
-            ? 'text-[var(--facsimile-ink)]'
-            : 'text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]'
-        }`}
-      >
-        The Forest
-      </button>
-      <ul className="space-y-3 text-sm text-[var(--facsimile-ink-muted)]">
-        {flags.includes(SILVER_LAKE_FLAG) ? (
+    <section className="space-y-8 pb-4">
+      <div>
+        <button
+          type="button"
+          onClick={() => onLocationChange('Forest')}
+          className={`font-cormorant text-left text-3xl font-semibold tracking-[0.02em] transition-colors ${
+            currentLocation === 'Forest'
+              ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+              : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
+          }`}
+        >
+          The Forest
+        </button>
+      </div>
+      {flags.includes(SILVER_LAKE_FLAG) ? (
+        <ul className="space-y-4 border-t border-[var(--candle-rule)] pt-6">
           <li>
             <button
               type="button"
               onClick={() => onLocationChange('Silver Lake')}
-              className={`w-full border-l border-amber-500/30 py-1 pl-8 text-left transition-colors ${
+              className={`font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
                 currentLocation === 'Silver Lake'
-                  ? 'text-[var(--facsimile-ink)]'
-                  : 'text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]'
+                  ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+                  : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
               }`}
             >
               Silver Lake
             </button>
           </li>
-        ) : null}
-      </ul>
+        </ul>
+      ) : null}
     </section>
   );
 }

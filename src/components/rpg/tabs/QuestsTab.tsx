@@ -16,38 +16,39 @@ export function QuestsTab({
   onTrackQuest,
 }: QuestsTabProps) {
   return (
-    <section className="facsimile-panel space-y-5">
+    <section className="space-y-6 pb-4">
       <p className="facsimile-kicker">Quests</p>
-      <div className="space-y-3">
+      <ul className="space-y-0 divide-y divide-[var(--candle-rule)]">
         {visibleQuests.map((quest) => {
           const isExpanded = expandedQuestId === quest.id;
           const isCompleted = completedQuestIds.includes(quest.id);
 
           return (
-            <div key={quest.id} className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
+            <li key={quest.id} className="py-1">
               <button
                 type="button"
                 onClick={() => onExpandQuest(isExpanded ? null : quest.id)}
-                className="w-full px-3 py-2 text-left"
+                className={`choice-line ${isCompleted ? 'line-through opacity-70' : ''}`}
               >
-                <p className={`text-sm ${isCompleted ? 'line-through opacity-70' : ''}`}>{quest.title}</p>
+                {quest.title}
               </button>
               {isExpanded ? (
-                <div className="border-t border-[var(--facsimile-panel-border)] px-3 py-2">
-                  <p className="text-xs text-[var(--facsimile-ink-muted)]">{quest.briefing}</p>
+                <div className="space-y-3 pb-4 pl-0 pt-2 sm:pl-1">
+                  <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
                   <button
                     type="button"
                     onClick={() => onTrackQuest(quest.id)}
-                    className="mt-2 text-[11px] uppercase tracking-[0.14em] text-[var(--facsimile-ink)]"
+                    className="choice-line inline-block py-2 text-[var(--candle-wax)] disabled:opacity-50"
+                    disabled={isCompleted}
                   >
-                    {isCompleted ? 'Completed' : 'Track Quest'}
+                    {isCompleted ? 'Completed' : 'Track quest'}
                   </button>
                 </div>
               ) : null}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 }

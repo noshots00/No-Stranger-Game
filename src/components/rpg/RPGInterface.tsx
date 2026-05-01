@@ -122,7 +122,7 @@ export function RPGInterface() {
       ? 'location-indicator-forest'
       : questState.currentLocation === 'Silver Lake'
         ? 'location-indicator-silver-lake'
-        : 'mystery-muted';
+        : 'candle-ink-muted';
   const showOriginStartHint =
     activeQuest?.id === 'quest-001-origin' && activeStep?.id === 'start' && activeStep.type === 'choice';
 
@@ -467,43 +467,43 @@ export function RPGInterface() {
 
   return (
     <>
-    <main className="facsimile-shell mystery-ui min-h-screen p-2 sm:p-6">
-      <div className="facsimile-phone-frame mx-auto">
-        <div className="facsimile-glow" aria-hidden />
-        <section className="facsimile-phone-content flex w-full flex-col gap-2 px-3 py-2">
-          <GameHeader
-            dayCounter={dayCounter}
-            currentLocation={questState.currentLocation}
-            locationIndicatorClass={locationIndicatorClass}
-            onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
-            onLogout={handleLogout}
-            onResetStory={handleResetStory}
-          />
-          {renderTabPanel()}
-        </section>
-        <nav className="facsimile-bottom-nav" aria-label="Primary game navigation">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setActiveTab(item.key)}
-                className={`facsimile-nav-button relative ${item.isPrimary ? 'facsimile-nav-primary' : ''} ${isActive ? 'is-active' : ''}`}
-                aria-label={item.label}
-              >
-                {item.key === 'quests' && pendingQuestCount > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-[var(--facsimile-accent)] bg-black px-1 text-[9px] leading-none text-[var(--facsimile-ink)]">
-                    {pendingQuestCount}
-                  </span>
-                ) : null}
-                <span className="text-base">{item.icon}</span>
-                <span className="text-[10px] uppercase tracking-[0.16em]">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+    <main className="candlelit-shell relative min-h-[100dvh] w-full overflow-x-hidden">
+      <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
+      <div className="relative z-[2] mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 pb-32 pt-6 sm:px-8 sm:pt-10">
+        <GameHeader
+          dayCounter={dayCounter}
+          currentLocation={questState.currentLocation}
+          locationIndicatorClass={locationIndicatorClass}
+          onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
+          onLogout={handleLogout}
+          onResetStory={handleResetStory}
+        />
+        <div className="emerge">{renderTabPanel()}</div>
       </div>
+      <nav className="candlelit-bottom-nav" aria-label="Primary game navigation">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setActiveTab(item.key)}
+              className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
+              aria-label={item.label}
+            >
+              {item.key === 'quests' && pendingQuestCount > 0 ? (
+                <span className="absolute right-2 top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[9px] font-medium leading-none text-[var(--candle-ink)]">
+                  {pendingQuestCount}
+                </span>
+              ) : null}
+              <span className="text-lg leading-none" aria-hidden>
+                {item.icon}
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.16em]">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </main>
     <ChronicleDialog
       isOpen={isChronicleOpen}

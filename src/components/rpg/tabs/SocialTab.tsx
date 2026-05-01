@@ -63,61 +63,65 @@ export function SocialTab({
   };
 
   return (
-    <section className="facsimile-panel space-y-4">
+    <section className="space-y-8 pb-4 font-serif">
       <p className="facsimile-kicker">Social</p>
       {user ? (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Strangers</p>
-            <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.totalPlayers}</p>
-          </div>
-          <div className="rounded-md border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] px-2 py-1.5 text-center">
-            <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Kindred Spirits</p>
-            <p className="text-sm text-[var(--facsimile-ink)]">{socialStats.kindredSpirits}</p>
-          </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-6 text-sm text-[var(--candle-ink-soft)]">
+          <p>
+            <span className="text-[var(--candle-ink-faint)]">Strangers</span>{' '}
+            <span className="font-mono text-lg text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
+          </p>
+          <p>
+            <span className="text-[var(--candle-ink-faint)]">Kindred</span>{' '}
+            <span className="font-mono text-lg text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
+          </p>
         </div>
       ) : null}
+      <hr className="candle-rule" />
       <div>
-        <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Activity</p>
-        <div className="overflow-hidden rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)]">
-          <div className="facsimile-scroll max-h-64 overflow-y-auto px-3 py-2">
-            {activityStatus === 'pending' ? (
-              <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading…</p>
-            ) : activityStatus === 'error' ? (
-              <p className="text-xs text-rose-300">Could not load activity.</p>
-            ) : activityRows.length === 0 ? (
-              <p className="text-xs text-[var(--facsimile-ink-muted)]">
-                No published character checkpoints with a remembered name yet.
-              </p>
-            ) : (
-              <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
-                {activityRows.map((row) => (
-                  <li key={row.pubkey} className="border-l border-[var(--facsimile-accent)]/50 pl-2">
-                    <span className="text-[var(--facsimile-ink)]">{row.displayName}</span> remembered their name.
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        <p className="mb-2 font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+          Activity
+        </p>
+        <div className="facsimile-scroll max-h-64 overflow-y-auto pr-1">
+          {activityStatus === 'pending' ? (
+            <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
+          ) : activityStatus === 'error' ? (
+            <p className="text-sm text-rose-300/90">Could not load activity.</p>
+          ) : activityRows.length === 0 ? (
+            <p className="text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+              No published character checkpoints with a remembered name yet.
+            </p>
+          ) : (
+            <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
+              {activityRows.map((row) => (
+                <li key={row.pubkey} className="border-l border-[var(--candle-flame-soft)]/40 pl-3">
+                  <span className="text-[var(--candle-ink)]">{row.displayName}</span> remembered their name.
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
+      <hr className="candle-rule" />
       <div>
-        <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--facsimile-ink-muted)]">Signals</p>
+        <p className="mb-2 font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+          Signals
+        </p>
         {!user ? (
-          <p className="text-xs text-[var(--facsimile-ink-muted)]">Log in to see signals from kindred spirits.</p>
+          <p className="text-sm text-[var(--candle-ink-soft)]">Log in to see signals from kindred spirits.</p>
         ) : kindredSignalStatus === 'pending' ? (
-          <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading…</p>
+          <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
         ) : kindredSignalStatus === 'error' ? (
-          <p className="text-xs text-rose-300">Could not load signals.</p>
+          <p className="text-sm text-rose-300/90">Could not load signals.</p>
         ) : (
-          <ul className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
+          <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
             {kindredSignalRows.map((row) => (
-              <li key={row.pubkey} className="border-l border-[var(--facsimile-panel-border)] pl-2">
-                <span className="text-[var(--facsimile-ink)]">{row.name}</span>: {row.text}
+              <li key={row.pubkey} className="border-l border-[var(--candle-rule)] pl-3">
+                <span className="text-[var(--candle-ink)]">{row.name}</span>: {row.text}
               </li>
             ))}
             {kindredSignalRows.length === 0 ? (
-              <li className="border-l border-[var(--facsimile-panel-border)] pl-2 text-[var(--facsimile-ink-muted)]">
+              <li className="border-l border-[var(--candle-rule)] pl-3 text-[var(--candle-ink-faint)]">
                 {socialStats.kindredPubkeys.length === 0
                   ? 'No kindred spirits yet—mutual follows with other players who started here.'
                   : 'No checkpoint data found for your kindred spirits on these relays yet.'}
@@ -126,8 +130,9 @@ export function SocialTab({
           </ul>
         )}
       </div>
-      <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
-        <div className="mb-2 grid grid-cols-3 gap-1.5">
+      <hr className="candle-rule" />
+      <div className="space-y-4">
+        <div className="mb-2 grid grid-cols-3 gap-2">
           {['Guild', 'Market', 'Player Quests'].map((label) => (
             <button
               key={label}
@@ -135,7 +140,7 @@ export function SocialTab({
               disabled
               aria-disabled="true"
               title="Coming soon"
-              className="social-channel-button cursor-not-allowed rounded-md border border-[var(--facsimile-panel-border)] bg-black/80 px-2 py-1 text-[11px] text-[var(--facsimile-ink-muted)] opacity-60"
+              className="social-channel-button min-h-[44px] cursor-not-allowed rounded-md px-2 py-2 text-center text-[11px] text-[var(--candle-ink-faint)] opacity-50"
             >
               {label}
             </button>
@@ -143,16 +148,16 @@ export function SocialTab({
         </div>
         {user ? (
           <>
-            <div className="facsimile-scroll mb-2 h-36 overflow-y-auto rounded-md bg-black/35 p-2">
+            <div className="facsimile-scroll mb-3 max-h-40 overflow-y-auto pr-1">
               {lobbyStatus === 'pending' ? (
-                <p className="text-xs text-[var(--facsimile-ink-muted)]">Loading lobby…</p>
+                <p className="text-sm text-[var(--candle-ink-faint)]">Loading lobby…</p>
               ) : lobbyStatus === 'error' ? (
-                <p className="text-xs text-rose-300">Could not load the lobby.</p>
+                <p className="text-sm text-rose-300/90">Could not load the lobby.</p>
               ) : (
-                <ul className="space-y-1 text-xs text-[var(--facsimile-ink-muted)]">
+                <ul className="space-y-2 text-sm text-[var(--candle-ink-soft)]">
                   {lobbyEvents.map((event) => (
                     <li key={event.id}>
-                      <span className="text-[var(--facsimile-ink)]">
+                      <span className="text-[var(--candle-ink)]">
                         {event.pubkey === user?.pubkey ? characterNameLabel : (lobbyNameMap.get(event.pubkey) ?? event.pubkey.slice(0, 8))}
                       </span>{' '}
                       {truncatePlaintext(event.content, 280)}
@@ -161,28 +166,28 @@ export function SocialTab({
                 </ul>
               )}
             </div>
-            {lobbyError ? <p className="mb-1 text-[11px] text-rose-300">{lobbyError}</p> : null}
-            <div className="flex items-center gap-2">
+            {lobbyError ? <p className="mb-1 text-xs text-rose-300/90">{lobbyError}</p> : null}
+            <div className="flex min-h-[48px] items-end gap-3 border-b border-[var(--candle-rule)] pb-1 focus-within:border-[var(--candle-flame-soft)]">
               <input
                 type="text"
                 value={lobbyInput}
                 onChange={(event) => setLobbyInput(event.target.value)}
                 placeholder="Lobby message…"
                 disabled={isLobbySendPending}
-                className="w-full rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] placeholder:text-[var(--facsimile-ink-muted)] focus:outline-none disabled:opacity-60"
+                className="min-h-[44px] flex-1 border-0 bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)] focus:outline-none disabled:opacity-60"
               />
               <button
                 type="button"
                 disabled={isLobbySendPending}
                 onClick={handleLobbySend}
-                className="rounded-md border border-[var(--facsimile-panel-border)] bg-black px-2 py-1 text-xs text-[var(--facsimile-ink)] disabled:opacity-60"
+                className="mb-1 min-h-[44px] shrink-0 px-2 font-serif text-sm text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)] disabled:opacity-60"
               >
                 Send
               </button>
             </div>
           </>
         ) : (
-          <p className="text-xs text-[var(--facsimile-ink-muted)]">Log in to chat in the public lobby.</p>
+          <p className="text-sm text-[var(--candle-ink-soft)]">Log in to chat in the public lobby.</p>
         )}
       </div>
     </section>

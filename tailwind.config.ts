@@ -21,8 +21,8 @@ export default {
 		extend: {
 			fontFamily: {
 				cormorant: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-				serif: ['"Crimson Text"', 'Georgia', 'serif'],
-				mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+				serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+				mono: ['"JetBrains Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',

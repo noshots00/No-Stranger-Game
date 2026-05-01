@@ -452,15 +452,15 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] sm:max-w-sm max-h-[90dvh] p-0 gap-6 overflow-hidden rounded-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] max-w-[95vw] gap-6 overflow-y-auto overflow-x-hidden rounded-2xl border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-0 font-serif text-[var(--candle-ink)] shadow-[0_30px_80px_rgba(0,0,0,0.55),inset_0_0_48px_rgba(230,161,87,0.04)] sm:max-w-sm">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="text-lg font-semibold leading-none tracking-tight text-center">
+          <DialogTitle className="text-center font-serif text-xl font-medium tracking-[0.03em] text-[var(--candle-ink)]">
             Log in
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex size-40 text-8xl bg-primary/10 rounded-full items-center justify-center justify-self-center">
-          🔑
+        <div className="flex justify-center pb-2">
+          <div className="breathing-flame" aria-hidden />
         </div>
 
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
