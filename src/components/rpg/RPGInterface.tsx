@@ -11,12 +11,14 @@ import {
   getCompletedQuestIds,
   getCurrentStep,
   getQuestContext,
+  getSkillLevelUpLines,
   getVisibleQuests,
   interpolateStepText,
   normalizeQuestState,
   startQuest,
   submitPlayerName,
 } from '@/components/rpg/quests/engine';
+import { SKILL_SHEET_LABEL, SKILL_XP_KEYS, SKILLS_WITH_DAILY_XP } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   fetchOrCreateCharacterStartTimestamp,
@@ -33,7 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { DialogueLogEntry, WorldEventLogEntry } from '@/components/rpg/quests/types';
+import type { DialogueLogEntry, QuestState, WorldEventLogEntry } from '@/components/rpg/quests/types';
 
 const mockSignals = [
   'Ravenhall gate opens at first bell.',
@@ -161,21 +163,13 @@ const getRewardLines = (
   return [...rewardLines, ...itemLines];
 };
 
-const getLevelUpLines = (
-  prevState: { skills: { explorationXp: number }; modifiers: Record<string, number> },
-  nextState: { skills: { explorationXp: number }; modifiers: Record<string, number> }
-): string[] => {
+const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => {
   const lines: string[] = [];
   const formatSkillName = (value: string): string =>
     value
       .replace(/([a-z])([A-Z])/g, '$1 $2')
       .replace(/[_-]/g, ' ')
       .toLowerCase();
-  const previousExplorationLevel = getLevelFromXp(prevState.skills.explorationXp);
-  const nextExplorationLevel = getLevelFromXp(nextState.skills.explorationXp);
-  if (nextExplorationLevel > previousExplorationLevel) {
-    lines.push(`Your skill in exploration reached level ${nextExplorationLevel}!`);
-  }
 
   Object.keys(nextState.modifiers).forEach((key) => {
     if (isItemModifierKey(key) || GOLD_MODIFIER_KEYS.includes(key as typeof GOLD_MODIFIER_KEYS[number])) return;
@@ -188,6 +182,11 @@ const getLevelUpLines = (
 
   return lines;
 };
+
+const getLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => [
+  ...getSkillLevelUpLines(prevState, nextState),
+  ...getModifierLevelUpLines(prevState, nextState),
+];
 
 /** Dialogue speaker for lines generated from the player's choice (not "You:" colon style). */
 const PLAYER_ACTION_SPEAKER = 'PlayerAction';
@@ -665,8 +664,15 @@ export function RPGInterface() {
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
   );
-  const explorationXp = questState.skills.explorationXp;
-  const explorationLevel = useMemo(() => getLevelFromXp(explorationXp), [explorationXp]);
+  const visibleSkillSheetParts = useMemo(() => {
+    const parts: string[] = [];
+    for (const key of SKILL_XP_KEYS) {
+      const xp = questState.skills[key];
+      if (xp < 1) continue;
+      parts.push(`${SKILL_SHEET_LABEL[key]} ${getLevelFromXp(xp)}`);
+    }
+    return parts;
+  }, [questState.skills]);
   const characterLevel = useMemo(() => getCharacterLevel(questState), [questState]);
   const characterClass = useMemo(() => getCharacterClass(questState.modifiers), [questState.modifiers]);
   const oldestPendingQuestId = useMemo(() => {
@@ -745,13 +751,14 @@ export function RPGInterface() {
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
     const xpToGrant = daysToGrant * DAILY_XP;
+    const nextSkills = { ...questState.skills };
+    for (const key of SKILLS_WITH_DAILY_XP) {
+      nextSkills[key] = questState.skills[key] + xpToGrant;
+    }
     const updatedState = {
       ...questState,
       experience: questState.experience + xpToGrant,
-      skills: {
-        ...questState.skills,
-        explorationXp: questState.skills.explorationXp + xpToGrant,
-      },
+      skills: nextSkills,
       lastDailyXpDay: dayCounter,
     };
     const rewardLines = getRewardLines(questState.modifiers, updatedState.modifiers);
@@ -1007,7 +1014,14 @@ export function RPGInterface() {
             ))}
           </div>
           <div className="space-y-2 text-xs text-[var(--facsimile-ink-muted)]">
-            <p><span className="text-[var(--facsimile-ink)]">Skills:</span> Exploration {explorationLevel}</p>
+            <p>
+              <span className="text-[var(--facsimile-ink)]">Skills:</span>{' '}
+              {visibleSkillSheetParts.length > 0 ? (
+                <span className="text-[var(--facsimile-ink-muted)]">{visibleSkillSheetParts.join(', ')}</span>
+              ) : (
+                <span className="text-[var(--facsimile-ink-muted)]">—</span>
+              )}
+            </p>
             <p><span className="text-[var(--facsimile-ink)]">Characteristics:</span></p>
             <p><span className="text-[var(--facsimile-ink)]">Relationships:</span></p>
             <p><span className="text-[var(--facsimile-ink)]">Affinities:</span></p>

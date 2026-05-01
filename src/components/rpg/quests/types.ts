@@ -57,6 +57,8 @@ export type QuestContext = {
   flags: string[];
   /** Exploration skill level from `skills.explorationXp`. */
   explorationLevel: number;
+  /** Foraging skill level from `skills.foragingXp`. */
+  foragingLevel: number;
 };
 
 export type QuestProgress = {
@@ -89,6 +91,7 @@ export type QuestState = {
   experience: number; // Legacy aggregate XP field kept for migration compatibility.
   skills: {
     explorationXp: number;
+    foragingXp: number;
   };
   lastDailyXpDay: number;
   dialogueLog: DialogueLogEntry[];

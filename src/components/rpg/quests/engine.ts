@@ -10,6 +10,7 @@ import type {
   QuestStep,
   WorldEventLogEntry,
 } from './types';
+import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 
 const parseTimestampFromDialogueId = (id: string): number | null => {
   const m = id.match(/-(\d{10,16})-[a-z0-9]+$/i);
@@ -76,6 +77,11 @@ const normalizeWorldEventLog = (raw: unknown): WorldEventLogEntry[] => {
   return [];
 };
 
+export const createInitialSkills = (): QuestState['skills'] => ({
+  explorationXp: 0,
+  foragingXp: 0,
+});
+
 export const createInitialQuestState = (): QuestState => ({
   activeQuestId: 'quest-001-origin',
   progressByQuestId: {},
@@ -84,9 +90,7 @@ export const createInitialQuestState = (): QuestState => ({
   currentLocation: 'Forest',
   playerName: '',
   experience: 0,
-  skills: {
-    explorationXp: 0,
-  },
+  skills: createInitialSkills(),
   lastDailyXpDay: 1,
   dialogueLog: [],
   worldEventLog: [],
@@ -95,9 +99,14 @@ export const createInitialQuestState = (): QuestState => ({
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const initial = createInitialQuestState();
   const legacyExperience = typeof state.experience === 'number' ? state.experience : initial.experience;
-  const explorationXp = typeof state.skills?.explorationXp === 'number'
-    ? state.skills.explorationXp
-    : legacyExperience;
+  const explorationXp =
+    typeof state.skills?.explorationXp === 'number' && Number.isFinite(state.skills.explorationXp)
+      ? Math.max(0, Math.floor(state.skills.explorationXp))
+      : Math.max(0, Math.floor(legacyExperience));
+  const foragingXp =
+    typeof state.skills?.foragingXp === 'number' && Number.isFinite(state.skills.foragingXp)
+      ? Math.max(0, Math.floor(state.skills.foragingXp))
+      : 0;
   const dialogueLog = normalizeDialogueLog(state.dialogueLog);
   const worldEventLog = normalizeWorldEventLog(state.worldEventLog ?? []);
   const currentLocation =
@@ -112,6 +121,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     experience: legacyExperience,
     skills: {
       explorationXp,
+      foragingXp,
     },
     lastDailyXpDay:
       typeof state.lastDailyXpDay === 'number'
@@ -144,6 +154,19 @@ export const getLevelFromXp = (xp: number): number => {
   return Math.max(1, n + 1);
 };
 
+/** World log lines when XP-based skill level increases (exploration, foraging, …). */
+export const getSkillLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => {
+  const lines: string[] = [];
+  for (const key of SKILL_XP_KEYS) {
+    const prevLevel = getLevelFromXp(prevState.skills[key]);
+    const nextLevel = getLevelFromXp(nextState.skills[key]);
+    if (nextLevel > prevLevel) {
+      lines.push(`Your skill in ${SKILL_EVENT_LABEL[key]} reached level ${nextLevel}!`);
+    }
+  }
+  return lines;
+};
+
 export const getLevelProgressFromXp = (xp: number) => {
   const safeXp = Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0;
   const level = getLevelFromXp(safeXp);
@@ -172,6 +195,7 @@ export const getQuestContext = (state: QuestState): QuestContext => ({
   completedQuestIds: getCompletedQuestIds(state),
   flags: state.flags,
   explorationLevel: getLevelFromXp(state.skills.explorationXp),
+  foragingLevel: getLevelFromXp(state.skills.foragingXp),
 });
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>
