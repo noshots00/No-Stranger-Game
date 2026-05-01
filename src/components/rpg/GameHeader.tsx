@@ -26,15 +26,17 @@ export function GameHeader({
   onResetStory,
 }: GameHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 -mx-1 flex items-center gap-2 px-1 py-0 backdrop-blur-[6px]">
-      <p className="font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">Day {dayCounter}</p>
+    <header className="sticky top-0 z-20 -mx-1 grid grid-cols-4 items-center gap-2 px-1 py-0 backdrop-blur-[6px]">
+      <p className="text-center font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">
+        Day {dayCounter}
+      </p>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 shrink-0 text-[var(--candle-ink-soft)] hover:bg-transparent hover:text-[var(--candle-ink)]"
+            className="mx-auto h-9 w-9 shrink-0 text-[var(--candle-ink-soft)] hover:bg-transparent hover:text-[var(--candle-ink)]"
             aria-label="Game menu"
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
@@ -61,11 +63,11 @@ export function GameHeader({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <p className="font-serif text-[10px] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
+      <p className="text-center font-serif text-[10px] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
         {UI_VERSION_LABEL}
       </p>
       <p
-        className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
+        className={`justify-self-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
       >
         {currentLocation}
       </p>
