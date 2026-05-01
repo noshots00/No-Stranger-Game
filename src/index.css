@@ -180,6 +180,14 @@
     color: var(--facsimile-ink-muted);
   }
 
+  .mystery-ui .location-indicator-forest {
+    color: #2f7d32;
+  }
+
+  .mystery-ui .location-indicator-silver-lake {
+    color: #c0c6cf;
+  }
+
   .mystery-ui .facsimile-phone-frame {
     background: #000 !important;
     border-color: #000 !important;

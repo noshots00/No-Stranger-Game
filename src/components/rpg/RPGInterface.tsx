@@ -911,6 +911,12 @@ export function RPGInterface() {
     const trimmed = questState.playerName.trim();
     return trimmed.length > 0 ? trimmed : 'Stranger';
   }, [questState.playerName]);
+  const locationIndicatorClass =
+    questState.currentLocation === 'Forest'
+      ? 'location-indicator-forest'
+      : questState.currentLocation === 'Silver Lake'
+        ? 'location-indicator-silver-lake'
+        : 'mystery-muted';
 
   const chronicleRows = useMemo((): ChronicleMergedRow[] => {
     if (!isChronicleOpen) return [];
@@ -1298,11 +1304,42 @@ export function RPGInterface() {
     if (activeTab === 'map') {
       return (
         <section className="facsimile-panel space-y-4">
-          <h2 className="text-2xl font-semibold text-[var(--facsimile-ink)]">Unknown District</h2>
+          <button
+            type="button"
+            onClick={() =>
+              setQuestState((prev) => ({
+                ...prev,
+                currentLocation: 'Forest',
+              }))
+            }
+            className={`text-2xl font-semibold transition-colors ${
+              questState.currentLocation === 'Forest'
+                ? 'text-[var(--facsimile-ink)]'
+                : 'text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]'
+            }`}
+          >
+            The Forest
+          </button>
           <ul className="space-y-3 text-sm text-[var(--facsimile-ink-muted)]">
-            <li className="border-l border-amber-500/40 pl-3">Forest</li>
             {questState.flags.includes(SILVER_LAKE_FLAG) ? (
-              <li className="border-l border-amber-500/40 pl-3">Silver Lake</li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuestState((prev) => ({
+                      ...prev,
+                      currentLocation: 'Silver Lake',
+                    }))
+                  }
+                  className={`w-full border-l border-amber-500/30 py-1 pl-8 text-left transition-colors ${
+                    questState.currentLocation === 'Silver Lake'
+                      ? 'text-[var(--facsimile-ink)]'
+                      : 'text-[var(--facsimile-ink-muted)] hover:text-[var(--facsimile-ink)]'
+                  }`}
+                >
+                  Silver Lake
+                </button>
+              </li>
             ) : null}
           </ul>
         </section>
@@ -1546,41 +1583,6 @@ export function RPGInterface() {
             </div>
           </div>
         ) : null}
-        {questState.flags.includes(SILVER_LAKE_FLAG) &&
-        (questState.currentLocation === 'Forest' || questState.currentLocation === 'Silver Lake') ? (
-          <div className="rounded-lg border border-[var(--facsimile-panel-border)] bg-[var(--facsimile-panel-soft)] p-2">
-            <div className="flex flex-col gap-1.5">
-              {questState.currentLocation === 'Forest' ? (
-                <button
-                  type="button"
-                  className="location-action-button w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
-                  onClick={() =>
-                    setQuestState((prev) => ({
-                      ...prev,
-                      currentLocation: 'Silver Lake',
-                    }))
-                  }
-                >
-                  Visit the Silver Lake
-                </button>
-              ) : null}
-              {questState.currentLocation === 'Silver Lake' ? (
-                <button
-                  type="button"
-                  className="location-action-button w-full rounded-md border border-[var(--facsimile-panel-border)] bg-[rgba(20,23,31,0.82)] px-2 py-1.5 text-left text-xs text-[var(--facsimile-ink-muted)] hover:border-[var(--facsimile-accent)] hover:text-[var(--facsimile-ink)]"
-                  onClick={() =>
-                    setQuestState((prev) => ({
-                      ...prev,
-                      currentLocation: 'Forest',
-                    }))
-                  }
-                >
-                  Return to the Forest
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
       </section>
     );
   };
@@ -1597,7 +1599,7 @@ export function RPGInterface() {
               <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.16em] text-[var(--facsimile-ink-muted)]">
                 v0.4.3-dev
               </p>
-              <p className="mystery-muted text-[10px] uppercase tracking-[0.2em]">{questState.currentLocation}</p>
+              <p className={`${locationIndicatorClass} text-[10px] uppercase tracking-[0.2em]`}>{questState.currentLocation}</p>
             </div>
             <div className="mt-1 flex items-center justify-between">
               <button
