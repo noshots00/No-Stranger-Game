@@ -33,6 +33,7 @@ import {
   groupDialogueLinesByVoice,
   PLAYER_ACTION_SPEAKER,
   QUEST_DIVIDER_SPEAKER,
+  QUEST_IMAGE_SPEAKER,
 } from './dialogueFormat';
 import type { ChronicleMergedRow } from './dialogueFormat';
 import { useQuestState } from './hooks/useQuestState';
@@ -209,7 +210,7 @@ export function RPGInterface() {
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
     const xpToGrant = daysToGrant * DAILY_XP;
-    const skillGrants = distributeDailySkillXp(xpToGrant);
+    const skillGrants = distributeDailySkillXp(xpToGrant, 'exploring');
     const nextSkills = { ...questState.skills };
     for (const key of SKILL_XP_KEYS) {
       nextSkills[key] = questState.skills[key] + (skillGrants[key] ?? 0);
@@ -245,6 +246,7 @@ export function RPGInterface() {
       return {
         ...started,
         dialogueLog: [
+          appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
           appendDialogue('Narrator', interpolateStepText(firstStep.text, started.playerName)),
         ],
       };
@@ -274,6 +276,7 @@ export function RPGInterface() {
         ...started,
         dialogueLog: [
           ...started.dialogueLog,
+          appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
           appendDialogue('Narrator', interpolateStepText(firstStep.text, started.playerName)),
         ],
       };
@@ -477,7 +480,7 @@ export function RPGInterface() {
           onResetStory={handleResetStory}
         />
         <div
-          className={`emerge min-h-0 flex-1 ${activeTab === 'play' ? 'overflow-hidden' : 'overflow-y-auto pr-1'}`}
+          className={`emerge min-h-0 flex-1 ${activeTab === 'play' ? 'overflow-hidden' : 'facsimile-scroll overflow-y-auto pr-1'}`}
         >
           {renderTabPanel()}
         </div>

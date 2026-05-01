@@ -16,24 +16,53 @@ export const SKILL_SHEET_LABEL: Record<SkillXpKey, string> = {
   meleeAttackXp: 'Melee Attack',
 };
 
-/** Skills that receive the same daily XP grant as exploration when a new in-game day ticks. */
-export const SKILLS_WITH_DAILY_XP: readonly SkillXpKey[] = [...SKILL_XP_KEYS];
+/** Player activity that drives daily XP distribution. */
+export type SkillActivity = 'exploring';
 
 /**
- * Distribute a daily XP grant evenly across `SKILLS_WITH_DAILY_XP`.
- * Uses `Math.floor` per skill; any remainder is added to the first skill so totals match `totalXp`.
- *
- * Future: replace with a weighted distribution (per-skill weights).
+ * Per-activity weights across SKILL_XP_KEYS. Each row must sum to 1.0.
+ * Add new activities here; the type union above forces exhaustive coverage.
  */
-export function distributeDailySkillXp(totalXp: number): Record<SkillXpKey, number> {
-  const skills = SKILLS_WITH_DAILY_XP;
-  const out = Object.fromEntries(skills.map((key) => [key, 0])) as Record<SkillXpKey, number>;
-  if (skills.length === 0 || totalXp <= 0) return out;
-  const base = Math.floor(totalXp / skills.length);
-  const remainder = totalXp - base * skills.length;
-  for (const key of skills) {
-    out[key] = base;
+export const SKILL_ACTIVITY_WEIGHTS: Record<SkillActivity, Record<SkillXpKey, number>> = {
+  exploring: { explorationXp: 0.8, foragingXp: 0.2, meleeAttackXp: 0 },
+};
+
+export const DEFAULT_SKILL_ACTIVITY: SkillActivity = 'exploring';
+
+/**
+ * Distribute `totalXp` across SKILL_XP_KEYS using the weights for `activity`.
+ * Uses the largest-remainder method so the integer parts always sum to `totalXp`
+ * (no XP gained or lost to flooring).
+ */
+export function distributeDailySkillXp(
+  totalXp: number,
+  activity: SkillActivity = DEFAULT_SKILL_ACTIVITY,
+): Record<SkillXpKey, number> {
+  const out = Object.fromEntries(SKILL_XP_KEYS.map((k) => [k, 0])) as Record<SkillXpKey, number>;
+  if (totalXp <= 0) return out;
+
+  const weights = SKILL_ACTIVITY_WEIGHTS[activity];
+  const exact: Array<{ key: SkillXpKey; floor: number; frac: number }> = SKILL_XP_KEYS.map((key) => {
+    const raw = totalXp * (weights[key] ?? 0);
+    const floor = Math.floor(raw);
+    return { key, floor, frac: raw - floor };
+  });
+
+  let assigned = 0;
+  for (const r of exact) {
+    out[r.key] = r.floor;
+    assigned += r.floor;
   }
-  out[skills[0]] += remainder;
+
+  let remainder = totalXp - assigned;
+  const order = [...exact].sort(
+    (a, b) => b.frac - a.frac || SKILL_XP_KEYS.indexOf(a.key) - SKILL_XP_KEYS.indexOf(b.key),
+  );
+  for (const r of order) {
+    if (remainder <= 0) break;
+    if ((weights[r.key] ?? 0) === 0) continue;
+    out[r.key] += 1;
+    remainder -= 1;
+  }
   return out;
 }
