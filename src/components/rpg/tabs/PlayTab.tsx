@@ -158,8 +158,8 @@ export function PlayTab({
           </div>
         </div>
       ) : null}
-      <div className="echo-log flex flex-col gap-1.5 py-1">
-        <div ref={eventLogScrollRef} className="max-h-[2.6rem] overflow-hidden pr-1">
+      <div className="echo-log flex flex-col gap-0.5 py-1">
+        <div ref={eventLogScrollRef} className="max-h-[5.2rem] overflow-hidden pr-1">
           {visibleWorldLines.length > 0 ? (
             <ul className="space-y-1 font-sans text-[11px] leading-snug">
               {visibleWorldLines.map((entry, index) => (
@@ -177,17 +177,17 @@ export function PlayTab({
             </p>
           )}
         </div>
-        <div className="flex items-end gap-2 border-t border-[var(--candle-rule)] pt-1">
+        <div className="flex items-end gap-1 border-t border-[var(--candle-rule)] pt-0.5">
           <input
             type="text"
             placeholder="Say something..."
             disabled
-            className="min-h-[40px] flex-1 border-0 bg-transparent px-0 py-1 font-serif text-xs text-[var(--candle-ink-soft)] placeholder:text-[var(--candle-ink-faint)] opacity-70 focus:outline-none"
+            className="flex-1 border-0 bg-transparent px-0 py-0 font-serif text-[11px] leading-none text-[var(--candle-ink-soft)] placeholder:text-[var(--candle-ink-faint)] opacity-70 focus:outline-none"
           />
           <button
             type="button"
             disabled
-            className="min-h-[40px] px-1 font-serif text-xs text-[var(--candle-ink-faint)] opacity-70"
+            className="px-0.5 py-0 font-serif text-[11px] leading-none text-[var(--candle-ink-faint)] opacity-70"
           >
             Send
           </button>
