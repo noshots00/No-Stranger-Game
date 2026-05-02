@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react';
 import { SKILL_SHEET_LABEL, SKILL_XP_KEYS } from '../quests/skills-config';
 import { getCharacterLevel, getLevelFromXp } from '../quests/engine';
 import {
@@ -27,9 +28,6 @@ type CharacterTabProps = {
 
 const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
 
-const MODIFIER_BUCKETS_HEAD = ['stat', 'trait'] as const;
-const MODIFIER_BUCKETS_TAIL = ['class', 'misc'] as const;
-
 const BUCKET_LABEL: Record<Exclude<ModifierSheetBucket, 'skill'>, string> = {
   stat: 'Stats (quests)',
   trait: 'Traits',
@@ -40,6 +38,14 @@ const BUCKET_LABEL: Record<Exclude<ModifierSheetBucket, 'skill'>, string> = {
 
 function formatModifierLines(entries: [string, number][]): string {
   return entries.map(([k, v]) => `${formatModifierKeyForCharacterSheet(k)} ${v}`).join(', ');
+}
+
+function chunkPairs<T>(arr: T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += 2) {
+    out.push(arr.slice(i, i + 2));
+  }
+  return out;
 }
 
 export function CharacterTab({ questState, userPubkey, onOpenChronicle }: CharacterTabProps) {
@@ -74,8 +80,137 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
   const blessingLines = formatModifierLines(byBucket.get('blessing') ?? []);
   const skillGroups = groupSkillModifiersByCategory(byBucket.get('skill') ?? []);
 
+  const statQuestRows = (byBucket.get('stat') ?? []).filter(([key]) => !isPrimaryStatCanonicalKey(key));
+  const traitRows = byBucket.get('trait') ?? [];
+  const pathRows = byBucket.get('class') ?? [];
+
+  const detailTableCells: ReactNode[] = [];
+
+  detailTableCells.push(
+    <Fragment key="race">
+      <span className="text-[var(--candle-ink)]">Race:</span>{' '}
+      {questState.assignedRaceSlug ? (
+        <span className="text-[var(--candle-ink-soft)]">{formatOrganicSlugForDisplay(questState.assignedRaceSlug)}</span>
+      ) : (
+        <span className="text-[var(--candle-ink-faint)]">—</span>
+      )}
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="skills-xp">
+      <span className="text-[var(--candle-ink)]">Skills:</span>{' '}
+      {visibleSkillSheetParts.length > 0 ? visibleSkillSheetParts.join(', ') : '—'}
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="quest-items">
+      <span className="text-[var(--candle-ink)]">Quest items:</span>{' '}
+      {questState.questItems.length > 0 ? questState.questItems.join(', ') : '—'}
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="characteristics">
+      <span className="text-[var(--candle-ink)]">Characteristics:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="relationships">
+      <span className="text-[var(--candle-ink)]">Relationships:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="affinities">
+      <span className="text-[var(--candle-ink)]">Affinities:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="afflictions">
+      <span className="text-[var(--candle-ink)]">Afflictions:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="blessings">
+      <span className="text-[var(--candle-ink)]">Blessings:</span>{' '}
+      {blessingLines ? <span className="text-[var(--candle-ink-soft)]">{blessingLines}</span> : <span className="text-[var(--candle-ink-faint)]">—</span>}
+    </Fragment>
+  );
+
+  detailTableCells.push(
+    <Fragment key="curses">
+      <span className="text-[var(--candle-ink)]">Curses:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
+    </Fragment>
+  );
+
+  if (statQuestRows.length > 0) {
+    detailTableCells.push(
+      <Fragment key="stats-quests">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.stat}:</span> {formatModifierLines(statQuestRows)}
+      </Fragment>
+    );
+  }
+
+  if (traitRows.length > 0) {
+    detailTableCells.push(
+      <Fragment key="traits">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.trait}:</span> {formatModifierLines(traitRows)}
+      </Fragment>
+    );
+  }
+
+  for (const { categoryKey, headingLabel, rows } of skillGroups) {
+    detailTableCells.push(
+      <Fragment key={`skill-cat-${categoryKey}`}>
+        <span className="text-[var(--candle-ink)]">{headingLabel} skills:</span> {formatModifierLines(rows)}
+      </Fragment>
+    );
+  }
+
+  if (pathRows.length > 0) {
+    detailTableCells.push(
+      <Fragment key="paths">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.class}:</span> {formatModifierLines(pathRows)}
+      </Fragment>
+    );
+  }
+
+  const miscRows = byBucket.get('misc') ?? [];
+  const otherModifiersLine =
+    miscRows.length > 0 ? (
+      <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.misc}:</span> {formatModifierLines(miscRows)}
+      </p>
+    ) : null;
+
   return (
-    <section className="space-y-8 pb-4">
+    <section className="space-y-2 pb-4">
+      <div className="text-center py-0.5">
+        <button
+          type="button"
+          onClick={onOpenChronicle}
+          className="choice-line inline-block py-0.5 text-[var(--candle-wax)]"
+        >
+          Open full chronicle (dialogue and world events)
+        </button>
+      </div>
+      <p className="text-center font-serif text-sm leading-snug text-[var(--candle-ink-soft)] py-0.5">
+        Shareable profile link:{' '}
+        <a
+          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
+          target="_blank"
+          rel="noreferrer"
+          aria-disabled={!profileNpub}
+          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
+        >
+          your Ditto public profile
+        </a>
+      </p>
       <div className="grid grid-cols-2 gap-6 sm:gap-8">
         <div className="flex justify-center">
           <div
@@ -113,32 +248,11 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           </p>
         </div>
       </div>
-      <p className="font-serif text-sm text-[var(--candle-ink-soft)]">
-        Shareable profile link:{' '}
-        <a
-          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
-          target="_blank"
-          rel="noreferrer"
-          aria-disabled={!profileNpub}
-          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
-        >
-          your Ditto public profile
-        </a>
-      </p>
-      <p className="text-center">
-        <button
-          type="button"
-          onClick={onOpenChronicle}
-          className="choice-line inline-block py-2 text-center text-[var(--candle-wax)]"
-        >
-          Open full chronicle (dialogue and world events)
-        </button>
-      </p>
       <div className="grid grid-cols-3 gap-x-8 gap-y-0">
         {characterStats.map(([label]) => (
           <div
             key={label}
-            className="flex items-baseline justify-between gap-4 border-b border-[var(--candle-rule)] py-2.5 font-serif text-sm"
+            className="flex items-baseline justify-between gap-4 border-b border-[var(--candle-rule)] py-1.5 font-serif text-sm"
           >
             <p className="uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">{label}</p>
             <p className="font-mono text-[var(--candle-ink)]">
@@ -147,71 +261,19 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           </div>
         ))}
       </div>
-      <div className="space-y-3 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-        <p>
-          <span className="text-[var(--candle-ink)]">Race:</span>{' '}
-          {questState.assignedRaceSlug ? (
-            <span className="text-[var(--candle-ink-soft)]">
-              {formatOrganicSlugForDisplay(questState.assignedRaceSlug)}
-            </span>
-          ) : (
-            <span className="text-[var(--candle-ink-faint)]">—</span>
-          )}
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Skills:</span>{' '}
-          {visibleSkillSheetParts.length > 0 ? visibleSkillSheetParts.join(', ') : '—'}
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Quest items:</span>{' '}
-          {questState.questItems.length > 0 ? questState.questItems.join(', ') : '—'}
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Characteristics:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Relationships:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Affinities:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Afflictions:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Blessings:</span>{' '}
-          {blessingLines ? <span className="text-[var(--candle-ink-soft)]">{blessingLines}</span> : <span className="text-[var(--candle-ink-faint)]">—</span>}
-        </p>
-        <p>
-          <span className="text-[var(--candle-ink)]">Curses:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
-        </p>
-        {MODIFIER_BUCKETS_HEAD.map((bucket) => {
-          let rows = byBucket.get(bucket) ?? [];
-          if (bucket === 'stat') {
-            rows = rows.filter(([key]) => !isPrimaryStatCanonicalKey(key));
-          }
-          if (rows.length === 0) return null;
-          return (
-            <p key={bucket}>
-              <span className="text-[var(--candle-ink)]">{BUCKET_LABEL[bucket]}:</span> {formatModifierLines(rows)}
-            </p>
-          );
-        })}
-        {skillGroups.map(({ categoryKey, headingLabel, rows }) => (
-          <p key={categoryKey}>
-            <span className="text-[var(--candle-ink)]">{headingLabel} skills:</span> {formatModifierLines(rows)}
-          </p>
-        ))}
-        {MODIFIER_BUCKETS_TAIL.map((bucket) => {
-          const rows = byBucket.get(bucket) ?? [];
-          if (rows.length === 0) return null;
-          return (
-            <p key={bucket}>
-              <span className="text-[var(--candle-ink)]">{BUCKET_LABEL[bucket]}:</span> {formatModifierLines(rows)}
-            </p>
-          );
-        })}
-      </div>
+      {detailTableCells.length > 0 ? (
+        <table className="w-full border-collapse font-serif text-sm leading-snug text-[var(--candle-ink-soft)]">
+          <tbody>
+            {chunkPairs(detailTableCells).map((pair, rowIdx) => (
+              <tr key={rowIdx} className="align-top border-b border-[var(--candle-rule)]/40">
+                <td className="w-1/2 py-0.5 pr-2 align-top">{pair[0]}</td>
+                <td className="w-1/2 py-0.5 pl-2 align-top">{pair[1] ?? null}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {otherModifiersLine}
     </section>
   );
 }
