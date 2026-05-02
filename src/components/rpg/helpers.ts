@@ -35,9 +35,14 @@ const primaryStatWordForKey = (key: string): string | null => {
   return null;
 };
 
+/** Title-case slug segments; underscores and hyphens become spaces (e.g. physical_attack → Physical Attack). */
 export function formatOrganicSlugForDisplay(slug: string): string {
   if (!slug) return '';
-  return slug.charAt(0).toUpperCase() + slug.slice(1);
+  const parts = slug.split(/[_-]+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  return parts
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
 }
 
 export type ModifierSheetBucket = 'stat' | 'trait' | 'skill' | 'class' | 'blessing' | 'misc';
