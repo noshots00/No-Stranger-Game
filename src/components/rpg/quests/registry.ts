@@ -20,6 +20,19 @@ import { quest019PlaguebloomPhial } from './quest-019-plaguebloom-phial';
 import { quest020IronCage } from './quest-020-iron-cage';
 import { quest021NineOarRaft } from './quest-021-nine-oar-raft';
 import { quest022WarlordsChoice } from './quest-022-warlords-choice';
+import { quest023WhisperingTree } from './quest-023-whispering-tree';
+import { quest024LoneSapling } from './quest-024-lone-sapling';
+import { quest025CrookedCairn } from './quest-025-crooked-cairn';
+import { quest026SunBleachedBone } from './quest-026-sun-bleached-bone';
+import { quest027SleepingHare } from './quest-027-sleeping-hare';
+import { quest028ToppledStones } from './quest-028-toppled-stones';
+import { quest029HiddenSpring } from './quest-029-hidden-spring';
+import { quest030CharcoalSigil } from './quest-030-charcoal-sigil';
+import { quest031FallenCompanion } from './quest-031-fallen-companion';
+import { quest032DistantSmoke } from './quest-032-distant-smoke';
+import { quest033TwinMounds } from './quest-033-twin-mounds';
+import { quest034CarvedAcorns } from './quest-034-carved-acorns';
+import { quest035BuriedLantern } from './quest-035-buried-lantern';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
@@ -45,6 +58,19 @@ export const allQuests: QuestDefinition[] = [
   quest020IronCage,
   quest021NineOarRaft,
   quest022WarlordsChoice,
+  quest023WhisperingTree,
+  quest024LoneSapling,
+  quest025CrookedCairn,
+  quest026SunBleachedBone,
+  quest027SleepingHare,
+  quest028ToppledStones,
+  quest029HiddenSpring,
+  quest030CharcoalSigil,
+  quest031FallenCompanion,
+  quest032DistantSmoke,
+  quest033TwinMounds,
+  quest034CarvedAcorns,
+  quest035BuriedLantern,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(
