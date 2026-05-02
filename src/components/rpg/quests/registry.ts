@@ -14,6 +14,8 @@ import { quest013FindHat } from './quest-013-find-hat';
 import { quest014MushroomPatch } from './quest-014-mushroom-patch';
 import { quest015FeverDream } from './quest-015-fever-dream';
 import { quest016SweetDream } from './quest-016-sweet-dream';
+import { quest017SilverLakeShore } from './quest-017-silver-lake-shore';
+import { quest018SilverLakeReflection } from './quest-018-silver-lake-reflection';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
@@ -33,6 +35,8 @@ export const allQuests: QuestDefinition[] = [
   quest014MushroomPatch,
   quest015FeverDream,
   quest016SweetDream,
+  quest017SilverLakeShore,
+  quest018SilverLakeReflection,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(

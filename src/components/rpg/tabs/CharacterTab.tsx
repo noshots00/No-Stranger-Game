@@ -2,6 +2,7 @@ import { SKILL_SHEET_LABEL, SKILL_XP_KEYS } from '../quests/skills-config';
 import { getCharacterLevel, getLevelFromXp } from '../quests/engine';
 import {
   formatModifierKeyForCharacterSheet,
+  formatOrganicSlugForDisplay,
   getCharacterClass,
   getModifierMessageKind,
   getModifierSheetBucket,
@@ -115,6 +116,16 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
         ))}
       </div>
       <div className="space-y-3 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+        <p>
+          <span className="text-[var(--candle-ink)]">Race:</span>{' '}
+          {questState.assignedRaceSlug ? (
+            <span className="text-[var(--candle-ink-soft)]">
+              {formatOrganicSlugForDisplay(questState.assignedRaceSlug)}
+            </span>
+          ) : (
+            <span className="text-[var(--candle-ink-faint)]">—</span>
+          )}
+        </p>
         <p>
           <span className="text-[var(--candle-ink)]">Skills:</span>{' '}
           {visibleSkillSheetParts.length > 0 ? visibleSkillSheetParts.join(', ') : '—'}

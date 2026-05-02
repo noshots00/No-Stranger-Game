@@ -5,6 +5,8 @@ export type ChoiceEffect = {
   flagsSet?: string[];
   /** Display labels appended to `QuestState.questItems` (deduped, order preserved). */
   questItemsAdd?: string[];
+  /** Set permanent race from highest `race:*` modifier tally (deterministic tie-break). */
+  assignRaceFromRaceModifiers?: boolean;
 };
 
 export type QuestChoice = {
@@ -69,6 +71,10 @@ export type QuestContext = {
   foragingLevel: number;
   /** Melee Attack skill level from `skills.meleeAttackXp`. */
   meleeAttackLevel: number;
+  /** Sum of exploration + foraging + melee skill levels (aggregate “character level”). */
+  characterLevel: number;
+  /** Canonical race slug once locked; null until assigned. */
+  assignedRaceSlug: string | null;
 };
 
 export type QuestProgress = {
@@ -110,4 +116,6 @@ export type QuestState = {
   worldEventLog: WorldEventLogEntry[];
   /** Quest reward item labels for the character sheet. */
   questItems: string[];
+  /** Canonical race slug after reflection quest (permanent); null until assigned. */
+  assignedRaceSlug: string | null;
 };

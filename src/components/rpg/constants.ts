@@ -63,8 +63,14 @@ export const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-de
 export const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
   Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
-  'Silver Lake': [],
+  'Silver Lake': ['Still waters', 'Light in the water'],
   Airship: [],
+};
+
+/** Play-tab location button label → quest id (Silver Lake repeatable scenes). */
+export const SILVER_LAKE_SCENE_ACTION_QUEST: Record<string, string> = {
+  'Still waters': 'quest-017-silver-lake-shore',
+  'Light in the water': 'quest-018-silver-lake-reflection',
 };
 export const HIDDEN_LOCATION_ACTIONS = new Set([
   'Interact with the old well',

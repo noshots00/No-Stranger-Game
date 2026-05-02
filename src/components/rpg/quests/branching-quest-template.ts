@@ -1,11 +1,17 @@
 import type { QuestChoice, QuestContext, QuestDefinition, QuestStep } from './types';
 
-type QuestAvailability = {
+export type QuestAvailability = {
   minExplorationLevel?: number;
   minForagingLevel?: number;
   minMeleeAttackLevel?: number;
   requiresAnyCompletedQuestIds?: string[];
   requiresAnyFlags?: string[];
+  /** Exact match on `QuestContext.currentLocation`. */
+  requiresLocation?: string;
+  /** Aggregate character level (sum of skill levels). */
+  minCharacterLevel?: number;
+  /** When true, only available if no race has been locked yet. */
+  requiresAssignedRaceUnset?: boolean;
 };
 
 type ChoiceStepBlueprint = {
@@ -55,6 +61,21 @@ export const makeQuestAvailability =
       typeof availability.minMeleeAttackLevel === 'number' &&
       context.meleeAttackLevel < availability.minMeleeAttackLevel
     ) {
+      return false;
+    }
+    if (
+      typeof availability.requiresLocation === 'string' &&
+      context.currentLocation !== availability.requiresLocation
+    ) {
+      return false;
+    }
+    if (
+      typeof availability.minCharacterLevel === 'number' &&
+      context.characterLevel < availability.minCharacterLevel
+    ) {
+      return false;
+    }
+    if (availability.requiresAssignedRaceUnset && context.assignedRaceSlug !== null) {
       return false;
     }
     if (

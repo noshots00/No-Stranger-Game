@@ -102,6 +102,7 @@ export const createInitialQuestState = (): QuestState => ({
   dialogueLog: [],
   worldEventLog: [],
   questItems: [],
+  assignedRaceSlug: null,
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -133,11 +134,17 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const rawModifiers =
     state.modifiers && typeof state.modifiers === 'object' ? (state.modifiers as ModifierMap) : initial.modifiers;
 
+  const assignedRaceSlug =
+    typeof state.assignedRaceSlug === 'string' && state.assignedRaceSlug.trim().length > 0
+      ? state.assignedRaceSlug.trim().toLowerCase()
+      : null;
+
   return {
     ...initial,
     ...state,
     currentLocation,
     experience: legacyExperience,
+    assignedRaceSlug,
     modifiers: migrateModifiersToCanonical(rawModifiers),
     skills: {
       explorationXp,
@@ -222,6 +229,8 @@ export const getQuestContext = (state: QuestState): QuestContext => ({
   explorationLevel: getLevelFromXp(state.skills.explorationXp),
   foragingLevel: getLevelFromXp(state.skills.foragingXp),
   meleeAttackLevel: getLevelFromXp(state.skills.meleeAttackXp),
+  characterLevel: getCharacterLevel(state),
+  assignedRaceSlug: state.assignedRaceSlug ?? null,
 });
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>
@@ -256,15 +265,61 @@ export const startQuest = (state: QuestState, quest: QuestDefinition): QuestStat
   };
 };
 
+/** Reset quest progress so a location scene can be replayed (repeatable ambient quests). */
+export const restartQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => ({
+  ...state,
+  progressByQuestId: {
+    ...state.progressByQuestId,
+    [quest.id]: {
+      currentStepId: quest.startStepId,
+      isCompleted: false,
+      choiceHistory: [],
+    },
+  },
+});
+
+/** Deterministic tie-break among equal `race:*` scores using sorted slugs + salt. */
+export const pickDominantRaceSlug = (modifiers: ModifierMap, tieSalt: string): string | null => {
+  const entries = Object.entries(modifiers).filter(([key, value]) => key.startsWith('race:') && value > 0);
+  if (entries.length === 0) return null;
+
+  let maxScore = -Infinity;
+  for (const [, value] of entries) {
+    if (value > maxScore) maxScore = value;
+  }
+
+  const winners = entries
+    .filter(([, value]) => value === maxScore)
+    .map(([key]) => key.slice('race:'.length))
+    .sort();
+
+  let hash = 0;
+  const basis = `${winners.join('|')}|${tieSalt}`;
+  for (let i = 0; i < basis.length; i++) {
+    hash = Math.imul(31, hash) + basis.charCodeAt(i);
+  }
+  const idx = Math.abs(hash) % winners.length;
+  return winners[idx] ?? null;
+};
+
 export const getCurrentStep = (state: QuestState, quest: QuestDefinition): QuestStep => {
   const progress = state.progressByQuestId[quest.id];
   const stepId = progress?.currentStepId ?? quest.startStepId;
   return quest.steps[stepId];
 };
 
-const mergeModifiers = (current: ModifierMap, incoming: ModifierMap | undefined): ModifierMap => {
+const mergeModifiers = (
+  current: ModifierMap,
+  incoming: ModifierMap | undefined,
+  raceLocked: boolean
+): ModifierMap => {
   if (!incoming) return current;
-  const normalizedIncoming = canonicalizeModifierMap(incoming);
+  let normalizedIncoming = canonicalizeModifierMap(incoming);
+  if (raceLocked) {
+    normalizedIncoming = Object.fromEntries(
+      Object.entries(normalizedIncoming).filter(([modifier]) => !modifier.startsWith('race:'))
+    );
+  }
   const next = { ...current };
   Object.entries(normalizedIncoming).forEach(([modifier, delta]) => {
     next[modifier] = (next[modifier] ?? 0) + delta;
@@ -301,11 +356,12 @@ const moveToStep = (
   const nextStepId = choice.nextStepId ?? currentStepId;
   const nextStep = quest.steps[nextStepId];
   const isCompleted = Boolean(choice.completeQuest || nextStep?.completeQuest);
+  const raceLocked = state.assignedRaceSlug !== null;
 
-  return {
+  let nextState: QuestState = {
     ...state,
     activeQuestId: isCompleted ? null : state.activeQuestId,
-    modifiers: mergeModifiers(state.modifiers, choice.effects?.modifiersDelta),
+    modifiers: mergeModifiers(state.modifiers, choice.effects?.modifiersDelta, raceLocked),
     flags: mergeFlags(state.flags, choice.effects),
     questItems: mergeQuestItems(state.questItems, choice.effects),
     progressByQuestId: {
@@ -317,6 +373,19 @@ const moveToStep = (
       },
     },
   };
+
+  if (
+    choice.effects?.assignRaceFromRaceModifiers &&
+    state.assignedRaceSlug === null &&
+    nextState.assignedRaceSlug === null
+  ) {
+    const slug = pickDominantRaceSlug(nextState.modifiers, state.playerName.trim() || 'stranger');
+    if (slug) {
+      nextState = { ...nextState, assignedRaceSlug: slug };
+    }
+  }
+
+  return nextState;
 };
 
 export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId: string): QuestState => {

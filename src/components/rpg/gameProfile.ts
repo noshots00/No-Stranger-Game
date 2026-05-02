@@ -60,6 +60,11 @@ function isQuestState(value: unknown): value is QuestState {
   const dialogueOk =
     Array.isArray(candidate.dialogueLog) &&
     candidate.dialogueLog.every((row) => isDialogueLogRow(row));
+  const assignedRaceOk =
+    !('assignedRaceSlug' in candidate) ||
+    candidate.assignedRaceSlug === null ||
+    typeof candidate.assignedRaceSlug === 'string';
+
   return (
     (typeof candidate.activeQuestId === 'string' || candidate.activeQuestId === null) &&
     typeof candidate.progressByQuestId === 'object' &&
@@ -68,6 +73,7 @@ function isQuestState(value: unknown): value is QuestState {
     candidate.modifiers !== null &&
     Array.isArray(candidate.flags) &&
     typeof candidate.playerName === 'string' &&
+    assignedRaceOk &&
     dialogueOk &&
     worldLogOk
   );

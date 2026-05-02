@@ -4,7 +4,7 @@ Last reviewed: —
 
 Human-maintained catalog of RPG modifier semantics. **Not** authoritative for the runtime: keys and balances live in quest definitions and [`src/components/rpg/modifiers/canonical.ts`](../../src/components/rpg/modifiers/canonical.ts). When you add `modifiersDelta` in a quest, add or update a bullet here so future-you (and collaborators) remember intent.
 
-**Organic authoring:** append a suffix to the stem — `Class`, `Trait`, `Skill`, `Stat`, or `Blessing` (e.g. `CourageTrait`, `WarriorClass`). Those normalize to canonical keys (`trait:courage`, `class:warrior`). Legacy keys without a suffix stay **Misc**.
+**Organic authoring:** append a suffix to the stem — `Class`, `Trait`, `Skill`, `Stat`, `Blessing`, or `Race` (e.g. `CourageTrait`, `WarriorClass`, `ElfRace`). Those normalize to canonical keys (`trait:courage`, `class:warrior`, `race:elf`). Legacy keys without a suffix stay **Misc**. **Race** points accumulate in modifiers until a quest effect locks your display race (see `assignRaceFromRaceModifiers` in the quest engine); after lock, new `race:*` modifier gains are ignored.
 
 **Display labels:** stems lower-case into slugs; use **underscores or hyphens** in the stem for spaced titles (e.g. `Physical_AttackSkill` → “Physical Attack”). See [`formatOrganicSlugForDisplay`](../../src/components/rpg/helpers.ts).
 
@@ -52,6 +52,14 @@ The six primary attributes use canonical `stat:*` slugs (`strength`, `dexterity`
 - **`Charisma`** (`stat:charisma`, organic `CharismaStat` or legacy `Charisma`)
 
 *Add custom stats under Stat if you introduce non-primary `*Stat` keys.*
+
+---
+
+### Race
+
+Fantasy ancestries; organic `ElfRace` → `race:elf`. The **character sheet “Race” line** shows the **locked** slug set when a quest runs race assignment (highest `race:*` tally; deterministic tie-break). Until then, list candidate flavors here as you add quests.
+
+*Add entries as you design modifiers (e.g. Dwarf, Ogre).*
 
 ---
 

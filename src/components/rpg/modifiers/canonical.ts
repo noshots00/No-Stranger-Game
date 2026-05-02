@@ -1,7 +1,7 @@
 import type { ModifierMap } from '@/components/rpg/quests/types';
 import { PRIMARY_STAT_MODIFIER_LABEL } from '@/components/rpg/constants';
 
-const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing)$/u;
+const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing|Race)$/u;
 
 /** Maps handwritten quest keys (e.g. WarriorClass, CourageTrait) to stable storage keys. */
 export function canonicalizeModifierKey(key: string): string {
@@ -22,6 +22,8 @@ export function canonicalizeModifierKey(key: string): string {
       return `stat:${slug}`;
     case 'Blessing':
       return `blessing:${slug}`;
+    case 'Race':
+      return `race:${slug}`;
     default:
       return key;
   }
@@ -53,7 +55,8 @@ export function migrateModifiersToCanonical(map: ModifierMap): ModifierMap {
         key.startsWith('trait:') ||
         key.startsWith('skill:') ||
         key.startsWith('stat:') ||
-        key.startsWith('blessing:')
+        key.startsWith('blessing:') ||
+        key.startsWith('race:')
       ) {
         canonical = key;
       }

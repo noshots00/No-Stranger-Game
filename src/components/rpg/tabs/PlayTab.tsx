@@ -21,6 +21,7 @@ type PlayTabProps = {
   onDialogueScroll: () => void;
   visibleLocationActions: string[];
   showOriginStartHint: boolean;
+  onLocationAction?: (actionLabel: string) => void;
 };
 
 const CHOICE_FADE_MS = 1200;
@@ -42,6 +43,7 @@ export function PlayTab({
   onDialogueScroll,
   visibleLocationActions,
   showOriginStartHint,
+  onLocationAction,
 }: PlayTabProps) {
   const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
   const choiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -154,6 +156,7 @@ export function PlayTab({
               <button
                 key={action}
                 type="button"
+                onClick={() => onLocationAction?.(action)}
                 className="min-h-[44px] rounded-lg border border-transparent px-2 py-2 text-left font-serif text-sm text-[var(--candle-ink-soft)] transition-colors hover:border-[var(--candle-rule)] hover:text-[var(--candle-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--candle-flame-soft)]"
               >
                 {action}

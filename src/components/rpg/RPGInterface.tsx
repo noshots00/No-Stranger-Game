@@ -9,6 +9,7 @@ import {
   getQuestContext,
   getVisibleQuests,
   interpolateStepText,
+  restartQuestProgress,
   startQuest,
   submitPlayerName,
 } from '@/components/rpg/quests/engine';
@@ -30,6 +31,7 @@ import {
   HIDDEN_LOCATION_ACTIONS,
   INTRO_DEV_MESSAGE,
   locationActions,
+  SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
   PLAY_WORLD_RECENT_MAX,
 } from './constants';
@@ -410,6 +412,31 @@ export function RPGInterface() {
     setActiveTab('play');
   };
 
+  const handleLocationSceneAction = (actionLabel: string) => {
+    const questId = SILVER_LAKE_SCENE_ACTION_QUEST[actionLabel];
+    if (!questId) return;
+    const quest = questById[questId];
+    if (!quest) return;
+
+    setQuestState((prev) => {
+      const ctx = getQuestContext(prev);
+      if (!quest.isAvailable(ctx)) return prev;
+      dialogueInstantScrollRef.current = true;
+      const restarted = restartQuestProgress(prev, quest);
+      const started = startQuest(restarted, quest);
+      const firstStep = getCurrentStep(started, quest);
+      return {
+        ...started,
+        dialogueLog: [
+          ...started.dialogueLog,
+          appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
+          appendDialogue('Narrator', interpolateStepText(firstStep.text, started.playerName)),
+        ],
+      };
+    });
+    setActiveTab('play');
+  };
+
   const navItems: Array<{ key: MobileTab; label: string; icon: string; isPrimary?: boolean }> = [
     { key: 'character', label: 'Character', icon: '◉' },
     { key: 'quests', label: 'Quests', icon: '☰' },
@@ -481,6 +508,7 @@ export function RPGInterface() {
             onDialogueScroll={handleDialogueScroll}
             visibleLocationActions={visibleLocationActions}
             showOriginStartHint={showOriginStartHint}
+            onLocationAction={handleLocationSceneAction}
           />
         );
     }
