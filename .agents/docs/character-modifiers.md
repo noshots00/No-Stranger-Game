@@ -89,11 +89,17 @@ Divine or narrative boons; also listed on the Blessings line when present.
 
 - **Stats:** primary stats via organic `*Stat` — `ConstitutionStat`, `WisdomStat`, `IntelligenceStat`, `DexterityStat`, `StrengthStat` (prefer these over legacy bare `Strength`, …).
 - **Traits:** everyday personality skews only — `CautiousTrait`, `CowardTrait`, `CourageTrait` (avoid uncommon adjectives like `DreadfulTrait`).
-- **Characteristics (misc):** narrative descriptors without an organic suffix — `Haunted`, `Paranoid` — **not** `*Trait` if it reads like a mood or diagnosis rather than stable personality.
+- **Characteristics (misc):** narrative descriptors without an organic suffix — e.g. uneasy sleep: `Haunted`, `Paranoid`; gentle sleep: `Hopeful`, `Peaceful`, `Content`, `Serene`, `Curious` — **not** `*Trait` if it reads like a passing mood rather than stable personality.
 - **Spells:** spell names use a `Spell` stem ending in …Spell (same pattern as `SparkSpell`, `ElementalSpell`, `IllusionSpell`) — keys stay **misc** until/unless `Spell` is added to canonical routing.
 - **Spellcasting:** use **`SpellcastingSkill`** for the general casting skill layer (not `Magic_ElementalSkill`-style labels).
 - **Skills:** prefer plain stems already used in quests — `SwimmingSkill`, `StealthSkill`, `BashSkill`, etc.; avoid ornate `Category_FancySkill` unless needed.
 - **Blessings:** do **not** add new blessing modifiers for fever-dream style content unless explicitly requested.
+
+### Quest shipment: sweet dreams
+
+[`quest-016-sweet-dream`](../../src/components/rpg/quests/quest-016-sweet-dream.ts)
+
+Same conventions as fever dreams: `*Stat`, simple `*Trait`, misc characteristics, `*Spell` + `SpellcastingSkill` where applicable, plain `*Skill`, no new blessings. Introduces `HealingSpell`, `LightSpell`, `SpiritSpell`, and `ArcherySkill` alongside existing keys.
 
 ---
 
