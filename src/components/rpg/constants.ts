@@ -54,6 +54,24 @@ export const PRIMARY_STAT_MODIFIER_LABEL: Record<string, string> = {
   Wisdom: 'wisdom',
   Charisma: 'charisma',
 };
+
+/** Modifier skill keys `skill:<category>:<slug>` — display names for character sheet sections. */
+export const SKILL_MODIFIER_CATEGORY_LABEL: Record<string, string> = {
+  general: 'General',
+  combat: 'Combat',
+  weapon: 'Weapon',
+  magic: 'Magic',
+  crafting: 'Crafting',
+};
+
+/** Sort order for skill category sections (unknown categories sort after these). */
+export const SKILL_MODIFIER_CATEGORY_ORDER: string[] = [
+  'combat',
+  'weapon',
+  'magic',
+  'crafting',
+  'general',
+];
 export const PLAY_DIALOGUE_RECENT_MAX = 120;
 export const PLAY_WORLD_RECENT_MAX = 40;
 export const DIALOGUE_SCROLL_PIN_EPS = 80;

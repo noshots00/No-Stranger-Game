@@ -10,6 +10,8 @@ import {
   HIDDEN_CLASS_MODIFIER_KEYS,
   PRIMARY_STAT_MODIFIER_LABEL,
   QUEST_ORIGIN_ID,
+  SKILL_MODIFIER_CATEGORY_LABEL,
+  SKILL_MODIFIER_CATEGORY_ORDER,
 } from './constants';
 
 const PRIMARY_STAT_SLUGS = new Set(Object.values(PRIMARY_STAT_MODIFIER_LABEL));
@@ -56,6 +58,54 @@ export function getModifierSheetBucket(key: string): ModifierSheetBucket {
   return 'misc';
 }
 
+/** Parse `skill:bash` (legacy) vs `skill:combat:block` (categorized). */
+export function parseSkillModifierKey(key: string): { category: string | null; skillSlug: string } | null {
+  if (!key.startsWith('skill:')) return null;
+  const rest = key.slice('skill:'.length);
+  const idx = rest.indexOf(':');
+  if (idx === -1) return { category: null, skillSlug: rest };
+  return {
+    category: rest.slice(0, idx),
+    skillSlug: rest.slice(idx + 1),
+  };
+}
+
+export function getSkillCategoryDisplayLabel(categoryKey: string): string {
+  if (Object.prototype.hasOwnProperty.call(SKILL_MODIFIER_CATEGORY_LABEL, categoryKey)) {
+    return SKILL_MODIFIER_CATEGORY_LABEL[categoryKey];
+  }
+  return formatOrganicSlugForDisplay(categoryKey);
+}
+
+export type SkillModifierGroup = { categoryKey: string; headingLabel: string; rows: [string, number][] };
+
+/** Group `skill:*` modifiers for the character sheet (one section per category). */
+export function groupSkillModifiersByCategory(entries: [string, number][]): SkillModifierGroup[] {
+  const bucket = new Map<string, [string, number][]>();
+  for (const row of entries) {
+    const parsed = parseSkillModifierKey(row[0]);
+    const ck = parsed?.category ?? 'general';
+    if (!bucket.has(ck)) bucket.set(ck, []);
+    bucket.get(ck)!.push(row);
+  }
+
+  const order = SKILL_MODIFIER_CATEGORY_ORDER;
+  const keys = [...bucket.keys()].sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
+  return keys.map((categoryKey) => ({
+    categoryKey,
+    headingLabel: getSkillCategoryDisplayLabel(categoryKey),
+    rows: bucket.get(categoryKey)!,
+  }));
+}
+
 /** Short label for character sheet rows (canonical and legacy keys). */
 export function formatModifierKeyForCharacterSheet(key: string): string {
   if (key.startsWith('stat:')) {
@@ -63,12 +113,11 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
     const legacy = slugToPrimaryStatKey(slug);
     if (legacy) return legacy;
   }
-  if (
-    key.startsWith('trait:') ||
-    key.startsWith('skill:') ||
-    key.startsWith('class:') ||
-    key.startsWith('blessing:')
-  ) {
+  if (key.startsWith('skill:')) {
+    const parsed = parseSkillModifierKey(key);
+    if (parsed) return formatOrganicSlugForDisplay(parsed.skillSlug);
+  }
+  if (key.startsWith('trait:') || key.startsWith('class:') || key.startsWith('blessing:')) {
     const slug = key.slice(key.indexOf(':') + 1);
     return formatOrganicSlugForDisplay(slug);
   }
@@ -196,8 +245,14 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
       return;
     }
     if (kind === 'organic_skill') {
-      const slug = canonicalSlug(key, 'skill:');
-      lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (skill).`);
+      const parsed = parseSkillModifierKey(key);
+      const name = parsed ? formatOrganicSlugForDisplay(parsed.skillSlug) : formatOrganicSlugForDisplay(canonicalSlug(key, 'skill:'));
+      if (parsed?.category) {
+        const cat = getSkillCategoryDisplayLabel(parsed.category);
+        lines.push(`You gain ${delta} ${name} (${cat} skill).`);
+      } else {
+        lines.push(`You gain ${delta} ${name} (skill).`);
+      }
       return;
     }
     if (kind === 'organic_class') {

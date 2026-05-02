@@ -3,6 +3,24 @@ import { PRIMARY_STAT_MODIFIER_LABEL } from '@/components/rpg/constants';
 
 const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing|Race)$/u;
 
+/** `Category_NameSkill` → `skill:category:name`; plain `BashSkill` → `skill:bash`. */
+function canonicalSkillKeyFromStem(stem: string): string {
+  const us = stem.indexOf('_');
+  if (us <= 0) {
+    return `skill:${stem.toLowerCase()}`;
+  }
+  const category = stem.slice(0, us).toLowerCase();
+  const rest = stem.slice(us + 1);
+  const skillSlug = rest
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1_$2')
+    .split('_')
+    .filter(Boolean)
+    .map((w) => w.toLowerCase())
+    .join('_');
+  return `skill:${category}:${skillSlug}`;
+}
+
 /** Maps handwritten quest keys (e.g. WarriorClass, CourageTrait) to stable storage keys. */
 export function canonicalizeModifierKey(key: string): string {
   const m = key.match(ORGANIC_SUFFIX_RE);
@@ -17,7 +35,7 @@ export function canonicalizeModifierKey(key: string): string {
     case 'Trait':
       return `trait:${slug}`;
     case 'Skill':
-      return `skill:${slug}`;
+      return canonicalSkillKeyFromStem(stem);
     case 'Stat':
       return `stat:${slug}`;
     case 'Blessing':

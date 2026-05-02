@@ -6,6 +6,7 @@ import {
   getCharacterClass,
   getModifierMessageKind,
   getModifierSheetBucket,
+  groupSkillModifiersByCategory,
 } from '../helpers';
 import { NPC_AVATAR_URL, characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
@@ -18,12 +19,14 @@ type CharacterTabProps = {
   onOpenChronicle: () => void;
 };
 
-const BUCKET_ORDER: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
+const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
 
-const BUCKET_LABEL: Record<ModifierSheetBucket, string> = {
+const MODIFIER_BUCKETS_HEAD = ['stat', 'trait'] as const;
+const MODIFIER_BUCKETS_TAIL = ['class', 'misc'] as const;
+
+const BUCKET_LABEL: Record<Exclude<ModifierSheetBucket, 'skill'>, string> = {
   stat: 'Stats (quests)',
   trait: 'Traits',
-  skill: 'Techniques',
   class: 'Paths',
   blessing: 'Blessings',
   misc: 'Other modifiers',
@@ -50,13 +53,14 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
   );
 
   const byBucket = new Map<ModifierSheetBucket, [string, number][]>();
-  for (const b of BUCKET_ORDER) byBucket.set(b, []);
+  for (const b of ALL_MODIFIER_BUCKETS) byBucket.set(b, []);
   for (const entry of visibleModifiers) {
     const bucket = getModifierSheetBucket(entry[0]);
     byBucket.get(bucket)!.push(entry);
   }
 
   const blessingLines = formatModifierLines(byBucket.get('blessing') ?? []);
+  const skillGroups = groupSkillModifiersByCategory(byBucket.get('skill') ?? []);
 
   return (
     <section className="space-y-8 pb-4">
@@ -153,13 +157,26 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
         <p>
           <span className="text-[var(--candle-ink)]">Curses:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
         </p>
-        {BUCKET_ORDER.filter((b) => b !== 'blessing').map((bucket) => {
+        {MODIFIER_BUCKETS_HEAD.map((bucket) => {
           const rows = byBucket.get(bucket) ?? [];
           if (rows.length === 0) return null;
-          const text = formatModifierLines(rows);
           return (
             <p key={bucket}>
-              <span className="text-[var(--candle-ink)]">{BUCKET_LABEL[bucket]}:</span> {text}
+              <span className="text-[var(--candle-ink)]">{BUCKET_LABEL[bucket]}:</span> {formatModifierLines(rows)}
+            </p>
+          );
+        })}
+        {skillGroups.map(({ categoryKey, headingLabel, rows }) => (
+          <p key={categoryKey}>
+            <span className="text-[var(--candle-ink)]">{headingLabel} skills:</span> {formatModifierLines(rows)}
+          </p>
+        ))}
+        {MODIFIER_BUCKETS_TAIL.map((bucket) => {
+          const rows = byBucket.get(bucket) ?? [];
+          if (rows.length === 0) return null;
+          return (
+            <p key={bucket}>
+              <span className="text-[var(--candle-ink)]">{BUCKET_LABEL[bucket]}:</span> {formatModifierLines(rows)}
             </p>
           );
         })}
