@@ -1,0 +1,21 @@
+---
+description: Prefer running terminal commands in the background unless output is needed immediately
+alwaysApply: true
+---
+
+# Shell: background by default
+
+When using the Shell tool:
+
+1. **Default to background** — set `block_until_ms` to `0` so the command runs in the background (non-blocking). Do this for installs, builds, dev servers, long tests, and anything that might run longer than a few seconds.
+
+2. **Use foreground** only when you must read stdout/stderr **in the same reasoning step** before calling another tool — e.g. a quick `git status`, or when you need exit code immediately without polling.
+
+3. **Validation before finishing** (`npm run check`, `npm run verify`, etc.) — if you backgrounded the command, **poll** the terminal output until `exit_code` appears (or match output patterns); do not mark the task done until validation actually completes.
+
+4. **Never** background a command and then assume success without reading its terminal file.
+
+**Examples**
+
+- `npm install`, `npm run dev`, `vitest run`, `npm run build` → prefer **background** + poll if you need the result.
+- `git status`, `git diff --stat` when deciding next step → **foreground** with a sensible `block_until_ms` is fine (fast).
