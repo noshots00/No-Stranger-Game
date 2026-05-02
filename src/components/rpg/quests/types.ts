@@ -13,6 +13,8 @@ export type QuestChoice = {
   nextStepId?: string;
   completeQuest?: boolean;
   effects?: ChoiceEffect;
+  /** World chronicle lines (`{playerName}` supported). */
+  worldEventLogAdd?: string[];
 };
 
 type QuestStepBase = {
@@ -29,6 +31,8 @@ export type MessageQuestStep = QuestStepBase & {
 export type ChoiceQuestStep = QuestStepBase & {
   type: 'choice';
   choices: QuestChoice[];
+  /** World chronicle lines after picking any choice from this step (`{playerName}` supported). */
+  worldEventLogAfterChoice?: string[];
 };
 
 export type InputQuestStep = QuestStepBase & {
@@ -39,6 +43,8 @@ export type InputQuestStep = QuestStepBase & {
   nextStepId: string;
   minLength?: number;
   maxLength?: number;
+  /** World chronicle lines after a successful name submit (`{playerName}` supported). */
+  worldEventLogAfterSubmit?: string[];
 };
 
 export type QuestStep = MessageQuestStep | ChoiceQuestStep | InputQuestStep;

@@ -12,6 +12,7 @@ export const quest002BoarAmbush: QuestDefinition = {
       id: 'boar-attack',
       type: 'choice',
       text: 'While exploring in the woods, you are suddenly attacked by a wild boar!',
+      worldEventLogAfterChoice: ['You fended off a wild boar!'],
       choices: [
         {
           id: 'q2-strike-it',

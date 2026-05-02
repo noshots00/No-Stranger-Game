@@ -13,6 +13,7 @@ type ChoiceStepBlueprint = {
   type: 'choice';
   text: string;
   choices: QuestChoice[];
+  worldEventLogAfterChoice?: string[];
 };
 
 type MessageStepBlueprint = {

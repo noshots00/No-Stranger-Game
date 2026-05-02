@@ -10,6 +10,11 @@ import type {
   QuestStep,
   WorldEventLogEntry,
 } from './types';
+import {
+  appendUniqueWorldEntries,
+  collectChoiceWorldLogLines,
+  interpolateQuestWorldLogTemplates,
+} from '../worldLog';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 
 const parseTimestampFromDialogueId = (id: string): number | null => {
@@ -317,7 +322,15 @@ export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId:
   const selectedChoice = currentStep.choices.find((choice) => choice.id === choiceId);
   if (!selectedChoice) return withProgress;
 
-  return moveToStep(withProgress, quest, selectedChoice, currentStep.id);
+  let nextState = moveToStep(withProgress, quest, selectedChoice, currentStep.id);
+  const worldLines = collectChoiceWorldLogLines(currentStep, selectedChoice, state.playerName);
+  if (worldLines.length > 0) {
+    nextState = {
+      ...nextState,
+      worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, worldLines),
+    };
+  }
+  return nextState;
 };
 
 export const submitPlayerName = (
@@ -340,19 +353,27 @@ export const submitPlayerName = (
     return { nextState: withProgress, error: `Name must be ${minLength}-${maxLength} characters.` };
   }
 
-  return {
-    nextState: {
-      ...withProgress,
-      playerName: trimmed,
-      progressByQuestId: {
-        ...withProgress.progressByQuestId,
-        [quest.id]: {
-          ...withProgress.progressByQuestId[quest.id],
-          currentStepId: currentStep.nextStepId,
-        },
+  let nextState: QuestState = {
+    ...withProgress,
+    playerName: trimmed,
+    progressByQuestId: {
+      ...withProgress.progressByQuestId,
+      [quest.id]: {
+        ...withProgress.progressByQuestId[quest.id],
+        currentStepId: currentStep.nextStepId,
       },
     },
   };
+
+  if (currentStep.worldEventLogAfterSubmit?.length) {
+    const lines = interpolateQuestWorldLogTemplates(currentStep.worldEventLogAfterSubmit, trimmed);
+    nextState = {
+      ...nextState,
+      worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, lines),
+    };
+  }
+
+  return { nextState };
 };
 
 export const interpolateStepText = (text: string, playerName: string): string =>

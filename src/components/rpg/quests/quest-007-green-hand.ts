@@ -13,7 +13,12 @@ export const quest007GreenHand = createBranchingQuest({
       type: 'choice',
       text: 'You trip over something hard, sending you face first into the ground. A bright green hand is sticking straight up out of the ground.',
       choices: [
-        { id: 'green-hand-closer-look', label: 'Take a closer look', nextStepId: 'green-hand-discovery' },
+        {
+          id: 'green-hand-closer-look',
+          label: 'Take a closer look',
+          nextStepId: 'green-hand-discovery',
+          worldEventLogAdd: ['{playerName} found the Green Hand!'],
+        },
         { id: 'green-hand-leave', label: 'Leave for now', completeQuest: true },
       ],
     },

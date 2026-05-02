@@ -8,6 +8,8 @@ type FindItemQuestOptions = {
   activationFlag: string;
 };
 
+const leaveItemNoun = (itemName: string) => itemName.replace(/^(a|an)\s+/i, '').trim();
+
 export function createFindItemQuest(options: FindItemQuestOptions) {
   return createBranchingQuest({
     id: options.id,
@@ -31,11 +33,13 @@ export function createFindItemQuest(options: FindItemQuestOptions) {
             effects: {
               questItemsAdd: [options.itemName],
             },
+            worldEventLogAdd: [`{playerName} found ${options.itemName}.`],
           },
           {
             id: `${options.id}-leave-it`,
             label: 'leave it',
             completeQuest: true,
+            worldEventLogAdd: [`{playerName} left the ${leaveItemNoun(options.itemName)}.`],
           },
         ],
       },

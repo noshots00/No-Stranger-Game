@@ -345,37 +345,9 @@ export function RPGInterface() {
         nextLog.push(appendDialogue(QUEST_DIVIDER_SPEAKER, ''));
       }
 
-      const boarLine = 'You fended off a wild boar!';
       const rewardLines = getRewardLines(prev.modifiers, nextState.modifiers);
       const levelUpLines = getLevelUpLines(prev, nextState);
-      const boarLines = activeQuest.id === 'quest-002-boar-ambush' ? [boarLine] : [];
-      const airshipLines =
-        activeQuest.id === 'quest-005-airship' ? [`${prev.playerName} discovered the airship.`] : [];
-      const greenHandLines =
-        activeQuest.id === 'quest-007-green-hand' && selectedChoice.id === 'green-hand-closer-look'
-          ? [`${prev.playerName} found the Green Hand!`]
-          : [];
-      const findItemQuestObjects: Record<string, { foundText: string; leaveText: string }> = {
-        'quest-010-find-earring': { foundText: 'an earring', leaveText: 'earring' },
-        'quest-011-find-bracelet': { foundText: 'a bracelet', leaveText: 'bracelet' },
-        'quest-012-find-shoe': { foundText: 'a shoe', leaveText: 'shoe' },
-        'quest-013-find-hat': { foundText: 'a hat', leaveText: 'hat' },
-      };
-      const findItemObject = findItemQuestObjects[activeQuest.id];
-      const findItemLines =
-        findItemObject && selectedChoice.id.endsWith('-pick-up')
-          ? [`${prev.playerName} found ${findItemObject.foundText}.`]
-          : findItemObject && selectedChoice.id.endsWith('-leave-it')
-            ? [`${prev.playerName} left the ${findItemObject.leaveText}.`]
-            : [];
-      const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [
-        ...boarLines,
-        ...airshipLines,
-        ...greenHandLines,
-        ...findItemLines,
-        ...rewardLines,
-        ...levelUpLines,
-      ]);
+      const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [...rewardLines, ...levelUpLines]);
 
       return {
         ...nextState,
@@ -414,11 +386,6 @@ export function RPGInterface() {
           appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)),
           appendDialogue('Dev Message', INTRO_DEV_MESSAGE),
         ],
-        worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, [
-          'You found yourself in a forest.',
-          `${submittedName} remembered his name.`,
-          `${submittedName} is exploring the forest.`,
-        ]),
       };
       setQuestState(updatedState);
       void persistQuestCheckpoint(updatedState);

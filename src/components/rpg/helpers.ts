@@ -1,5 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { QuestState, WorldEventLogEntry, DialogueLogEntry } from './quests/types';
+import type { QuestState, DialogueLogEntry } from './quests/types';
 import { getQuestContext, getSkillLevelUpLines, getVisibleQuests } from './quests/engine';
 import { allQuests } from './quests/registry';
 import { DAY_REPORT_SPEAKER } from './dialogueFormat';
@@ -33,23 +33,7 @@ export function findFirstRememberedCheckpoint(
   return null;
 }
 
-export const appendUniqueWorldEntries = (
-  existing: WorldEventLogEntry[],
-  texts: string[],
-  baseAtMs = Date.now()
-): WorldEventLogEntry[] => {
-  if (texts.length === 0) return existing;
-  const seen = new Set(existing.map((e) => e.text));
-  const next = [...existing];
-  let offset = 0;
-  for (const text of texts) {
-    if (seen.has(text)) continue;
-    seen.add(text);
-    next.push({ text, atMs: baseAtMs + offset });
-    offset += 1;
-  }
-  return next;
-};
+export { appendUniqueWorldEntries } from './worldLog';
 
 export const appendDialogue = (speaker: string, text: string): DialogueLogEntry => {
   const atMs = Date.now();

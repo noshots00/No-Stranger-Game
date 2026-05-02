@@ -12,6 +12,7 @@ export const quest005Airship = createBranchingQuest({
       id: 'airship-intro',
       type: 'choice',
       text: 'You stumble across what can only be an ancient cannonball. Looking straight up, you see what looks like a massive ship high in the trees.',
+      worldEventLogAfterChoice: ['{playerName} discovered the airship.'],
       choices: [
         {
           id: 'airship-climb',
