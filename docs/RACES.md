@@ -1,6 +1,8 @@
 # Playable races (design reference)
 
-**Archetypes** are broad ancestries; **subraces** are specific lineages or cultures under an archetype. This list is for narrative and content planning — runtime race modifiers still use organic keys like `WoodElfRace` → `race:woodelf` (see [character modifiers](../.agents/docs/character-modifiers.md)).
+**Archetypes (5):** Human, Elf, Dwarf, Monster, Animal. Each has **subraces** with ability bonuses, cultural notes, and a symbol.
+
+This list is for narrative and content planning. Runtime race modifiers use organic keys like `WoodElfRace` → `race:woodelf` (see [character modifiers](../.agents/docs/character-modifiers.md)). Primary stats in app code are Strength, **Dexterity**, Constitution, Intelligence, Wisdom, Charisma — **AGI** in the table means Dexterity.
 
 Last reviewed: 2026-05-02
 
@@ -8,55 +10,119 @@ Last reviewed: 2026-05-02
 
 ## Human
 
-| Subrace    |
-| ---------- |
-| Atlantians |
+Subraces: Atlantians, Sunborn, River Kingdom.
 
-## Sunborn
+### Atlantians
 
-*(No subraces listed yet.)*
+- **Bonuses:** +2 STR, +1 CHA
+- **Characteristics:** Proud seafarers, competitive, honor-bound, value physical prowess and leadership.
+- **Symbol:** Trident
 
-## River Kingdom
+### Sunborn
 
-*(No subraces listed yet.)*
+- **Bonuses:** +2 CON, +1 WIS
+- **Characteristics:** Dark-skinned desert dwellers, resilient, spiritual, community-focused, wise elders.
+- **Symbol:** Sun Disk
+
+### River Kingdom
+
+- **Bonuses:** +2 INT, +1 AGI (Dexterity)
+- **Characteristics:** Civilized traders and scribes, adaptable, diplomatic, value knowledge and precision.
+- **Symbol:** Lotus Flower
+
+---
 
 ## Elf
 
-| Subrace   |
-| --------- |
-| Night Elf |
-| High Elf  |
-| Wood Elf  |
+Subraces: Night Elf, High Elf, Wood Elf.
+
+### Night Elf
+
+- **Bonuses:** +2 AGI (Dexterity), +1 INT
+- **Characteristics:** Nocturnal, secretive, druidic, vengeful, attuned to shadows and moons.
+- **Symbol:** Crescent Moon
+
+### High Elf
+
+- **Bonuses:** +2 INT, +1 CHA
+- **Characteristics:** Arrogant, magically gifted, long-lived urbanites, pursue arcane perfection.
+- **Symbol:** Star Crystal
+
+### Wood Elf
+
+- **Bonuses:** +2 AGI (Dexterity), +1 WIS
+- **Characteristics:** Forest-dwellers, nature-loving, fleet-footed, distrustful of cities, skilled hunters.
+- **Symbol:** Leaf Arrow
+
+---
 
 ## Dwarf
 
-| Subrace  |
-| -------- |
-| Dwarf    |
-| Gnome    |
-| Halfling |
+Subraces: Dwarf, Gnome, Halfling.
+
+### Dwarf
+
+- **Bonuses:** +2 CON, +1 STR
+- **Characteristics:** Stubborn, hardworking, master smiths, treasure-hoarders, grudge-bearing.
+- **Symbol:** Steel Hammer
+
+### Gnome
+
+- **Bonuses:** +2 INT, +1 AGI (Dexterity)
+- **Characteristics:** Curious tinkerers, illusionists, witty, love gems and mechanical contraptions.
+- **Symbol:** Spinning Gear
+
+### Halfling
+
+- **Bonuses:** +2 AGI (Dexterity), +1 CHA
+- **Characteristics:** Cheerful, lucky, comfort-loving, stealthy, fond of good food and gossip.
+- **Symbol:** Hollow Pipe
+
+---
 
 ## Monster
 
-| Subrace |
-| ------- |
-| Orc     |
-| Troll   |
-| Goblin  |
+Subraces: Orc, Troll, Goblin.
+
+### Orc
+
+- **Bonuses:** +2 STR, +1 CON
+- **Characteristics:** Tribal warriors, berserkers, honor-through-battle, scarred, shamanistic.
+- **Symbol:** Tusked Skull
+
+### Troll
+
+- **Bonuses:** +2 CON, +1 STR
+- **Characteristics:** Lumbering, regenerative, dim-witted, cave-dwelling, vulnerable to fire.
+- **Symbol:** Severed Arm
+
+### Goblin
+
+- **Bonuses:** +2 AGI (Dexterity), +1 INT
+- **Characteristics:** Sneaky, cowardly, inventive, greedy, breed quickly, love traps and explosives.
+- **Symbol:** Shiny Button
+
+---
 
 ## Animal
 
-| Subrace |
-| ------- |
-| Catfolk |
+### Catfolk
+
+- **Bonuses:** +2 AGI (Dexterity), +1 CHA
+- **Characteristics:** Curious, graceful, prideful, nocturnal hunters, aloof but loyal.
+- **Symbol:** Golden Claw
 
 ---
 
 ## Summary
 
-- **Archetypes:** 7 — Human, Sunborn, River Kingdom, Elf, Dwarf, Monster, Animal
-- **Subraces with names below an archetype:** 11 (Atlantians + nine others + Catfolk)
-
-**Note:** If **Sunborn** or **River Kingdom** were meant as Human subcultures instead of top-level archetypes, fold them under Human in this table and adjust counts.
+| Archetype | Subraces | Count |
+| --------- | -------- | ----- |
+| Human | Atlantians, Sunborn, River Kingdom | 3 |
+| Elf | Night Elf, High Elf, Wood Elf | 3 |
+| Dwarf | Dwarf, Gnome, Halfling | 3 |
+| Monster | Orc, Troll, Goblin | 3 |
+| Animal | Catfolk | 1 |
+| **Total** | | **13** |
 
 When adding quests or `race:*` modifiers, align names with this sheet where possible so pool ties and dominant-race logic stay readable.
