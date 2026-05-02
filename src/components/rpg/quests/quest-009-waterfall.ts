@@ -11,7 +11,7 @@ export const quest009Waterfall = createBranchingQuest({
   briefing: 'A rushing waterfall appears deeper in the woods.',
   createdAt: 10,
   startStepId: 'waterfall-intro',
-  availability: { minExplorationLevel: 3 },
+  availability: { minExplorationLevel: 3, minDay: 4 },
   completionRequiresAllFlags: [WATERFALL_FLAG_CLIMBED, WATERFALL_FLAG_BEHIND],
   steps: [
     {

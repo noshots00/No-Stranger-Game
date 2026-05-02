@@ -227,7 +227,7 @@ export const getCompletedQuestIds = (state: QuestState): string[] =>
     .filter(([, progress]) => progress.isCompleted)
     .map(([questId]) => questId);
 
-export const getQuestContext = (state: QuestState): QuestContext => ({
+export const getQuestContext = (state: QuestState, currentDay: number): QuestContext => ({
   currentLocation: state.currentLocation,
   completedQuestIds: getCompletedQuestIds(state),
   flags: state.flags,
@@ -236,6 +236,7 @@ export const getQuestContext = (state: QuestState): QuestContext => ({
   meleeAttackLevel: getLevelFromXp(state.skills.meleeAttackXp),
   characterLevel: getCharacterLevel(state),
   assignedRaceSlug: state.assignedRaceSlug ?? null,
+  currentDay: Math.max(1, Math.floor(currentDay)),
 });
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>

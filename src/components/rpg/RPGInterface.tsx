@@ -97,7 +97,7 @@ export function RPGInterface() {
   };
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
-  const questContext = useMemo(() => getQuestContext(questState), [questState]);
+  const questContext = useMemo(() => getQuestContext(questState, dayCounter), [questState, dayCounter]);
   const visibleQuests = useMemo(() => getVisibleQuests(allQuests, questContext), [questContext]);
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
@@ -294,7 +294,7 @@ export function RPGInterface() {
     const dayLine = `Day ${dayCounter} began.`;
     updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
 
-    const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState);
+    const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState, dayCounter);
     updatedState.dialogueLog = [...updatedState.dialogueLog, ...reportLines];
 
     setQuestState(updatedState);
@@ -456,7 +456,7 @@ export function RPGInterface() {
     if (!quest) return;
 
     setQuestState((prev) => {
-      const ctx = getQuestContext(prev);
+      const ctx = getQuestContext(prev, dayCounter);
       if (!quest.isAvailable(ctx)) return prev;
       dialogueInstantScrollRef.current = true;
       const restarted = restartQuestProgress(prev, quest);

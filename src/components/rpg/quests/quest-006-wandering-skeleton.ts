@@ -9,6 +9,7 @@ export const quest006WanderingSkeleton = createBranchingQuest({
   availability: {
     requiresAnyCompletedQuestIds: ['quest-001-origin'],
     requiresAnyFlags: ['quest001-complete'],
+    minDay: 3,
   },
   steps: [
     {

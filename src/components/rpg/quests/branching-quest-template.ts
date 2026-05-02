@@ -12,6 +12,8 @@ export type QuestAvailability = {
   minCharacterLevel?: number;
   /** When true, only available if no race has been locked yet. */
   requiresAssignedRaceUnset?: boolean;
+  /** Earliest day (1-indexed) the quest may appear; combined with other gates via AND. */
+  minDay?: number;
 };
 
 type ChoiceStepBlueprint = {
@@ -77,6 +79,9 @@ export const makeQuestAvailability =
       return false;
     }
     if (availability.requiresAssignedRaceUnset && context.assignedRaceSlug !== null) {
+      return false;
+    }
+    if (typeof availability.minDay === 'number' && context.currentDay < availability.minDay) {
       return false;
     }
     if (

@@ -10,6 +10,11 @@ export const quest014MushroomPatch = createBranchingQuest({
   briefing: 'Something colorful peeks from the leaf litter.',
   createdAt: 15,
   startStepId: 'mushroom-intro',
+  availability: {
+    requiresAnyCompletedQuestIds: ['quest-001-origin'],
+    requiresAnyFlags: ['quest001-complete'],
+    minDay: 2,
+  },
   steps: [
     {
       id: 'mushroom-intro',

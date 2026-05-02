@@ -10,6 +10,7 @@ export const quest003SilverLake = createBranchingQuest({
   startStepId: 'sl3-1',
   availability: {
     minExplorationLevel: 4,
+    minDay: 5,
   },
   steps: [
     {

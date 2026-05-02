@@ -324,7 +324,8 @@ export const getLevelUpLines = (prevState: QuestState, nextState: QuestState): s
 export function buildDayReportDialogueLines(
   prevDayNumber: number,
   prevState: QuestState,
-  nextState: QuestState
+  nextState: QuestState,
+  currentDay: number
 ): DialogueLogEntry[] {
   const lines: DialogueLogEntry[] = [
     appendDialogue(DAY_REPORT_SPEAKER, `Day ${prevDayNumber} Report`),
@@ -344,9 +345,9 @@ export function buildDayReportDialogueLines(
   }
 
   const prevVisibleIds = new Set(
-    getVisibleQuests(allQuests, getQuestContext(prevState)).map((q) => q.id)
+    getVisibleQuests(allQuests, getQuestContext(prevState, prevDayNumber)).map((q) => q.id)
   );
-  const newlyVisible = getVisibleQuests(allQuests, getQuestContext(nextState)).filter(
+  const newlyVisible = getVisibleQuests(allQuests, getQuestContext(nextState, currentDay)).filter(
     (q) => !prevVisibleIds.has(q.id)
   );
   for (const quest of newlyVisible) {

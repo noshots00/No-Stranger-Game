@@ -8,7 +8,8 @@ export const quest004AbandonedShelter: QuestDefinition = {
   createdAt: 7,
   startStepId: 'shelter-intro',
   isAvailable: (context) =>
-    context.completedQuestIds.includes('quest-001-origin') || context.flags.includes('quest001-complete'),
+    (context.completedQuestIds.includes('quest-001-origin') || context.flags.includes('quest001-complete')) &&
+    context.currentDay >= 3,
   steps: {
     'shelter-intro': {
       id: 'shelter-intro',

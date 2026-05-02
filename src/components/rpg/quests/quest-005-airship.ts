@@ -6,7 +6,7 @@ export const quest005Airship = createBranchingQuest({
   briefing: 'A cannonball half-buried in the leaf litter. High in the canopy, the silhouette of a hull.',
   createdAt: 5,
   startStepId: 'airship-intro',
-  availability: { minExplorationLevel: 5 },
+  availability: { minExplorationLevel: 5, minDay: 6 },
   steps: [
     {
       id: 'airship-intro',

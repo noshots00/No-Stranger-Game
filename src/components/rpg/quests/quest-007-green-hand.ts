@@ -6,7 +6,7 @@ export const quest007GreenHand = createBranchingQuest({
   briefing: 'Something hard in the forest floor reveals a strange green hand.',
   createdAt: 8,
   startStepId: 'green-hand-intro',
-  availability: { minForagingLevel: 2 },
+  availability: { minForagingLevel: 2, minDay: 4 },
   steps: [
     {
       id: 'green-hand-intro',

@@ -77,6 +77,8 @@ export type QuestContext = {
   characterLevel: number;
   /** Canonical race slug once locked; null until assigned. */
   assignedRaceSlug: string | null;
+  /** Day counter (1-indexed) used by `minDay` quest gating. */
+  currentDay: number;
 };
 
 export type QuestProgress = {
