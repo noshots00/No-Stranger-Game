@@ -21,13 +21,28 @@ export const quest003SilverLake = createBranchingQuest({
           id: 'sl3-leave',
           label: 'Leave for now',
           completeQuest: true,
-          effects: { flagsSet: [SILVER_LAKE_FLAG] },
+          effects: {
+            flagsSet: [SILVER_LAKE_FLAG],
+            modifiersDelta: {
+              HalflingRace: 1,
+              River_KingdomRace: 1,
+              AtlantiansRace: 1,
+            },
+          },
         },
         {
           id: 'sl3-feel',
           label: 'Feel the water.',
           nextStepId: 'sl3-2',
-          effects: { flagsSet: [SILVER_LAKE_FLAG] },
+          effects: {
+            flagsSet: [SILVER_LAKE_FLAG],
+            modifiersDelta: {
+              AtlantiansRace: 1,
+              SunbornRace: 1,
+              WoodElfRace: 1,
+              NightElfRace: 1,
+            },
+          },
         },
       ],
     },

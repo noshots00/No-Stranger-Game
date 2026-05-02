@@ -17,6 +17,13 @@ export const quest001Origin: QuestDefinition = {
           id: 'q1-cant-see',
           label: 'I can barely see a thing... how did I get here?',
           nextStepId: 'memory-gap',
+          effects: {
+            modifiersDelta: {
+              NightElfRace: 1,
+              WoodElfRace: 1,
+              CatfolkRace: 1,
+            },
+          },
         },
       ],
     },
@@ -29,6 +36,13 @@ export const quest001Origin: QuestDefinition = {
           id: 'q1-who-am-i',
           label: 'Wait... I think I remember something...',
           nextStepId: 'name-input',
+          effects: {
+            modifiersDelta: {
+              River_KingdomRace: 1,
+              SunbornRace: 1,
+              HighElfRace: 1,
+            },
+          },
         },
       ],
     },

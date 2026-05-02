@@ -21,13 +21,29 @@ export const quest009Waterfall = createBranchingQuest({
       choices: [
         {
           id: 'waterfall-climb-top',
-          label: 'Climb to the top.',
+          label: 'Climb to the top of the waterfall.',
           nextStepId: 'waterfall-climb-vista',
+          effects: {
+            modifiersDelta: {
+              WoodElfRace: 1,
+              NightElfRace: 1,
+              CatfolkRace: 1,
+              DwarfRace: 1,
+            },
+          },
         },
         {
           id: 'waterfall-look-behind',
-          label: 'Look behind the waterfall.',
+          label: 'Look behind the waterfall to see what is beyond.',
           nextStepId: 'waterfall-behind-cavern',
+          effects: {
+            modifiersDelta: {
+              NightElfRace: 1,
+              GoblinRace: 1,
+              River_KingdomRace: 1,
+              GnomeRace: 1,
+            },
+          },
         },
       ],
     },
@@ -38,18 +54,41 @@ export const quest009Waterfall = createBranchingQuest({
       choices: [
         {
           id: 'waterfall-vista-a',
-          label: '[Placeholder] First thing you notice.',
+          label: 'A small pool of water at the top of the waterfall.',
           nextStepId: 'waterfall-after-climb',
+          effects: {
+            modifiersDelta: {
+              Ik: 1,
+              ClimbingSkill: 1,
+              AtlantiansRace: 1,
+              WoodElfRace: 1,
+              SunbornRace: 1,
+            },
+          },
         },
         {
           id: 'waterfall-vista-b',
           label: '[Placeholder] Another possibility.',
           nextStepId: 'waterfall-after-climb',
+          effects: {
+            modifiersDelta: {
+              WoodElfRace: 1,
+              River_KingdomRace: 1,
+              HighElfRace: 1,
+            },
+          },
         },
         {
           id: 'waterfall-vista-c',
           label: '[Placeholder] A third angle.',
           nextStepId: 'waterfall-after-climb',
+          effects: {
+            modifiersDelta: {
+              NightElfRace: 1,
+              CatfolkRace: 1,
+              HalflingRace: 1,
+            },
+          },
         },
       ],
     },
@@ -62,7 +101,14 @@ export const quest009Waterfall = createBranchingQuest({
           id: 'waterfall-climb-return',
           label: 'Climb back down to the pool.',
           nextStepId: 'waterfall-intro',
-          effects: { flagsSet: [WATERFALL_FLAG_CLIMBED] },
+          effects: {
+            flagsSet: [WATERFALL_FLAG_CLIMBED],
+            modifiersDelta: {
+              DwarfRace: 1,
+              AtlantiansRace: 1,
+              OrcRace: 1,
+            },
+          },
         },
       ],
     },
@@ -76,16 +122,37 @@ export const quest009Waterfall = createBranchingQuest({
           id: 'waterfall-behind-a',
           label: '[Placeholder] Option A.',
           nextStepId: 'waterfall-after-behind',
+          effects: {
+            modifiersDelta: {
+              NightElfRace: 1,
+              TrollRace: 1,
+              OrcRace: 1,
+            },
+          },
         },
         {
           id: 'waterfall-behind-b',
           label: '[Placeholder] Option B.',
           nextStepId: 'waterfall-after-behind',
+          effects: {
+            modifiersDelta: {
+              GoblinRace: 1,
+              GnomeRace: 1,
+              CatfolkRace: 1,
+            },
+          },
         },
         {
           id: 'waterfall-behind-c',
           label: '[Placeholder] Option C.',
           nextStepId: 'waterfall-after-behind',
+          effects: {
+            modifiersDelta: {
+              SunbornRace: 1,
+              River_KingdomRace: 1,
+              WoodElfRace: 1,
+            },
+          },
         },
       ],
     },
@@ -98,7 +165,14 @@ export const quest009Waterfall = createBranchingQuest({
           id: 'waterfall-behind-return',
           label: 'Return to the pool.',
           nextStepId: 'waterfall-intro',
-          effects: { flagsSet: [WATERFALL_FLAG_BEHIND] },
+          effects: {
+            flagsSet: [WATERFALL_FLAG_BEHIND],
+            modifiersDelta: {
+              HalflingRace: 1,
+              GoblinRace: 1,
+              AtlantiansRace: 1,
+            },
+          },
         },
       ],
     },

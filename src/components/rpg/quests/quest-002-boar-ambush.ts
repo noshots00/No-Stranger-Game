@@ -19,7 +19,13 @@ export const quest002BoarAmbush: QuestDefinition = {
           label: 'Strike it!',
           nextStepId: 'boar-outcome',
           effects: {
-            modifiersDelta: { WarriorClass: 1, Strength: 1 },
+            modifiersDelta: {
+              WarriorClass: 1,
+              Strength: 1,
+              OrcRace: 1,
+              DwarfRace: 1,
+              AtlantiansRace: 1,
+            },
             flagsSet: ['quest002-complete'],
           },
         },
@@ -28,7 +34,13 @@ export const quest002BoarAmbush: QuestDefinition = {
           label: 'cast a spell',
           nextStepId: 'boar-outcome',
           effects: {
-            modifiersDelta: { MageClass: 1, Intelligence: 1 },
+            modifiersDelta: {
+              MageClass: 1,
+              Intelligence: 1,
+              HighElfRace: 1,
+              GnomeRace: 1,
+              River_KingdomRace: 1,
+            },
             flagsSet: ['quest002-complete'],
           },
         },
@@ -37,7 +49,15 @@ export const quest002BoarAmbush: QuestDefinition = {
           label: 'try to dodge',
           nextStepId: 'boar-outcome',
           effects: {
-            modifiersDelta: { RogueClass: 1, Evasion: 1, Dodge: 1 },
+            modifiersDelta: {
+              RogueClass: 1,
+              Evasion: 1,
+              Dodge: 1,
+              HalflingRace: 1,
+              GoblinRace: 1,
+              WoodElfRace: 1,
+              CatfolkRace: 1,
+            },
             flagsSet: ['quest002-complete'],
           },
         },
@@ -46,7 +66,14 @@ export const quest002BoarAmbush: QuestDefinition = {
           label: 'run away',
           nextStepId: 'boar-outcome',
           effects: {
-            modifiersDelta: { Coward: 1, FastFeet: 1, SurvivalInstinct: 1 },
+            modifiersDelta: {
+              Coward: 1,
+              FastFeet: 1,
+              SurvivalInstinct: 1,
+              GoblinRace: 1,
+              HalflingRace: 1,
+              River_KingdomRace: 1,
+            },
             flagsSet: ['quest002-complete'],
           },
         },
