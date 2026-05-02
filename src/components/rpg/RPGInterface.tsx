@@ -6,8 +6,10 @@ import {
   applyChoice,
   getCompletedQuestIds,
   getCurrentStep,
+  getPlayerVisibleQuests,
   getQuestContext,
   getVisibleQuests,
+  questNumberFromId,
   interpolateStepText,
   restartQuestProgress,
   startQuest,
@@ -62,6 +64,8 @@ import { QuestsTab } from './tabs/QuestsTab';
 import { PlayTab } from './tabs/PlayTab';
 import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
+import { useAmbientPad } from './audio/useAmbientPad';
+import { publicAsset } from '@/lib/publicAsset';
 
 export function RPGInterface() {
   const { user } = useCurrentUser();
@@ -69,8 +73,13 @@ export function RPGInterface() {
   const navigate = useNavigate();
 
   const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestState } = useQuestState();
-  const { dayCounter, setDevDayOffsetMs, resetTimestamp } = useDayCounter();
-  const { socialStats, socialActivityQuery, socialKindredSignalsQuery, socialLobbyQuery, lobbyNameMap } = useSocialQueries();
+  const { dayCounter, setDevDayOffsetMs, resetTimestamp, nextDayResetMs } = useDayCounter();
+
+  useAmbientPad({
+    active: questState.currentLocation === 'Silver Lake',
+    preferFile: publicAsset('music/silver-lake.mp3'),
+  });
+  const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries();
 
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
   const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
@@ -98,7 +107,10 @@ export function RPGInterface() {
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
   const questContext = useMemo(() => getQuestContext(questState, dayCounter), [questState, dayCounter]);
-  const visibleQuests = useMemo(() => getVisibleQuests(allQuests, questContext), [questContext]);
+  const visibleQuests = useMemo(
+    () => getPlayerVisibleQuests(allQuests, questContext, questState.unveiledQuestIds),
+    [questContext, questState.unveiledQuestIds]
+  );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
   const pendingQuestCount = useMemo(
@@ -225,6 +237,27 @@ export function RPGInterface() {
     return x - Math.floor(x);
   };
 
+  // One-time legacy backfill: if a returning player has quest progress but no unveil
+  // tracking for currently-eligible quests, mark all currently-eligible quests as unveiled
+  // so they aren't retroactively hidden by the new 2/day cap.
+  const unveilBackfillDoneRef = useRef(false);
+  useEffect(() => {
+    if (!isQuestStateHydrated || unveilBackfillDoneRef.current) return;
+    const hasProgress = Object.keys(questState.progressByQuestId).length > 0;
+    if (!hasProgress) {
+      unveilBackfillDoneRef.current = true;
+      return;
+    }
+    const eligibleIds = getVisibleQuests(allQuests, questContext).map((q) => q.id);
+    const merged = Array.from(new Set([...questState.unveiledQuestIds, ...eligibleIds]));
+    if (merged.length !== questState.unveiledQuestIds.length) {
+      const next = { ...questState, unveiledQuestIds: merged };
+      setQuestState(next);
+      void persistQuestCheckpoint(next);
+    }
+    unveilBackfillDoneRef.current = true;
+  }, [isQuestStateHydrated, questState, questContext, persistQuestCheckpoint, setQuestState]);
+
   useEffect(() => {
     if (!isQuestStateHydrated) return;
     if (dayCounter <= questState.lastDailyXpDay) return;
@@ -310,6 +343,19 @@ export function RPGInterface() {
       }
     }
     updatedState.flags = promotedFlags;
+
+    const ctxAfterFlags = getQuestContext({ ...updatedState }, dayCounter);
+    const eligibleIds = getVisibleQuests(allQuests, ctxAfterFlags).map((q) => q.id);
+    const alreadyUnveiled = new Set(updatedState.unveiledQuestIds);
+    const queue = eligibleIds.filter(
+      (id) => !alreadyUnveiled.has(id) && !completedQuestIdSet.has(id)
+    );
+    queue.sort((a, b) => questNumberFromId(b) - questNumberFromId(a));
+    const newToUnveil = queue.slice(0, 2);
+    if (newToUnveil.length > 0) {
+      updatedState.unveiledQuestIds = [...updatedState.unveiledQuestIds, ...newToUnveil];
+    }
+
     const dayLine = `Day ${dayCounter} began.`;
     updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
 
@@ -539,10 +585,9 @@ export function RPGInterface() {
             activityStatus={socialActivityQuery.isPending ? 'pending' : socialActivityQuery.isError ? 'error' : 'success'}
             kindredSignalRows={socialKindredSignalsQuery.data ?? []}
             kindredSignalStatus={socialKindredSignalsQuery.isPending ? 'pending' : socialKindredSignalsQuery.isError ? 'error' : 'success'}
-            lobbyEvents={socialLobbyQuery.data ?? []}
-            lobbyStatus={socialLobbyQuery.isPending ? 'pending' : socialLobbyQuery.isError ? 'error' : 'success'}
             lobbyNameMap={lobbyNameMap}
             characterNameLabel={characterNameLabel}
+            hasCharacter={questState.playerName.trim().length > 0}
           />
         );
       default:
@@ -565,6 +610,13 @@ export function RPGInterface() {
             visibleLocationActions={visibleLocationActions}
             showOriginStartHint={showOriginStartHint}
             onLocationAction={handleLocationSceneAction}
+            playerFlags={questState.flags}
+            playerHealth={questState.health}
+            nextDayResetMs={nextDayResetMs}
+            currentLocation={questState.currentLocation}
+            characterNameLabel={characterNameLabel}
+            speakerNameMap={lobbyNameMap}
+            hasCharacter={questState.playerName.trim().length > 0}
           />
         );
     }

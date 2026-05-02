@@ -1,6 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { QuestState, DialogueLogEntry } from './quests/types';
-import { getQuestContext, getSkillLevelUpLines, getVisibleQuests } from './quests/engine';
+import { getPlayerVisibleQuests, getQuestContext, getSkillLevelUpLines } from './quests/engine';
 import { allQuests } from './quests/registry';
 import { DAY_REPORT_SPEAKER } from './dialogueFormat';
 import { parseQuestCheckpointPayload } from './gameProfile';
@@ -345,11 +345,17 @@ export function buildDayReportDialogueLines(
   }
 
   const prevVisibleIds = new Set(
-    getVisibleQuests(allQuests, getQuestContext(prevState, prevDayNumber)).map((q) => q.id)
+    getPlayerVisibleQuests(
+      allQuests,
+      getQuestContext(prevState, prevDayNumber),
+      prevState.unveiledQuestIds
+    ).map((q) => q.id)
   );
-  const newlyVisible = getVisibleQuests(allQuests, getQuestContext(nextState, currentDay)).filter(
-    (q) => !prevVisibleIds.has(q.id)
-  );
+  const newlyVisible = getPlayerVisibleQuests(
+    allQuests,
+    getQuestContext(nextState, currentDay),
+    nextState.unveiledQuestIds
+  ).filter((q) => !prevVisibleIds.has(q.id));
   for (const quest of newlyVisible) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, `A new quest awaits: ${quest.title}.`));
   }

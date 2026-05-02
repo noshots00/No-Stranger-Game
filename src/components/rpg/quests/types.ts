@@ -22,6 +22,13 @@ export type QuestChoice = {
   effects?: ChoiceEffect;
   /** World chronicle lines (`{playerName}` supported). */
   worldEventLogAdd?: string[];
+  /**
+   * Render this choice as visible-but-disabled when ANY of these flags are set
+   * on the player. Useful for one-shot branches the player has already explored.
+   */
+  disabledIfAnyFlags?: string[];
+  /** Optional suffix appended to `label` when the choice is disabled (e.g. "(already explored)"). */
+  disabledLabel?: string;
 };
 
 type QuestStepBase = {
@@ -127,4 +134,12 @@ export type QuestState = {
   questItems: string[];
   /** Canonical race slug after reflection quest (permanent); null until assigned. */
   assignedRaceSlug: string | null;
+  /**
+   * IDs of quests that have been "unveiled" to the player at least once.
+   * Drives the daily unveil cap (max 2 NEW per day) so eligible-but-not-yet-shown
+   * quests sit in a hidden queue until day-rollover unveils them.
+   */
+  unveiledQuestIds: string[];
+  /** Player health 0-100. Placeholder; reserved for future combat. */
+  health: number;
 };

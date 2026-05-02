@@ -3,6 +3,9 @@ import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
 import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
 import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
+import { PlayStatusBar } from '../PlayStatusBar';
+import { ChatPanel } from '../chat/ChatPanel';
+import { getLocationGroupId } from '../chat/nip29Client';
 
 type PlayTabProps = {
   playDialogueBlocks: DialogueVoiceBlockModel[];
@@ -22,6 +25,20 @@ type PlayTabProps = {
   visibleLocationActions: string[];
   showOriginStartHint: boolean;
   onLocationAction?: (actionLabel: string) => void;
+  /** Player flag set; used by `disabledIfAnyFlags` on QuestChoice. */
+  playerFlags: string[];
+  /** Player health 0-100 for the status bar. */
+  playerHealth: number;
+  /** Wall-clock ms when the next in-game day rolls over (for "Reset in X.Yh"). */
+  nextDayResetMs: number | null;
+  /** Current location label, used to derive the per-location chat group. */
+  currentLocation: string;
+  /** Display name for the player's own messages. */
+  characterNameLabel: string;
+  /** Map pubkey -> display name for other players' chat messages. */
+  speakerNameMap: Map<string, string>;
+  /** True when player has set their character name; gates chat membership. */
+  hasCharacter: boolean;
 };
 
 const CHOICE_FADE_MS = 1200;
@@ -44,7 +61,15 @@ export function PlayTab({
   visibleLocationActions,
   showOriginStartHint,
   onLocationAction,
+  playerFlags,
+  playerHealth,
+  nextDayResetMs,
+  currentLocation,
+  characterNameLabel,
+  speakerNameMap,
+  hasCharacter,
 }: PlayTabProps) {
+  const playerFlagSet = new Set(playerFlags);
   const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
   const choiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,6 +102,7 @@ export function PlayTab({
 
   return (
     <section className="flex h-full flex-col justify-end gap-1.5">
+      <PlayStatusBar health={playerHealth} nextDayResetMs={nextDayResetMs} />
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
@@ -103,15 +129,27 @@ export function PlayTab({
                       const isPending = pendingChoiceId !== null;
                       const isChosen = pendingChoiceId === choice.id;
                       const isFading = isPending && !isChosen;
+                      const isLocked = Boolean(
+                        choice.disabledIfAnyFlags?.some((flag) => playerFlagSet.has(flag))
+                      );
+                      const renderedLabel = isLocked
+                        ? `${choice.label}${choice.disabledLabel ?? ' (already explored)'}`
+                        : choice.label;
                       return (
                         <li key={choice.id}>
                           <button
                             type="button"
-                            disabled={isPending}
-                            className={`choice-line ${isFading ? 'choice-fade-out' : ''}`}
-                            onClick={() => handleChoiceClick(choice.id)}
+                            disabled={isPending || isLocked}
+                            aria-disabled={isLocked || undefined}
+                            className={`choice-line ${isFading ? 'choice-fade-out' : ''} ${
+                              isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            onClick={() => {
+                              if (isLocked) return;
+                              handleChoiceClick(choice.id);
+                            }}
                           >
-                            {choice.label}
+                            {renderedLabel}
                           </button>
                         </li>
                       );
@@ -184,20 +222,16 @@ export function PlayTab({
             </p>
           )}
         </div>
-        <div className="flex items-end gap-1 border-t border-[var(--candle-rule)] pt-0.5">
-          <input
-            type="text"
-            placeholder="Say something..."
-            disabled
-            className="flex-1 border-0 bg-transparent px-0 py-0 font-serif text-[11px] leading-none text-[var(--candle-ink-soft)] placeholder:text-[var(--candle-ink-faint)] opacity-70 focus:outline-none"
+        <div className="border-t border-[var(--candle-rule)] pt-1">
+          <ChatPanel
+            groupId={getLocationGroupId(currentLocation)}
+            title={`${currentLocation} chat`}
+            emptyHint={`No one else is talking at ${currentLocation} right now.`}
+            characterNameLabel={characterNameLabel}
+            speakerNameMap={speakerNameMap}
+            messageListClassName="max-h-32"
+            hasCharacter={hasCharacter}
           />
-          <button
-            type="button"
-            disabled
-            className="px-0.5 py-0 font-serif text-[11px] leading-none text-[var(--candle-ink-faint)] opacity-70"
-          >
-            Send
-          </button>
         </div>
       </div>
     </section>

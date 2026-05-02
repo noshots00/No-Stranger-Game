@@ -668,3 +668,30 @@
     opacity: 1;
   }
 }
+
+/* Slow shimmer sweep used by the play-tab status bar health fill. */
+@keyframes hp-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.hp-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
+  animation: hp-shimmer 3s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-shimmer {
+    animation: none;
+    background: transparent;
+  }
+}

@@ -68,6 +68,11 @@ export function useDayCounter() {
     return Math.max(1, Math.floor(elapsed / DAY_IN_MS) + 1);
   })();
 
+  /** Wall-clock ms when the next in-game day rolls over (null until start ts is loaded). */
+  const nextDayResetMs = characterStartTimestamp
+    ? characterStartTimestamp + dayCounter * DAY_IN_MS - devDayOffsetMs
+    : null;
+
   const resetTimestamp = async () => {
     const now = Date.now();
     setCharacterStartTimestamp(now);
@@ -81,5 +86,5 @@ export function useDayCounter() {
     }
   };
 
-  return { dayCounter, devDayOffsetMs, setDevDayOffsetMs, resetTimestamp };
+  return { dayCounter, devDayOffsetMs, setDevDayOffsetMs, resetTimestamp, nextDayResetMs };
 }

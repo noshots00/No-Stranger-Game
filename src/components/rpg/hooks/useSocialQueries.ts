@@ -1,10 +1,9 @@
-import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { NSG_QUEST_STATE_D_TAG, NSG_QUEST_STATE_KIND, parseQuestCheckpointPayload } from '../gameProfile';
-import { extractFollowPubkeysFromContactList, NSG_SOCIAL_LOBBY_T, truncatePlaintext } from '../social/socialTags';
+import { extractFollowPubkeysFromContactList, truncatePlaintext } from '../social/socialTags';
 import { CHARACTER_START_D_TAG, CHARACTER_START_KIND, FOLLOW_LIST_KIND } from '../constants';
 import { findFirstRememberedCheckpoint } from '../helpers';
 
@@ -153,35 +152,21 @@ export function useSocialQueries() {
     },
   });
 
-  const socialLobbyQuery = useQuery({
-    queryKey: ['rpg-social-lobby', NSG_SOCIAL_LOBBY_T],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const rows = await nostr.query([{ kinds: [1], '#t': [NSG_SOCIAL_LOBBY_T], limit: 150 }]);
-      return rows.sort((a, b) => a.created_at - b.created_at);
-    },
-  });
-
-  const lobbyAuthorPubkeys = useMemo(() => {
-    const events = socialLobbyQuery.data ?? [];
-    const pubkeys = new Set(events.map((e) => e.pubkey));
-    if (user?.pubkey) pubkeys.delete(user.pubkey);
-    return Array.from(pubkeys).sort();
-  }, [socialLobbyQuery.data, user?.pubkey]);
-
-  const lobbyAuthorPubkeysKey = lobbyAuthorPubkeys.join('|');
-
+  // The lobby chat itself moved to NIP-29 (see src/components/rpg/chat). We still
+  // resolve display names for OTHER players' messages by looking up their kindred
+  // checkpoint payload, since chat events only carry pubkeys.
   const lobbyNamesQuery = useQuery({
-    queryKey: ['rpg-lobby-names', lobbyAuthorPubkeysKey],
-    enabled: lobbyAuthorPubkeys.length > 0,
+    queryKey: ['rpg-lobby-names', socialStats.kindredPubkeys.join('|')],
+    enabled: socialStats.kindredPubkeys.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
+      const authors = socialStats.kindredPubkeys;
       const checkpoints = await nostr.query([
         {
           kinds: [NSG_QUEST_STATE_KIND],
-          authors: lobbyAuthorPubkeys,
+          authors,
           '#d': [NSG_QUEST_STATE_D_TAG],
-          limit: lobbyAuthorPubkeys.length * 2,
+          limit: authors.length * 2,
         },
       ]);
       const latest = new Map<string, NostrEvent>();
@@ -205,7 +190,6 @@ export function useSocialQueries() {
     socialStats,
     socialActivityQuery,
     socialKindredSignalsQuery,
-    socialLobbyQuery,
     lobbyNameMap: lobbyNamesQuery.data ?? new Map<string, string>(),
   };
 }

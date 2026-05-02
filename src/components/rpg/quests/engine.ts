@@ -104,6 +104,8 @@ export const createInitialQuestState = (): QuestState => ({
   worldEventLog: [],
   questItems: [],
   assignedRaceSlug: null,
+  unveiledQuestIds: ['quest-001-origin'],
+  health: 75,
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -131,6 +133,29 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     typeof state.currentLocation === 'string' && state.currentLocation.trim().length > 0
       ? state.currentLocation
       : initial.currentLocation;
+
+  const rawUnveiled = (state as { unveiledQuestIds?: unknown }).unveiledQuestIds;
+  let unveiledQuestIds: string[];
+  if (Array.isArray(rawUnveiled)) {
+    unveiledQuestIds = Array.from(
+      new Set(rawUnveiled.filter((s): s is string => typeof s === 'string' && s.length > 0))
+    );
+  } else if (state.progressByQuestId && Object.keys(state.progressByQuestId).length > 0) {
+    /**
+     * Legacy save (no unveil tracking yet, but has quest progress) — mark every quest
+     * the player has touched as already-unveiled so the cap doesn't retro-hide them.
+     * Newly-eligible quests after this point will queue normally.
+     */
+    unveiledQuestIds = Object.keys(state.progressByQuestId);
+  } else {
+    unveiledQuestIds = initial.unveiledQuestIds;
+  }
+
+  const rawHealth = (state as { health?: unknown }).health;
+  const health =
+    typeof rawHealth === 'number' && Number.isFinite(rawHealth)
+      ? Math.max(0, Math.min(100, Math.floor(rawHealth)))
+      : initial.health;
 
   const rawModifiers =
     state.modifiers && typeof state.modifiers === 'object' ? (state.modifiers as ModifierMap) : initial.modifiers;
@@ -165,7 +190,16 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     dialogueLog,
     worldEventLog,
     questItems,
+    unveiledQuestIds,
+    health,
   };
+};
+
+/** Parse the numeric prefix from a `quest-NNN-...` id; non-conforming ids return -1. */
+export const questNumberFromId = (questId: string): number => {
+  const match = questId.match(/^quest-(\d+)/);
+  if (!match) return -1;
+  return Number.parseInt(match[1], 10);
 };
 
 export const getXpRequiredForNextLevel = (level: number): number => {
@@ -243,6 +277,21 @@ export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContex
   quests
     .filter((quest) => quest.isAvailable(context) || context.completedQuestIds.includes(quest.id))
     .sort((a, b) => b.createdAt - a.createdAt);
+
+/**
+ * Player-visible quest list: eligible AND already unveiled (or completed).
+ * Pending-but-not-yet-unveiled quests are hidden until day-rollover unveils them.
+ */
+export const getPlayerVisibleQuests = (
+  quests: QuestDefinition[],
+  context: QuestContext,
+  unveiledQuestIds: string[]
+): QuestDefinition[] => {
+  const unveiledSet = new Set(unveiledQuestIds);
+  return getVisibleQuests(quests, context).filter(
+    (quest) => unveiledSet.has(quest.id) || context.completedQuestIds.includes(quest.id)
+  );
+};
 
 export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => {
   if (state.progressByQuestId[quest.id]) return state;

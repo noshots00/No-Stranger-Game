@@ -4,6 +4,10 @@ import { createBranchingQuest } from './branching-quest-template';
 export const WATERFALL_FLAG_CLIMBED = 'quest-009-waterfall-climbed';
 /** Set when the player has finished the behind-the-falls branch (returned to the pool). */
 export const WATERFALL_FLAG_BEHIND = 'quest-009-waterfall-behind';
+/** Set when the player has picked any of the climb-vista options once (locks the branch). */
+export const WATERFALL_FLAG_VISTA_PICKED = 'quest-009-waterfall-vista-picked';
+/** Set when the player has picked any of the behind-the-falls options once (locks the branch). */
+export const WATERFALL_FLAG_BEHIND_PICKED = 'quest-009-waterfall-behind-picked';
 
 export const quest009Waterfall = createBranchingQuest({
   id: 'quest-009-waterfall',
@@ -23,6 +27,8 @@ export const quest009Waterfall = createBranchingQuest({
           id: 'waterfall-climb-top',
           label: 'Climb to the top of the waterfall.',
           nextStepId: 'waterfall-climb-vista',
+          disabledIfAnyFlags: [WATERFALL_FLAG_VISTA_PICKED],
+          disabledLabel: " (You've already explored here.)",
           effects: {
             modifiersDelta: {
               WoodElfRace: 1,
@@ -36,6 +42,8 @@ export const quest009Waterfall = createBranchingQuest({
           id: 'waterfall-look-behind',
           label: 'Look behind the waterfall to see what is beyond.',
           nextStepId: 'waterfall-behind-cavern',
+          disabledIfAnyFlags: [WATERFALL_FLAG_BEHIND_PICKED],
+          disabledLabel: " (You've already explored here.)",
           effects: {
             modifiersDelta: {
               NightElfRace: 1,
@@ -57,6 +65,7 @@ export const quest009Waterfall = createBranchingQuest({
           label: 'A small pool of water at the top of the waterfall.',
           nextStepId: 'waterfall-after-climb',
           effects: {
+            flagsSet: [WATERFALL_FLAG_VISTA_PICKED],
             modifiersDelta: {
               Ik: 1,
               ClimbingSkill: 1,
@@ -71,6 +80,7 @@ export const quest009Waterfall = createBranchingQuest({
           label: '[Placeholder] Another possibility.',
           nextStepId: 'waterfall-after-climb',
           effects: {
+            flagsSet: [WATERFALL_FLAG_VISTA_PICKED],
             modifiersDelta: {
               WoodElfRace: 1,
               RiverKingdomRace: 1,
@@ -83,6 +93,7 @@ export const quest009Waterfall = createBranchingQuest({
           label: '[Placeholder] A third angle.',
           nextStepId: 'waterfall-after-climb',
           effects: {
+            flagsSet: [WATERFALL_FLAG_VISTA_PICKED],
             modifiersDelta: {
               NightElfRace: 1,
               CatfolkRace: 1,
@@ -123,6 +134,7 @@ export const quest009Waterfall = createBranchingQuest({
           label: '[Placeholder] Option A.',
           nextStepId: 'waterfall-after-behind',
           effects: {
+            flagsSet: [WATERFALL_FLAG_BEHIND_PICKED],
             modifiersDelta: {
               NightElfRace: 1,
               TrollRace: 1,
@@ -135,6 +147,7 @@ export const quest009Waterfall = createBranchingQuest({
           label: '[Placeholder] Option B.',
           nextStepId: 'waterfall-after-behind',
           effects: {
+            flagsSet: [WATERFALL_FLAG_BEHIND_PICKED],
             modifiersDelta: {
               GoblinRace: 1,
               GnomeRace: 1,
@@ -147,6 +160,7 @@ export const quest009Waterfall = createBranchingQuest({
           label: '[Placeholder] Option C.',
           nextStepId: 'waterfall-after-behind',
           effects: {
+            flagsSet: [WATERFALL_FLAG_BEHIND_PICKED],
             modifiersDelta: {
               SunbornRace: 1,
               RiverKingdomRace: 1,

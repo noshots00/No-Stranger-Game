@@ -1,9 +1,6 @@
-import { useState } from 'react';
-import type { NostrEvent } from '@nostrify/nostrify';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { NSG_SOCIAL_LOBBY_T, truncatePlaintext } from '../social/socialTags';
+import { ChatPanel } from '../chat/ChatPanel';
+import { getGlobalGroupId } from '../chat/nip29Client';
 
 type QueryStatus = 'pending' | 'error' | 'success';
 
@@ -13,10 +10,10 @@ type SocialTabProps = {
   activityStatus: QueryStatus;
   kindredSignalRows: { pubkey: string; name: string; text: string; latestAt: number }[];
   kindredSignalStatus: QueryStatus;
-  lobbyEvents: NostrEvent[];
-  lobbyStatus: QueryStatus;
   lobbyNameMap: Map<string, string>;
   characterNameLabel: string;
+  /** True when the player has set their character name (chat membership gate). */
+  hasCharacter: boolean;
 };
 
 export function SocialTab({
@@ -25,42 +22,11 @@ export function SocialTab({
   activityStatus,
   kindredSignalRows,
   kindredSignalStatus,
-  lobbyEvents,
-  lobbyStatus,
   lobbyNameMap,
   characterNameLabel,
+  hasCharacter,
 }: SocialTabProps) {
   const { user } = useCurrentUser();
-  const { mutate: publishNostrEvent, isPending: isLobbySendPending } = useNostrPublish();
-  const queryClient = useQueryClient();
-  const [lobbyInput, setLobbyInput] = useState('');
-  const [lobbyError, setLobbyError] = useState<string | null>(null);
-
-  const handleLobbySend = () => {
-    if (!user) return;
-    const trimmed = lobbyInput.trim();
-    if (!trimmed) {
-      setLobbyError('Message cannot be empty.');
-      return;
-    }
-    if (trimmed.length > 4000) {
-      setLobbyError('Message is too long.');
-      return;
-    }
-    setLobbyError(null);
-    publishNostrEvent(
-      { kind: 1, content: trimmed, tags: [['t', NSG_SOCIAL_LOBBY_T]] },
-      {
-        onSuccess: () => {
-          setLobbyInput('');
-          void queryClient.invalidateQueries({ queryKey: ['rpg-social-lobby', NSG_SOCIAL_LOBBY_T] });
-        },
-        onError: (error: unknown) => {
-          setLobbyError(error instanceof Error ? error.message : 'Failed to send.');
-        },
-      }
-    );
-  };
 
   return (
     <section className="space-y-8 pb-4 font-serif">
@@ -146,49 +112,15 @@ export function SocialTab({
             </button>
           ))}
         </div>
-        {user ? (
-          <>
-            <div className="facsimile-scroll mb-3 max-h-40 overflow-y-auto pr-1">
-              {lobbyStatus === 'pending' ? (
-                <p className="text-sm text-[var(--candle-ink-faint)]">Loading lobby…</p>
-              ) : lobbyStatus === 'error' ? (
-                <p className="text-sm text-rose-300/90">Could not load the lobby.</p>
-              ) : (
-                <ul className="space-y-2 text-sm text-[var(--candle-ink-soft)]">
-                  {lobbyEvents.map((event) => (
-                    <li key={event.id}>
-                      <span className="text-[var(--candle-ink)]">
-                        {event.pubkey === user?.pubkey ? characterNameLabel : (lobbyNameMap.get(event.pubkey) ?? event.pubkey.slice(0, 8))}
-                      </span>{' '}
-                      {truncatePlaintext(event.content, 280)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            {lobbyError ? <p className="mb-1 text-xs text-rose-300/90">{lobbyError}</p> : null}
-            <div className="flex min-h-[48px] items-end gap-3 border-b border-[var(--candle-rule)] pb-1 focus-within:border-[var(--candle-flame-soft)]">
-              <input
-                type="text"
-                value={lobbyInput}
-                onChange={(event) => setLobbyInput(event.target.value)}
-                placeholder="Lobby message…"
-                disabled={isLobbySendPending}
-                className="min-h-[44px] flex-1 border-0 bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)] focus:outline-none disabled:opacity-60"
-              />
-              <button
-                type="button"
-                disabled={isLobbySendPending}
-                onClick={handleLobbySend}
-                className="mb-1 min-h-[44px] shrink-0 px-2 font-serif text-sm text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)] disabled:opacity-60"
-              >
-                Send
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-[var(--candle-ink-soft)]">Log in to chat in the public lobby.</p>
-        )}
+        <ChatPanel
+          groupId={getGlobalGroupId()}
+          title="Global lobby"
+          emptyHint="No one has spoken in the global lobby yet."
+          characterNameLabel={characterNameLabel}
+          speakerNameMap={lobbyNameMap}
+          messageListClassName="max-h-40"
+          hasCharacter={hasCharacter}
+        />
       </div>
     </section>
   );
