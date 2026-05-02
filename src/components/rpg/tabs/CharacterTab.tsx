@@ -17,6 +17,7 @@ import {
 import { characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
+import { publicAsset } from '@/lib/publicAsset';
 import { getRaceDefinition } from '../races';
 import { nip19 } from 'nostr-tools';
 
@@ -202,7 +203,7 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
       <div className="grid grid-cols-2 gap-6 sm:gap-8">
         <div className="flex justify-center">
           <img
-            src="/quest-images/sunset.jpg"
+            src={publicAsset('quest-images/sunset.jpg')}
             alt="Character portrait"
             className="h-[266px] w-[200px] rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
           />

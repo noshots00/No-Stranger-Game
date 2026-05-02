@@ -1,3 +1,4 @@
+import { publicAsset } from '@/lib/publicAsset';
 import type { DialogueLogEntry } from './quests/types';
 import type { DialogueVoice } from './dialogueFormat';
 import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
@@ -16,13 +17,6 @@ const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
 
 const DIALOGUE_DEV_MESSAGE_CLASSES =
   'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[12px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
-
-/** Files under `public/` — prefix with Vite `BASE_URL` so assets work on GitHub Pages subpaths. */
-const publicAsset = (pathFromPublicRoot: string): string => {
-  const base = import.meta.env.BASE_URL;
-  const path = pathFromPublicRoot.replace(/^\/+/, '');
-  return `${base}${path}`;
-};
 
 const QUEST_IMAGE_SOURCES: Record<string, string> = {
   'The Forest Awakening': publicAsset('quest-images/horse.jpg'),
