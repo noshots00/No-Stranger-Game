@@ -87,7 +87,7 @@ export const locationActions: Record<string, string[]> = {
 
 /** Play-tab location button label → quest id (Silver Lake repeatable scenes). */
 export const SILVER_LAKE_SCENE_ACTION_QUEST: Record<string, string> = {
-  'Still waters': 'quest-017-silver-lake-shore',
+  'Still waters': 'quest-003-silver-lake',
   'Light in the water': 'quest-018-silver-lake-reflection',
 };
 export const HIDDEN_LOCATION_ACTIONS = new Set([
