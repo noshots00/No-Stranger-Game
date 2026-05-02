@@ -12,6 +12,64 @@ import {
   QUEST_ORIGIN_ID,
 } from './constants';
 
+const PRIMARY_STAT_SLUGS = new Set(Object.values(PRIMARY_STAT_MODIFIER_LABEL));
+
+const isHiddenClassModifierKey = (key: string): boolean =>
+  (HIDDEN_CLASS_MODIFIER_KEYS as readonly string[]).includes(key);
+
+/** Lowercase slug after `stat:` → legacy stat key (e.g. strength → Strength). */
+const slugToPrimaryStatKey = (slug: string): string | undefined => {
+  const entry = Object.entries(PRIMARY_STAT_MODIFIER_LABEL).find(([, v]) => v === slug);
+  return entry?.[0];
+};
+
+/** Display word for primary stat gains (matches prior copy: "strength" not "Strength"). */
+const primaryStatWordForKey = (key: string): string | null => {
+  if (Object.prototype.hasOwnProperty.call(PRIMARY_STAT_MODIFIER_LABEL, key)) {
+    return PRIMARY_STAT_MODIFIER_LABEL[key];
+  }
+  if (key.startsWith('stat:')) {
+    const slug = key.slice(5);
+    if (PRIMARY_STAT_SLUGS.has(slug)) return slug;
+  }
+  return null;
+};
+
+export function formatOrganicSlugForDisplay(slug: string): string {
+  if (!slug) return '';
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+
+export type ModifierSheetBucket = 'stat' | 'trait' | 'skill' | 'class' | 'blessing' | 'misc';
+
+export function getModifierSheetBucket(key: string): ModifierSheetBucket {
+  if (key.startsWith('stat:')) return 'stat';
+  if (key.startsWith('trait:')) return 'trait';
+  if (key.startsWith('skill:')) return 'skill';
+  if (key.startsWith('class:')) return 'class';
+  if (key.startsWith('blessing:')) return 'blessing';
+  return 'misc';
+}
+
+/** Short label for character sheet rows (canonical and legacy keys). */
+export function formatModifierKeyForCharacterSheet(key: string): string {
+  if (key.startsWith('stat:')) {
+    const slug = key.slice(5);
+    const legacy = slugToPrimaryStatKey(slug);
+    if (legacy) return legacy;
+  }
+  if (
+    key.startsWith('trait:') ||
+    key.startsWith('skill:') ||
+    key.startsWith('class:') ||
+    key.startsWith('blessing:')
+  ) {
+    const slug = key.slice(key.indexOf(':') + 1);
+    return formatOrganicSlugForDisplay(slug);
+  }
+  return key;
+}
+
 export function questStateHasRememberedName(state: QuestState): boolean {
   const name = state.playerName?.trim();
   if (!name) return false;
@@ -50,15 +108,27 @@ export const getGoldFromModifiers = (modifiers: Record<string, number>): number 
 
 export const isItemModifierKey = (key: string): boolean => /^(item|items|inventory)[:_-]/i.test(key);
 
-export type ModifierMessageKind = 'hidden_class' | 'primary_stat' | 'other';
+export type ModifierMessageKind =
+  | 'hidden_class'
+  | 'primary_stat'
+  | 'organic_trait'
+  | 'organic_skill'
+  | 'organic_class'
+  | 'organic_blessing'
+  | 'other';
 
 export const getModifierMessageKind = (key: string): ModifierMessageKind => {
-  if (HIDDEN_CLASS_MODIFIER_KEYS.includes(key as (typeof HIDDEN_CLASS_MODIFIER_KEYS)[number])) {
+  if (isHiddenClassModifierKey(key)) {
     return 'hidden_class';
   }
-  if (PRIMARY_STAT_MODIFIER_LABEL[key]) {
+  const statWord = primaryStatWordForKey(key);
+  if (statWord) {
     return 'primary_stat';
   }
+  if (key.startsWith('trait:')) return 'organic_trait';
+  if (key.startsWith('skill:')) return 'organic_skill';
+  if (key.startsWith('class:')) return 'organic_class';
+  if (key.startsWith('blessing:')) return 'organic_blessing';
   return 'other';
 };
 
@@ -92,6 +162,11 @@ export const getRewardLines = (
   return [...rewardLines, ...itemLines];
 };
 
+const canonicalSlug = (key: string, prefix: string): string => {
+  if (!key.startsWith(prefix)) return '';
+  return key.slice(prefix.length);
+};
+
 export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => {
   const lines: string[] = [];
 
@@ -105,7 +180,30 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
     if (delta <= 0) return;
 
     if (kind === 'primary_stat') {
-      lines.push(`You gain ${delta} ${PRIMARY_STAT_MODIFIER_LABEL[key]}!`);
+      const word = primaryStatWordForKey(key);
+      if (word) lines.push(`You gain ${delta} ${word}!`);
+      return;
+    }
+
+    if (kind === 'organic_trait') {
+      const slug = canonicalSlug(key, 'trait:');
+      lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (trait).`);
+      return;
+    }
+    if (kind === 'organic_skill') {
+      const slug = canonicalSlug(key, 'skill:');
+      lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (skill).`);
+      return;
+    }
+    if (kind === 'organic_class') {
+      const slug = canonicalSlug(key, 'class:');
+      lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (class).`);
+      return;
+    }
+    if (kind === 'organic_blessing') {
+      const slug = canonicalSlug(key, 'blessing:');
+      lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (blessing).`);
+      return;
     }
   });
 
@@ -151,13 +249,13 @@ export function buildDayReportDialogueLines(
   }
 
   return lines;
-}
+};
 
 export const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
   const classScores: Array<{ name: 'Warrior' | 'Rogue' | 'Mage'; score: number }> = [
-    { name: 'Warrior', score: modifiers.WarriorClass ?? 0 },
-    { name: 'Rogue', score: modifiers.RogueClass ?? 0 },
-    { name: 'Mage', score: modifiers.MageClass ?? 0 },
+    { name: 'Warrior', score: modifiers.WarriorClass ?? modifiers['class:warrior'] ?? 0 },
+    { name: 'Rogue', score: modifiers.RogueClass ?? modifiers['class:rogue'] ?? 0 },
+    { name: 'Mage', score: modifiers.MageClass ?? modifiers['class:mage'] ?? 0 },
   ];
 
   const unlocked = classScores.filter((entry) => entry.score >= CLASS_UNLOCK_POINTS);

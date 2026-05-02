@@ -37,7 +37,15 @@ export const CHARACTER_START_KIND = 10031;
 export const CHARACTER_START_D_TAG = 'character-start';
 export const FOLLOW_LIST_KIND = 3;
 export const GOLD_MODIFIER_KEYS = ['Gold', 'gold', 'Coins', 'coins'] as const;
-export const HIDDEN_CLASS_MODIFIER_KEYS = ['WarriorClass', 'MageClass', 'RogueClass'] as const;
+/** Legacy keys + canonical class keys for the three base paths (hidden from generic modifier lists). */
+export const HIDDEN_CLASS_MODIFIER_KEYS = [
+  'WarriorClass',
+  'MageClass',
+  'RogueClass',
+  'class:warrior',
+  'class:mage',
+  'class:rogue',
+] as const;
 export const PRIMARY_STAT_MODIFIER_LABEL: Record<string, string> = {
   Strength: 'strength',
   Dexterity: 'dexterity',

@@ -1,8 +1,14 @@
 import { SKILL_SHEET_LABEL, SKILL_XP_KEYS } from '../quests/skills-config';
 import { getCharacterLevel, getLevelFromXp } from '../quests/engine';
-import { getModifierMessageKind, getCharacterClass } from '../helpers';
+import {
+  formatModifierKeyForCharacterSheet,
+  getCharacterClass,
+  getModifierMessageKind,
+  getModifierSheetBucket,
+} from '../helpers';
 import { NPC_AVATAR_URL, characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
+import type { ModifierSheetBucket } from '../helpers';
 import { nip19 } from 'nostr-tools';
 
 type CharacterTabProps = {
@@ -10,6 +16,21 @@ type CharacterTabProps = {
   userPubkey: string | undefined;
   onOpenChronicle: () => void;
 };
+
+const BUCKET_ORDER: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
+
+const BUCKET_LABEL: Record<ModifierSheetBucket, string> = {
+  stat: 'Stats (quests)',
+  trait: 'Traits',
+  skill: 'Techniques',
+  class: 'Paths',
+  blessing: 'Blessings',
+  misc: 'Other modifiers',
+};
+
+function formatModifierLines(entries: [string, number][]): string {
+  return entries.map(([k, v]) => `${formatModifierKeyForCharacterSheet(k)} ${v}`).join(', ');
+}
 
 export function CharacterTab({ questState, userPubkey, onOpenChronicle }: CharacterTabProps) {
   const characterLevel = getCharacterLevel(questState);
@@ -23,9 +44,18 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
     visibleSkillSheetParts.push(`${SKILL_SHEET_LABEL[key]} ${getLevelFromXp(xp)}`);
   }
 
-  const nonZeroModifiers = Object.entries(questState.modifiers).filter(
+  const visibleModifiers = Object.entries(questState.modifiers).filter(
     ([name, value]) => value !== 0 && getModifierMessageKind(name) !== 'hidden_class'
   );
+
+  const byBucket = new Map<ModifierSheetBucket, [string, number][]>();
+  for (const b of BUCKET_ORDER) byBucket.set(b, []);
+  for (const entry of visibleModifiers) {
+    const bucket = getModifierSheetBucket(entry[0]);
+    byBucket.get(bucket)!.push(entry);
+  }
+
+  const blessingLines = formatModifierLines(byBucket.get('blessing') ?? []);
 
   return (
     <section className="space-y-8 pb-4">
@@ -106,17 +136,22 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           <span className="text-[var(--candle-ink)]">Afflictions:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
         </p>
         <p>
-          <span className="text-[var(--candle-ink)]">Blessings:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
+          <span className="text-[var(--candle-ink)]">Blessings:</span>{' '}
+          {blessingLines ? <span className="text-[var(--candle-ink-soft)]">{blessingLines}</span> : <span className="text-[var(--candle-ink-faint)]">—</span>}
         </p>
         <p>
           <span className="text-[var(--candle-ink)]">Curses:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
         </p>
-        {nonZeroModifiers.length > 0 ? (
-          <p>
-            <span className="text-[var(--candle-ink)]">Modifiers:</span>{' '}
-            {nonZeroModifiers.map(([name, value]) => `${name} ${value}`).join(', ')}
-          </p>
-        ) : null}
+        {BUCKET_ORDER.filter((b) => b !== 'blessing').map((bucket) => {
+          const rows = byBucket.get(bucket) ?? [];
+          if (rows.length === 0) return null;
+          const text = formatModifierLines(rows);
+          return (
+            <p key={bucket}>
+              <span className="text-[var(--candle-ink)]">{BUCKET_LABEL[bucket]}:</span> {text}
+            </p>
+          );
+        })}
       </div>
     </section>
   );

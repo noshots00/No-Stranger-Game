@@ -15,6 +15,7 @@ import {
   collectChoiceWorldLogLines,
   interpolateQuestWorldLogTemplates,
 } from '../worldLog';
+import { canonicalizeModifierMap, migrateModifiersToCanonical } from '../modifiers/canonical';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 
 const parseTimestampFromDialogueId = (id: string): number | null => {
@@ -129,11 +130,15 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       ? state.currentLocation
       : initial.currentLocation;
 
+  const rawModifiers =
+    state.modifiers && typeof state.modifiers === 'object' ? (state.modifiers as ModifierMap) : initial.modifiers;
+
   return {
     ...initial,
     ...state,
     currentLocation,
     experience: legacyExperience,
+    modifiers: migrateModifiersToCanonical(rawModifiers),
     skills: {
       explorationXp,
       foragingXp,
@@ -259,8 +264,9 @@ export const getCurrentStep = (state: QuestState, quest: QuestDefinition): Quest
 
 const mergeModifiers = (current: ModifierMap, incoming: ModifierMap | undefined): ModifierMap => {
   if (!incoming) return current;
+  const normalizedIncoming = canonicalizeModifierMap(incoming);
   const next = { ...current };
-  Object.entries(incoming).forEach(([modifier, delta]) => {
+  Object.entries(normalizedIncoming).forEach(([modifier, delta]) => {
     next[modifier] = (next[modifier] ?? 0) + delta;
   });
   return next;
