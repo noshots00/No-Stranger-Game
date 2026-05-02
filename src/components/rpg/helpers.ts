@@ -6,6 +6,9 @@ import { DAY_REPORT_SPEAKER } from './dialogueFormat';
 import { parseQuestCheckpointPayload } from './gameProfile';
 import {
   CLASS_UNLOCK_POINTS,
+  COPPER_PER_GOLD,
+  COPPER_PER_SILVER,
+  CURRENCY_COPPER_KEY,
   GOLD_MODIFIER_KEYS,
   HIDDEN_CLASS_MODIFIER_KEYS,
   PRIMARY_STAT_MODIFIER_LABEL,
@@ -175,8 +178,27 @@ export const appendDialogue = (speaker: string, text: string): DialogueLogEntry 
   };
 };
 
-export const getGoldFromModifiers = (modifiers: Record<string, number>): number =>
-  GOLD_MODIFIER_KEYS.reduce((total, key) => total + (modifiers[key] ?? 0), 0);
+export const getCopperFromModifiers = (modifiers: Record<string, number>): number =>
+  modifiers[CURRENCY_COPPER_KEY] ?? 0;
+
+export type CoinSplit = { gold: number; silver: number; copper: number };
+
+/** Split a copper total into gold/silver/copper. Negative totals split symmetrically. */
+export function splitCopperIntoCoins(totalCopper: number): CoinSplit {
+  const safe = Number.isFinite(totalCopper) ? Math.trunc(totalCopper) : 0;
+  const sign = safe < 0 ? -1 : 1;
+  const abs = Math.abs(safe);
+  const gold = Math.floor(abs / COPPER_PER_GOLD);
+  const remAfterGold = abs - gold * COPPER_PER_GOLD;
+  const silver = Math.floor(remAfterGold / COPPER_PER_SILVER);
+  const copper = remAfterGold - silver * COPPER_PER_SILVER;
+  return { gold: sign * gold, silver: sign * silver, copper: sign * copper };
+}
+
+/** Compact coin display: "12g 5s 7c". Always shows all three slots so layout stays stable. */
+export function formatCoinShort(split: CoinSplit): string {
+  return `${split.gold}g ${split.silver}s ${split.copper}c`;
+}
 
 export const isItemModifierKey = (key: string): boolean => /^(item|items|inventory)[:_-]/i.test(key);
 
@@ -215,9 +237,9 @@ export const getRewardLines = (
   nextModifiers: Record<string, number>
 ): string[] => {
   const rewardLines: string[] = [];
-  const goldDelta = getGoldFromModifiers(nextModifiers) - getGoldFromModifiers(prevModifiers);
-  if (goldDelta > 0) {
-    rewardLines.push(`You gained ${goldDelta} gold.`);
+  const copperDelta = getCopperFromModifiers(nextModifiers) - getCopperFromModifiers(prevModifiers);
+  if (copperDelta > 0) {
+    rewardLines.push(`You gained ${formatCoinShort(splitCopperIntoCoins(copperDelta))}.`);
   }
 
   const itemLines = Object.keys(nextModifiers)
@@ -243,7 +265,12 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
   const lines: string[] = [];
 
   Object.keys(nextState.modifiers).forEach((key) => {
-    if (isItemModifierKey(key) || GOLD_MODIFIER_KEYS.includes(key as (typeof GOLD_MODIFIER_KEYS)[number])) return;
+    if (
+      isItemModifierKey(key) ||
+      key === CURRENCY_COPPER_KEY ||
+      GOLD_MODIFIER_KEYS.includes(key as (typeof GOLD_MODIFIER_KEYS)[number])
+    )
+      return;
     const kind = getModifierMessageKind(key);
     if (kind === 'hidden_class') return;
     const previous = prevState.modifiers[key] ?? 0;

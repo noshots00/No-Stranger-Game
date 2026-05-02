@@ -1,4 +1,4 @@
-Last reviewed: 2026-05-02
+Last reviewed: 2026-05-02 (added Currency section)
 
 # Character modifiers reference
 
@@ -91,6 +91,21 @@ The Character tab subtitle then reads `Level N {Emoji} {DisplayName} {Class}` in
 Divine or narrative boons; also listed on the Blessings line when present.
 
 *Add entries as you design modifiers.*
+
+---
+
+### Currency
+
+**Authoring keys:** `Copper`, `Silver`, `Gold` (write any of them in `modifiersDelta`; `Coins` is accepted as a legacy alias for copper).
+
+**Conversion** (auto-folded into the canonical key `currency:copper` by [`canonicalizeModifierMap`](../../src/components/rpg/modifiers/canonical.ts)):
+
+- 1 silver = 12 copper
+- 1 gold   = 20 silver = 240 copper
+
+Stored as a single running total in coppers under `currency:copper`. The character sheet derives the **gold / silver / copper** display via [`splitCopperIntoCoins`](../../src/components/rpg/helpers.ts) and shows it on the info-list as `Coin: 12g 5s 7c`. The day report also surfaces gains in the same compact form.
+
+Negative deltas are allowed (future merchant/shop quests can subtract); the splitter handles them symmetrically.
 
 ---
 

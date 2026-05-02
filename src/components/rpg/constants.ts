@@ -43,6 +43,19 @@ export const CHARACTER_START_KIND = 10031;
 export const CHARACTER_START_D_TAG = 'character-start';
 export const FOLLOW_LIST_KIND = 3;
 export const GOLD_MODIFIER_KEYS = ['Gold', 'gold', 'Coins', 'coins'] as const;
+export const COPPER_PER_SILVER = 12;
+export const SILVER_PER_GOLD = 20;
+export const COPPER_PER_GOLD = COPPER_PER_SILVER * SILVER_PER_GOLD;
+
+export const CURRENCY_COPPER_KEY = 'currency:copper';
+
+/** Lowercase coin authoring key -> value in coppers. Folded into CURRENCY_COPPER_KEY at canonicalize time. */
+export const COIN_AUTHORING_KEY_VALUE: Record<string, number> = {
+  copper: 1,
+  silver: COPPER_PER_SILVER,
+  gold: COPPER_PER_GOLD,
+  coins: 1,
+};
 /** Legacy keys + canonical class keys for the three base paths (hidden from generic modifier lists). */
 export const HIDDEN_CLASS_MODIFIER_KEYS = [
   'WarriorClass',

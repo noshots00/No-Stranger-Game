@@ -1,14 +1,17 @@
 import { SKILL_SHEET_LABEL, SKILL_XP_KEYS } from '../quests/skills-config';
 import { getCharacterLevel, getLevelFromXp } from '../quests/engine';
 import {
+  formatCoinShort,
   formatModifierKeyForCharacterSheet,
   formatOrganicSlugForDisplay,
   getCharacterClass,
+  getCopperFromModifiers,
   getModifierMessageKind,
   getModifierSheetBucket,
   getPrimaryStatTotal,
   groupSkillModifiersByCategory,
   isPrimaryStatCanonicalKey,
+  splitCopperIntoCoins,
 } from '../helpers';
 import { characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
@@ -44,6 +47,8 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
   const characterClass = getCharacterClass(questState.modifiers);
   const race = getRaceDefinition(questState.assignedRaceSlug);
   const profileNpub = userPubkey ? nip19.npubEncode(userPubkey) : null;
+  const copperTotal = getCopperFromModifiers(questState.modifiers);
+  const coinLabel = formatCoinShort(splitCopperIntoCoins(copperTotal));
 
   const visibleSkillSheetParts: string[] = [];
   for (const key of SKILL_XP_KEYS) {
@@ -53,7 +58,10 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
   }
 
   const visibleModifiers = Object.entries(questState.modifiers).filter(
-    ([name, value]) => value !== 0 && getModifierMessageKind(name) !== 'hidden_class'
+    ([name, value]) =>
+      value !== 0 &&
+      getModifierMessageKind(name) !== 'hidden_class' &&
+      !name.startsWith('currency:')
   );
 
   const byBucket = new Map<ModifierSheetBucket, [string, number][]>();
@@ -92,6 +100,16 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
             ) : (
               <span className="text-[var(--candle-ink-faint)]">Race unknown</span>
             )}
+          </p>
+          <p className="font-serif text-sm">
+            <span className="text-[var(--candle-ink-soft)]">Coin: </span>
+            <span
+              className={`font-mono ${
+                copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
+              }`}
+            >
+              {coinLabel}
+            </span>
           </p>
         </div>
       </div>
