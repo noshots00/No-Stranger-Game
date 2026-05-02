@@ -213,12 +213,11 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
       </p>
       <div className="grid grid-cols-2 gap-6 sm:gap-8">
         <div className="flex justify-center">
-          <div
-            aria-label="Character portrait placeholder"
-            className="flex h-[266px] w-[200px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-[var(--candle-paper)] text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
-          >
-            Portrait
-          </div>
+          <img
+            src="/quest-images/sunset.jpg"
+            alt="Character portrait"
+            className="h-[266px] w-[200px] rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
+          />
         </div>
         <div className="flex flex-col justify-center gap-1">
           <p className="font-cormorant text-3xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
