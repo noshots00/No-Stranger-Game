@@ -280,10 +280,29 @@ export function RPGInterface() {
           !completedQuestIdSet.has('quest-022-warlords-choice'),
       },
     ];
-    const probabilisticFlagSet = new Set(dailyProbabilisticFlags.map((entry) => entry.flag));
-    const retainedFlags = updatedState.flags.filter((flag) => !probabilisticFlagSet.has(flag));
-    const activeFlags = dailyProbabilisticFlags.filter((entry) => entry.active).map((entry) => entry.flag);
-    let promotedFlags = [...retainedFlags, ...activeFlags];
+    const FLAG_TO_QUEST_ID: Record<string, string> = {
+      [WOLF_ATTACK_DAILY_FLAG]: 'quest-008-wolf-attack',
+      [EARRING_DAILY_FLAG]: 'quest-010-find-earring',
+      [BRACELET_DAILY_FLAG]: 'quest-011-find-bracelet',
+      [SHOE_DAILY_FLAG]: 'quest-012-find-shoe',
+      [HAT_DAILY_FLAG]: 'quest-013-find-hat',
+      [TROLLEY_DAILY_FLAG]: 'quest-017-ironwood-switch',
+      [HEINZ_DAILY_FLAG]: 'quest-019-plaguebloom-phial',
+      [PRISONER_DAILY_FLAG]: 'quest-020-iron-cage',
+      [LIFEBOAT_DAILY_FLAG]: 'quest-021-nine-oar-raft',
+      [SOPHIE_DAILY_FLAG]: 'quest-022-warlords-choice',
+    };
+    const probabilisticFlagSet = new Set(Object.keys(FLAG_TO_QUEST_ID));
+    const retainedFlags = updatedState.flags.filter((flag) => {
+      if (!probabilisticFlagSet.has(flag)) return true;
+      const questId = FLAG_TO_QUEST_ID[flag];
+      return questId ? !completedQuestIdSet.has(questId) : false;
+    });
+    const candidateNewFlags = dailyProbabilisticFlags
+      .filter((entry) => entry.active && !retainedFlags.includes(entry.flag))
+      .slice(0, 1)
+      .map((entry) => entry.flag);
+    let promotedFlags = Array.from(new Set([...retainedFlags, ...candidateNewFlags]));
     for (const { pending, unlocked } of DELAYED_QUEST_UNLOCKS) {
       if (promotedFlags.includes(pending)) {
         promotedFlags = promotedFlags.filter((f) => f !== pending);

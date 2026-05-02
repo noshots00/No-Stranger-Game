@@ -111,11 +111,11 @@ export const quest004AbandonedShelter: QuestDefinition = {
         },
         {
           id: 'shelter-loot-placeholder-1',
-          label: 'place holder items 1',
+          label: 'A small silver cross on a worn cord.',
           completeQuest: true,
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
-            questItemsAdd: ['place holder items 1'],
+            questItemsAdd: ['A small silver cross on a worn cord.'],
             modifiersDelta: {
               GoblinRace: 1,
               HalflingRace: 1,
@@ -125,11 +125,11 @@ export const quest004AbandonedShelter: QuestDefinition = {
         },
         {
           id: 'shelter-loot-placeholder-2',
-          label: 'place holder items 2',
+          label: 'An exotic arrow with iridescent fletching.',
           completeQuest: true,
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
-            questItemsAdd: ['place holder items 2'],
+            questItemsAdd: ['An exotic arrow with iridescent fletching.'],
             modifiersDelta: {
               DwarfRace: 1,
               TrollRace: 1,
@@ -139,11 +139,11 @@ export const quest004AbandonedShelter: QuestDefinition = {
         },
         {
           id: 'shelter-loot-placeholder-3',
-          label: 'place holder items 3',
+          label: 'A copper signet ring, sigil worn smooth.',
           completeQuest: true,
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
-            questItemsAdd: ['place holder items 3'],
+            questItemsAdd: ['A copper signet ring, sigil worn smooth.'],
             modifiersDelta: {
               WoodElfRace: 1,
               CatfolkRace: 1,
@@ -153,11 +153,11 @@ export const quest004AbandonedShelter: QuestDefinition = {
         },
         {
           id: 'shelter-loot-placeholder-4',
-          label: 'place holder items 4',
+          label: 'A bone-handled fishing knife.',
           completeQuest: true,
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
-            questItemsAdd: ['place holder items 4'],
+            questItemsAdd: ['A bone-handled fishing knife.'],
             modifiersDelta: {
               RiverKingdomRace: 1,
               SunbornRace: 1,
@@ -167,11 +167,11 @@ export const quest004AbandonedShelter: QuestDefinition = {
         },
         {
           id: 'shelter-loot-placeholder-5',
-          label: 'place holder items 5',
+          label: 'A folded scrap of map, ink-faded at the edges.',
           completeQuest: true,
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
-            questItemsAdd: ['place holder items 5'],
+            questItemsAdd: ['A folded scrap of map, ink-faded at the edges.'],
             modifiersDelta: {
               HighElfRace: 1,
               HalflingRace: 1,

@@ -35,6 +35,19 @@ const QUEST_IMAGE_SOURCES: Record<string, string> = {
   'Mushroom Patch': publicAsset('quest-images/lakeside.jpg'),
   'Fever Dream': publicAsset('quest-images/night.jpg'),
   'Sweet Dream': publicAsset('quest-images/sunset.jpg'),
+  'Whispering Tree': publicAsset('quest-images/horse.jpg'),
+  'Lone Sapling': publicAsset('quest-images/lakeside.jpg'),
+  'Crooked Cairn': publicAsset('quest-images/night.jpg'),
+  'Sun-Bleached Bone': publicAsset('quest-images/sunset.jpg'),
+  'Sleeping Hare': publicAsset('quest-images/horse.jpg'),
+  'Toppled Stones': publicAsset('quest-images/lakeside.jpg'),
+  'Hidden Spring': publicAsset('quest-images/night.jpg'),
+  'Charcoal Sigil': publicAsset('quest-images/sunset.jpg'),
+  'Fallen Companion': publicAsset('quest-images/horse.jpg'),
+  'Distant Smoke': publicAsset('quest-images/lakeside.jpg'),
+  'Twin Mounds': publicAsset('quest-images/night.jpg'),
+  'Carved Acorns': publicAsset('quest-images/sunset.jpg'),
+  'Buried Lantern': publicAsset('quest-images/horse.jpg'),
 };
 
 export function DialogueVoiceBlock({

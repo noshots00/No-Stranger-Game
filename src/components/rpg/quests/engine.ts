@@ -359,7 +359,8 @@ const moveToStep = (
   currentStepId: string
 ): QuestState => {
   const currentProgress = state.progressByQuestId[quest.id];
-  const nextStepId = choice.nextStepId ?? currentStepId;
+  const clearActive = Boolean(choice.effects?.clearActiveQuest);
+  const nextStepId = clearActive ? quest.startStepId : (choice.nextStepId ?? currentStepId);
   const nextStep = quest.steps[nextStepId];
   const mergedFlags = mergeFlags(state.flags, choice.effects);
   const requiredAll = quest.completionRequiresAllFlags;
@@ -368,12 +369,13 @@ const moveToStep = (
     requiredAll.length > 0 &&
     requiredAll.every((flag) => mergedFlags.includes(flag));
   const isCompleted =
-    Boolean(choice.completeQuest || nextStep?.completeQuest) || allCompletionFlagsMet;
+    !clearActive &&
+    (Boolean(choice.completeQuest || nextStep?.completeQuest) || allCompletionFlagsMet);
   const raceLocked = state.assignedRaceSlug !== null;
 
   let nextState: QuestState = {
     ...state,
-    activeQuestId: isCompleted ? null : state.activeQuestId,
+    activeQuestId: isCompleted || clearActive ? null : state.activeQuestId,
     modifiers: mergeModifiers(state.modifiers, choice.effects?.modifiersDelta, raceLocked),
     flags: mergedFlags,
     questItems: mergeQuestItems(state.questItems, choice.effects),
@@ -382,7 +384,9 @@ const moveToStep = (
       [quest.id]: {
         currentStepId: nextStepId,
         isCompleted,
-        choiceHistory: [...(currentProgress?.choiceHistory ?? []), choice.id],
+        choiceHistory: clearActive
+          ? []
+          : [...(currentProgress?.choiceHistory ?? []), choice.id],
       },
     },
   };

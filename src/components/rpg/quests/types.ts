@@ -7,6 +7,11 @@ export type ChoiceEffect = {
   questItemsAdd?: string[];
   /** Set permanent race from highest `race:*` modifier tally (deterministic tie-break). */
   assignRaceFromRaceModifiers?: boolean;
+  /**
+   * Clears the player's active quest slot and resets this quest's progress to its `startStepId`,
+   * so the quest stays available for re-entry without being marked complete.
+   */
+  clearActiveQuest?: boolean;
 };
 
 export type QuestChoice = {

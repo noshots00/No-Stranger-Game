@@ -9,7 +9,6 @@ export const quest018SilverLakeReflection = createBranchingQuest({
   startStepId: 'reflection-1',
   availability: {
     requiresAnyFlags: [SILVER_LAKE_FLAG],
-    requiresLocation: 'Silver Lake',
     minCharacterLevel: 10,
     requiresAssignedRaceUnset: true,
   },
@@ -19,7 +18,12 @@ export const quest018SilverLakeReflection = createBranchingQuest({
       type: 'choice',
       text: 'You think you see a light in the water.',
       choices: [
-        { id: 'reflection-leave', label: 'Leave for now.', completeQuest: true },
+        {
+          id: 'reflection-leave',
+          label: 'Leave for now.',
+          effects: { clearActiveQuest: true },
+          worldEventLogAdd: ['{playerName} stepped back from the silver light.'],
+        },
         {
           id: 'reflection-lean',
           label: 'Lean forward.',
