@@ -19,11 +19,17 @@ import {
   BRACELET_DAILY_FLAG,
   DELAYED_QUEST_UNLOCKS,
   DAILY_ITEM_QUEST_CHANCE,
+  DILEMMA_DAILY_CHANCE,
   WOLF_ATTACK_DAILY_CHANCE,
   WOLF_ATTACK_DAILY_FLAG,
   EARRING_DAILY_FLAG,
   HAT_DAILY_FLAG,
   SHOE_DAILY_FLAG,
+  TROLLEY_DAILY_FLAG,
+  HEINZ_DAILY_FLAG,
+  PRISONER_DAILY_FLAG,
+  LIFEBOAT_DAILY_FLAG,
+  SOPHIE_DAILY_FLAG,
   DAILY_XP,
   DAY_IN_MS,
   DIALOGUE_BREATHE_OVERFLOW_RATIO,
@@ -236,12 +242,43 @@ export function RPGInterface() {
       skills: nextSkills,
       lastDailyXpDay: dayCounter,
     };
+    const completedQuestIdSet = new Set(getCompletedQuestIds(updatedState));
     const dailyProbabilisticFlags: Array<{ flag: string; active: boolean }> = [
       { flag: WOLF_ATTACK_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 1) < WOLF_ATTACK_DAILY_CHANCE },
       { flag: EARRING_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 2) < DAILY_ITEM_QUEST_CHANCE },
       { flag: BRACELET_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 3) < DAILY_ITEM_QUEST_CHANCE },
       { flag: SHOE_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 4) < DAILY_ITEM_QUEST_CHANCE },
       { flag: HAT_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 5) < DAILY_ITEM_QUEST_CHANCE },
+      {
+        flag: TROLLEY_DAILY_FLAG,
+        active:
+          getDeterministicDailyRoll(dayCounter, 6) < DILEMMA_DAILY_CHANCE &&
+          !completedQuestIdSet.has('quest-017-ironwood-switch'),
+      },
+      {
+        flag: HEINZ_DAILY_FLAG,
+        active:
+          getDeterministicDailyRoll(dayCounter, 7) < DILEMMA_DAILY_CHANCE &&
+          !completedQuestIdSet.has('quest-019-plaguebloom-phial'),
+      },
+      {
+        flag: PRISONER_DAILY_FLAG,
+        active:
+          getDeterministicDailyRoll(dayCounter, 8) < DILEMMA_DAILY_CHANCE &&
+          !completedQuestIdSet.has('quest-020-iron-cage'),
+      },
+      {
+        flag: LIFEBOAT_DAILY_FLAG,
+        active:
+          getDeterministicDailyRoll(dayCounter, 9) < DILEMMA_DAILY_CHANCE &&
+          !completedQuestIdSet.has('quest-021-nine-oar-raft'),
+      },
+      {
+        flag: SOPHIE_DAILY_FLAG,
+        active:
+          getDeterministicDailyRoll(dayCounter, 10) < DILEMMA_DAILY_CHANCE &&
+          !completedQuestIdSet.has('quest-022-warlords-choice'),
+      },
     ];
     const probabilisticFlagSet = new Set(dailyProbabilisticFlags.map((entry) => entry.flag));
     const retainedFlags = updatedState.flags.filter((flag) => !probabilisticFlagSet.has(flag));

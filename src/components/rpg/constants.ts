@@ -19,6 +19,12 @@ export const FEVER_DREAM_PENDING_FLAG = 'fever-dream-pending';
 export const FEVER_DREAM_UNLOCKED_FLAG = 'fever-dream-unlocked';
 export const SWEET_DREAM_PENDING_FLAG = 'sweet-dream-pending';
 export const SWEET_DREAM_UNLOCKED_FLAG = 'sweet-dream-unlocked';
+export const DILEMMA_DAILY_CHANCE = 0.1;
+export const TROLLEY_DAILY_FLAG = 'trolley-daily-active';
+export const HEINZ_DAILY_FLAG = 'heinz-daily-active';
+export const PRISONER_DAILY_FLAG = 'prisoner-daily-active';
+export const LIFEBOAT_DAILY_FLAG = 'lifeboat-daily-active';
+export const SOPHIE_DAILY_FLAG = 'sophie-daily-active';
 
 /** Pending flags promoted to unlocked on the next daily reset (one-day delay). */
 export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: string }> = [
