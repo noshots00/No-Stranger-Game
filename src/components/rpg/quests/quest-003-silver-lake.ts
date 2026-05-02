@@ -1,11 +1,41 @@
-import { createTwoDialoguePlaceholderQuest } from './two-dialogue-placeholder-quest';
+import { SILVER_LAKE_FLAG } from '../constants';
+import { createBranchingQuest } from './branching-quest-template';
 
-export const quest003SilverLake = createTwoDialoguePlaceholderQuest({
+/** First visit / tracked quest: unlocks Silver Lake on the map and sets `silver-lake-unlocked`. */
+export const quest003SilverLake = createBranchingQuest({
   id: 'quest-003-silver-lake',
   title: 'Silver Lake',
-  briefing: 'A still sheet of water beyond the pines. Placeholder beats until modifiers are wired.',
+  briefing: 'A still sheet of water beyond the pines—cold, deep, and quiet.',
   createdAt: 3,
-  minExplorationLevel: 4,
-  stepPrefix: 'silver',
-  completionFlags: ['silver-lake-unlocked'],
+  startStepId: 'sl3-1',
+  availability: {
+    minExplorationLevel: 4,
+  },
+  steps: [
+    {
+      id: 'sl3-1',
+      type: 'choice',
+      text: 'The water on the lake is still as glass.',
+      choices: [
+        {
+          id: 'sl3-leave',
+          label: 'Leave for now',
+          completeQuest: true,
+          effects: { flagsSet: [SILVER_LAKE_FLAG] },
+        },
+        {
+          id: 'sl3-feel',
+          label: 'Feel the water.',
+          nextStepId: 'sl3-2',
+          effects: { flagsSet: [SILVER_LAKE_FLAG] },
+        },
+      ],
+    },
+    {
+      id: 'sl3-2',
+      type: 'message',
+      text: 'The water is colder than you expected.',
+      completeQuest: true,
+    },
+  ],
 });
