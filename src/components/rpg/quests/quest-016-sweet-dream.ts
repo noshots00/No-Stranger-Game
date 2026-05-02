@@ -21,7 +21,7 @@ export const quest016SweetDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               SunbornRace: 1,
-              ClericClass: 1,
+              HealerClass: 1,
               CharismaStat: 1,
               Hopeful: 1,
               CourageTrait: 1,
@@ -38,7 +38,7 @@ export const quest016SweetDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               WoodElfRace: 1,
-              DruidClass: 1,
+              RangerClass: 1,
               WisdomStat: 1,
               Peaceful: 1,
               CautiousTrait: 1,
@@ -54,7 +54,7 @@ export const quest016SweetDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               HalflingRace: 1,
-              ArcherClass: 1,
+              RangerClass: 1,
               DexterityStat: 1,
               Content: 1,
               CourageTrait: 1,
@@ -70,7 +70,7 @@ export const quest016SweetDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               HighElfRace: 1,
-              EnchanterClass: 1,
+              MageClass: 1,
               IntelligenceStat: 1,
               Serene: 1,
               CourageTrait: 1,
@@ -87,7 +87,7 @@ export const quest016SweetDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               GnomeRace: 1,
-              ChannellerClass: 1,
+              MageClass: 1,
               ConstitutionStat: 1,
               Curious: 1,
               CautiousTrait: 1,

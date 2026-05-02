@@ -6,9 +6,9 @@ Human-maintained catalog of RPG modifier semantics. **Not** authoritative for th
 
 ## Allowed `*Race` and `*Class` stems
 
-**Required for new work:** organic **`Race`** stems must name a **subrace** from [`docs/RACES.md`](../../docs/RACES.md) (the thirteen entries under Human, Elf, Dwarf, Monster, and Animal). **`Class`** stems must name a **specialization** from [`docs/CLASSES.md`](../../docs/CLASSES.md), **or**—when the quest should advance the three subtitle paths—the core trio `WarriorClass`, `MageClass`, `RogueClass` used by [`getCharacterClass`](../../src/components/rpg/helpers.ts).
+**Required for new work:** organic **`Race`** stems must name a **subrace** from [`docs/RACES.md`](../../docs/RACES.md) (the thirteen entries under Human, Elf, Dwarf, Monster, and Animal). **`Class`** stems must name one of the five **archetypes:** `WarriorClass`, `MageClass`, `RogueClass`, `HealerClass`, `RangerClass`—matching [`docs/CLASSES.md`](../../docs/CLASSES.md) archetypes (specializations like Knight or Elementalist are narrative only; do not use them as modifier keys).
 
-Examples: `WoodElfRace`, `River_KingdomRace`, `KnightClass`, `EnchanterClass`, `MageClass`.
+Examples: `WoodElfRace`, `RiverKingdomRace`, `WarriorClass`, `MageClass`, `RangerClass`.
 
 Do **not** invent ad‑hoc races or classes (e.g. `SporebornRace`, `ScoutClass`) unless you first extend [`docs/RACES.md`](../../docs/RACES.md) / [`docs/CLASSES.md`](../../docs/CLASSES.md). Older quests may still carry legacy keys until migrated.
 
@@ -24,7 +24,7 @@ Do **not** invent ad‑hoc races or classes (e.g. `SporebornRace`, `ScoutClass`)
 
 ### Class
 
-**Canon:** specializations in [`docs/CLASSES.md`](../../docs/CLASSES.md) (Knight, Duelist, Elementalist, …). Prefer organic keys like `KnightClass`, `ElementalistClass` for narrative class flavor.
+**Canon:** five archetypes in [`docs/CLASSES.md`](../../docs/CLASSES.md): Warrior, Mage, Rogue, Healer, Ranger. Quest `modifiersDelta` uses organic keys `WarriorClass`, `MageClass`, `RogueClass`, `HealerClass`, `RangerClass` only.
 
 Core paths tracked for the subtitle class picker; `class:warrior`, `class:mage`, and `class:rogue` are hidden on the sheet but still accumulate.
 
@@ -32,7 +32,9 @@ Core paths tracked for the subtitle class picker; `class:warrior`, `class:mage`,
 - **`Mage`** (`class:mage`, organic `MageClass`) — arcane focus; advances the Mage path.
 - **`Rogue`** (`class:rogue`, organic `RogueClass`) — stealth or agility focus; advances the Rogue path.
 
-New specialization modifiers must match [`docs/CLASSES.md`](../../docs/CLASSES.md); update that doc if you add a specialization.
+`HealerClass` / `RangerClass` appear under Paths when present; they do not drive the three-way subtitle picker until extended in [`getCharacterClass`](../../src/components/rpg/helpers.ts).
+
+Specialization names (Knight, Cleric, …) remain documentation-only unless you explicitly extend modifier rules.
 
 ---
 

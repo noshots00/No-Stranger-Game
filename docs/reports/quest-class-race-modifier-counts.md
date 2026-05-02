@@ -10,7 +10,7 @@ For each stem (e.g. `Warrior` + `Class`), **values are summed** across every occ
 node scripts/count-quest-class-race-modifiers.mjs
 ```
 
-Last generated: 2026-05-02
+Last generated: 2026-05-02 (archetype-only class keys)
 
 ---
 
@@ -18,18 +18,11 @@ Last generated: 2026-05-02
 
 | Class | Total delta |
 | ----- | -----------:|
-| Mage | 5 |
-| Warrior | 5 |
-| Rogue | 3 |
-| Archer | 2 |
-| Druid | 2 |
-| Enchanter | 2 |
-| Assassin | 1 |
-| Blademaster | 1 |
-| Channeller | 1 |
-| Cleric | 1 |
-| Elementalist | 1 |
-| Knight | 1 |
+| Mage | 9 |
+| Warrior | 6 |
+| Rogue | 5 |
+| Ranger | 4 |
+| Healer | 1 |
 
 ## Races
 

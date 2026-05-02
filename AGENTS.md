@@ -43,7 +43,7 @@ This project is a Nostr client application built with React 19.x, TailwindCSS 3.
   - `useDMContext`: Hook exported from DMContext for direct messaging (NIP-04 & NIP-17)
   - `useConversationMessages`: Hook exported from DMContext for paginated messages
 - `/src/test/`: Testing utilities including TestApp component
-- `/docs/RACES.md`, `/docs/CLASSES.md`: canonical subraces and class specializations for quest `modifiersDelta` (see `.agents/docs/character-modifiers.md`); use only those lists for new `*Race` / `*Class` keys unless the docs are updated first
+- `/docs/RACES.md`, `/docs/CLASSES.md`: canonical subraces and five class **archetypes** for quest `modifiersDelta` (see `.agents/docs/character-modifiers.md`); use only those lists for new `*Race` / `*Class` keys unless the docs are updated first
 - `/public/`: Static assets
 - `App.tsx`: Main app component with provider setup (**CRITICAL**: this file is **already configured** with `QueryClientProvider`, `NostrProvider`, `UnheadProvider` and other important providers - **read this file before making changes**. Changes are usually not necessary unless adding new providers. Changing this file may break the application)
 - `AppRouter.tsx`: React Router configuration

@@ -21,7 +21,7 @@ export const quest015FeverDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               AtlantiansRace: 1,
-              KnightClass: 1,
+              WarriorClass: 1,
               ConstitutionStat: 1,
               CautiousTrait: 1,
               SwimmingSkill: 1,
@@ -36,7 +36,7 @@ export const quest015FeverDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               SunbornRace: 1,
-              ElementalistClass: 1,
+              MageClass: 1,
               WisdomStat: 1,
               Haunted: 1,
               CowardTrait: 1,
@@ -53,7 +53,7 @@ export const quest015FeverDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               RiverKingdomRace: 1,
-              EnchanterClass: 1,
+              MageClass: 1,
               IntelligenceStat: 1,
               Paranoid: 1,
               CautiousTrait: 1,
@@ -70,7 +70,7 @@ export const quest015FeverDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               NightElfRace: 1,
-              AssassinClass: 1,
+              RogueClass: 1,
               DexterityStat: 1,
               CowardTrait: 1,
               StealthSkill: 1,
@@ -85,7 +85,7 @@ export const quest015FeverDream = createBranchingQuest({
           effects: {
             modifiersDelta: {
               OrcRace: 1,
-              BlademasterClass: 1,
+              RogueClass: 1,
               StrengthStat: 1,
               CourageTrait: 1,
               BashSkill: 1,
