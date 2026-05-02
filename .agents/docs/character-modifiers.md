@@ -83,6 +83,16 @@ Divine or narrative boons; also listed on the Blessings line when present.
 
 ---
 
+### Quest shipment: fever dreams
+
+[`quest-015-fever-dream`](../../src/components/rpg/quests/quest-015-fever-dream.ts)
+
+- **Traits:** `DreadTrait`, `HauntedTrait`, `ParanoidTrait`, `FearTrait`, `FuryTrait`
+- **Blessings:** `CrushingDepthBlessing`, `SolarBurdenBlessing`, `InkVeilBlessing`, `MoonCurseBlessing`, `ArenaEchoBlessing`
+- **Skills:** `Survival_RiptideSkill`, `Magic_ElementalSkill`, `Magic_IllusionSkill`, `Stealth_PursuitSkill`, `Combat_BrawlSkill`
+
+---
+
 ### Misc
 
 Modifiers **without** an organic suffix (e.g. `Coward`, `Leader`) or anything that does not map to `class:|trait:|skill:|stat:|blessing:`.
