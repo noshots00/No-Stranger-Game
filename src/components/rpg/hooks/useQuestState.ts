@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { createInitialQuestState, normalizeQuestState } from '../quests/engine';
@@ -13,6 +13,15 @@ export function useQuestState() {
   const [isQuestStateHydrated, setIsQuestStateHydrated] = useState(false);
 
   const questStateStorageKey = user ? `${QUEST_STATE_STORAGE_KEY}:${user.pubkey}` : QUEST_STATE_STORAGE_KEY;
+
+  // When the account changes, reset in-memory state and block persist *before* the next
+  // useEffect pass. Otherwise the persist effect can run with the new storage key but the
+  // *previous* user's questState and isQuestStateHydrated === true, clobbering the new
+  // account's localStorage (and the UI) with the old character.
+  useLayoutEffect(() => {
+    setIsQuestStateHydrated(false);
+    setQuestState(createInitialQuestState());
+  }, [questStateStorageKey]);
 
   useEffect(() => {
     let cancelled = false;
