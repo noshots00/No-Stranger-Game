@@ -17,23 +17,30 @@ const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
 const DIALOGUE_DEV_MESSAGE_CLASSES =
   'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[12px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
 
+/** Files under `public/` — prefix with Vite `BASE_URL` so assets work on GitHub Pages subpaths. */
+const publicAsset = (pathFromPublicRoot: string): string => {
+  const base = import.meta.env.BASE_URL;
+  const path = pathFromPublicRoot.replace(/^\/+/, '');
+  return `${base}${path}`;
+};
+
 const QUEST_IMAGE_SOURCES: Record<string, string> = {
-  'The Forest Awakening': '/quest-images/horse.jpg',
-  'Boar in the Brush': '/quest-images/lakeside.jpg',
-  'Silver Lake': '/quest-images/night.jpg',
-  'Abandoned Shelter': '/quest-images/sunset.jpg',
-  'Airship?!': '/quest-images/horse.jpg',
-  'Wandering Skeleton': '/quest-images/lakeside.jpg',
-  'The Green Hand': '/quest-images/night.jpg',
-  'Wolf Attack': '/quest-images/sunset.jpg',
-  'The Waterfall': '/quest-images/horse.jpg',
-  'Find an Earring': '/quest-images/lakeside.jpg',
-  'Find a Bracelet': '/quest-images/night.jpg',
-  'Find a Shoe': '/quest-images/sunset.jpg',
-  'Find a Hat': '/quest-images/horse.jpg',
-  'Mushroom Patch': '/quest-images/lakeside.jpg',
-  'Fever Dream': '/quest-images/night.jpg',
-  'Sweet Dream': '/quest-images/sunset.jpg',
+  'The Forest Awakening': publicAsset('quest-images/horse.jpg'),
+  'Boar in the Brush': publicAsset('quest-images/lakeside.jpg'),
+  'Silver Lake': publicAsset('quest-images/night.jpg'),
+  'Abandoned Shelter': publicAsset('quest-images/sunset.jpg'),
+  'Airship?!': publicAsset('quest-images/horse.jpg'),
+  'Wandering Skeleton': publicAsset('quest-images/lakeside.jpg'),
+  'The Green Hand': publicAsset('quest-images/night.jpg'),
+  'Wolf Attack': publicAsset('quest-images/sunset.jpg'),
+  'The Waterfall': publicAsset('quest-images/horse.jpg'),
+  'Find an Earring': publicAsset('quest-images/lakeside.jpg'),
+  'Find a Bracelet': publicAsset('quest-images/night.jpg'),
+  'Find a Shoe': publicAsset('quest-images/sunset.jpg'),
+  'Find a Hat': publicAsset('quest-images/horse.jpg'),
+  'Mushroom Patch': publicAsset('quest-images/lakeside.jpg'),
+  'Fever Dream': publicAsset('quest-images/night.jpg'),
+  'Sweet Dream': publicAsset('quest-images/sunset.jpg'),
 };
 
 export function DialogueVoiceBlock({
