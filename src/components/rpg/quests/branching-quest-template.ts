@@ -40,6 +40,7 @@ type BranchingQuestOptions = {
   startStepId: string;
   availability?: QuestAvailability;
   steps: StepBlueprint[];
+  completionRequiresAllFlags?: string[];
 };
 
 const includesAny = (haystack: string[], needles: string[]): boolean => needles.some((n) => haystack.includes(n));
@@ -109,5 +110,6 @@ export function createBranchingQuest(options: BranchingQuestOptions): QuestDefin
     startStepId: options.startStepId,
     isAvailable: makeQuestAvailability(options.availability),
     steps,
+    ...(options.completionRequiresAllFlags ? { completionRequiresAllFlags: options.completionRequiresAllFlags } : {}),
   };
 }

@@ -59,6 +59,8 @@ export type QuestDefinition = {
   startStepId: string;
   steps: Record<string, QuestStep>;
   isAvailable: (context: QuestContext) => boolean;
+  /** When set, the quest completes once all listed flags are present after a choice (union with `completeQuest`). */
+  completionRequiresAllFlags?: string[];
 };
 
 export type QuestContext = {
