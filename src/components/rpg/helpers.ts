@@ -16,6 +16,24 @@ import {
 
 const PRIMARY_STAT_SLUGS = new Set(Object.values(PRIMARY_STAT_MODIFIER_LABEL));
 
+/** Base score for each primary attribute before quest/race `stat:*` deltas. */
+export const PRIMARY_STAT_SCORE_BASE = 1;
+
+/** Total displayed score for one primary stat row (base + sum of `stat:<slug>` modifier). */
+export function getPrimaryStatTotal(modifiers: Record<string, number>, statLabel: string): number {
+  const slug = PRIMARY_STAT_MODIFIER_LABEL[statLabel];
+  if (!slug) return PRIMARY_STAT_SCORE_BASE;
+  const delta = modifiers[`stat:${slug}`] ?? 0;
+  return PRIMARY_STAT_SCORE_BASE + delta;
+}
+
+/** True if this canonical key is one of the six primary attributes (main character sheet block). */
+export function isPrimaryStatCanonicalKey(key: string): boolean {
+  if (!key.startsWith('stat:')) return false;
+  const slug = key.slice(5);
+  return PRIMARY_STAT_SLUGS.has(slug);
+}
+
 const isHiddenClassModifierKey = (key: string): boolean =>
   (HIDDEN_CLASS_MODIFIER_KEYS as readonly string[]).includes(key);
 

@@ -6,7 +6,9 @@ import {
   getCharacterClass,
   getModifierMessageKind,
   getModifierSheetBucket,
+  getPrimaryStatTotal,
   groupSkillModifiersByCategory,
+  isPrimaryStatCanonicalKey,
 } from '../helpers';
 import { NPC_AVATAR_URL, characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
@@ -118,13 +120,15 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
         </button>
       </p>
       <div className="space-y-0">
-        {characterStats.map(([label, value]) => (
+        {characterStats.map(([label]) => (
           <div
             key={label}
             className="flex items-baseline justify-between gap-4 border-b border-[var(--candle-rule)] py-2.5 font-serif text-sm"
           >
             <p className="uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">{label}</p>
-            <p className="font-mono text-[var(--candle-ink)]">{value}</p>
+            <p className="font-mono text-[var(--candle-ink)]">
+              {getPrimaryStatTotal(questState.modifiers, label)}
+            </p>
           </div>
         ))}
       </div>
@@ -167,7 +171,10 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           <span className="text-[var(--candle-ink)]">Curses:</span> <span className="text-[var(--candle-ink-faint)]">—</span>
         </p>
         {MODIFIER_BUCKETS_HEAD.map((bucket) => {
-          const rows = byBucket.get(bucket) ?? [];
+          let rows = byBucket.get(bucket) ?? [];
+          if (bucket === 'stat') {
+            rows = rows.filter(([key]) => !isPrimaryStatCanonicalKey(key));
+          }
           if (rows.length === 0) return null;
           return (
             <p key={bucket}>
