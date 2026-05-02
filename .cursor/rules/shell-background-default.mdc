@@ -11,7 +11,7 @@ When using the Shell tool:
 
 2. **Use foreground** only when you must read stdout/stderr **in the same reasoning step** before calling another tool — e.g. a quick `git status`, or when you need exit code immediately without polling.
 
-3. **Validation before finishing** (`npm run check`, `npm run verify`, etc.) — if you backgrounded the command, **poll** the terminal output until `exit_code` appears (or match output patterns); do not mark the task done until validation actually completes.
+3. **Validation** — follow [validation-sparing.mdc](./validation-sparing.mdc): **do not** run `npm run check` by habit; only when that rule says to. If you do run it and backgrounded the command, **poll** until `exit_code` appears; do not assume success.
 
 4. **Never** background a command and then assume success without reading its terminal file.
 

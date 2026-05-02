@@ -1103,8 +1103,10 @@ Use a **fast-feedback default**. Do not run heavyweight validation unless risk o
 
 **When to run:**
 
-- **During iteration**: Prefer `npm run check`. Use `npm run test:quick` only when behavior changed in tested areas.
-- **Before finishing most tasks**: `npm run check` is sufficient for UI copy/style/layout and small refactors.
+- **During iteration**: Do **not** run `npm run check` after every edit—only when iterating on TypeScript-affecting files and usually **once per batch** before commit.
+- **Docs/markdown/rules-only changes**: **Skip** `npm run check` unless tooling files changed.
+- **Before finishing code tasks**: One `npm run check` when `*.ts`/`*.tsx`/etc. were modified; skip if the task was docs-only.
+- Use `npm run test:quick` only when behavior changed in tested areas.
 - **Run full `npm run verify` only when**:
   - the user explicitly asks for full verification,
   - making release-critical changes,
@@ -1163,7 +1165,7 @@ Use this order **when choosing what to run** (not as an excuse to run everything
 3. **Full gate**: `npm run verify` only for explicitly requested or high-risk scenarios
 
 **Minimum Requirements before finishing:**
-- `npm run check` passes with no errors for normal tasks.
+- **`npm run check`**: required only when you changed files that affect typecheck/lint (see `.cursor/rules/validation-sparing.mdc`). Docs-only / markdown-only tasks: **no check required** unless the user asks.
 - `npm run verify` passes when the task matches the full-gate triggers above.
 - Fix critical issues that would break CI or the app.
 - Create a git commit when your changes are complete and validated.

@@ -1,0 +1,28 @@
+---
+description: Minimize npm run check / eslint / tsc — run only when justified
+alwaysApply: true
+---
+
+# Validation: run sparingly (save time & compute)
+
+## Do **not** run `npm run check` when
+
+- Changes are **docs/markdown only** (`*.md`, `docs/**`, `.agents/**`), **Cursor rules** (`.cursor/rules/**`), image/assets, or copy-only edits that do not touch build tooling.
+- The user’s request is **read-only** (explain, review, plan) with **no file edits**.
+- You already ran `npm run check` **successfully in this session** on the **same working tree** and no further `*.ts` / `*.tsx` / `*.js` / `*.jsx` / eslint-ts config files changed since.
+
+## Run `npm run check` **once** when
+
+- You modified **any** of: `src/**` or `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `package.json` (deps/scripts), `tsconfig*.json`, `eslint.config.*`, `vite.config.*`, or anything that affects typecheck/lint — **at the end of that coding batch**, not after every single save.
+
+## Escalation
+
+- **`npm run test:quick`**: only if behavior changed under test coverage and you need extra confidence.
+- **`npm run verify`**: only if the user asks, or AGENTS.md full-gate triggers (release/tooling/high-risk).
+
+## Anti-patterns
+
+- Running check **twice** without new code edits.
+- Running check after **only** bumping `package.json` version with **no** TS changes (skip).
+
+When in doubt: **skip check** for low-risk/doc-only work; run **one** check before commit when code changed.
