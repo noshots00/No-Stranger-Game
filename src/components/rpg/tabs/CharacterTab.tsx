@@ -195,7 +195,7 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
         <button
           type="button"
           onClick={onOpenChronicle}
-          className="choice-line w-fit max-w-full text-center py-0.5 text-[var(--candle-wax)]"
+          className="choice-line !w-fit !max-w-full !text-center py-0.5 text-[var(--candle-wax)]"
         >
           Open full chronicle (dialogue and world events)
         </button>
