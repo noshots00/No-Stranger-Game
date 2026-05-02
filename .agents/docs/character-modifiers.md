@@ -1,8 +1,18 @@
-Last reviewed: —
+Last reviewed: 2026-05-02
 
 # Character modifiers reference
 
 Human-maintained catalog of RPG modifier semantics. **Not** authoritative for the runtime: keys and balances live in quest definitions and [`src/components/rpg/modifiers/canonical.ts`](../../src/components/rpg/modifiers/canonical.ts). When you add `modifiersDelta` in a quest, add or update a bullet here so future-you (and collaborators) remember intent.
+
+## Allowed `*Race` and `*Class` stems
+
+**Required for new work:** organic **`Race`** stems must name a **subrace** from [`docs/RACES.md`](../../docs/RACES.md) (the thirteen entries under Human, Elf, Dwarf, Monster, and Animal). **`Class`** stems must name a **specialization** from [`docs/CLASSES.md`](../../docs/CLASSES.md), **or**—when the quest should advance the three subtitle paths—the core trio `WarriorClass`, `MageClass`, `RogueClass` used by [`getCharacterClass`](../../src/components/rpg/helpers.ts).
+
+Examples: `WoodElfRace`, `River_KingdomRace`, `KnightClass`, `EnchanterClass`, `MageClass`.
+
+Do **not** invent ad‑hoc races or classes (e.g. `SporebornRace`, `ScoutClass`) unless you first extend [`docs/RACES.md`](../../docs/RACES.md) / [`docs/CLASSES.md`](../../docs/CLASSES.md). Older quests may still carry legacy keys until migrated.
+
+---
 
 **Organic authoring:** append a suffix to the stem — `Class`, `Trait`, `Skill`, `Stat`, `Blessing`, or `Race` (e.g. `CourageTrait`, `WarriorClass`, `ElfRace`). Those normalize to canonical keys (`trait:courage`, `class:warrior`, `race:elf`). Legacy keys without a suffix stay **Misc**. **Race** points accumulate in modifiers until a quest effect locks your display race (see `assignRaceFromRaceModifiers` in the quest engine); after lock, new `race:*` modifier gains are ignored.
 
@@ -14,13 +24,15 @@ Human-maintained catalog of RPG modifier semantics. **Not** authoritative for th
 
 ### Class
 
+**Canon:** specializations in [`docs/CLASSES.md`](../../docs/CLASSES.md) (Knight, Duelist, Elementalist, …). Prefer organic keys like `KnightClass`, `ElementalistClass` for narrative class flavor.
+
 Core paths tracked for the subtitle class picker; `class:warrior`, `class:mage`, and `class:rogue` are hidden on the sheet but still accumulate.
 
 - **`Warrior`** (`class:warrior`, organic `WarriorClass`) — martial focus; advances the Warrior path.
 - **`Mage`** (`class:mage`, organic `MageClass`) — arcane focus; advances the Mage path.
 - **`Rogue`** (`class:rogue`, organic `RogueClass`) — stealth or agility focus; advances the Rogue path.
 
-*Add entries as you design modifiers (e.g. `PaladinClass` → `class:paladin`).*
+New specialization modifiers must match [`docs/CLASSES.md`](../../docs/CLASSES.md); update that doc if you add a specialization.
 
 ---
 
@@ -57,9 +69,9 @@ The six primary attributes use canonical `stat:*` slugs (`strength`, `dexterity`
 
 ### Race
 
-Fantasy ancestries; organic `ElfRace` → `race:elf`. The **character sheet “Race” line** shows the **locked** slug set when a quest runs race assignment (highest `race:*` tally; deterministic tie-break). Until then, list candidate flavors here as you add quests.
+**Canon:** subraces in [`docs/RACES.md`](../../docs/RACES.md) only. Organic `WoodElfRace` → `race:woodelf`. The **character sheet “Race” line** shows the **locked** slug set when a quest runs race assignment (highest `race:*` tally; deterministic tie-break). Until then, list candidate flavors here as you add quests.
 
-*Add entries as you design modifiers (e.g. Dwarf, Ogre).*
+*Add new subraces to [`docs/RACES.md`](../../docs/RACES.md) before using new `*Race` keys in quests.*
 
 ---
 

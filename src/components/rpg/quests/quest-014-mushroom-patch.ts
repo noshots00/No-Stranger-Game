@@ -25,8 +25,8 @@ export const quest014MushroomPatch = createBranchingQuest({
           effects: {
             flagsSet: [SWEET_DREAM_PENDING_FLAG],
             modifiersDelta: {
-              HumanRace: 1,
-              ScoutClass: 1,
+              River_KingdomRace: 1,
+              ArcherClass: 1,
               Wisdom: 1,
               GroundedSpiritBlessing: 1,
               CautiousTrait: 1,
@@ -49,7 +49,7 @@ export const quest014MushroomPatch = createBranchingQuest({
           effects: {
             flagsSet: [FEVER_DREAM_PENDING_FLAG],
             modifiersDelta: {
-              SporebornRace: 1,
+              NightElfRace: 1,
               MageClass: 1,
               Constitution: 1,
               WildVisionsBlessing: 1,
@@ -66,8 +66,8 @@ export const quest014MushroomPatch = createBranchingQuest({
           effects: {
             flagsSet: [FEVER_DREAM_PENDING_FLAG],
             modifiersDelta: {
-              MeadowKinRace: 1,
-              AlchemistClass: 1,
+              HalflingRace: 1,
+              DruidClass: 1,
               Charisma: 1,
               BittersweetHumorBlessing: 1,
               TemperanceTrait: 1,
