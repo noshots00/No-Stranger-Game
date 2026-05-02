@@ -87,9 +87,13 @@ Divine or narrative boons; also listed on the Blessings line when present.
 
 [`quest-015-fever-dream`](../../src/components/rpg/quests/quest-015-fever-dream.ts)
 
-- **Traits:** `DreadTrait`, `HauntedTrait`, `ParanoidTrait`, `FearTrait`, `FuryTrait`
-- **Blessings:** `CrushingDepthBlessing`, `SolarBurdenBlessing`, `InkVeilBlessing`, `MoonCurseBlessing`, `ArenaEchoBlessing`
-- **Skills:** `Survival_RiptideSkill`, `Magic_ElementalSkill`, `Magic_IllusionSkill`, `Stealth_PursuitSkill`, `Combat_BrawlSkill`
+- **Stats:** primary stats via organic `*Stat` — `ConstitutionStat`, `WisdomStat`, `IntelligenceStat`, `DexterityStat`, `StrengthStat` (prefer these over legacy bare `Strength`, …).
+- **Traits:** everyday personality skews only — `CautiousTrait`, `CowardTrait`, `CourageTrait` (avoid uncommon adjectives like `DreadfulTrait`).
+- **Characteristics (misc):** narrative descriptors without an organic suffix — `Haunted`, `Paranoid` — **not** `*Trait` if it reads like a mood or diagnosis rather than stable personality.
+- **Spells:** spell names use a `Spell` stem ending in …Spell (same pattern as `SparkSpell`, `ElementalSpell`, `IllusionSpell`) — keys stay **misc** until/unless `Spell` is added to canonical routing.
+- **Spellcasting:** use **`SpellcastingSkill`** for the general casting skill layer (not `Magic_ElementalSkill`-style labels).
+- **Skills:** prefer plain stems already used in quests — `SwimmingSkill`, `StealthSkill`, `BashSkill`, etc.; avoid ornate `Category_FancySkill` unless needed.
+- **Blessings:** do **not** add new blessing modifiers for fever-dream style content unless explicitly requested.
 
 ---
 
