@@ -11,6 +11,7 @@ import {
 import { NPC_AVATAR_URL, characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
+import { getRaceDefinition } from '../races';
 import { nip19 } from 'nostr-tools';
 
 type CharacterTabProps = {
@@ -39,6 +40,7 @@ function formatModifierLines(entries: [string, number][]): string {
 export function CharacterTab({ questState, userPubkey, onOpenChronicle }: CharacterTabProps) {
   const characterLevel = getCharacterLevel(questState);
   const characterClass = getCharacterClass(questState.modifiers);
+  const race = getRaceDefinition(questState.assignedRaceSlug);
   const profileNpub = userPubkey ? nip19.npubEncode(userPubkey) : null;
 
   const visibleSkillSheetParts: string[] = [];
@@ -69,7 +71,14 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           {questState.playerName || 'Stranger'}
         </h2>
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
-          Level {characterLevel} Unknown {characterClass}
+          {race ? (
+            <>
+              Level {characterLevel} <span aria-hidden="true">{race.symbolEmoji}</span>{' '}
+              {race.displayName} {characterClass}
+            </>
+          ) : (
+            `Level ${characterLevel} Unknown ${characterClass}`
+          )}
         </p>
       </div>
       <div className="grid grid-cols-[5.5rem_1fr] gap-6 sm:grid-cols-[6.5rem_1fr]">

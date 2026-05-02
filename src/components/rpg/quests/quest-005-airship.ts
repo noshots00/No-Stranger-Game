@@ -37,7 +37,7 @@ export const quest005Airship = createBranchingQuest({
             flagsSet: ['airship-discovered'],
             modifiersDelta: {
               HalflingRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               CatfolkRace: 1,
             },
           },

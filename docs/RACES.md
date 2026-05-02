@@ -126,3 +126,29 @@ Subraces: Orc, Troll, Goblin.
 | **Total** | | **13** |
 
 When adding quests or `race:*` modifiers, align names with this sheet where possible so pool ties and dominant-race logic stay readable.
+
+---
+
+## Slugs, emoji, and lock-time deltas
+
+When the engine locks a race (Quest 18 → Lean forward, via `assignRaceFromRaceModifiers`), it reads the table in [`src/components/rpg/races.ts`](../src/components/rpg/races.ts) and merges the deltas below as one-shot canonical modifiers. **Net per race: +1 stat point** (+2 + +1 - 2). Application is silent except for one neutral world-log line: `A {Subrace} stares back from the water.`
+
+| Subrace | Slug | Organic key | Emoji | Symbol | +2 | +1 | -2 | Auto traits | Auto characteristics |
+| ------- | ---- | ----------- | ----- | ------ | -- | -- | -- | ----------- | -------------------- |
+| Atlantians | `race:atlantians` | `AtlantiansRace` | 🔱 | Trident | STR | CHA | INT | `ProudTrait`, `CompetitiveTrait` | `HonorBound` |
+| Sunborn | `race:sunborn` | `SunbornRace` | ☀️ | Sun Disk | CON | WIS | DEX | `ResilientTrait`, `SpiritualTrait` | `CommunityFocused` |
+| River Kingdom | `race:riverkingdom` | `RiverKingdomRace` | 🪷 | Lotus Flower | INT | DEX | STR | `DiplomaticTrait`, `AdaptableTrait` | `Scholarly` |
+| Night Elf | `race:nightelf` | `NightElfRace` | 🌙 | Crescent Moon | DEX | INT | CHA | `SecretiveTrait`, `VengefulTrait` | `Nocturnal` |
+| High Elf | `race:highelf` | `HighElfRace` | ✨ | Star Crystal | INT | CHA | CON | `ArrogantTrait`, `StudiousTrait` | `Longlived` |
+| Wood Elf | `race:woodelf` | `WoodElfRace` | 🏹 | Leaf Arrow | DEX | WIS | CHA | `CautiousTrait`, `NatureLovingTrait` | `ForestDweller` |
+| Dwarf | `race:dwarf` | `DwarfRace` | 🔨 | Steel Hammer | CON | STR | CHA | `StubbornTrait`, `HardworkingTrait` | `GrudgeBearing` |
+| Gnome | `race:gnome` | `GnomeRace` | ⚙️ | Spinning Gear | INT | DEX | STR | `CuriousTrait`, `WittyTrait` | `Tinkerer` |
+| Halfling | `race:halfling` | `HalflingRace` | 🪈 | Hollow Pipe | DEX | CHA | STR | `CheerfulTrait`, `CautiousTrait` | `Lucky` |
+| Orc | `race:orc` | `OrcRace` | 💀 | Tusked Skull | STR | CON | INT | `FuriousTrait`, `CourageTrait` | `Tribal` |
+| Troll | `race:troll` | `TrollRace` | 🦴 | Severed Arm | CON | STR | INT | `StubbornTrait`, `BrutishTrait` | `Regenerative` |
+| Goblin | `race:goblin` | `GoblinRace` | 🔘 | Shiny Button | DEX | INT | CON | `SneakyTrait`, `CowardTrait` | `Greedy` |
+| Catfolk | `race:catfolk` | `CatfolkRace` | 🐾 | Golden Claw | DEX | CHA | STR | `GracefulTrait`, `PridefulTrait` | `Nocturnal` |
+
+**Slug shape:** concatenated lowercase. Multi-word stems must concat (e.g. `RiverKingdomRace`, **not** `River_KingdomRace`). The engine rewrites the legacy `race:river_kingdom` slug into `race:riverkingdom` automatically (see `LEGACY_RACE_SLUG_REWRITES` in [`races.ts`](../src/components/rpg/races.ts)).
+
+**Subtitle:** once locked, the Character tab subtitle changes from `Level N Unknown {Class}` to `Level N {Emoji} {DisplayName} {Class}`.

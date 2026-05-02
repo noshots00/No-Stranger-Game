@@ -38,7 +38,7 @@ export const quest001Origin: QuestDefinition = {
           nextStepId: 'name-input',
           effects: {
             modifiersDelta: {
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               SunbornRace: 1,
               HighElfRace: 1,
             },

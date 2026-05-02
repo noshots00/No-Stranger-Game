@@ -1,5 +1,6 @@
 import type { ModifierMap } from '@/components/rpg/quests/types';
 import { PRIMARY_STAT_MODIFIER_LABEL } from '@/components/rpg/constants';
+import { LEGACY_RACE_SLUG_REWRITES } from '@/components/rpg/races';
 
 const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing|Race)$/u;
 
@@ -21,6 +22,9 @@ function canonicalSkillKeyFromStem(stem: string): string {
   return `skill:${category}:${skillSlug}`;
 }
 
+/** Apply legacy slug rewrites; e.g. `river_kingdom` -> `riverkingdom`. */
+const rewriteRaceSlug = (slug: string): string => LEGACY_RACE_SLUG_REWRITES[slug] ?? slug;
+
 /** Maps handwritten quest keys (e.g. WarriorClass, CourageTrait) to stable storage keys. */
 export function canonicalizeModifierKey(key: string): string {
   const m = key.match(ORGANIC_SUFFIX_RE);
@@ -41,7 +45,7 @@ export function canonicalizeModifierKey(key: string): string {
     case 'Blessing':
       return `blessing:${slug}`;
     case 'Race':
-      return `race:${slug}`;
+      return `race:${rewriteRaceSlug(slug)}`;
     default:
       return key;
   }
@@ -78,6 +82,11 @@ export function migrateModifiersToCanonical(map: ModifierMap): ModifierMap {
       ) {
         canonical = key;
       }
+    }
+
+    if (canonical.startsWith('race:')) {
+      const slug = canonical.slice('race:'.length);
+      canonical = `race:${rewriteRaceSlug(slug)}`;
     }
 
     next[canonical] = (next[canonical] ?? 0) + value;

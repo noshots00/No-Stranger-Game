@@ -40,7 +40,7 @@ export const quest009Waterfall = createBranchingQuest({
             modifiersDelta: {
               NightElfRace: 1,
               GoblinRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               GnomeRace: 1,
             },
           },
@@ -73,7 +73,7 @@ export const quest009Waterfall = createBranchingQuest({
           effects: {
             modifiersDelta: {
               WoodElfRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               HighElfRace: 1,
             },
           },
@@ -149,7 +149,7 @@ export const quest009Waterfall = createBranchingQuest({
           effects: {
             modifiersDelta: {
               SunbornRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               WoodElfRace: 1,
             },
           },

@@ -102,7 +102,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
             questItemsAdd: ['An old book with a strange symbol on the cover.'],
             modifiersDelta: {
               HighElfRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               GnomeRace: 1,
               SunbornRace: 1,
             },
@@ -158,7 +158,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['place holder items 4'],
             modifiersDelta: {
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               SunbornRace: 1,
               AtlantiansRace: 1,
             },

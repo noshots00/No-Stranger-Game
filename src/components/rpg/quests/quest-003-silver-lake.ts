@@ -25,7 +25,7 @@ export const quest003SilverLake = createBranchingQuest({
             flagsSet: [SILVER_LAKE_FLAG],
             modifiersDelta: {
               HalflingRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               AtlantiansRace: 1,
             },
           },

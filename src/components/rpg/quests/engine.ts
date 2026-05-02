@@ -17,6 +17,7 @@ import {
 } from '../worldLog';
 import { canonicalizeModifierMap, migrateModifiersToCanonical } from '../modifiers/canonical';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
+import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
 
 const parseTimestampFromDialogueId = (id: string): number | null => {
   const m = id.match(/-(\d{10,16})-[a-z0-9]+$/i);
@@ -134,9 +135,13 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const rawModifiers =
     state.modifiers && typeof state.modifiers === 'object' ? (state.modifiers as ModifierMap) : initial.modifiers;
 
-  const assignedRaceSlug =
+  const rawAssignedRaceSlug =
     typeof state.assignedRaceSlug === 'string' && state.assignedRaceSlug.trim().length > 0
       ? state.assignedRaceSlug.trim().toLowerCase()
+      : null;
+  const assignedRaceSlug =
+    rawAssignedRaceSlug !== null
+      ? (LEGACY_RACE_SLUG_REWRITES[rawAssignedRaceSlug] ?? rawAssignedRaceSlug)
       : null;
 
   return {
@@ -388,11 +393,56 @@ const moveToStep = (
   ) {
     const slug = pickDominantRaceSlug(nextState.modifiers, state.playerName.trim() || 'stranger');
     if (slug) {
-      nextState = { ...nextState, assignedRaceSlug: slug };
+      const race = getRaceDefinition(slug);
+      if (race) {
+        nextState = applyRaceLockEffects(nextState, race);
+      } else {
+        nextState = { ...nextState, assignedRaceSlug: slug };
+      }
     }
   }
 
   return nextState;
+};
+
+/**
+ * One-shot bonuses, weakness, and auto-flavor applied when a race is locked.
+ * Stat deltas use canonical keys directly (`stat:strength`, ...) so they merge
+ * with prior `*Stat` gains. Auto traits/characteristics use organic / misc
+ * authoring keys and run through `canonicalizeModifierMap` for normalization.
+ * Appends a single neutral world-log line.
+ */
+const applyRaceLockEffects = (state: QuestState, race: RaceDefinition): QuestState => {
+  const statDeltas: ModifierMap = {
+    [`stat:${race.bonusPlus2}`]: 2,
+    [`stat:${race.bonusPlus1}`]: 1,
+    [`stat:${race.weaknessMinus2}`]: -2,
+  };
+
+  const flavorDeltas: ModifierMap = {};
+  for (const traitKey of race.autoTraits) flavorDeltas[traitKey] = (flavorDeltas[traitKey] ?? 0) + 1;
+  for (const charKey of race.autoCharacteristics) {
+    flavorDeltas[charKey] = (flavorDeltas[charKey] ?? 0) + 1;
+  }
+  const canonicalFlavor = canonicalizeModifierMap(flavorDeltas);
+
+  const mergedModifiers: ModifierMap = { ...state.modifiers };
+  for (const [key, delta] of Object.entries(statDeltas)) {
+    mergedModifiers[key] = (mergedModifiers[key] ?? 0) + delta;
+  }
+  for (const [key, delta] of Object.entries(canonicalFlavor)) {
+    mergedModifiers[key] = (mergedModifiers[key] ?? 0) + delta;
+  }
+
+  const worldLine = `A ${race.displayName} stares back from the water.`;
+  const worldEventLog = appendUniqueWorldEntries(state.worldEventLog, [worldLine]);
+
+  return {
+    ...state,
+    assignedRaceSlug: race.slug,
+    modifiers: mergedModifiers,
+    worldEventLog,
+  };
 };
 
 export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId: string): QuestState => {

@@ -25,7 +25,7 @@ export const quest014MushroomPatch = createBranchingQuest({
           effects: {
             flagsSet: [SWEET_DREAM_PENDING_FLAG],
             modifiersDelta: {
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               ArcherClass: 1,
               Wisdom: 1,
               GroundedSpiritBlessing: 1,
@@ -52,9 +52,9 @@ export const quest014MushroomPatch = createBranchingQuest({
               NightElfRace: 1,
               MageClass: 1,
               Constitution: 1,
-              WildVisionsBlessing: 1,
-              VoraciousTrait: 1,
-              Magic_SporesSkill: 1,
+              
+              Food_LoverCharacteristic: 1,
+              
             },
           },
         },
@@ -69,9 +69,8 @@ export const quest014MushroomPatch = createBranchingQuest({
               HalflingRace: 1,
               DruidClass: 1,
               Charisma: 1,
-              BittersweetHumorBlessing: 1,
               TemperanceTrait: 1,
-              Crafting_HerbalSkill: 1,
+              HerbalismSkill : 1,
             },
           },
         },

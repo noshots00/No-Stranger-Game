@@ -22,7 +22,7 @@ export const quest007GreenHand = createBranchingQuest({
             modifiersDelta: {
               GnomeRace: 1,
               HighElfRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               CatfolkRace: 1,
             },
           },
@@ -35,7 +35,7 @@ export const quest007GreenHand = createBranchingQuest({
             modifiersDelta: {
               HalflingRace: 1,
               WoodElfRace: 1,
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
             },
           },
         },

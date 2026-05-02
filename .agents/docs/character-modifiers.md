@@ -69,9 +69,18 @@ The six primary attributes use canonical `stat:*` slugs (`strength`, `dexterity`
 
 ### Race
 
-**Canon:** subraces in [`docs/RACES.md`](../../docs/RACES.md) only. Organic `WoodElfRace` → `race:woodelf`. The **character sheet “Race” line** shows the **locked** slug set when a quest runs race assignment (highest `race:*` tally; deterministic tie-break). Until then, list candidate flavors here as you add quests.
+**Canon:** subraces in [`docs/RACES.md`](../../docs/RACES.md) only. Slug shape is **concatenated lowercase** — organic `WoodElfRace` → `race:woodelf`, `RiverKingdomRace` → `race:riverkingdom` (do **not** use `River_KingdomRace`; the engine rewrites the legacy slug for any persisted state via `LEGACY_RACE_SLUG_REWRITES` in [`races.ts`](../../src/components/rpg/races.ts)).
 
-*Add new subraces to [`docs/RACES.md`](../../docs/RACES.md) before using new `*Race` keys in quests.*
+When a quest effect with `assignRaceFromRaceModifiers: true` fires (Quest 18 → "Lean forward"), the engine picks the highest `race:*` tally (deterministic tie-break) and **automatically** merges the row from [`races.ts`](../../src/components/rpg/races.ts):
+
+- One-shot `stat:*` deltas: **+2 / +1 / -2** (net +1 per race; no floor).
+- Auto-applied `*Trait` keys (e.g. `ProudTrait`).
+- Auto-applied misc characteristic keys (e.g. `HonorBound`).
+- One neutral world-log line: `A {Subrace} stares back from the water.`
+
+The Character tab subtitle then reads `Level N {Emoji} {DisplayName} {Class}` instead of `Level N Unknown {Class}`.
+
+*Add new subraces to [`docs/RACES.md`](../../docs/RACES.md) **and** [`races.ts`](../../src/components/rpg/races.ts) before using new `*Race` keys in quests.*
 
 ---
 

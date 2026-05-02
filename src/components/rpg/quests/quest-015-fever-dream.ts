@@ -52,7 +52,7 @@ export const quest015FeverDream = createBranchingQuest({
           nextStepId: 'fever-dream-outcome-ledger',
           effects: {
             modifiersDelta: {
-              River_KingdomRace: 1,
+              RiverKingdomRace: 1,
               EnchanterClass: 1,
               IntelligenceStat: 1,
               Paranoid: 1,
