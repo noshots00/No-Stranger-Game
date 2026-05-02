@@ -71,7 +71,8 @@
     --candle-wax: #f5d19b;
     --candle-rule: rgba(232, 226, 217, 0.08);
     --candle-x: 50%;
-    --candle-y: 38%;
+    /* Glow center on bottom edge: half the disc sits below the fold, lighting the bottom nav */
+    --candle-y: 100%;
     --candle-radius: 60vmin;
 
     /* Legacy names used by .game-login and older screens */
@@ -198,7 +199,7 @@
     inset: 0;
     pointer-events: none;
     z-index: 1;
-    background: radial-gradient(ellipse at 50% 45%, transparent 32%, rgba(0, 0, 0, 0.58) 100%);
+    background: radial-gradient(ellipse at 50% 100%, transparent 28%, rgba(0, 0, 0, 0.58) 100%);
   }
 
   .candle-flicker-ambient {
