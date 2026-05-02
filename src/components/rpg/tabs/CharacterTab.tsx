@@ -190,27 +190,15 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
 
   return (
     <section className="space-y-2 pb-4">
-      <div className="text-center py-0.5">
+      <div className="flex w-full justify-center py-0.5">
         <button
           type="button"
           onClick={onOpenChronicle}
-          className="choice-line inline-block py-0.5 text-[var(--candle-wax)]"
+          className="choice-line max-w-full text-center py-0.5 text-[var(--candle-wax)]"
         >
           Open full chronicle (dialogue and world events)
         </button>
       </div>
-      <p className="text-center font-serif text-sm leading-snug text-[var(--candle-ink-soft)] py-0.5">
-        Shareable profile link:{' '}
-        <a
-          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
-          target="_blank"
-          rel="noreferrer"
-          aria-disabled={!profileNpub}
-          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
-        >
-          your Ditto public profile
-        </a>
-      </p>
       <div className="grid grid-cols-2 gap-6 sm:gap-8">
         <div className="flex justify-center">
           <img
@@ -247,6 +235,18 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           </p>
         </div>
       </div>
+      <p className="text-center font-serif text-sm leading-snug text-[var(--candle-ink-soft)] py-0.5">
+        Shareable profile link:{' '}
+        <a
+          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
+          target="_blank"
+          rel="noreferrer"
+          aria-disabled={!profileNpub}
+          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
+        >
+          your Ditto public profile
+        </a>
+      </p>
       <div className="grid grid-cols-3 gap-x-8 gap-y-0">
         {characterStats.map(([label]) => (
           <div
