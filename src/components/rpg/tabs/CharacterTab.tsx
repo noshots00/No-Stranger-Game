@@ -10,7 +10,7 @@ import {
   groupSkillModifiersByCategory,
   isPrimaryStatCanonicalKey,
 } from '../helpers';
-import { NPC_AVATAR_URL, characterStats } from '../constants';
+import { characterStats } from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
 import { getRaceDefinition } from '../races';
@@ -68,33 +68,30 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
 
   return (
     <section className="space-y-8 pb-4">
-      <div className="space-y-2 text-center">
-        <h2 className="font-cormorant text-3xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
-          {questState.playerName || 'Stranger'}
-        </h2>
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
-          {race ? (
-            <>
-              Level {characterLevel} <span aria-hidden="true">{race.symbolEmoji}</span>{' '}
-              {race.displayName} {characterClass}
-            </>
-          ) : (
-            `Level ${characterLevel} Unknown ${characterClass}`
-          )}
-        </p>
-      </div>
-      <div className="grid grid-cols-[5.5rem_1fr] gap-6 sm:grid-cols-[6.5rem_1fr]">
-        <div className="flex justify-center sm:justify-end">
-          <img
-            src={NPC_AVATAR_URL}
-            alt="Character portrait"
-            className="h-24 w-24 rounded-full object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)] sm:h-28 sm:w-28"
-          />
+      <div className="grid grid-cols-2 gap-6 sm:gap-8">
+        <div className="flex justify-center">
+          <div
+            aria-label="Character portrait placeholder"
+            className="flex h-[266px] w-[200px] items-center justify-center rounded-md border border-dashed border-[var(--candle-rule)] bg-[var(--candle-paper)] text-[10px] uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]"
+          >
+            Portrait
+          </div>
         </div>
-        <div>
-          <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-            A cautious ranger from the floodplain roads, known for well-maps and steady hands. Travels between town
-            and forest while carrying an unresolved oath to Ravenhall.
+        <div className="flex flex-col justify-center gap-1">
+          <p className="font-cormorant text-3xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
+            {questState.playerName || 'Stranger'}
+          </p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
+            Level {characterLevel} {characterClass}
+          </p>
+          <p className="font-serif text-sm text-[var(--candle-ink-soft)]">
+            {race ? (
+              <>
+                <span aria-hidden="true">{race.symbolEmoji}</span> {race.displayName}
+              </>
+            ) : (
+              <span className="text-[var(--candle-ink-faint)]">Race unknown</span>
+            )}
           </p>
         </div>
       </div>
@@ -119,7 +116,7 @@ export function CharacterTab({ questState, userPubkey, onOpenChronicle }: Charac
           Open full chronicle (dialogue and world events)
         </button>
       </p>
-      <div className="space-y-0">
+      <div className="grid grid-cols-3 gap-x-8 gap-y-0">
         {characterStats.map(([label]) => (
           <div
             key={label}
