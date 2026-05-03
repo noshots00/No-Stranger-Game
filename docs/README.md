@@ -14,6 +14,10 @@ These are human-curated; Cliff fills them in over time.
 - [Modifiers](./design/MODIFIERS.md) — non-class, non-race modifier categories (traits, blessings, characteristics, etc.).
 - [Guilds](./design/GUILDS.md) — the guild system — ideas and rules.
 
+## Production
+
+- [Art pipeline](./ART_PIPELINE.md) — batch-export masters to standardized WebP (`npm run art:batch`).
+
 ## Canonical reference (machine-friendly)
 
 These docs are short, structured, and referenced by AGENTS.md and the codebase.
