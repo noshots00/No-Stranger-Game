@@ -1,14 +1,22 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { formatInTimeZone } from 'date-fns-tz';
 import { normalizeQuestState } from '@/components/rpg/quests/engine';
 import type { QuestState } from '@/components/rpg/quests/types';
-import { subtractEasternCalendarDaysFromUtc } from '@/lib/easternGameTime';
-import { CHARACTER_START_TS_STORAGE_KEY } from './constants';
+import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 
+/**
+ * Kind 10031 — character creation anchor for No Stranger Game.
+ *
+ * `creationDateEastern` is the canonical pacing key (America/New_York calendar date at name submit).
+ * `startTimestamp` / `signedAtMs` support future anti-cheat (account-age bounds); game logic uses only the date.
+ */
 const CHARACTER_START_KIND = 10031;
 const CHARACTER_START_D_TAG = 'character-start';
 /** Published quest checkpoint kind (see `publishQuestStateSnapshot`). */
 export const NSG_QUEST_STATE_KIND = 10032;
 export const NSG_QUEST_STATE_D_TAG = 'quest-state';
+
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 type NostrClient = {
   query: (filters: NostrFilter[]) => Promise<NostrEvent[]>;
@@ -19,20 +27,33 @@ type Signer = {
   signEvent: (draft: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>) => Promise<NostrEvent>;
 };
 
-function parseStartTimestamp(content: string): number | null {
-  try {
-    const parsed = JSON.parse(content) as { startTimestamp?: number };
-    if (typeof parsed.startTimestamp !== 'number' || Number.isNaN(parsed.startTimestamp)) return null;
-    return parsed.startTimestamp;
-  } catch {
-    return null;
-  }
-}
+export type CharacterCreationPayload = {
+  creationDateEastern: string;
+  /** Legacy-only: derive Eastern date if `creationDateEastern` absent. */
+  startTimestamp?: number;
+  /** When this record was signed (audit / future verification). */
+  signedAtMs?: number;
+};
 
 export type QuestCheckpointPayload = {
   savedAtMs: number;
   state: QuestState;
 };
+
+function parseCharacterCreationPayload(content: string): string | null {
+  try {
+    const parsed = JSON.parse(content) as CharacterCreationPayload;
+    if (typeof parsed.creationDateEastern === 'string' && YMD_RE.test(parsed.creationDateEastern)) {
+      return parsed.creationDateEastern;
+    }
+    if (typeof parsed.startTimestamp === 'number' && !Number.isNaN(parsed.startTimestamp)) {
+      return formatInTimeZone(parsed.startTimestamp, EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 function isWorldEventLogRow(value: unknown): boolean {
   if (typeof value === 'string') return true;
@@ -97,12 +118,16 @@ export function parseQuestCheckpointPayload(content: string): QuestCheckpointPay
   return parseQuestStateSnapshot(content);
 }
 
-export async function fetchCharacterStartTimestamp(nostr: NostrClient, pubkey: string): Promise<number | null> {
+/** Latest character creation Eastern date from relays (newest event wins for current playthrough). */
+export async function fetchCharacterCreationDateFromRelay(
+  nostr: NostrClient,
+  pubkey: string
+): Promise<string | null> {
   const events = await nostr.query([
     {
       kinds: [CHARACTER_START_KIND],
       authors: [pubkey],
-      limit: 10,
+      limit: 25,
     },
   ]);
 
@@ -110,79 +135,48 @@ export async function fetchCharacterStartTimestamp(nostr: NostrClient, pubkey: s
     .filter((event) => event.tags.some(([name, value]) => name === 'd' && value === CHARACTER_START_D_TAG))
     .sort((a, b) => b.created_at - a.created_at);
 
-  if (matching.length === 0) return null;
-  return parseStartTimestamp(matching[0].content);
+  for (const ev of matching) {
+    const ymd = parseCharacterCreationPayload(ev.content);
+    if (ymd) return ymd;
+  }
+  return null;
 }
 
-export async function publishCharacterStartTimestamp(
+/** Publish immutable creation record (call when player submits name on origin quest). */
+export async function publishCharacterCreation(
   nostr: NostrClient,
   signer: Signer,
-  timestampMs: number
-): Promise<number> {
+  creationDateEastern: string
+): Promise<void> {
+  const signedAtMs = Date.now();
   const draft = {
     kind: CHARACTER_START_KIND,
-    content: JSON.stringify({ startTimestamp: timestampMs }),
+    content: JSON.stringify({
+      creationDateEastern,
+      startTimestamp: signedAtMs,
+      signedAtMs,
+    } satisfies CharacterCreationPayload),
     tags: [
       ['d', CHARACTER_START_D_TAG],
       ['t', 'no-stranger-game'],
-      ['alt', 'Character start timestamp for No Stranger Game day counter'],
+      ['alt', 'Character creation (Eastern date) for No Stranger Game'],
     ],
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: Math.floor(signedAtMs / 1000),
   };
 
   const event = await signer.signEvent(draft);
   await nostr.event(event);
-  return timestampMs;
 }
 
-export async function fetchOrCreateCharacterStartTimestamp(
+/**
+ * If relays have no kind 10031 but checkpoint/local state has a creation date, republish so other clients/relays match.
+ */
+export async function repairCharacterCreationOnRelay(
   nostr: NostrClient,
-  pubkey: string,
-  signer: Signer
-): Promise<number> {
-  const existing = await fetchCharacterStartTimestamp(nostr, pubkey);
-  if (existing !== null) return existing;
-
-  // Same browser as a prior session (e.g. live vs dev are different origins — each has its own storage).
-  if (typeof localStorage !== 'undefined') {
-    const raw = localStorage.getItem(CHARACTER_START_TS_STORAGE_KEY);
-    if (raw) {
-      const parsed = Number(raw);
-      if (!Number.isNaN(parsed) && parsed > 0) {
-        try {
-          await publishCharacterStartTimestamp(nostr, signer, parsed);
-        } catch {
-          // Relay may be unavailable; keep local continuity so the day counter can still advance.
-        }
-        return parsed;
-      }
-    }
-  }
-
-  // Relay miss on first visit to a new origin: republish a start time consistent with the latest
-  // quest checkpoint so `dayCounter` does not reset to 1 while `lastDailyXpDay` stays high (which
-  // blocks daily XP/report for many real days). Uses US Eastern calendar days (not fixed 24h).
-  try {
-    const snapshot = await fetchQuestStateSnapshot(nostr, pubkey);
-    const d = snapshot?.state.lastDailyXpDay;
-    if (snapshot && typeof d === 'number' && d >= 1) {
-      const synthetic = subtractEasternCalendarDaysFromUtc(snapshot.savedAtMs, d - 1);
-      const now = Date.now();
-      if (synthetic > 0 && synthetic <= now) {
-        try {
-          await publishCharacterStartTimestamp(nostr, signer, synthetic);
-        } catch {
-          return synthetic;
-        }
-        return synthetic;
-      }
-    }
-  } catch {
-    // Fall through to fresh start.
-  }
-
-  const timestampMs = Date.now();
-  return publishCharacterStartTimestamp(nostr, signer, timestampMs);
+  signer: Signer,
+  creationDateEastern: string
+): Promise<void> {
+  await publishCharacterCreation(nostr, signer, creationDateEastern);
 }
 
 export async function fetchQuestStateSnapshot(

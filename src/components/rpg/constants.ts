@@ -34,8 +34,15 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
 ];
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
+/** @deprecated legacy numeric ms; prefer CHARACTER_CREATION_DATE_STORAGE_KEY */
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';
+/** Eastern `yyyy-MM-dd` when the player named their character (game pacing + future verification). */
+export const CHARACTER_CREATION_DATE_STORAGE_KEY = 'nsg:character-creation-date-eastern';
+/** After "Reset story", ignore relay kind 10031 until a new creation date exists in quest state. */
+export const CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY = 'nsg:character-creation-reset-pending';
 export const DEV_DAY_OFFSET_STORAGE_KEY = 'nsg:dev-day-offset-ms';
+/** Dev-only: use 5-minute game days (must also be Vite dev). */
+export const DEV_FIVE_MINUTE_DAYS_STORAGE_KEY = 'nsg:dev-five-minute-days';
 /** When enabled in the game menu, advances in-game time by one day every 2s (dev only). */
 export const DEV_RAPID_DAY_SIM_STORAGE_KEY = 'nsg:dev-rapid-day-simulation';
 /** When enabled in the game menu, shows quest modifier breakdown on the Character tab. */

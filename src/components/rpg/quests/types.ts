@@ -142,4 +142,9 @@ export type QuestState = {
   unveiledQuestIds: string[];
   /** Player health 0-100. Placeholder; reserved for future combat. */
   health: number;
+  /**
+   * Eastern calendar date (America/New_York, `yyyy-MM-dd`) when the player submitted their name
+   * on the origin quest — immutable for this playthrough; used for day pacing and future verification.
+   */
+  characterCreationDateEastern: string | null;
 };

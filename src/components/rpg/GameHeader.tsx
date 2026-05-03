@@ -15,8 +15,12 @@ type GameHeaderProps = {
   currentLocation: string;
   locationIndicatorClass: string;
   onAdvanceDay: () => void;
-  /** Dev server uses 5-minute "days" from Eastern midnight; production uses Eastern calendar midnights. */
+  /** True when Vite dev menu enables 5-minute game days (America/New_York midnight grid). */
   useFiveMinuteGamePeriods: boolean;
+  /** Vite dev only: offer 5-minute day toggle. */
+  showDevFiveMinuteToggle?: boolean;
+  devFiveMinuteDays?: boolean;
+  onDevFiveMinuteDaysChange?: (enabled: boolean) => void;
   rapidDaySimulation: boolean;
   onRapidDaySimulationChange: (enabled: boolean) => void;
   showModifierDetails: boolean;
@@ -33,6 +37,9 @@ export function GameHeader({
   locationIndicatorClass,
   onAdvanceDay,
   useFiveMinuteGamePeriods,
+  showDevFiveMinuteToggle = false,
+  devFiveMinuteDays = false,
+  onDevFiveMinuteDaysChange,
   rapidDaySimulation,
   onRapidDaySimulationChange,
   showModifierDetails,
@@ -60,6 +67,15 @@ export function GameHeader({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" className="whisper-tooltip-surface min-w-[11rem] font-serif text-sm">
+          {showDevFiveMinuteToggle && onDevFiveMinuteDaysChange ? (
+            <DropdownMenuCheckboxItem
+              className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+              checked={devFiveMinuteDays}
+              onCheckedChange={(v) => onDevFiveMinuteDaysChange(v === true)}
+            >
+              5-minute days (dev test)
+            </DropdownMenuCheckboxItem>
+          ) : null}
           <DropdownMenuItem
             className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
             onSelect={() => onAdvanceDay()}

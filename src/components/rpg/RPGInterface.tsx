@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useNavigate } from 'react-router-dom';
+import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import {
@@ -19,6 +21,8 @@ import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/s
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   BRACELET_DAILY_FLAG,
+  CHARACTER_CREATION_DATE_STORAGE_KEY,
+  CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
   DELAYED_QUEST_UNLOCKS,
   DAILY_ITEM_QUEST_CHANCE,
   DILEMMA_DAILY_CHANCE,
@@ -66,9 +70,12 @@ import { PlayTab } from './tabs/PlayTab';
 import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
 import { useAmbientPad } from './audio/useAmbientPad';
+import { publishCharacterCreation } from './gameProfile';
+import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 import { publicAsset } from '@/lib/publicAsset';
 
 export function RPGInterface() {
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { logout } = useLoginActions();
   const navigate = useNavigate();
@@ -76,16 +83,18 @@ export function RPGInterface() {
   const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestStateAndSync } =
     useQuestState();
   const {
-    characterStartTimestamp,
+    creationDateEastern,
     dayCounter,
     advancePeriodMs,
     useFiveMinuteTestPeriods,
+    devFiveMinuteDays,
+    setDevFiveMinuteDays,
     setDevDayOffsetMs,
     resetTimestamp,
     nextDayResetMs,
     rapidDaySimulation,
     setRapidDaySimulation,
-  } = useDayCounter();
+  } = useDayCounter({ questCreationDateEastern: questState.characterCreationDateEastern });
 
   useAmbientPad({
     active: questState.currentLocation === 'Silver Lake',
@@ -290,8 +299,9 @@ export function RPGInterface() {
     unveilBackfillDoneRef.current = true;
   }, [isQuestStateHydrated, questState, questContext, persistQuestCheckpoint, setQuestState]);
 
+  // Catch-up on login/session: when the in-game day advances vs last grant, apply XP, report, unveil.
   useEffect(() => {
-    if (!isQuestStateHydrated || characterStartTimestamp === null) return;
+    if (!isQuestStateHydrated || creationDateEastern === null) return;
     if (dayCounter <= questState.lastDailyXpDay) return;
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
@@ -397,7 +407,7 @@ export function RPGInterface() {
     setQuestState(updatedState);
     void persistQuestCheckpoint(updatedState);
   }, [
-    characterStartTimestamp,
+    creationDateEastern,
     dayCounter,
     isQuestStateHydrated,
     questState,
@@ -428,6 +438,7 @@ export function RPGInterface() {
   }, [questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
 
   const handleResetStory = async () => {
+    localStorage.setItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY, '1');
     await resetTimestamp();
     setDevDayOffsetMs(0);
     setRapidDaySimulation(false);
@@ -513,8 +524,10 @@ export function RPGInterface() {
     const submittedName = nameInput.trim();
 
     if (activeQuest.id === 'quest-001-origin') {
+      const creationYmd = formatInTimeZone(Date.now(), EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
       const updatedState = {
         ...nextState,
+        characterCreationDateEastern: nextState.characterCreationDateEastern ?? creationYmd,
         activeQuestId: null,
         flags: Array.from(new Set([...nextState.flags, 'quest001-complete'])),
         progressByQuestId: {
@@ -533,6 +546,13 @@ export function RPGInterface() {
       };
       setQuestState(updatedState);
       void persistQuestCheckpoint(updatedState);
+      if (updatedState.characterCreationDateEastern) {
+        localStorage.setItem(CHARACTER_CREATION_DATE_STORAGE_KEY, updatedState.characterCreationDateEastern);
+      }
+      localStorage.removeItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY);
+      if (user?.signer && updatedState.characterCreationDateEastern) {
+        void publishCharacterCreation(nostr, user.signer, updatedState.characterCreationDateEastern);
+      }
       return;
     }
 
@@ -674,6 +694,9 @@ export function RPGInterface() {
           locationIndicatorClass={locationIndicatorClass}
           onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + advancePeriodMs)}
           useFiveMinuteGamePeriods={useFiveMinuteTestPeriods}
+          showDevFiveMinuteToggle={import.meta.env.DEV}
+          devFiveMinuteDays={devFiveMinuteDays}
+          onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
           rapidDaySimulation={rapidDaySimulation}
           onRapidDaySimulationChange={setRapidDaySimulation}
           showModifierDetails={showModifierDetails}

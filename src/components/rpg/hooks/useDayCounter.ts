@@ -1,30 +1,52 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
-  computeGameDayCounter,
-  computeNextGameResetUtc,
+  computeGameDayCounterFromCreationYmd,
+  computeNextGameResetUtcFromCreationYmd,
+  EASTERN_GAME_TIMEZONE,
   FIVE_MINUTE_GAME_PERIOD_MS,
 } from '@/lib/easternGameTime';
-import { fetchOrCreateCharacterStartTimestamp, publishCharacterStartTimestamp } from '../gameProfile';
 import {
+  fetchCharacterCreationDateFromRelay,
+  repairCharacterCreationOnRelay,
+} from '../gameProfile';
+import {
+  CHARACTER_CREATION_DATE_STORAGE_KEY,
+  CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
   CHARACTER_START_TS_STORAGE_KEY,
   DAY_IN_MS,
   DEV_DAY_OFFSET_STORAGE_KEY,
+  DEV_FIVE_MINUTE_DAYS_STORAGE_KEY,
   DEV_RAPID_DAY_SIM_INTERVAL_MS,
   DEV_RAPID_DAY_SIM_STORAGE_KEY,
 } from '../constants';
 
-/** Vite dev server: 5-minute game "days" from Eastern midnight grid; production: US Eastern calendar midnights. */
-function viteDevUsesFiveMinutePeriods(): boolean {
-  return import.meta.env.DEV;
-}
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function useDayCounter() {
+export type UseDayCounterArgs = {
+  /** From hydrated quest state — merged with relay + localStorage for creation Eastern date. */
+  questCreationDateEastern: string | null;
+};
+
+export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const useFiveMinuteTestPeriods = viteDevUsesFiveMinutePeriods();
-  const [characterStartTimestamp, setCharacterStartTimestamp] = useState<number | null>(null);
+  const [devFiveMinuteDays, setDevFiveMinuteDays] = useState(false);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(DEV_FIVE_MINUTE_DAYS_STORAGE_KEY);
+    if (raw === '1') setDevFiveMinuteDays(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_FIVE_MINUTE_DAYS_STORAGE_KEY, devFiveMinuteDays ? '1' : '0');
+  }, [devFiveMinuteDays]);
+
+  const useFiveMinuteTestPeriods = Boolean(import.meta.env.DEV && devFiveMinuteDays);
+
+  const [creationDateEastern, setCreationDateEastern] = useState<string | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
   const [rapidDaySimulation, setRapidDaySimulation] = useState(false);
 
@@ -66,72 +88,100 @@ export function useDayCounter() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadStartTimestamp = async () => {
-      try {
-        if (user) {
-          const startTimestamp = await fetchOrCreateCharacterStartTimestamp(nostr, user.pubkey, user.signer);
-          if (!cancelled) {
-            setCharacterStartTimestamp(startTimestamp);
-            localStorage.setItem(CHARACTER_START_TS_STORAGE_KEY, String(startTimestamp));
-          }
-          return;
-        }
-      } catch (error) {
-        console.warn('Failed to load Nostr start timestamp, using local fallback.', error);
-      }
-
-      const localRaw = localStorage.getItem(CHARACTER_START_TS_STORAGE_KEY);
-      if (localRaw) {
-        const parsed = Number(localRaw);
-        if (!Number.isNaN(parsed)) {
-          if (!cancelled) setCharacterStartTimestamp(parsed);
-          return;
+    const resolveLocalCreationDate = (): string | null => {
+      const fromLs = localStorage.getItem(CHARACTER_CREATION_DATE_STORAGE_KEY);
+      if (fromLs && YMD_RE.test(fromLs)) return fromLs;
+      const legacyRaw = localStorage.getItem(CHARACTER_START_TS_STORAGE_KEY);
+      if (legacyRaw) {
+        const n = Number(legacyRaw);
+        if (!Number.isNaN(n) && n > 0) {
+          return formatInTimeZone(n, EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
         }
       }
-
-      const fallback = Date.now();
-      localStorage.setItem(CHARACTER_START_TS_STORAGE_KEY, String(fallback));
-      if (!cancelled) setCharacterStartTimestamp(fallback);
+      return null;
     };
 
-    void loadStartTimestamp();
+    const load = async () => {
+      let relayDate: string | null = null;
+      try {
+        if (user) {
+          relayDate = await fetchCharacterCreationDateFromRelay(nostr, user.pubkey);
+        }
+      } catch (error) {
+        console.warn('Failed to load character creation from Nostr.', error);
+      }
+      if (cancelled) return;
+
+      const localDate = resolveLocalCreationDate();
+      const fromQuest = questCreationDateEastern;
+
+      const resetPending =
+        typeof localStorage !== 'undefined' &&
+        localStorage.getItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY) === '1';
+
+      let relayPart = relayDate;
+      if (resetPending && !fromQuest) {
+        relayPart = null;
+      }
+
+      const merged = fromQuest ?? relayPart ?? localDate ?? null;
+
+      if (fromQuest) {
+        localStorage.removeItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY);
+      }
+
+      if (merged) {
+        localStorage.setItem(CHARACTER_CREATION_DATE_STORAGE_KEY, merged);
+      }
+
+      if (!relayDate && fromQuest && user?.signer && YMD_RE.test(fromQuest)) {
+        try {
+          await repairCharacterCreationOnRelay(nostr, user.signer, fromQuest);
+        } catch (error) {
+          console.warn('Failed to repair character creation on relay.', error);
+        }
+      }
+
+      if (cancelled) return;
+      setCreationDateEastern(merged);
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
     };
-  }, [nostr, user]);
+  }, [nostr, questCreationDateEastern, user]);
 
   const effectiveNow = Date.now() + devDayOffsetMs;
-  const dayCounter = (() => {
-    if (!characterStartTimestamp) return 1;
-    return computeGameDayCounter(characterStartTimestamp, effectiveNow, useFiveMinuteTestPeriods);
-  })();
+  const dayCounter = computeGameDayCounterFromCreationYmd(
+    creationDateEastern,
+    effectiveNow,
+    useFiveMinuteTestPeriods
+  );
 
-  /** Wall-clock ms when the next in-game day rolls over (null until start ts is loaded). */
+  const nextDayResetUtc = computeNextGameResetUtcFromCreationYmd(
+    creationDateEastern,
+    effectiveNow,
+    useFiveMinuteTestPeriods
+  );
   const nextDayResetMs =
-    characterStartTimestamp !== null
-      ? computeNextGameResetUtc(characterStartTimestamp, effectiveNow, useFiveMinuteTestPeriods) -
-        devDayOffsetMs
-      : null;
+    nextDayResetUtc !== null ? nextDayResetUtc - devDayOffsetMs : null;
 
+  /** Clears local creation cache only — quest reset clears canonical state via `resetQuestStateAndSync`. */
   const resetTimestamp = async () => {
-    const now = Date.now();
-    setCharacterStartTimestamp(now);
-    localStorage.setItem(CHARACTER_START_TS_STORAGE_KEY, String(now));
-    if (user?.signer) {
-      try {
-        await publishCharacterStartTimestamp(nostr, user.signer, now);
-      } catch (error) {
-        console.warn('Failed to publish reset character start timestamp; day may revert after reload.', error);
-      }
-    }
+    setCreationDateEastern(null);
+    localStorage.removeItem(CHARACTER_CREATION_DATE_STORAGE_KEY);
+    localStorage.removeItem(CHARACTER_START_TS_STORAGE_KEY);
   };
 
   return {
-    characterStartTimestamp,
+    creationDateEastern,
     dayCounter,
     advancePeriodMs,
     useFiveMinuteTestPeriods,
+    devFiveMinuteDays,
+    setDevFiveMinuteDays,
     devDayOffsetMs,
     setDevDayOffsetMs,
     resetTimestamp,
