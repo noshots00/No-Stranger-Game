@@ -23,23 +23,38 @@ export function QuestsTab({
     const isCompleted = completedQuestIds.includes(quest.id);
 
     return (
-      <li key={quest.id} className={compact ? 'py-1 pl-4 sm:pl-6' : 'py-1'}>
+      <li
+        key={quest.id}
+        className={compact ? 'py-0.5 text-right' : 'py-1'}
+      >
         <button
           type="button"
           onClick={() => onExpandQuest(isExpanded ? null : quest.id)}
-          className={`choice-line ${isCompleted ? 'line-through opacity-70' : ''} ${compact ? 'text-sm' : ''}`}
+          className={
+            compact
+              ? `choice-line !py-1 !text-xs !leading-snug !text-right ${isCompleted ? 'line-through opacity-65' : ''}`
+              : `choice-line ${isCompleted ? 'line-through opacity-70' : ''}`
+          }
         >
           {quest.title}
         </button>
         {isExpanded ? (
-          <div className={`space-y-3 pb-4 pt-2 ${compact ? 'pl-2 sm:pl-3' : 'pl-0 sm:pl-1'}`}>
-            <p className={`font-serif leading-relaxed text-[var(--candle-ink-soft)] ${compact ? 'text-xs' : 'text-sm'}`}>
+          <div
+            className={`space-y-2 pb-3 pt-1 ${compact ? 'pl-0 text-right sm:pl-2' : 'pl-0 sm:pl-1'}`}
+          >
+            <p
+              className={`font-serif leading-snug text-[var(--candle-ink-soft)] ${compact ? 'text-[11px]' : 'text-sm leading-relaxed'}`}
+            >
               {quest.briefing}
             </p>
             <button
               type="button"
               onClick={() => onTrackQuest(quest.id)}
-              className={`choice-line inline-block py-2 text-[var(--candle-wax)] disabled:opacity-50 ${compact ? 'text-sm' : ''}`}
+              className={
+                compact
+                  ? 'choice-line !inline-block !w-auto !py-1 !text-xs text-[var(--candle-wax)] disabled:opacity-50'
+                  : 'choice-line inline-block py-2 text-[var(--candle-wax)] disabled:opacity-50'
+              }
               disabled={isCompleted}
             >
               {isCompleted ? 'Completed' : 'Track quest'}
@@ -55,9 +70,11 @@ export function QuestsTab({
       <p className="facsimile-kicker">Quests</p>
       <ul className="space-y-0 divide-y divide-[var(--candle-rule)]">{activeQuests.map((quest) => renderQuestRow(quest))}</ul>
       {completedQuests.length > 0 ? (
-        <div className="space-y-2 border-t border-[var(--candle-rule)] pt-3">
-          <p className="font-serif text-xs uppercase tracking-[0.1em] text-[var(--candle-ink-soft)]">Completed quests</p>
-          <ul className="space-y-0 divide-y divide-[var(--candle-rule)]">
+        <div className="ml-auto max-w-[min(100%,20rem)] space-y-1 border-t border-[var(--candle-rule)]/80 pt-2 sm:max-w-none">
+          <p className="font-serif text-[10px] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)] sm:text-right">
+            Completed quests
+          </p>
+          <ul className="space-y-0 divide-y divide-[var(--candle-rule)]/70 text-right">
             {completedQuests.map((quest) => renderQuestRow(quest, true))}
           </ul>
         </div>
