@@ -29,46 +29,52 @@ export function SocialTab({
   const { user } = useCurrentUser();
 
   return (
-    <section className="space-y-8 pb-4 font-serif">
-      <p className="facsimile-kicker">Social</p>
-      {user ? (
-        <div className="flex flex-wrap items-baseline justify-between gap-6 text-sm text-[var(--candle-ink-soft)]">
-          <p>
-            <span className="text-[var(--candle-ink-faint)]">Strangers</span>{' '}
-            <span className="font-mono text-lg text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
-          </p>
-          <p>
-            <span className="text-[var(--candle-ink-faint)]">Kindred</span>{' '}
-            <span className="font-mono text-lg text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
-          </p>
-        </div>
-      ) : null}
-      <hr className="candle-rule" />
-      <div>
-        <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
-          Activity
-        </p>
-        <div className="facsimile-scroll max-h-64 overflow-y-auto pr-1">
-          {activityStatus === 'pending' ? (
-            <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
-          ) : activityStatus === 'error' ? (
-            <p className="text-sm text-rose-300/90">Could not load activity.</p>
-          ) : activityRows.length === 0 ? (
-            <p className="text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-              No published character checkpoints with a remembered name yet.
+    <section className="space-y-5 pb-4 font-serif">
+      {/* Primary: lobby chat — large scroll area with minimum height */}
+      <div className="relative min-h-[min(52vh,22rem)]">
+        {user ? (
+          <div
+            className="absolute right-0 top-0 z-[1] flex flex-col items-end gap-0.5 text-right text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
+            aria-label="Social counts"
+          >
+            <p className="whitespace-nowrap">
+              <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
+              <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
             </p>
-          ) : (
-            <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
-              {activityRows.map((row) => (
-                <li key={row.pubkey} className="border-l border-[var(--candle-flame-soft)]/40 pl-3">
-                  {row.detail}
-                </li>
-              ))}
-            </ul>
-          )}
+            <p className="whitespace-nowrap">
+              <span className="text-[var(--candle-ink-faint)]/90">Kindred</span>{' '}
+              <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
+            </p>
+          </div>
+        ) : null}
+        <div className={user ? 'pr-[4.75rem]' : undefined}>
+          <ChatPanel
+            groupId={getGlobalGroupId()}
+            title="Global lobby"
+            emptyHint="No one has spoken in the global lobby yet."
+            characterNameLabel={characterNameLabel}
+            speakerNameMap={lobbyNameMap}
+            messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)] sm:min-h-[15rem]"
+            hasCharacter={hasCharacter}
+          />
         </div>
       </div>
-      <hr className="candle-rule" />
+
+      <div className="grid grid-cols-3 gap-2">
+        {['Guide', 'Market', 'Player Quests'].map((label) => (
+          <button
+            key={label}
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Coming soon"
+            className="social-channel-button min-h-[44px] cursor-not-allowed rounded-md px-2 py-2 text-center text-[0.6875rem] text-[var(--candle-ink-faint)] opacity-50"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div>
         <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
           Signals
@@ -96,31 +102,32 @@ export function SocialTab({
           </ul>
         )}
       </div>
+
       <hr className="candle-rule" />
-      <div className="space-y-4">
-        <div className="mb-2 grid grid-cols-3 gap-2">
-          {['Guild', 'Market', 'Player Quests'].map((label) => (
-            <button
-              key={label}
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="Coming soon"
-              className="social-channel-button min-h-[44px] cursor-not-allowed rounded-md px-2 py-2 text-center text-[0.6875rem] text-[var(--candle-ink-faint)] opacity-50"
-            >
-              {label}
-            </button>
-          ))}
+
+      <div>
+        <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+          Activity
+        </p>
+        <div className="facsimile-scroll max-h-64 overflow-y-auto pr-1">
+          {activityStatus === 'pending' ? (
+            <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
+          ) : activityStatus === 'error' ? (
+            <p className="text-sm text-rose-300/90">Could not load activity.</p>
+          ) : activityRows.length === 0 ? (
+            <p className="text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+              No published character checkpoints with a remembered name yet.
+            </p>
+          ) : (
+            <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
+              {activityRows.map((row) => (
+                <li key={row.pubkey} className="border-l border-[var(--candle-flame-soft)]/40 pl-3">
+                  {row.detail}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <ChatPanel
-          groupId={getGlobalGroupId()}
-          title="Global lobby"
-          emptyHint="No one has spoken in the global lobby yet."
-          characterNameLabel={characterNameLabel}
-          speakerNameMap={lobbyNameMap}
-          messageListClassName="max-h-40"
-          hasCharacter={hasCharacter}
-        />
       </div>
     </section>
   );
