@@ -15,7 +15,7 @@ type GameHeaderProps = {
   dayCounter: number;
   currentLocation: string;
   locationIndicatorClass: string;
-  /** Vite dev only: items 1–5 below. */
+  /** Pacing & debug items in the ⋯ menu (Advance day, 5‑min days, rapid sim, etc.). */
   showDevTools?: boolean;
   onAdvanceDay: () => void;
   devFiveMinuteDays?: boolean;

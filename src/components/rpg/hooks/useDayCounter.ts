@@ -65,7 +65,7 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
     localStorage.setItem(DEV_FIVE_MINUTE_DAYS_STORAGE_KEY, devFiveMinuteDays ? '1' : '0');
   }, [devFiveMinuteDays]);
 
-  const useFiveMinuteTestPeriods = Boolean(import.meta.env.DEV && devFiveMinuteDays);
+  const useFiveMinuteTestPeriods = devFiveMinuteDays;
 
   const [creationDateEastern, setCreationDateEastern] = useState<string | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);

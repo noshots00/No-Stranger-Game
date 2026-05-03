@@ -746,7 +746,7 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
-          showDevTools={import.meta.env.DEV}
+          showDevTools
           onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
           devFiveMinuteDays={devFiveMinuteDays}
           onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
