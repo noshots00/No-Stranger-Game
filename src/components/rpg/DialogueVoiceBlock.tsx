@@ -6,15 +6,23 @@ import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
 const DIALOGUE_NARRATOR_CLASSES =
   'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
-/** Play tab: narration reads as steady body text; choices use `.choice-line.play-quest-choice` (italic, smaller). */
+/** Play tab: narration reads as steady body text (choices mirror player-line chrome below). */
 const DIALOGUE_NARRATOR_PLAY_CLASSES =
   'font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';
 
-const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
+/** Post-choice player line + quest choice buttons (Play) — keep in sync for fade continuity. */
+export const PLAY_TAB_PLAYER_LINE_SHELL =
+  'ml-auto w-[min(92%,22rem)] border-l border-[var(--candle-flame-soft)] pl-3 text-right';
+
+export const PLAY_TAB_PLAYER_LINE_TEXT =
   'font-serif text-[0.9375rem] font-medium leading-relaxed text-[var(--candle-wax)]';
+
+/** Same metrics as `PLAY_TAB_PLAYER_LINE_TEXT` with `!` so it wins over global `.choice-line`. */
+export const PLAY_TAB_PLAYER_LINE_TEXT_CHOICE =
+  '!font-serif !text-[0.9375rem] !font-medium !leading-relaxed !text-[var(--candle-wax)] !text-right';
 
 /** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
 export const DIALOGUE_DEV_MESSAGE_CLASSES =
@@ -32,7 +40,7 @@ export function DialogueVoiceBlock({
   const narratorClasses =
     presentation === 'play' ? DIALOGUE_NARRATOR_PLAY_CLASSES : DIALOGUE_NARRATOR_CLASSES;
   const playerBodyClasses =
-    presentation === 'play' ? DIALOGUE_PLAYER_BODY_PLAY_CLASSES : DIALOGUE_PLAYER_BODY_CLASSES;
+    presentation === 'play' ? PLAY_TAB_PLAYER_LINE_TEXT : DIALOGUE_PLAYER_BODY_CLASSES;
 
   if (role === 'narrator') {
     return (
@@ -112,7 +120,7 @@ export function DialogueVoiceBlock({
 
   const playerShellClass =
     presentation === 'play'
-      ? 'ml-auto w-[min(92%,22rem)] border-l border-[var(--candle-flame-soft)] pl-3 text-right'
+      ? PLAY_TAB_PLAYER_LINE_SHELL
       : 'ml-auto w-[min(92%,22rem)] rounded-lg border border-[var(--facsimile-player-ink)]/35 bg-[rgba(0,0,0,0.45)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
 
   return (

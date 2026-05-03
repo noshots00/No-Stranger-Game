@@ -317,25 +317,27 @@
   }
 
   /**
-   * Play tab quest choices: visually distinct from narration (smaller, italic, wax tone)
-   * and aligned with the post-choice player line (left accent bar).
+   * Play tab quest choices: same shell + type as post-choice player line (DialogueVoiceBlock);
+   * only reset button chrome so layout matches `<p>` for a smooth pick animation.
    */
   .choice-line.play-quest-choice {
-    font-size: 0.8125rem;
-    font-style: italic;
-    line-height: 1.45;
-    color: var(--candle-wax);
-    padding: 0.4rem 0 0.45rem 0.75rem;
-    margin-left: 0.35rem;
+    display: block;
+    width: 100%;
+    text-align: right;
+    padding: 0;
+    margin: 0;
+    border: none;
     border-bottom: none;
-    border-left: 2px solid color-mix(in srgb, var(--candle-flame-soft) 72%, transparent);
+    background: transparent;
+    cursor: pointer;
+    transition: color 420ms ease, opacity 900ms ease, filter 900ms ease;
   }
 
   .choice-line.play-quest-choice:hover,
   .choice-line.play-quest-choice:focus-visible {
-    color: color-mix(in srgb, var(--candle-flame-soft) 92%, var(--candle-wax));
+    color: color-mix(in srgb, var(--candle-flame-soft) 88%, var(--candle-wax));
     border-bottom: none;
-    border-left-color: color-mix(in srgb, var(--candle-flame-soft) 88%, transparent);
+    border-bottom-color: transparent;
     outline: none;
   }
 

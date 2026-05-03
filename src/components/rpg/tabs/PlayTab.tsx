@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { DialogueVoiceBlock, DIALOGUE_DEV_MESSAGE_CLASSES } from '../DialogueVoiceBlock';
+import {
+  DialogueVoiceBlock,
+  DIALOGUE_DEV_MESSAGE_CLASSES,
+  PLAY_TAB_PLAYER_LINE_SHELL,
+  PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
+} from '../DialogueVoiceBlock';
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
 import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
 import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
@@ -114,21 +119,25 @@ export function PlayTab({
                         ? `${choice.label}${choice.disabledLabel ?? ' (already explored)'}`
                         : choice.label;
                       return (
-                        <li key={choice.id} className="pl-2">
-                          <button
-                            type="button"
-                            disabled={isPending || isLocked}
-                            aria-disabled={isLocked || undefined}
-                            className={`choice-line play-quest-choice ${isFading ? 'choice-fade-out' : ''} ${
-                              isLocked ? 'cursor-not-allowed opacity-50' : ''
-                            }`}
-                            onClick={() => {
-                              if (isLocked) return;
-                              handleChoiceClick(choice.id);
-                            }}
-                          >
-                            {renderedLabel}
-                          </button>
+                        <li key={choice.id} className="py-0.5">
+                          <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
+                            <div className="space-y-1.5">
+                              <button
+                                type="button"
+                                disabled={isPending || isLocked}
+                                aria-disabled={isLocked || undefined}
+                                className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} ${isFading ? 'choice-fade-out' : ''} ${
+                                  isLocked ? 'cursor-not-allowed opacity-50' : ''
+                                }`}
+                                onClick={() => {
+                                  if (isLocked) return;
+                                  handleChoiceClick(choice.id);
+                                }}
+                              >
+                                {renderedLabel}
+                              </button>
+                            </div>
+                          </div>
                         </li>
                       );
                     })}
