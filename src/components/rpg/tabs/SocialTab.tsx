@@ -31,7 +31,7 @@ export function SocialTab({
   return (
     <section className="facsimile-scroll flex h-full min-h-0 flex-1 flex-col overflow-y-auto pr-0 font-serif">
       <div className="flex min-h-full min-w-0 flex-col">
-        <div className="facsimile-scroll-dialogue-inner flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="facsimile-scroll-dialogue-inner flex min-h-[min(92dvh,42rem)] min-w-0 flex-1 flex-col">
           <ChatPanel
             groupId={getGlobalGroupId()}
             emptyHint="No one has spoken in the global lobby yet."
