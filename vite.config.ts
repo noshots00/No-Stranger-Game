@@ -4,6 +4,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
+/** Injected as `__APP_VERSION__` — the **only** UI app version; must match `package.json` `version`. */
 const appVersion = JSON.parse(
   fs.readFileSync(new URL("./package.json", import.meta.url), "utf-8")
 ) as { version: string };
@@ -35,6 +36,7 @@ export default defineConfig(() => ({
     },
   },
   define: {
+    /** Same string as `package.json` `version` at dev-server start / production build time. */
     __APP_VERSION__: JSON.stringify(appVersion.version),
   },
 }));

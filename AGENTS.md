@@ -1185,6 +1185,7 @@ Do **not** run `git push` unless the user explicitly asked to push (or publish) 
 The patch version must increment on **every** completed change to the repo (any touched file: code, config, docs, Cursor rules, assets referenced by the app, etc.), not only on commits.
 
 - Before reporting a task complete, update `package.json` `version` (typically patch `+1`) whenever your batch modified anything—no “non-trivial only” exception.
+- **In-app version label** (e.g. game header `v…`) is **only** `package.json` `version`, injected at dev start / build as `__APP_VERSION__` in [`vite.config.ts`](vite.config.ts). There is no separate “display version” to maintain.
 - When committing, the bump is already in place; do not bump again in the same commit.
 - Use semantic versioning progression:
   - patch for fixes/chore/docs/internal updates
