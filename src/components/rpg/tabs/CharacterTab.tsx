@@ -52,11 +52,21 @@ function chunkPairs<T>(arr: T[]): T[][] {
   return out;
 }
 
+/** Primary stat grid: three columns; extra stats append new rows. */
+const PRIMARY_STATS_COLUMNS = 3;
+
+function chunkPrimaryStatRows(stats: ReadonlyArray<readonly string[]>): string[][][] {
+  const rows: string[][][] = [];
+  for (let i = 0; i < stats.length; i += PRIMARY_STATS_COLUMNS) {
+    rows.push(stats.slice(i, i + PRIMARY_STATS_COLUMNS) as string[][]);
+  }
+  return rows;
+}
+
+const primaryStatTableRows = chunkPrimaryStatRows(characterStats);
+
 /** Body copy (~50% of prior `text-sm` / 0.875rem). */
 const bt = 'font-serif text-[0.4375rem] leading-snug';
-
-/** Primary sheet: six stats in two rows of three (narrow portrait). */
-const PRIMARY_STAT_ROWS = [characterStats.slice(0, 3), characterStats.slice(3, 6)] as const;
 
 export function CharacterTab({
   questState,
@@ -222,25 +232,33 @@ export function CharacterTab({
         aria-label="Primary attributes"
       >
         <tbody>
-          {PRIMARY_STAT_ROWS.map((row, rowIdx) => (
-            <tr key={rowIdx} className="border-b border-[var(--candle-rule)]">
-              {row.map(([label], colIdx) => (
-                <td
-                  key={label}
-                  className={`min-w-0 w-1/3 px-0.5 py-1 text-center align-top ${
-                    colIdx < 2 ? 'border-r border-[var(--candle-rule)]/55' : ''
-                  }`}
-                >
-                  <div className="break-words uppercase tracking-[0.06em] text-[var(--candle-ink-faint)]">
-                    {label}
-                  </div>
-                  <div className="mt-0.5 font-mono tabular-nums text-[var(--candle-ink)]">
-                    {getPrimaryStatTotal(questState.modifiers, label)}
-                  </div>
-                </td>
-              ))}
-            </tr>
-          ))}
+          {primaryStatTableRows.map((row, rowIdx) => {
+            const padded: Array<string[] | null> = [...row];
+            while (padded.length < PRIMARY_STATS_COLUMNS) padded.push(null);
+            return (
+              <tr key={rowIdx} className="border-b border-[var(--candle-rule)]">
+                {padded.map((cell, colIdx) => (
+                  <td
+                    key={cell?.[0] ?? `pad-${rowIdx}-${colIdx}`}
+                    className={`min-w-0 w-1/3 px-0.5 py-1 text-center align-top ${
+                      colIdx < PRIMARY_STATS_COLUMNS - 1 ? 'border-r border-[var(--candle-rule)]/55' : ''
+                    }`}
+                  >
+                    {cell ? (
+                      <>
+                        <div className="break-words uppercase tracking-[0.06em] text-[var(--candle-ink-faint)]">
+                          {cell[0]}
+                        </div>
+                        <div className="mt-0.5 font-mono tabular-nums text-[var(--candle-ink)]">
+                          {getPrimaryStatTotal(questState.modifiers, cell[0])}
+                        </div>
+                      </>
+                    ) : null}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
