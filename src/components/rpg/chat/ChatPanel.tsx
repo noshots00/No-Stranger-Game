@@ -107,6 +107,7 @@ export function ChatPanel({
         ref={listScrollRef}
         className={`facsimile-scroll overflow-y-auto pr-0 ${messageListClassName}`}
       >
+        <div className="facsimile-scroll-dialogue-inner min-w-0">
         {showWorldBlock ? (
           worldEventLines.length > 0 ? (
             <ul className="mb-3 space-y-1 font-sans text-[0.6875rem] leading-snug">
@@ -152,6 +153,7 @@ export function ChatPanel({
             })}
           </ul>
         )}
+        </div>
       </div>
       {error ? <p className="text-xs text-rose-300/90">{error}</p> : null}
       <div className="flex items-center gap-2 border-b border-[var(--candle-rule)] focus-within:border-[var(--candle-flame-soft)]">

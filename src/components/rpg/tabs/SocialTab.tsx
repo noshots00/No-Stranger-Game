@@ -5,7 +5,7 @@ import { getGlobalGroupId } from '../chat/nip29Client';
 type QueryStatus = 'pending' | 'error' | 'success';
 
 type SocialTabProps = {
-  socialStats: { totalPlayers: number; kindredSpirits: number; kindredPubkeys: string[] };
+  socialStats: { totalPlayers: number; kindredPubkeys: string[] };
   activityRows: { pubkey: string; displayName: string; namedAt: number; detail: string }[];
   activityStatus: QueryStatus;
   kindredSignalRows: { pubkey: string; name: string; text: string; latestAt: number }[];
@@ -31,21 +31,7 @@ export function SocialTab({
   return (
     <section className="flex h-full min-h-0 flex-col font-serif">
       <div className="facsimile-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0 pb-4">
-        <div className="flex flex-col gap-1">
-          {user ? (
-            <div
-              className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
-              aria-label="Kindred count"
-            >
-              <p className="whitespace-nowrap">
-                <span className="text-[var(--candle-ink-faint)]/90">Kindred</span>{' '}
-                <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">
-                  {socialStats.kindredSpirits}
-                </span>
-              </p>
-            </div>
-          ) : null}
-
+        <div className="facsimile-scroll-dialogue-inner flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           <div className="min-h-[min(52vh,22rem)]">
             <ChatPanel
               groupId={getGlobalGroupId()}
@@ -56,9 +42,8 @@ export function SocialTab({
               hasCharacter={hasCharacter}
             />
           </div>
-        </div>
 
-        <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
           {(['Guild', 'Market', 'Player Quests'] as const).map((label) => (
             <button
               key={label}
@@ -71,9 +56,9 @@ export function SocialTab({
               {label}
             </button>
           ))}
-        </div>
+          </div>
 
-        <div>
+          <div>
           <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
             Signals
           </p>
@@ -99,32 +84,35 @@ export function SocialTab({
               ) : null}
             </ul>
           )}
-        </div>
+          </div>
 
-        <hr className="candle-rule" />
+          <hr className="candle-rule" />
 
-        <div>
+          <div>
           <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
             Activity
           </p>
           <div className="facsimile-scroll max-h-64 overflow-y-auto pr-0">
-            {activityStatus === 'pending' ? (
-              <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
-            ) : activityStatus === 'error' ? (
-              <p className="text-sm text-rose-300/90">Could not load activity.</p>
-            ) : activityRows.length === 0 ? (
-              <p className="text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-                No published character checkpoints with a remembered name yet.
-              </p>
-            ) : (
-              <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
-                {activityRows.map((row) => (
-                  <li key={row.pubkey} className="border-l border-[var(--candle-flame-soft)]/40 pl-3">
-                    {row.detail}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="facsimile-scroll-dialogue-inner min-w-0">
+              {activityStatus === 'pending' ? (
+                <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
+              ) : activityStatus === 'error' ? (
+                <p className="text-sm text-rose-300/90">Could not load activity.</p>
+              ) : activityRows.length === 0 ? (
+                <p className="text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+                  No published character checkpoints with a remembered name yet.
+                </p>
+              ) : (
+                <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
+                  {activityRows.map((row) => (
+                    <li key={row.pubkey} className="border-l border-[var(--candle-flame-soft)]/40 pl-3">
+                      {row.detail}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
           </div>
         </div>
       </div>
