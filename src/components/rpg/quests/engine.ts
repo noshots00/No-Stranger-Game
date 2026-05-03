@@ -16,6 +16,14 @@ import {
   interpolateQuestWorldLogTemplates,
 } from '../worldLog';
 import { canonicalizeModifierMap, migrateModifiersToCanonical } from '../modifiers/canonical';
+import {
+  displayLabelForClassSlug,
+  getCharacterClass,
+  pickDominantLockedSlug,
+  stripNonLockedClassModifiers,
+} from '../classArchetype';
+import { buildClassLockDialogueLines, buildRaceLockDialogueLines } from '../dialogueFormat';
+import { CLASS_ARCHETYPE_SLUGS } from '../constants';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
 
@@ -104,6 +112,7 @@ export const createInitialQuestState = (): QuestState => ({
   worldEventLog: [],
   questItems: [],
   assignedRaceSlug: null,
+  lockedClassSlug: null,
   unveiledQuestIds: ['quest-001-origin'],
   health: 75,
   characterCreationDateEastern: null,
@@ -174,13 +183,34 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       ? (LEGACY_RACE_SLUG_REWRITES[rawAssignedRaceSlug] ?? rawAssignedRaceSlug)
       : null;
 
+  const migratedModifiers = migrateModifiersToCanonical(rawModifiers);
+
+  const rawLock = (state as { lockedClassSlug?: unknown }).lockedClassSlug;
+  let lockedClassSlug: string | null =
+    typeof rawLock === 'string' && rawLock.trim().length > 0 ? rawLock.trim().toLowerCase() : null;
+  if (lockedClassSlug !== null && !(CLASS_ARCHETYPE_SLUGS as readonly string[]).includes(lockedClassSlug)) {
+    lockedClassSlug = null;
+  }
+
+  let normalizedModifiers = migratedModifiers;
+  if (lockedClassSlug === null) {
+    const candidate = pickDominantLockedSlug(normalizedModifiers);
+    if (candidate) {
+      lockedClassSlug = candidate;
+      normalizedModifiers = stripNonLockedClassModifiers(normalizedModifiers, candidate);
+    }
+  } else {
+    normalizedModifiers = stripNonLockedClassModifiers(normalizedModifiers, lockedClassSlug);
+  }
+
   return {
     ...initial,
     ...state,
     currentLocation,
     experience: legacyExperience,
     assignedRaceSlug,
-    modifiers: migrateModifiersToCanonical(rawModifiers),
+    lockedClassSlug,
+    modifiers: normalizedModifiers,
     skills: {
       explorationXp,
       foragingXp,
@@ -385,13 +415,23 @@ export const getCurrentStep = (state: QuestState, quest: QuestDefinition): Quest
 const mergeModifiers = (
   current: ModifierMap,
   incoming: ModifierMap | undefined,
-  raceLocked: boolean
+  raceLocked: boolean,
+  lockedClassSlug: string | null
 ): ModifierMap => {
   if (!incoming) return current;
   let normalizedIncoming = canonicalizeModifierMap(incoming);
   if (raceLocked) {
     normalizedIncoming = Object.fromEntries(
       Object.entries(normalizedIncoming).filter(([modifier]) => !modifier.startsWith('race:'))
+    );
+  }
+  if (lockedClassSlug !== null) {
+    normalizedIncoming = Object.fromEntries(
+      Object.entries(normalizedIncoming).filter(([modifier]) => {
+        if (!modifier.startsWith('class:')) return true;
+        const slug = modifier.slice('class:'.length);
+        return slug === lockedClassSlug;
+      })
     );
   }
   const next = { ...current };
@@ -440,13 +480,41 @@ const moveToStep = (
     !clearActive &&
     (Boolean(choice.completeQuest || nextStep?.completeQuest) || allCompletionFlagsMet);
   const raceLocked = state.assignedRaceSlug !== null;
+  const prevLockedSlug = state.lockedClassSlug;
+
+  let modifiers = mergeModifiers(
+    state.modifiers,
+    choice.effects?.modifiersDelta,
+    raceLocked,
+    prevLockedSlug
+  );
+
+  let lockedClassSlug = prevLockedSlug;
+  const classLockDialogue: DialogueLogEntry[] = [];
+  const worldExtra: string[] = [];
+
+  if (lockedClassSlug === null) {
+    const candidate = pickDominantLockedSlug(modifiers);
+    if (candidate) {
+      lockedClassSlug = candidate;
+      modifiers = stripNonLockedClassModifiers(modifiers, candidate);
+      const displayClass = displayLabelForClassSlug(candidate);
+      classLockDialogue.push(...buildClassLockDialogueLines(displayClass));
+      const nm = state.playerName.trim() || 'Stranger';
+      worldExtra.push(`${nm} is a ${displayClass}!`);
+    }
+  }
 
   let nextState: QuestState = {
     ...state,
     activeQuestId: isCompleted || clearActive ? null : state.activeQuestId,
-    modifiers: mergeModifiers(state.modifiers, choice.effects?.modifiersDelta, raceLocked),
+    modifiers,
+    lockedClassSlug,
     flags: mergedFlags,
     questItems: mergeQuestItems(state.questItems, choice.effects),
+    dialogueLog: [...state.dialogueLog, ...classLockDialogue],
+    worldEventLog:
+      worldExtra.length > 0 ? appendUniqueWorldEntries(state.worldEventLog, worldExtra) : state.worldEventLog,
     progressByQuestId: {
       ...state.progressByQuestId,
       [quest.id]: {
@@ -507,14 +575,24 @@ const applyRaceLockEffects = (state: QuestState, race: RaceDefinition): QuestSta
     mergedModifiers[key] = (mergedModifiers[key] ?? 0) + delta;
   }
 
-  const worldLine = `A ${race.displayName} stares back from the water.`;
-  const worldEventLog = appendUniqueWorldEntries(state.worldEventLog, [worldLine]);
+  const withRaceModifiers: QuestState = {
+    ...state,
+    assignedRaceSlug: race.slug,
+    modifiers: mergedModifiers,
+  };
+  const level = getCharacterLevel(withRaceModifiers);
+  const classDisplay = getCharacterClass(mergedModifiers);
+  const name = state.playerName.trim() || 'Stranger';
+  const returnLine = `${name} has returned from the lake… a Level ${level} ${race.displayName} ${classDisplay}.`;
+  const worldEventLog = appendUniqueWorldEntries(state.worldEventLog, [returnLine]);
+  const raceDialogue = buildRaceLockDialogueLines(name, race.displayName, level, classDisplay);
 
   return {
     ...state,
     assignedRaceSlug: race.slug,
     modifiers: mergedModifiers,
     worldEventLog,
+    dialogueLog: [...state.dialogueLog, ...raceDialogue],
   };
 };
 

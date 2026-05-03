@@ -54,6 +54,9 @@ export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 export const DAILY_XP = 1440;
 export const NPC_AVATAR_URL = 'https://api.dicebear.com/8.x/adventurer/svg?seed=Elira';
 export const CLASS_UNLOCK_POINTS = 5;
+
+/** Canonical class archetype slugs (`class:<slug>`); single-class lock picks one at ≥ CLASS_UNLOCK_POINTS. */
+export const CLASS_ARCHETYPE_SLUGS = ['warrior', 'rogue', 'mage', 'healer', 'ranger'] as const;
 export const CHARACTER_START_KIND = 10031;
 export const CHARACTER_START_D_TAG = 'character-start';
 export const FOLLOW_LIST_KIND = 3;
@@ -71,14 +74,18 @@ export const COIN_AUTHORING_KEY_VALUE: Record<string, number> = {
   gold: COPPER_PER_GOLD,
   coins: 1,
 };
-/** Legacy keys + canonical class keys for the three base paths (hidden from generic modifier lists). */
+/** Legacy keys + canonical class keys for archetype paths (hidden from granular modifier gain lines). */
 export const HIDDEN_CLASS_MODIFIER_KEYS = [
   'WarriorClass',
   'MageClass',
   'RogueClass',
+  'HealerClass',
+  'RangerClass',
   'class:warrior',
   'class:mage',
   'class:rogue',
+  'class:healer',
+  'class:ranger',
 ] as const;
 export const PRIMARY_STAT_MODIFIER_LABEL: Record<string, string> = {
   Strength: 'strength',

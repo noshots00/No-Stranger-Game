@@ -5,7 +5,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { NSG_QUEST_STATE_D_TAG, NSG_QUEST_STATE_KIND, parseQuestCheckpointPayload } from '../gameProfile';
 import { extractFollowPubkeysFromContactList, truncatePlaintext } from '../social/socialTags';
 import { CHARACTER_START_D_TAG, CHARACTER_START_KIND, FOLLOW_LIST_KIND } from '../constants';
-import { findFirstRememberedCheckpoint } from '../helpers';
+import { getCharacterClass } from '../classArchetype';
+import { getCharacterLevel } from '../quests/engine';
+import { getRaceDefinition } from '../races';
+import { questStateHasRememberedName } from '../helpers';
 
 export function useSocialQueries() {
   const { nostr } = useNostr();
@@ -92,11 +95,31 @@ export function useSocialQueries() {
         list.push(ev);
         byAuthor.set(ev.pubkey, list);
       }
-      const rows: { pubkey: string; displayName: string; namedAt: number }[] = [];
+      const rows: { pubkey: string; displayName: string; namedAt: number; detail: string }[] = [];
       for (const [pubkey, events] of byAuthor) {
-        const found = findFirstRememberedCheckpoint(events);
-        if (!found) continue;
-        rows.push({ pubkey, displayName: found.displayName, namedAt: found.namedAt });
+        if (events.length === 0) continue;
+        const latestEv = events.reduce((best, cur) => (cur.created_at > best.created_at ? cur : best));
+        const payload = parseQuestCheckpointPayload(latestEv.content);
+        if (!payload) continue;
+        const st = payload.state;
+        if (!questStateHasRememberedName(st)) continue;
+        const displayName = st.playerName.trim();
+        let detail: string;
+        if (st.assignedRaceSlug) {
+          const race = getRaceDefinition(st.assignedRaceSlug);
+          const raceLabel = race?.displayName ?? st.assignedRaceSlug;
+          const level = getCharacterLevel(st);
+          const cls = getCharacterClass(st.modifiers);
+          detail = `${displayName} has returned from the lake… a Level ${level} ${raceLabel} ${cls}.`;
+        } else {
+          detail = `${displayName} remembered their name.`;
+        }
+        rows.push({
+          pubkey,
+          displayName,
+          namedAt: latestEv.created_at,
+          detail,
+        });
       }
       rows.sort((a, b) => b.namedAt - a.namedAt);
       return rows.slice(0, 5);

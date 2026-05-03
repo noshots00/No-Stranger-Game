@@ -2,10 +2,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { QuestState, DialogueLogEntry } from './quests/types';
 import { getPlayerVisibleQuests, getQuestContext, getSkillLevelUpLines } from './quests/engine';
 import { allQuests } from './quests/registry';
-import { DAY_REPORT_SPEAKER } from './dialogueFormat';
+import { appendDialogue, DAY_REPORT_SPEAKER } from './dialogueFormat';
 import { parseQuestCheckpointPayload } from './gameProfile';
 import {
-  CLASS_UNLOCK_POINTS,
   COPPER_PER_GOLD,
   COPPER_PER_SILVER,
   CURRENCY_COPPER_KEY,
@@ -168,15 +167,8 @@ export function findFirstRememberedCheckpoint(
 
 export { appendUniqueWorldEntries } from './worldLog';
 
-export const appendDialogue = (speaker: string, text: string): DialogueLogEntry => {
-  const atMs = Date.now();
-  return {
-    id: `${speaker}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
-    speaker,
-    text,
-    atMs,
-  };
-};
+export { appendDialogue } from './dialogueFormat';
+export { getCharacterClass } from './classArchetype';
 
 export const getCopperFromModifiers = (modifiers: Record<string, number>): number =>
   modifiers[CURRENCY_COPPER_KEY] ?? 0;
@@ -361,16 +353,4 @@ export function buildDayReportDialogueLines(
   }
 
   return lines;
-};
-
-export const getCharacterClass = (modifiers: Record<string, number>): 'Warrior' | 'Rogue' | 'Mage' | 'Stranger' => {
-  const classScores: Array<{ name: 'Warrior' | 'Rogue' | 'Mage'; score: number }> = [
-    { name: 'Warrior', score: modifiers.WarriorClass ?? modifiers['class:warrior'] ?? 0 },
-    { name: 'Rogue', score: modifiers.RogueClass ?? modifiers['class:rogue'] ?? 0 },
-    { name: 'Mage', score: modifiers.MageClass ?? modifiers['class:mage'] ?? 0 },
-  ];
-
-  const unlocked = classScores.filter((entry) => entry.score >= CLASS_UNLOCK_POINTS);
-  if (unlocked.length === 0) return 'Stranger';
-  return unlocked.sort((a, b) => b.score - a.score)[0].name;
 };

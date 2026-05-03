@@ -87,6 +87,10 @@ function isQuestState(value: unknown): value is QuestState {
     !('assignedRaceSlug' in candidate) ||
     candidate.assignedRaceSlug === null ||
     typeof candidate.assignedRaceSlug === 'string';
+  const lockedClassOk =
+    !('lockedClassSlug' in candidate) ||
+    candidate.lockedClassSlug === null ||
+    typeof candidate.lockedClassSlug === 'string';
 
   return (
     (typeof candidate.activeQuestId === 'string' || candidate.activeQuestId === null) &&
@@ -97,6 +101,7 @@ function isQuestState(value: unknown): value is QuestState {
     Array.isArray(candidate.flags) &&
     typeof candidate.playerName === 'string' &&
     assignedRaceOk &&
+    lockedClassOk &&
     dialogueOk &&
     worldLogOk
   );

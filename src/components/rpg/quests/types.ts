@@ -134,6 +134,8 @@ export type QuestState = {
   questItems: string[];
   /** Canonical race slug after reflection quest (permanent); null until assigned. */
   assignedRaceSlug: string | null;
+  /** Locked class archetype slug (`warrior`, `healer`, …); null until first track reaches CLASS_UNLOCK_POINTS. */
+  lockedClassSlug: string | null;
   /**
    * IDs of quests that have been "unveiled" to the player at least once.
    * Drives the daily unveil cap (max 2 NEW per day) so eligible-but-not-yet-shown

@@ -6,7 +6,7 @@ type QueryStatus = 'pending' | 'error' | 'success';
 
 type SocialTabProps = {
   socialStats: { totalPlayers: number; kindredSpirits: number; kindredPubkeys: string[] };
-  activityRows: { pubkey: string; displayName: string; namedAt: number }[];
+  activityRows: { pubkey: string; displayName: string; namedAt: number; detail: string }[];
   activityStatus: QueryStatus;
   kindredSignalRows: { pubkey: string; name: string; text: string; latestAt: number }[];
   kindredSignalStatus: QueryStatus;
@@ -61,7 +61,7 @@ export function SocialTab({
             <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
               {activityRows.map((row) => (
                 <li key={row.pubkey} className="border-l border-[var(--candle-flame-soft)]/40 pl-3">
-                  <span className="text-[var(--candle-ink)]">{row.displayName}</span> remembered their name.
+                  {row.detail}
                 </li>
               ))}
             </ul>
