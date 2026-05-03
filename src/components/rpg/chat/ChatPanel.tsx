@@ -9,8 +9,8 @@ import { useRpgSpeakerNamesForPubkeys } from './useRpgSpeakerNamesForPubkeys';
 type ChatPanelProps = {
   /** Stable group identifier (NIP-29 `h` tag). */
   groupId: string;
-  /** Heading shown above the messages list. */
-  title: string;
+  /** Heading shown above the messages list; omit or pass empty to hide. */
+  title?: string;
   /**
    * Empty-state hint when no one else has spoken in this room.
    * Pass `""` to show no hint (only applies when `events.length === 0`).
@@ -39,7 +39,7 @@ const truncate = (text: string, max: number): string => {
 
 export function ChatPanel({
   groupId,
-  title,
+  title = '',
   emptyHint,
   worldEventLines,
   listScrollRef,
@@ -63,11 +63,15 @@ export function ChatPanel({
   const checkpointNames = useRpgSpeakerNamesForPubkeys(otherSpeakerPubkeys);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const titleLine =
+    title.trim().length > 0 ? (
+      <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+    ) : null;
 
   if (!user) {
     return (
       <div className="space-y-2">
-        <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+        {titleLine}
         <p className="text-sm text-[var(--candle-ink-soft)]">Log in to join the conversation.</p>
       </div>
     );
@@ -76,7 +80,7 @@ export function ChatPanel({
   if (!hasCharacter) {
     return (
       <div className="space-y-2">
-        <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+        {titleLine}
         <p className="text-sm text-[var(--candle-ink-soft)]">
           Name your character first to join this room.
         </p>
@@ -98,7 +102,7 @@ export function ChatPanel({
 
   return (
     <div className="space-y-1">
-      <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+      {titleLine}
       <div
         ref={listScrollRef}
         className={`facsimile-scroll overflow-y-auto pr-1 ${messageListClassName}`}

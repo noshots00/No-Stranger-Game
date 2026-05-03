@@ -30,34 +30,31 @@ export function SocialTab({
 
   return (
     <section className="space-y-5 pb-4 font-serif">
-      {/* Primary: lobby chat — large scroll area with minimum height */}
-      <div className="relative min-h-[min(52vh,22rem)]">
-        {user ? (
-          <div
-            className="absolute right-0 top-0 z-[1] flex flex-col items-end gap-0.5 text-right text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
-            aria-label="Social counts"
-          >
-            <p className="whitespace-nowrap">
-              <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
-              <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
-            </p>
-            <p className="whitespace-nowrap">
-              <span className="text-[var(--candle-ink-faint)]/90">Kindred</span>{' '}
-              <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
-            </p>
-          </div>
-        ) : null}
-        <div className={user ? 'pr-[4.75rem]' : undefined}>
-          <ChatPanel
-            groupId={getGlobalGroupId()}
-            title="Global lobby"
-            emptyHint="No one has spoken in the global lobby yet."
-            characterNameLabel={characterNameLabel}
-            speakerNameMap={lobbyNameMap}
-            messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)]"
-            hasCharacter={hasCharacter}
-          />
+      {user ? (
+        <div
+          className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
+          aria-label="Social counts"
+        >
+          <p className="whitespace-nowrap">
+            <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
+            <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
+          </p>
+          <p className="whitespace-nowrap">
+            <span className="text-[var(--candle-ink-faint)]/90">Kindred</span>{' '}
+            <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
+          </p>
         </div>
+      ) : null}
+
+      <div className="min-h-[min(52vh,22rem)]">
+        <ChatPanel
+          groupId={getGlobalGroupId()}
+          emptyHint="No one has spoken in the global lobby yet."
+          characterNameLabel={characterNameLabel}
+          speakerNameMap={lobbyNameMap}
+          messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)]"
+          hasCharacter={hasCharacter}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-2">
