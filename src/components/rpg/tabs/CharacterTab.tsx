@@ -52,6 +52,9 @@ function chunkPairs<T>(arr: T[]): T[][] {
   return out;
 }
 
+/** Body copy (~50% of prior `text-sm` / 0.875rem). */
+const bt = 'font-serif text-[0.4375rem] leading-snug';
+
 export function CharacterTab({
   questState,
   userPubkey,
@@ -170,72 +173,52 @@ export function CharacterTab({
   const miscRows = byBucket.get('misc') ?? [];
   const otherModifiersLine =
     showModifierDetails && miscRows.length > 0 ? (
-      <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+      <p className={`${bt} leading-relaxed text-[var(--candle-ink-soft)]`}>
         <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.misc}:</span> {formatModifierLines(miscRows)}
       </p>
     ) : null;
 
   return (
     <section className="min-w-0 space-y-2 pb-4">
-      <div className="flex w-full justify-center py-0.5">
-        <button
-          type="button"
-          onClick={onOpenChronicle}
-          className="choice-line !w-fit !max-w-full !text-center py-0.5 text-[var(--candle-wax)]"
-        >
-          Open full chronicle (dialogue and world events)
-        </button>
-      </div>
-      <div className="grid min-w-0 grid-cols-1 gap-6">
-        <div className="flex min-w-0 justify-center">
-          <img
-            src={getRacePortraitSrc(questState.assignedRaceSlug)}
-            alt="Character portrait"
-            className="aspect-[200/266] w-full max-w-[min(200px,85vw)] rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
-          />
-        </div>
-        <div className="flex min-w-0 flex-col justify-center gap-1">
-          <p className="font-cormorant text-3xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
-            {questState.playerName || 'Stranger'}
-          </p>
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
-            {raceEmoji ? (
-              <span aria-hidden="true">
-                {raceEmoji}{' '}
-              </span>
-            ) : null}
-            Level {characterLevel} {raceMiddle} {characterClass}
-          </p>
-          <p className="font-serif text-sm text-[var(--candle-ink-soft)]">Coal Miner</p>
-          <p className="font-serif text-sm">
-            <span className="text-[var(--candle-ink-soft)]">Coin: </span>
-            <span
-              className={`font-mono ${
-                copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
-              }`}
-            >
-              {coinLabel}
+      <div className="space-y-1 text-center">
+        <p className="font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
+          {questState.playerName || 'Stranger'}
+        </p>
+        <p className="font-mono text-[0.34375rem] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
+          {raceEmoji ? (
+            <span aria-hidden="true">
+              {raceEmoji}{' '}
             </span>
-          </p>
-        </div>
+          ) : null}
+          Level {characterLevel} {raceMiddle} {characterClass}
+        </p>
       </div>
-      <p className="text-center font-serif text-sm leading-snug text-[var(--candle-ink-soft)] py-0.5">
-        Shareable profile link:{' '}
-        <a
-          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
-          target="_blank"
-          rel="noreferrer"
-          aria-disabled={!profileNpub}
-          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
+
+      <div className="flex justify-center py-0.5">
+        <img
+          src={getRacePortraitSrc(questState.assignedRaceSlug)}
+          alt="Character portrait"
+          className="aspect-[200/266] w-full max-w-[min(100px,85vw)] rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
+        />
+      </div>
+
+      <p className={`${bt} text-center text-[var(--candle-ink-soft)]`}>Coal Miner</p>
+      <p className={`${bt} text-center`}>
+        <span className="text-[var(--candle-ink-soft)]">Coin: </span>
+        <span
+          className={`font-mono ${
+            copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
+          }`}
         >
-          your Ditto public profile
-        </a>
+          {coinLabel}
+        </span>
       </p>
+
       <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-0">
         {characterStats.map(([label]) => (
           <div
             key={label}
-            className="flex min-w-0 items-baseline justify-between gap-4 border-b border-[var(--candle-rule)] py-1.5 font-serif text-sm"
+            className={`flex min-w-0 items-baseline justify-between gap-4 border-b border-[var(--candle-rule)] py-0.5 ${bt}`}
           >
             <p className="uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">{label}</p>
             <p className="shrink-0 font-mono text-[var(--candle-ink)]">
@@ -244,8 +227,9 @@ export function CharacterTab({
           </div>
         ))}
       </div>
+
       {detailTableCells.length > 0 ? (
-        <table className="w-full min-w-0 border-collapse font-serif text-sm leading-snug text-[var(--candle-ink-soft)]">
+        <table className={`w-full min-w-0 border-collapse ${bt} text-[var(--candle-ink-soft)]`}>
           <tbody>
             {chunkPairs(detailTableCells).map((pair, rowIdx) => (
               <tr key={rowIdx} className="align-top border-b border-[var(--candle-rule)]/40">
@@ -257,6 +241,29 @@ export function CharacterTab({
         </table>
       ) : null}
       {otherModifiersLine}
+
+      <p className={`${bt} py-1 text-center leading-snug text-[var(--candle-ink-soft)]`}>
+        Your Public Nostr Profile:{' '}
+        <a
+          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
+          target="_blank"
+          rel="noreferrer"
+          aria-disabled={!profileNpub}
+          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
+        >
+          your Ditto public profile
+        </a>
+      </p>
+
+      <div className="flex w-full justify-center border-t border-[var(--candle-rule)]/60 pt-2">
+        <button
+          type="button"
+          onClick={onOpenChronicle}
+          className="choice-line !w-fit !max-w-full !py-0.5 !text-[0.4375rem] text-center text-[var(--candle-wax)]"
+        >
+          Chronicle
+        </button>
+      </div>
     </section>
   );
 }

@@ -101,7 +101,7 @@ export function ChatPanel({
   const showWorldBlock = worldEventLines !== undefined;
 
   return (
-    <div className="space-y-1">
+    <div className={title.trim().length > 0 ? 'space-y-1' : 'space-y-0.5'}>
       {titleLine}
       <div
         ref={listScrollRef}

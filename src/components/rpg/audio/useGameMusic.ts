@@ -14,6 +14,8 @@ type UseGameMusicOptions = {
  * Loops background music while `active` and the user has not muted via the header control.
  * Uses a single `HTMLAudioElement` (no Web Audio “pad”); playback starts after unmute
  * (user gesture) to satisfy browser autoplay rules.
+ * Retries on visibility restore and first pointer interaction so production autoplay
+ * quirks are less likely to leave audio permanently silent after unmute.
  */
 export function useGameMusic({ src, active, volume = 0.45 }: UseGameMusicOptions): void {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -49,6 +51,14 @@ export function useGameMusic({ src, active, volume = 0.45 }: UseGameMusicOptions
         audio.loop = true;
         audio.volume = volumeRef.current;
         audio.preload = 'auto';
+        audio.addEventListener(
+          'error',
+          () => {
+            // Broken URL or blocked asset — release so a later retry can recreate.
+            stop();
+          },
+          { once: true }
+        );
         await audio.play();
         if (cancelled) {
           stop();
@@ -62,6 +72,14 @@ export function useGameMusic({ src, active, volume = 0.45 }: UseGameMusicOptions
 
     void tryPlay();
 
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void tryPlay();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const onPointer = () => void tryPlay();
+    window.addEventListener('pointerdown', onPointer, { passive: true });
+
     const unsub = subscribeAudioMuted((muted) => {
       if (muted) stop();
       else void tryPlay();
@@ -69,6 +87,8 @@ export function useGameMusic({ src, active, volume = 0.45 }: UseGameMusicOptions
 
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pointerdown', onPointer);
       unsub();
       stop();
     };

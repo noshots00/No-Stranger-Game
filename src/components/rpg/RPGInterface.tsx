@@ -68,8 +68,8 @@ import { useQuestState } from './hooks/useQuestState';
 import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
 import { GameHeader } from './GameHeader';
-import { ChronicleDialog } from './ChronicleDialog';
 import { CharacterTab } from './tabs/CharacterTab';
+import { ChronicleTab } from './tabs/ChronicleTab';
 import { QuestsTab } from './tabs/QuestsTab';
 import { PlayTab } from './tabs/PlayTab';
 import { MapTab } from './tabs/MapTab';
@@ -117,7 +117,6 @@ export function RPGInterface() {
   const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
-  const [isChronicleOpen, setIsChronicleOpen] = useState(false);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
 
@@ -208,7 +207,7 @@ export function RPGInterface() {
     activeQuest?.id === 'quest-001-origin' && activeStep?.id === 'start' && activeStep.type === 'choice';
 
   const chronicleRows = useMemo((): ChronicleMergedRow[] => {
-    if (!isChronicleOpen) return [];
+    if (activeTab !== 'chronicle') return [];
     const dialogueRows: ChronicleMergedRow[] = questState.dialogueLog.map((line) => ({
       kind: 'dialogue' as const,
       atMs: line.atMs,
@@ -226,7 +225,7 @@ export function RPGInterface() {
       if (a.kind === b.kind) return 0;
       return a.kind === 'dialogue' ? -1 : 1;
     });
-  }, [isChronicleOpen, questState.dialogueLog, questState.worldEventLog]);
+  }, [activeTab, questState.dialogueLog, questState.worldEventLog]);
   const chronicleSegments = useMemo(() => groupChronicleRows(chronicleRows), [chronicleRows]);
 
   useLayoutEffect(() => {
@@ -683,6 +682,7 @@ export function RPGInterface() {
     { key: 'map', label: 'Map', icon: '◈' },
     { key: 'social', label: 'Social', icon: '◎' },
   ];
+  const navHighlightTab: MobileTab = activeTab === 'chronicle' ? 'character' : activeTab;
 
   const renderTabPanel = () => {
     switch (activeTab) {
@@ -691,9 +691,13 @@ export function RPGInterface() {
           <CharacterTab
             questState={questState}
             userPubkey={user?.pubkey}
-            onOpenChronicle={() => setIsChronicleOpen(true)}
+            onOpenChronicle={() => setActiveTab('chronicle')}
             showModifierDetails={showModifierDetails}
           />
+        );
+      case 'chronicle':
+        return (
+          <ChronicleTab chronicleSegments={chronicleSegments} chronicleDateTimeFmt={chronicleDateTimeFmt} />
         );
       case 'quests':
         return (
@@ -807,7 +811,7 @@ export function RPGInterface() {
         <nav className="candlelit-bottom-nav pointer-events-auto w-full" aria-label="Primary game navigation">
           {canShowGame
             ? navItems.map((item) => {
-                const isActive = activeTab === item.key;
+                const isActive = navHighlightTab === item.key;
                 return (
                   <button
                     key={item.key}
@@ -832,12 +836,6 @@ export function RPGInterface() {
       </div>
     </main>
     </GamePortraitViewport>
-    <ChronicleDialog
-      isOpen={isChronicleOpen}
-      onOpenChange={setIsChronicleOpen}
-      chronicleSegments={chronicleSegments}
-      chronicleDateTimeFmt={chronicleDateTimeFmt}
-    />
     </>
   );
 }

@@ -103,7 +103,7 @@ A running inventory of every feature in No Stranger Game. One section per featur
 ## Chronicle
 
 - Merges dialogue + world events for reading in a modal.
-- [ChronicleDialog.tsx](../../src/components/rpg/ChronicleDialog.tsx), grouping in [dialogueFormat.ts](../../src/components/rpg/dialogueFormat.ts).
+- [ChronicleTab.tsx](../../src/components/rpg/tabs/ChronicleTab.tsx), grouping in [dialogueFormat.ts](../../src/components/rpg/dialogueFormat.ts).
 
 ## Developer / debug tools (Vite dev only)
 

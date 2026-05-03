@@ -29,43 +29,45 @@ export function SocialTab({
   const { user } = useCurrentUser();
 
   return (
-    <section className="space-y-5 pb-4 font-serif">
-      {user ? (
-        <div
-          className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
-          aria-label="Social counts"
-        >
-          <p className="whitespace-nowrap">
-            <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
-            <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
-          </p>
-          <p className="whitespace-nowrap">
-            <span className="text-[var(--candle-ink-faint)]/90">Kindred</span>{' '}
-            <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
-          </p>
-        </div>
-      ) : null}
+    <section className="space-y-3 pb-4 font-serif">
+      <div className="flex flex-col gap-1">
+        {user ? (
+          <div
+            className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
+            aria-label="Social counts"
+          >
+            <p className="whitespace-nowrap">
+              <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
+              <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
+            </p>
+            <p className="whitespace-nowrap">
+              <span className="text-[var(--candle-ink-faint)]/90">Kindred</span>{' '}
+              <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.kindredSpirits}</span>
+            </p>
+          </div>
+        ) : null}
 
-      <div className="min-h-[min(52vh,22rem)]">
-        <ChatPanel
-          groupId={getGlobalGroupId()}
-          emptyHint="No one has spoken in the global lobby yet."
-          characterNameLabel={characterNameLabel}
-          speakerNameMap={lobbyNameMap}
-          messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)]"
-          hasCharacter={hasCharacter}
-        />
+        <div className="min-h-[min(52vh,22rem)]">
+          <ChatPanel
+            groupId={getGlobalGroupId()}
+            emptyHint="No one has spoken in the global lobby yet."
+            characterNameLabel={characterNameLabel}
+            speakerNameMap={lobbyNameMap}
+            messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)]"
+            hasCharacter={hasCharacter}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {['Guide', 'Market', 'Player Quests'].map((label) => (
+      <div className="grid grid-cols-3 gap-1.5">
+        {(['Guild', 'Market', 'Player Quests'] as const).map((label) => (
           <button
             key={label}
             type="button"
             disabled
             aria-disabled="true"
             title="Coming soon"
-            className="social-channel-button min-h-[44px] cursor-not-allowed rounded-md px-2 py-2 text-center text-[0.6875rem] text-[var(--candle-ink-faint)] opacity-50"
+            className="social-channel-button min-h-0 cursor-not-allowed rounded-md px-1 py-1 text-center text-[0.5625rem] leading-tight text-[var(--candle-ink-faint)] opacity-50"
           >
             {label}
           </button>
