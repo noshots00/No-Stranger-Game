@@ -276,17 +276,19 @@ export function CharacterTab({
       ) : null}
       {otherModifiersLine}
 
-      <p className={`${bt} py-1 text-center leading-snug text-[var(--candle-ink-soft)]`}>
-        Your Public Nostr Profile:{' '}
-        <a
-          href={profileNpub ? `https://ditto.pub/${profileNpub}` : '#'}
-          target="_blank"
-          rel="noreferrer"
-          aria-disabled={!profileNpub}
-          className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
-        >
-          your Ditto public profile
-        </a>
+      <p className={`${bt} py-1 text-center leading-snug`}>
+        {profileNpub ? (
+          <a
+            href={`https://ditto.pub/${profileNpub}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
+          >
+            Your Public Nostr Profile
+          </a>
+        ) : (
+          <span className="text-[var(--candle-ink-faint)]">Your Public Nostr Profile</span>
+        )}
       </p>
 
       <div className="flex w-full justify-center border-t border-[var(--candle-rule)]/60 pt-2">
