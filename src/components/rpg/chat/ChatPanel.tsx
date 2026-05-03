@@ -1,4 +1,4 @@
-import { useMemo, useState, type RefObject } from 'react';
+import { useMemo, useState, type ReactNode, type RefObject } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { genUserName } from '@/lib/genUserName';
 import { normalizePubkeyHex, pubkeysEqual } from '@/lib/nostrPubkey';
@@ -27,6 +27,8 @@ type ChatPanelProps = {
   speakerNameMap?: Map<string, string>;
   /** Tailwind height classes for the scrolling message list. */
   messageListClassName?: string;
+  /** When true, panel fills parent height: message list scrolls, composer stays at bottom (Social lobby). */
+  fillAvailableHeight?: boolean;
   /** Has the player created a character? When false, gates the room behind a hint. */
   hasCharacter: boolean;
 };
@@ -46,6 +48,7 @@ export function ChatPanel({
   characterNameLabel,
   speakerNameMap,
   messageListClassName = 'max-h-40',
+  fillAvailableHeight = false,
   hasCharacter,
 }: ChatPanelProps) {
   const resolvedEmptyHint =
@@ -68,23 +71,26 @@ export function ChatPanel({
       <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
     ) : null;
 
-  if (!user) {
-    return (
+  const gateShell = (body: ReactNode) =>
+    fillAvailableHeight ? (
+      <div className="flex h-full min-h-0 flex-col">
+        {titleLine}
+        <div className="flex flex-1 flex-col justify-center gap-2">{body}</div>
+      </div>
+    ) : (
       <div className="space-y-2">
         {titleLine}
-        <p className="text-sm text-[var(--candle-ink-soft)]">Log in to join the conversation.</p>
+        {body}
       </div>
     );
+
+  if (!user) {
+    return gateShell(<p className="text-sm text-[var(--candle-ink-soft)]">Log in to join the conversation.</p>);
   }
 
   if (!hasCharacter) {
-    return (
-      <div className="space-y-2">
-        {titleLine}
-        <p className="text-sm text-[var(--candle-ink-soft)]">
-          Name your character first to join this room.
-        </p>
-      </div>
+    return gateShell(
+      <p className="text-sm text-[var(--candle-ink-soft)]">Name your character first to join this room.</p>
     );
   }
 
@@ -100,13 +106,24 @@ export function ChatPanel({
 
   const showWorldBlock = worldEventLines !== undefined;
 
+  const listScrollClasses = fillAvailableHeight
+    ? 'facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0'
+    : `facsimile-scroll overflow-y-auto pr-0 ${messageListClassName}`;
+
   return (
-    <div className={title.trim().length > 0 ? 'space-y-1' : 'space-y-0.5'}>
+    <div
+      className={
+        fillAvailableHeight
+          ? title.trim().length > 0
+            ? 'flex h-full min-h-0 flex-col space-y-1'
+            : 'flex h-full min-h-0 flex-col space-y-0.5'
+          : title.trim().length > 0
+            ? 'space-y-1'
+            : 'space-y-0.5'
+      }
+    >
       {titleLine}
-      <div
-        ref={listScrollRef}
-        className={`facsimile-scroll overflow-y-auto pr-0 ${messageListClassName}`}
-      >
+      <div ref={listScrollRef} className={listScrollClasses}>
         <div className="facsimile-scroll-dialogue-inner min-w-0">
         {showWorldBlock ? (
           worldEventLines.length > 0 ? (
@@ -155,8 +172,14 @@ export function ChatPanel({
         )}
         </div>
       </div>
-      {error ? <p className="text-xs text-rose-300/90">{error}</p> : null}
-      <div className="flex items-center gap-2 border-b border-[var(--candle-rule)] focus-within:border-[var(--candle-flame-soft)]">
+      {error ? (
+        <p className={`text-xs text-rose-300/90 ${fillAvailableHeight ? 'shrink-0' : ''}`}>{error}</p>
+      ) : null}
+      <div
+        className={`flex items-center gap-2 border-b border-[var(--candle-rule)] focus-within:border-[var(--candle-flame-soft)] ${
+          fillAvailableHeight ? 'shrink-0' : ''
+        }`}
+      >
         <input
           type="text"
           value={draft}

@@ -29,71 +29,70 @@ export function SocialTab({
   const { user } = useCurrentUser();
 
   return (
-    <section className="flex h-full min-h-0 flex-col font-serif">
-      <div className="facsimile-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0 pb-4">
-        <div className="facsimile-scroll-dialogue-inner flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          <div className="min-h-[min(52vh,22rem)]">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden font-serif">
+      <div className="facsimile-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-0">
+        <div className="flex min-h-full min-w-0 flex-col">
+          <div className="facsimile-scroll-dialogue-inner flex min-h-0 min-w-0 flex-1 flex-col">
             <ChatPanel
-              groupId={getGlobalGroupId()}
-              emptyHint="No one has spoken in the global lobby yet."
-              characterNameLabel={characterNameLabel}
-              speakerNameMap={lobbyNameMap}
-              messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)]"
-              hasCharacter={hasCharacter}
-            />
+                groupId={getGlobalGroupId()}
+                emptyHint="No one has spoken in the global lobby yet."
+                characterNameLabel={characterNameLabel}
+                speakerNameMap={lobbyNameMap}
+                fillAvailableHeight
+                hasCharacter={hasCharacter}
+              />
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5">
-          {(['Guild', 'Market', 'Player Quests'] as const).map((label) => (
-            <button
-              key={label}
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="Coming soon"
-              className="social-channel-button min-h-0 cursor-not-allowed rounded-md px-1 py-1 text-center text-[0.5625rem] leading-tight text-[var(--candle-ink-faint)] opacity-50"
-            >
-              {label}
-            </button>
-          ))}
-          </div>
-
-          <div>
-          <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
-            Signals
-          </p>
-          {!user ? (
-            <p className="text-sm text-[var(--candle-ink-soft)]">Log in to see signals from kindred spirits.</p>
-          ) : kindredSignalStatus === 'pending' ? (
-            <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
-          ) : kindredSignalStatus === 'error' ? (
-            <p className="text-sm text-rose-300/90">Could not load signals.</p>
-          ) : (
-            <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
-              {kindredSignalRows.map((row) => (
-                <li key={row.pubkey} className="border-l border-[var(--candle-rule)] pl-3">
-                  <span className="text-[var(--candle-ink)]">{row.name}</span>: {row.text}
-                </li>
+          <div className="facsimile-scroll-dialogue-inner shrink-0 space-y-3 border-t border-[var(--candle-rule)]/40 pt-6 pb-4">
+            <div className="grid grid-cols-3 gap-1.5">
+              {(['Guild', 'Market', 'Player Quests'] as const).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="social-channel-button min-h-0 cursor-not-allowed rounded-md px-1 py-1 text-center text-[0.5625rem] leading-tight text-[var(--candle-ink-faint)] opacity-50"
+                >
+                  {label}
+                </button>
               ))}
-              {kindredSignalRows.length === 0 ? (
-                <li className="border-l border-[var(--candle-rule)] pl-3 text-[var(--candle-ink-faint)]">
-                  {socialStats.kindredPubkeys.length === 0
-                    ? 'No kindred spirits yet—mutual follows with other players who started here.'
-                    : 'No checkpoint data found for your kindred spirits on these relays yet.'}
-                </li>
-              ) : null}
-            </ul>
-          )}
-          </div>
+            </div>
 
-          <hr className="candle-rule" />
+            <div>
+              <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+                Signals
+              </p>
+              {!user ? (
+                <p className="text-sm text-[var(--candle-ink-soft)]">Log in to see signals from kindred spirits.</p>
+              ) : kindredSignalStatus === 'pending' ? (
+                <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
+              ) : kindredSignalStatus === 'error' ? (
+                <p className="text-sm text-rose-300/90">Could not load signals.</p>
+              ) : (
+                <ul className="space-y-3 text-sm text-[var(--candle-ink-soft)]">
+                  {kindredSignalRows.map((row) => (
+                    <li key={row.pubkey} className="border-l border-[var(--candle-rule)] pl-3">
+                      <span className="text-[var(--candle-ink)]">{row.name}</span>: {row.text}
+                    </li>
+                  ))}
+                  {kindredSignalRows.length === 0 ? (
+                    <li className="border-l border-[var(--candle-rule)] pl-3 text-[var(--candle-ink-faint)]">
+                      {socialStats.kindredPubkeys.length === 0
+                        ? 'No kindred spirits yet—mutual follows with other players who started here.'
+                        : 'No checkpoint data found for your kindred spirits on these relays yet.'}
+                    </li>
+                  ) : null}
+                </ul>
+              )}
+            </div>
 
-          <div>
-          <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
-            Activity
-          </p>
-          <div className="facsimile-scroll max-h-64 overflow-y-auto pr-0">
-            <div className="facsimile-scroll-dialogue-inner min-w-0">
+            <hr className="candle-rule" />
+
+            <div>
+              <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+                Activity
+              </p>
               {activityStatus === 'pending' ? (
                 <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
               ) : activityStatus === 'error' ? (
@@ -112,22 +111,19 @@ export function SocialTab({
                 </ul>
               )}
             </div>
-          </div>
+
+            {user ? (
+              <p
+                className="text-right text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
+                aria-label="Stranger count"
+              >
+                <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
+                <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
-
-      {user ? (
-        <div
-          className="shrink-0 border-t border-[var(--candle-rule)]/60 pt-2 text-[0.5rem] leading-tight tracking-wide text-[var(--candle-ink-faint)]"
-          aria-label="Stranger count"
-        >
-          <p className="text-right whitespace-nowrap">
-            <span className="text-[var(--candle-ink-faint)]/90">Strangers</span>{' '}
-            <span className="font-mono text-[0.5625rem] text-[var(--candle-ink)]">{socialStats.totalPlayers}</span>
-          </p>
-        </div>
-      ) : null}
     </section>
   );
 }
