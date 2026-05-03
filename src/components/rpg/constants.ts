@@ -120,7 +120,6 @@ export const SKILL_MODIFIER_CATEGORY_ORDER: string[] = [
 export const PLAY_DIALOGUE_RECENT_MAX = 120;
 export const PLAY_WORLD_RECENT_MAX = 40;
 export const DIALOGUE_SCROLL_PIN_EPS = 80;
-export const DIALOGUE_BREATHE_OVERFLOW_RATIO = 1.3;
 /** Shown in the game header; always reflects `package.json` `version` (no second source of truth). */
 export const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-dev' : ''}`;
 

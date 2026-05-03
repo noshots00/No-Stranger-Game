@@ -41,7 +41,6 @@ import {
   LIFEBOAT_DAILY_FLAG,
   SOPHIE_DAILY_FLAG,
   DAILY_XP,
-  DIALOGUE_BREATHE_OVERFLOW_RATIO,
   DIALOGUE_SCROLL_PIN_EPS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
@@ -141,10 +140,13 @@ export function RPGInterface() {
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
   const dialoguePinnedRef = useRef(true);
   const dialogueInstantScrollRef = useRef(false);
-  const prevDialogueOverflowRatioRef = useRef<number | null>(null);
+  /** False until first bottom snap on Play; avoids scrollTop=0 on mount marking the feed "unpinned". */
+  const dialogueScrollReadyRef = useRef(false);
+  const prevPlayTabRef = useRef(false);
   const completedQuestCountRef = useRef(0);
 
   const handleDialogueScroll = () => {
+    if (!dialogueScrollReadyRef.current) return;
     const el = dialogueScrollRef.current;
     if (!el) return;
     const maxScroll = el.scrollHeight - el.clientHeight;
@@ -212,43 +214,39 @@ export function RPGInterface() {
   const chronicleSegments = useMemo(() => groupChronicleRows(chronicleRows), [chronicleRows]);
 
   useLayoutEffect(() => {
-    if (activeTab !== 'play') return;
+    if (activeTab !== 'play') {
+      prevPlayTabRef.current = false;
+      dialogueScrollReadyRef.current = false;
+      return;
+    }
+
+    const justEnteredPlay = !prevPlayTabRef.current;
+    prevPlayTabRef.current = true;
+    if (justEnteredPlay) {
+      dialogueInstantScrollRef.current = true;
+      dialoguePinnedRef.current = true;
+      dialogueScrollReadyRef.current = false;
+    }
+
     const el = dialogueScrollRef.current;
     if (!el) return;
-    const maxScroll = el.scrollHeight - el.clientHeight;
-    const ratio = el.clientHeight > 0 ? el.scrollHeight / el.clientHeight : 1;
-    const prefersReduced =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
 
     if (dialogueInstantScrollRef.current) {
       el.scrollTop = maxScroll;
       dialogueInstantScrollRef.current = false;
       dialoguePinnedRef.current = true;
-      prevDialogueOverflowRatioRef.current = ratio;
+      dialogueScrollReadyRef.current = true;
       return;
     }
 
     if (!dialoguePinnedRef.current) {
-      prevDialogueOverflowRatioRef.current = ratio;
-      return;
-    }
-
-    const prevR = prevDialogueOverflowRatioRef.current;
-    const crossedIntoBreathe =
-      prevR !== null &&
-      prevR < DIALOGUE_BREATHE_OVERFLOW_RATIO &&
-      ratio >= DIALOGUE_BREATHE_OVERFLOW_RATIO &&
-      maxScroll > 0;
-
-    if (crossedIntoBreathe && !prefersReduced) {
-      const target = Math.max(0, Math.min(maxScroll, Math.floor(maxScroll / 2)));
-      el.scrollTo({ top: target, behavior: 'smooth' });
-      prevDialogueOverflowRatioRef.current = ratio;
+      dialogueScrollReadyRef.current = true;
       return;
     }
 
     el.scrollTop = maxScroll;
-    prevDialogueOverflowRatioRef.current = ratio;
+    dialogueScrollReadyRef.current = true;
   }, [questState.dialogueLog, questState.worldEventLog, activeTab]);
 
   useEffect(() => {
