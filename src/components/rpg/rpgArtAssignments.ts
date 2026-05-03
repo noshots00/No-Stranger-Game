@@ -7,13 +7,13 @@ import { publicAsset } from '@/lib/publicAsset';
 import { allQuests } from '@/components/rpg/quests/registry';
 import { LEGACY_RACE_SLUG_REWRITES, RACES } from '@/components/rpg/races';
 
-const BATCH_SEGMENT = 'Batch 2026-05-02_21-10-35';
+/** Folder under `public/art/converted/` (no spaces — reliable on static hosts). */
+const BATCH_SEGMENT = 'batch-2026-05-02_21-10-35';
 
-/** Relative to `public/`; batch folder name contains spaces — encoded per segment in `batchAsset`. */
 const BATCH_PREFIX = `art/converted/${BATCH_SEGMENT}`;
 
 /**
- * All `.webp` files in `public/art/converted/Batch 2026-05-02_21-10-35/`.
+ * All `.webp` files in `public/art/converted/batch-2026-05-02_21-10-35/`.
  * Keep alphabetically sorted for a deterministic pre-shuffle order.
  */
 const WEBP_FILENAMES: readonly string[] = [
@@ -82,7 +82,7 @@ function shuffleSeeded<T>(items: readonly T[], seedStr: string): T[] {
 
 const shuffledFilenames = shuffleSeeded(WEBP_FILENAMES, SEED_STRING);
 
-/** Encode each path segment so spaces (e.g. batch folder name) work in `img` src URLs. */
+/** Encode each path segment so special characters are safe in `img` src URLs. */
 export function batchAsset(relativePathUnderPublic: string): string {
   const normalized = relativePathUnderPublic.replace(/^\/+/, '');
   const encoded = normalized
