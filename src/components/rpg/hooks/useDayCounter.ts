@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import {
+  computeGameDayCounter,
+  computeNextGameResetUtc,
+  FIVE_MINUTE_GAME_PERIOD_MS,
+} from '@/lib/easternGameTime';
 import { fetchOrCreateCharacterStartTimestamp, publishCharacterStartTimestamp } from '../gameProfile';
 import {
   CHARACTER_START_TS_STORAGE_KEY,
@@ -10,12 +15,23 @@ import {
   DEV_RAPID_DAY_SIM_STORAGE_KEY,
 } from '../constants';
 
+/** Vite dev server: 5-minute game "days" from Eastern midnight grid; production: US Eastern calendar midnights. */
+function viteDevUsesFiveMinutePeriods(): boolean {
+  return import.meta.env.DEV;
+}
+
 export function useDayCounter() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const useFiveMinuteTestPeriods = viteDevUsesFiveMinutePeriods();
   const [characterStartTimestamp, setCharacterStartTimestamp] = useState<number | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
   const [rapidDaySimulation, setRapidDaySimulation] = useState(false);
+
+  const advancePeriodMs = useMemo(
+    () => (useFiveMinuteTestPeriods ? FIVE_MINUTE_GAME_PERIOD_MS : DAY_IN_MS),
+    [useFiveMinuteTestPeriods]
+  );
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_RAPID_DAY_SIM_STORAGE_KEY);
@@ -29,10 +45,10 @@ export function useDayCounter() {
   useEffect(() => {
     if (!rapidDaySimulation) return;
     const id = window.setInterval(() => {
-      setDevDayOffsetMs((prev) => prev + DAY_IN_MS);
+      setDevDayOffsetMs((prev) => prev + advancePeriodMs);
     }, DEV_RAPID_DAY_SIM_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [rapidDaySimulation]);
+  }, [advancePeriodMs, rapidDaySimulation]);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_DAY_OFFSET_STORAGE_KEY);
@@ -88,14 +104,15 @@ export function useDayCounter() {
   const effectiveNow = Date.now() + devDayOffsetMs;
   const dayCounter = (() => {
     if (!characterStartTimestamp) return 1;
-    const elapsed = Math.max(0, effectiveNow - characterStartTimestamp);
-    return Math.max(1, Math.floor(elapsed / DAY_IN_MS) + 1);
+    return computeGameDayCounter(characterStartTimestamp, effectiveNow, useFiveMinuteTestPeriods);
   })();
 
   /** Wall-clock ms when the next in-game day rolls over (null until start ts is loaded). */
-  const nextDayResetMs = characterStartTimestamp
-    ? characterStartTimestamp + dayCounter * DAY_IN_MS - devDayOffsetMs
-    : null;
+  const nextDayResetMs =
+    characterStartTimestamp !== null
+      ? computeNextGameResetUtc(characterStartTimestamp, effectiveNow, useFiveMinuteTestPeriods) -
+        devDayOffsetMs
+      : null;
 
   const resetTimestamp = async () => {
     const now = Date.now();
@@ -113,6 +130,8 @@ export function useDayCounter() {
   return {
     characterStartTimestamp,
     dayCounter,
+    advancePeriodMs,
+    useFiveMinuteTestPeriods,
     devDayOffsetMs,
     setDevDayOffsetMs,
     resetTimestamp,

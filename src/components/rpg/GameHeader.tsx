@@ -15,6 +15,8 @@ type GameHeaderProps = {
   currentLocation: string;
   locationIndicatorClass: string;
   onAdvanceDay: () => void;
+  /** Dev server uses 5-minute "days" from Eastern midnight; production uses Eastern calendar midnights. */
+  useFiveMinuteGamePeriods: boolean;
   rapidDaySimulation: boolean;
   onRapidDaySimulationChange: (enabled: boolean) => void;
   showModifierDetails: boolean;
@@ -30,6 +32,7 @@ export function GameHeader({
   currentLocation,
   locationIndicatorClass,
   onAdvanceDay,
+  useFiveMinuteGamePeriods,
   rapidDaySimulation,
   onRapidDaySimulationChange,
   showModifierDetails,
@@ -61,14 +64,16 @@ export function GameHeader({
             className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
             onSelect={() => onAdvanceDay()}
           >
-            Advance 24 hours
+            {useFiveMinuteGamePeriods ? 'Advance 5 minutes (test)' : 'Advance to next day (ET midnight)'}
           </DropdownMenuItem>
           <DropdownMenuCheckboxItem
             className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
             checked={rapidDaySimulation}
             onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
           >
-            Simulate time (1 day / 2s)
+            {useFiveMinuteGamePeriods
+              ? 'Simulate time (5 min / 2s)'
+              : 'Simulate time (1 ET day / 2s)'}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"

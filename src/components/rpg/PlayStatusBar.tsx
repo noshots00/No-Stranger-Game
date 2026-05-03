@@ -19,19 +19,33 @@ const formatClock = (now: Date): string => {
   return `${month}/${day} ${hours}:${minutes}:${seconds}`;
 };
 
-const formatResetIn = (nextResetMs: number | null, now: number): string => {
-  if (nextResetMs === null) return 'Reset in --h';
-  const remainingMs = Math.max(0, nextResetMs - now);
+const formatRemainingUntilReset = (remainingMs: number): { full: string; compact: string } => {
+  if (remainingMs < 120_000) {
+    const m = Math.max(0, remainingMs / 60_000);
+    const full = `Reset in ${m.toFixed(1)}m`;
+    return { full, compact: `${m.toFixed(1)}m` };
+  }
+  if (remainingMs < 3_600_000) {
+    const m = remainingMs / 60_000;
+    const full = `Reset in ${m.toFixed(1)}m`;
+    return { full, compact: `${m.toFixed(1)}m` };
+  }
   const hours = remainingMs / 3_600_000;
-  return `Reset in ${hours.toFixed(1)}h`;
+  const full = `Reset in ${hours.toFixed(1)}h`;
+  return { full, compact: `${hours.toFixed(1)}h` };
+};
+
+const formatResetIn = (nextResetMs: number | null, now: number): string => {
+  if (nextResetMs === null) return 'Reset in --';
+  const remainingMs = Math.max(0, nextResetMs - now);
+  return formatRemainingUntilReset(remainingMs).full;
 };
 
 /** Short label for narrow viewports (avoids clipping “Reset in …” on iOS). */
 const formatResetInCompact = (nextResetMs: number | null, now: number): string => {
   if (nextResetMs === null) return '—';
   const remainingMs = Math.max(0, nextResetMs - now);
-  const hours = remainingMs / 3_600_000;
-  return `${hours.toFixed(1)}h`;
+  return formatRemainingUntilReset(remainingMs).compact;
 };
 
 function useNow(intervalMs = 1000): number {

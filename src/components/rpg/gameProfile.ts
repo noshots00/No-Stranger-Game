@@ -1,7 +1,8 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { normalizeQuestState } from '@/components/rpg/quests/engine';
 import type { QuestState } from '@/components/rpg/quests/types';
-import { CHARACTER_START_TS_STORAGE_KEY, DAY_IN_MS } from './constants';
+import { subtractEasternCalendarDaysFromUtc } from '@/lib/easternGameTime';
+import { CHARACTER_START_TS_STORAGE_KEY } from './constants';
 
 const CHARACTER_START_KIND = 10031;
 const CHARACTER_START_D_TAG = 'character-start';
@@ -160,12 +161,12 @@ export async function fetchOrCreateCharacterStartTimestamp(
 
   // Relay miss on first visit to a new origin: republish a start time consistent with the latest
   // quest checkpoint so `dayCounter` does not reset to 1 while `lastDailyXpDay` stays high (which
-  // blocks daily XP/report for many real days).
+  // blocks daily XP/report for many real days). Uses US Eastern calendar days (not fixed 24h).
   try {
     const snapshot = await fetchQuestStateSnapshot(nostr, pubkey);
     const d = snapshot?.state.lastDailyXpDay;
     if (snapshot && typeof d === 'number' && d >= 1) {
-      const synthetic = snapshot.savedAtMs - (d - 1) * DAY_IN_MS;
+      const synthetic = subtractEasternCalendarDaysFromUtc(snapshot.savedAtMs, d - 1);
       const now = Date.now();
       if (synthetic > 0 && synthetic <= now) {
         try {

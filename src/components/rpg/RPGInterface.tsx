@@ -33,7 +33,6 @@ import {
   LIFEBOAT_DAILY_FLAG,
   SOPHIE_DAILY_FLAG,
   DAILY_XP,
-  DAY_IN_MS,
   DIALOGUE_BREATHE_OVERFLOW_RATIO,
   DIALOGUE_SCROLL_PIN_EPS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
@@ -79,6 +78,8 @@ export function RPGInterface() {
   const {
     characterStartTimestamp,
     dayCounter,
+    advancePeriodMs,
+    useFiveMinuteTestPeriods,
     setDevDayOffsetMs,
     resetTimestamp,
     nextDayResetMs,
@@ -671,7 +672,8 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
-          onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
+          onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + advancePeriodMs)}
+          useFiveMinuteGamePeriods={useFiveMinuteTestPeriods}
           rapidDaySimulation={rapidDaySimulation}
           onRapidDaySimulationChange={setRapidDaySimulation}
           showModifierDetails={showModifierDetails}
