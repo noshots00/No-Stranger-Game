@@ -1182,9 +1182,9 @@ Do **not** run `git push` unless the user explicitly asked to push (or publish) 
 
 ### Versioning Policy
 
-The patch version must increment on every completed change, not only on commits.
+The patch version must increment on **every** completed change to the repo (any touched file: code, config, docs, Cursor rules, assets referenced by the app, etc.), not only on commits.
 
-- After finishing any task that modifies non-trivial files (code, config, content, or docs), update `package.json` `version` before reporting completion.
+- Before reporting a task complete, update `package.json` `version` (typically patch `+1`) whenever your batch modified anything—no “non-trivial only” exception.
 - When committing, the bump is already in place; do not bump again in the same commit.
 - Use semantic versioning progression:
   - patch for fixes/chore/docs/internal updates
