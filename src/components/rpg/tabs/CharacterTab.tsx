@@ -21,6 +21,8 @@ import { formatUnlockedTraitsLine } from '../traitSheet';
 import { getRacePortraitSrc } from '../rpgArtAssignments';
 import { getRaceDefinition } from '../races';
 import { nip19 } from 'nostr-tools';
+import { CharacterTabTopBar } from './CharacterTabTopBar';
+import type { CharacterTabTopBarProps } from './CharacterTabTopBar';
 
 type CharacterTabProps = {
   questState: QuestState;
@@ -28,9 +30,7 @@ type CharacterTabProps = {
   /** Kindred count from social layer (logged-in only). */
   kindredSpirits?: number;
   onOpenChronicle: () => void;
-  /** Dev menu: show quest modifier breakdown (traits, archetype tracks, etc.). */
-  showModifierDetails: boolean;
-};
+} & CharacterTabTopBarProps;
 
 const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
 
@@ -76,6 +76,15 @@ export function CharacterTab({
   kindredSpirits,
   onOpenChronicle,
   showModifierDetails,
+  showDevTools,
+  onAdvanceDay,
+  devFiveMinuteDays,
+  onDevFiveMinuteDaysChange,
+  rapidDaySimulation,
+  onRapidDaySimulationChange,
+  onShowModifierDetailsChange,
+  devUnlockAllQuests,
+  onDevUnlockAllQuestsChange,
 }: CharacterTabProps) {
   const characterLevel = getCharacterLevel(questState);
   const characterClass = getCharacterClass(questState.modifiers);
@@ -196,6 +205,18 @@ export function CharacterTab({
 
   return (
     <section className="min-w-0 space-y-2 pb-4">
+      <CharacterTabTopBar
+        showDevTools={showDevTools}
+        onAdvanceDay={onAdvanceDay}
+        devFiveMinuteDays={devFiveMinuteDays}
+        onDevFiveMinuteDaysChange={onDevFiveMinuteDaysChange}
+        rapidDaySimulation={rapidDaySimulation}
+        onRapidDaySimulationChange={onRapidDaySimulationChange}
+        showModifierDetails={showModifierDetails}
+        onShowModifierDetailsChange={onShowModifierDetailsChange}
+        devUnlockAllQuests={devUnlockAllQuests}
+        onDevUnlockAllQuestsChange={onDevUnlockAllQuestsChange}
+      />
       <div className="space-y-1 text-center">
         <p className="font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
           {questState.playerName || 'Stranger'}

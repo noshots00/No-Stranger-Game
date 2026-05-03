@@ -670,6 +670,15 @@ export function RPGInterface() {
             kindredSpirits={user ? socialStats.kindredSpirits : undefined}
             onOpenChronicle={() => setActiveTab('chronicle')}
             showModifierDetails={showModifierDetails}
+            showDevTools
+            onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
+            devFiveMinuteDays={devFiveMinuteDays}
+            onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
+            rapidDaySimulation={rapidDaySimulation}
+            onRapidDaySimulationChange={setRapidDaySimulation}
+            onShowModifierDetailsChange={setShowModifierDetails}
+            devUnlockAllQuests={devUnlockAllQuests}
+            onDevUnlockAllQuestsChange={setDevUnlockAllQuests}
           />
         );
       case 'chronicle':
@@ -759,16 +768,6 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
-          showDevTools
-          onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
-          devFiveMinuteDays={devFiveMinuteDays}
-          onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
-          rapidDaySimulation={rapidDaySimulation}
-          onRapidDaySimulationChange={setRapidDaySimulation}
-          showModifierDetails={showModifierDetails}
-          onShowModifierDetailsChange={setShowModifierDetails}
-          devUnlockAllQuests={devUnlockAllQuests}
-          onDevUnlockAllQuestsChange={setDevUnlockAllQuests}
           onLogout={handleLogout}
           onResetStory={handleResetStory}
         />
