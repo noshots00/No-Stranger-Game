@@ -5,24 +5,19 @@ import {
   PLAY_TAB_PLAYER_LINE_SHELL,
   PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
 } from '../DialogueVoiceBlock';
-import type { DialogueVoiceBlockModel } from '../dialogueFormat';
-import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
-import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
+import type { ChronicleSegment } from '../dialogueFormat';
+import type { QuestDefinition, QuestStep } from '../quests/types';
 
 type PlayTabProps = {
-  playDialogueBlocks: DialogueVoiceBlockModel[];
-  playWorldLines: WorldEventLogEntry[];
+  playFeedSegments: ChronicleSegment[];
   activeQuest: QuestDefinition | null;
   activeStep: QuestStep | null;
-  dialogueLogLength: number;
-  worldEventLogLength: number;
   nameInput: string;
   onNameInputChange: (value: string) => void;
   nameInputError: string | null;
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
   dialogueScrollRef: RefObject<HTMLDivElement | null>;
-  eventLogScrollRef: RefObject<HTMLDivElement | null>;
   onDialogueScroll: () => void;
   visibleLocationActions: string[];
   showOriginStartHint: boolean;
@@ -34,19 +29,15 @@ type PlayTabProps = {
 const CHOICE_FADE_MS = 1200;
 
 export function PlayTab({
-  playDialogueBlocks,
-  playWorldLines,
+  playFeedSegments,
   activeQuest,
   activeStep,
-  dialogueLogLength,
-  worldEventLogLength: _worldEventLogLength,
   nameInput,
   onNameInputChange,
   nameInputError,
   onStepChoice,
   onNameSubmit,
   dialogueScrollRef,
-  eventLogScrollRef,
   onDialogueScroll,
   visibleLocationActions,
   showOriginStartHint,
@@ -82,8 +73,6 @@ export function PlayTab({
     }, CHOICE_FADE_MS);
   };
 
-  const visibleWorldLines = playWorldLines;
-
   return (
     <section className="flex h-full flex-col justify-end gap-1.5">
       <div
@@ -92,14 +81,28 @@ export function PlayTab({
         className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0"
       >
         <div className="space-y-2">
-          {playDialogueBlocks.map((block, blockIndex) => (
-            <div
-              key={`${block.role}-${block.lines[0]?.id ?? `b-${blockIndex}`}`}
-              className="dialogue-line-reveal py-0.5"
-            >
-              <DialogueVoiceBlock presentation="play" role={block.role} lines={block.lines} />
-            </div>
-          ))}
+          {playFeedSegments.map((segment, segIndex) => {
+            if (segment.type === 'world') {
+              const row = segment.row;
+              return (
+                <p
+                  key={`world-${row.atMs}-${segIndex}-${row.text.slice(0, 24)}`}
+                  className="dialogue-line-reveal py-0.5 font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
+                >
+                  {row.text}
+                </p>
+              );
+            }
+            const first = segment.lines[0];
+            return (
+              <div
+                key={`${segment.role}-${first?.id ?? `b-${segIndex}`}`}
+                className="dialogue-line-reveal py-0.5"
+              >
+                <DialogueVoiceBlock presentation="play" role={segment.role} lines={segment.lines} />
+              </div>
+            );
+          })}
           {activeQuest && activeStep ? (
             <div className="dialogue-line-reveal py-0.5">
               {activeStep.type === 'choice' ? (
@@ -169,11 +172,6 @@ export function PlayTab({
           ) : null}
         </div>
       </div>
-      {dialogueLogLength > PLAY_DIALOGUE_RECENT_MAX ? (
-        <p className="text-center font-serif text-[0.625rem] text-[var(--candle-ink-faint)]">
-          Showing the last {PLAY_DIALOGUE_RECENT_MAX} dialogue lines. Older lines are in the chronicle.
-        </p>
-      ) : null}
       {visibleLocationActions.length > 0 ? (
         <div className="space-y-2 border-t border-[var(--candle-rule)] pt-3">
           <div className="grid grid-cols-2 gap-2">
@@ -190,30 +188,6 @@ export function PlayTab({
           </div>
         </div>
       ) : null}
-      <div className="echo-log py-1">
-        <div
-          ref={eventLogScrollRef}
-          aria-label="Character events"
-          className="facsimile-scroll max-h-[6.5rem] overflow-y-auto pr-0"
-        >
-          {visibleWorldLines.length > 0 ? (
-            <ul className="space-y-1 font-sans text-[0.6875rem] leading-snug">
-              {visibleWorldLines.map((entry, index) => (
-                <li
-                  key={`${entry.atMs}-${index}-${entry.text}`}
-                  className="italic text-[var(--candle-ember)]/80"
-                >
-                  {entry.text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/70">
-              The road is quiet.
-            </p>
-          )}
-        </div>
-      </div>
     </section>
   );
 }

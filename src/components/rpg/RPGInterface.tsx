@@ -58,7 +58,7 @@ import {
   dialogueHasQuestOpeningAtEnd,
   formatPlayerChoiceDialogueLine,
   groupChronicleRows,
-  groupDialogueLinesByVoice,
+  mergeDialogueAndWorldRows,
   PLAYER_ACTION_SPEAKER,
   QUEST_DIVIDER_SPEAKER,
   QUEST_IMAGE_SPEAKER,
@@ -139,7 +139,6 @@ export function RPGInterface() {
   }, [devUnlockAllQuests]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
-  const eventLogScrollRef = useRef<HTMLDivElement | null>(null);
   const dialoguePinnedRef = useRef(true);
   const dialogueInstantScrollRef = useRef(false);
   const prevDialogueOverflowRatioRef = useRef<number | null>(null);
@@ -185,13 +184,13 @@ export function RPGInterface() {
     () => questState.dialogueLog.slice(-PLAY_DIALOGUE_RECENT_MAX),
     [questState.dialogueLog]
   );
-  const playDialogueBlocks = useMemo(
-    () => groupDialogueLinesByVoice(playDialogueLines),
-    [playDialogueLines]
-  );
   const playWorldLines = useMemo(
     () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
     [questState.worldEventLog]
+  );
+  const playFeedSegments = useMemo(
+    () => groupChronicleRows(mergeDialogueAndWorldRows(playDialogueLines, playWorldLines)),
+    [playDialogueLines, playWorldLines]
   );
   const characterNameLabel = useMemo(() => {
     const trimmed = questState.playerName.trim();
@@ -208,23 +207,7 @@ export function RPGInterface() {
 
   const chronicleRows = useMemo((): ChronicleMergedRow[] => {
     if (activeTab !== 'chronicle') return [];
-    const dialogueRows: ChronicleMergedRow[] = questState.dialogueLog.map((line) => ({
-      kind: 'dialogue' as const,
-      atMs: line.atMs,
-      id: line.id,
-      speaker: line.speaker,
-      text: line.text,
-    }));
-    const worldRows: ChronicleMergedRow[] = questState.worldEventLog.map((entry) => ({
-      kind: 'world' as const,
-      atMs: entry.atMs,
-      text: entry.text,
-    }));
-    return [...dialogueRows, ...worldRows].sort((a, b) => {
-      if (a.atMs !== b.atMs) return a.atMs - b.atMs;
-      if (a.kind === b.kind) return 0;
-      return a.kind === 'dialogue' ? -1 : 1;
-    });
+    return mergeDialogueAndWorldRows(questState.dialogueLog, questState.worldEventLog);
   }, [activeTab, questState.dialogueLog, questState.worldEventLog]);
   const chronicleSegments = useMemo(() => groupChronicleRows(chronicleRows), [chronicleRows]);
 
@@ -266,14 +249,7 @@ export function RPGInterface() {
 
     el.scrollTop = maxScroll;
     prevDialogueOverflowRatioRef.current = ratio;
-  }, [questState.dialogueLog, activeTab]);
-
-  useLayoutEffect(() => {
-    if (activeTab !== 'play') return;
-    const container = eventLogScrollRef.current;
-    if (!container) return;
-    container.scrollTop = container.scrollHeight - container.clientHeight;
-  }, [questState.worldEventLog, activeTab]);
+  }, [questState.dialogueLog, questState.worldEventLog, activeTab]);
 
   useEffect(() => {
     if (!isQuestStateHydrated || showEarlyDevResetGate) return;
@@ -736,19 +712,15 @@ export function RPGInterface() {
       default:
         return (
           <PlayTab
-            playDialogueBlocks={playDialogueBlocks}
-            playWorldLines={playWorldLines}
+            playFeedSegments={playFeedSegments}
             activeQuest={activeQuest ?? null}
             activeStep={activeStep ?? null}
-            dialogueLogLength={questState.dialogueLog.length}
-            worldEventLogLength={questState.worldEventLog.length}
             nameInput={nameInput}
             onNameInputChange={setNameInput}
             nameInputError={nameInputError}
             onStepChoice={handleStepChoice}
             onNameSubmit={handleNameSubmit}
             dialogueScrollRef={dialogueScrollRef}
-            eventLogScrollRef={eventLogScrollRef}
             onDialogueScroll={handleDialogueScroll}
             visibleLocationActions={visibleLocationActions}
             showOriginStartHint={showOriginStartHint}

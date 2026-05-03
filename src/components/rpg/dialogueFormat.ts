@@ -1,4 +1,4 @@
-import type { DialogueLogEntry } from './quests/types';
+import type { DialogueLogEntry, WorldEventLogEntry } from './quests/types';
 
 export const PLAYER_ACTION_SPEAKER = 'PlayerAction';
 export const QUEST_DIVIDER_SPEAKER = 'QuestDivider';
@@ -74,6 +74,30 @@ export type DialogueVoiceBlockModel = {
 export type ChronicleMergedRow =
   | { kind: 'dialogue'; atMs: number; id: string; speaker: string; text: string }
   | { kind: 'world'; atMs: number; text: string };
+
+/** Merge dialogue + world rows by `atMs` (chronicle / play feed); tie-break: dialogue before world. */
+export function mergeDialogueAndWorldRows(
+  dialogueLines: readonly DialogueLogEntry[],
+  worldEntries: readonly WorldEventLogEntry[]
+): ChronicleMergedRow[] {
+  const dialogueRows: ChronicleMergedRow[] = dialogueLines.map((line) => ({
+    kind: 'dialogue' as const,
+    atMs: line.atMs,
+    id: line.id,
+    speaker: line.speaker,
+    text: line.text,
+  }));
+  const worldRows: ChronicleMergedRow[] = worldEntries.map((entry) => ({
+    kind: 'world' as const,
+    atMs: entry.atMs,
+    text: entry.text,
+  }));
+  return [...dialogueRows, ...worldRows].sort((a, b) => {
+    if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+    if (a.kind === b.kind) return 0;
+    return a.kind === 'dialogue' ? -1 : 1;
+  });
+}
 
 export type ChronicleSegment =
   | { type: 'world'; row: Extract<ChronicleMergedRow, { kind: 'world' }> }
