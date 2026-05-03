@@ -18,7 +18,7 @@ import {
   isPrimaryStatCanonicalKey,
   splitCopperIntoCoins,
 } from '../helpers';
-import { characterStats } from '../constants';
+import { characterStats, CLASS_UNLOCK_POINTS } from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
 import { formatUnlockedTraitsLine } from '../traitSheet';
@@ -57,6 +57,25 @@ const BUCKET_LABEL: Record<Exclude<ModifierSheetBucket, 'skill'>, string> = {
 
 function formatModifierLines(entries: [string, number][]): string {
   return entries.map(([k, v]) => `${formatModifierKeyForCharacterSheet(k)} ${v}`).join(', ');
+}
+
+/** Spells / `skill:*` & organic *Skill unlock at 1; other sheet buckets unlock at `CLASS_UNLOCK_POINTS`. */
+function partitionSheetUnlock(
+  bucket: ModifierSheetBucket,
+  entries: [string, number][]
+): { unlocked: [string, number][]; locked: [string, number][] } {
+  const unlocked: [string, number][] = [];
+  const locked: [string, number][] = [];
+  const threshold =
+    bucket === 'skill' || bucket === 'spell'
+      ? CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE
+      : CLASS_UNLOCK_POINTS;
+  for (const row of entries) {
+    const mag = Math.abs(row[1]);
+    if (mag >= threshold) unlocked.push(row);
+    else if (mag > 0) locked.push(row);
+  }
+  return { unlocked, locked };
 }
 
 function chunkPairs<T>(arr: T[]): T[][] {
@@ -121,16 +140,13 @@ export function CharacterTab({
     allSkillSheetParts.push(`${SKILL_SHEET_LABEL[key]} ${level}`);
   }
 
-  const visibleModifiers = Object.entries(questState.modifiers).filter(([name, value]) => {
-    if (getModifierMessageKind(name) === 'hidden_class' || name.startsWith('currency:')) return false;
-    const mag = Math.abs(value);
-    if (mag === 0) return false;
-    const bucket = getModifierSheetBucket(name);
-    if (bucket === 'skill' || bucket === 'spell') {
-      return mag >= CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE;
-    }
-    return true;
-  });
+  /** All non-zero modifiers for bucketing; per-bucket unlock thresholds decide default vs dev-only rows. */
+  const visibleModifiers = Object.entries(questState.modifiers).filter(
+    ([name, value]) =>
+      getModifierMessageKind(name) !== 'hidden_class' &&
+      !name.startsWith('currency:') &&
+      Math.abs(value) !== 0
+  );
 
   const byBucket = new Map<ModifierSheetBucket, [string, number][]>();
   for (const b of ALL_MODIFIER_BUCKETS) byBucket.set(b, []);
@@ -139,17 +155,39 @@ export function CharacterTab({
     byBucket.get(bucket)!.push(entry);
   }
 
-  const blessingLines = formatModifierLines(byBucket.get('blessing') ?? []);
-  const spellLines = formatModifierLines(byBucket.get('spell') ?? []);
-  const skillBucketEntries = byBucket.get('skill') ?? [];
-  const skillPrefixedForGroups = skillBucketEntries.filter(([k]) => k.startsWith('skill:'));
-  const skillOrganicRows = skillBucketEntries.filter(([k]) => !k.startsWith('skill:'));
-  const skillGroups = groupSkillModifiersByCategory(skillPrefixedForGroups);
+  const blessingEntries = byBucket.get('blessing') ?? [];
+  const blessingPart = partitionSheetUnlock('blessing', blessingEntries);
+  const blessingLinesUnlocked = formatModifierLines(blessingPart.unlocked);
+  const blessingLinesLocked = formatModifierLines(blessingPart.locked);
 
-  const statQuestRows = (byBucket.get('stat') ?? []).filter(([key]) => !isPrimaryStatCanonicalKey(key));
+  const spellEntries = byBucket.get('spell') ?? [];
+  const spellPart = partitionSheetUnlock('spell', spellEntries);
+  const spellLinesUnlocked = formatModifierLines(spellPart.unlocked);
+  const spellLinesLocked = formatModifierLines(spellPart.locked);
+
+  const skillBucketEntries = byBucket.get('skill') ?? [];
+  const skillPart = partitionSheetUnlock('skill', skillBucketEntries);
+  const skillPrefixedUnlocked = skillPart.unlocked.filter(([k]) => k.startsWith('skill:'));
+  const skillOrganicUnlocked = skillPart.unlocked.filter(([k]) => !k.startsWith('skill:'));
+  const skillPrefixedLocked = skillPart.locked.filter(([k]) => k.startsWith('skill:'));
+  const skillOrganicLocked = skillPart.locked.filter(([k]) => !k.startsWith('skill:'));
+  const skillGroups = groupSkillModifiersByCategory(skillPrefixedUnlocked);
+  const skillGroupsLocked = groupSkillModifiersByCategory(skillPrefixedLocked);
+
+  const statQuestRowsAll = (byBucket.get('stat') ?? []).filter(([key]) => !isPrimaryStatCanonicalKey(key));
+  const statQuestPart = partitionSheetUnlock('stat', statQuestRowsAll);
+  const statQuestLinesUnlocked = formatModifierLines(statQuestPart.unlocked);
+  const statQuestLinesLocked = formatModifierLines(statQuestPart.locked);
+
   const traitRows = byBucket.get('trait') ?? [];
-  const traitTitlesLine = formatUnlockedTraitsLine(traitRows);
-  const pathRows = byBucket.get('class') ?? [];
+  const traitPart = partitionSheetUnlock('trait', traitRows);
+  const traitTitlesLine = formatUnlockedTraitsLine(traitPart.unlocked);
+  const traitLinesLocked = formatModifierLines(traitPart.locked);
+
+  const pathRowsAll = byBucket.get('class') ?? [];
+  const pathPart = partitionSheetUnlock('class', pathRowsAll);
+  const pathLinesUnlocked = formatModifierLines(pathPart.unlocked);
+  const pathLinesLocked = formatModifierLines(pathPart.locked);
 
   const detailTableCells: ReactNode[] = [];
 
@@ -170,77 +208,151 @@ export function CharacterTab({
     );
   }
 
+  if (spellLinesUnlocked) {
+    detailTableCells.push(
+      <Fragment key="spells">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.spell}:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{spellLinesUnlocked}</span>
+      </Fragment>
+    );
+  }
+
+  for (const { categoryKey, headingLabel, rows } of skillGroups) {
+    if (rows.length === 0) continue;
+    detailTableCells.push(
+      <Fragment key={`skill-cat-${categoryKey}`}>
+        <span className="text-[var(--candle-ink)]">{headingLabel} skills:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(rows)}</span>
+      </Fragment>
+    );
+  }
+
+  if (skillOrganicUnlocked.length > 0) {
+    detailTableCells.push(
+      <Fragment key="skills-organic">
+        <span className="text-[var(--candle-ink)]">Skills (ranks):</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(skillOrganicUnlocked)}</span>
+      </Fragment>
+    );
+  }
+
+  if (traitTitlesLine) {
+    detailTableCells.push(
+      <Fragment key="traits">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.trait}:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{traitTitlesLine}</span>
+      </Fragment>
+    );
+  }
+
+  if (blessingLinesUnlocked) {
+    detailTableCells.push(
+      <Fragment key="blessings">
+        <span className="text-[var(--candle-ink)]">Blessings:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{blessingLinesUnlocked}</span>
+      </Fragment>
+    );
+  }
+
+  if (statQuestLinesUnlocked) {
+    detailTableCells.push(
+      <Fragment key="stats-quests">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.stat}:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{statQuestLinesUnlocked}</span>
+      </Fragment>
+    );
+  }
+
+  if (pathLinesUnlocked) {
+    detailTableCells.push(
+      <Fragment key="paths">
+        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.class}:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{pathLinesUnlocked}</span>
+      </Fragment>
+    );
+  }
+
   if (showModifierDetails) {
-    if (blessingLines) {
+    if (blessingLinesLocked) {
       detailTableCells.push(
-        <Fragment key="blessings">
-          <span className="text-[var(--candle-ink)]">Blessings:</span>{' '}
-          <span className="text-[var(--candle-ink-soft)]">{blessingLines}</span>
+        <Fragment key="blessings-locked">
+          <span className="text-[var(--candle-ink-faint)]">Blessings (in progress):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{blessingLinesLocked}</span>
         </Fragment>
       );
     }
 
-    if (statQuestRows.length > 0) {
+    if (statQuestLinesLocked) {
       detailTableCells.push(
-        <Fragment key="stats-quests">
-          <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.stat}:</span>{' '}
-          <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(statQuestRows)}</span>
+        <Fragment key="stats-quests-locked">
+          <span className="text-[var(--candle-ink-faint)]">{BUCKET_LABEL.stat} (in progress):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{statQuestLinesLocked}</span>
         </Fragment>
       );
     }
 
-    if (traitTitlesLine) {
+    if (traitLinesLocked) {
       detailTableCells.push(
-        <Fragment key="traits">
-          <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.trait}:</span>{' '}
-          <span className="text-[var(--candle-ink-soft)]">{traitTitlesLine}</span>
+        <Fragment key="traits-locked">
+          <span className="text-[var(--candle-ink-faint)]">{BUCKET_LABEL.trait} (in progress):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{traitLinesLocked}</span>
         </Fragment>
       );
     }
 
-    for (const { categoryKey, headingLabel, rows } of skillGroups) {
+    for (const { categoryKey, headingLabel, rows } of skillGroupsLocked) {
       if (rows.length === 0) continue;
       detailTableCells.push(
-        <Fragment key={`skill-cat-${categoryKey}`}>
-          <span className="text-[var(--candle-ink)]">{headingLabel} skills:</span>{' '}
+        <Fragment key={`skill-cat-locked-${categoryKey}`}>
+          <span className="text-[var(--candle-ink-faint)]">{headingLabel} skills (in progress):</span>{' '}
           <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(rows)}</span>
         </Fragment>
       );
     }
 
-    if (skillOrganicRows.length > 0) {
+    if (skillOrganicLocked.length > 0) {
       detailTableCells.push(
-        <Fragment key="skills-organic">
-          <span className="text-[var(--candle-ink)]">Skills (ranks):</span>{' '}
-          <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(skillOrganicRows)}</span>
+        <Fragment key="skills-organic-locked">
+          <span className="text-[var(--candle-ink-faint)]">Skills (ranks, in progress):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(skillOrganicLocked)}</span>
         </Fragment>
       );
     }
 
-    if (spellLines) {
+    if (spellLinesLocked) {
       detailTableCells.push(
-        <Fragment key="spells">
-          <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.spell}:</span>{' '}
-          <span className="text-[var(--candle-ink-soft)]">{spellLines}</span>
+        <Fragment key="spells-locked">
+          <span className="text-[var(--candle-ink-faint)]">{BUCKET_LABEL.spell} (in progress):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{spellLinesLocked}</span>
         </Fragment>
       );
     }
 
-    if (pathRows.length > 0) {
+    if (pathLinesLocked) {
       detailTableCells.push(
-        <Fragment key="paths">
-          <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.class}:</span>{' '}
-          <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(pathRows)}</span>
+        <Fragment key="paths-locked">
+          <span className="text-[var(--candle-ink-faint)]">{BUCKET_LABEL.class} (in progress):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{pathLinesLocked}</span>
         </Fragment>
       );
     }
   }
 
-  const miscRows = byBucket.get('misc') ?? [];
-  const otherModifiersLine =
-    showModifierDetails && miscRows.length > 0 ? (
+  const miscRowsAll = byBucket.get('misc') ?? [];
+  const miscPart = partitionSheetUnlock('misc', miscRowsAll);
+  const miscLinesUnlocked = formatModifierLines(miscPart.unlocked);
+  const miscLinesLocked = formatModifierLines(miscPart.locked);
+
+  const otherModifiersLine = miscLinesUnlocked ? (
+    <p className={`${bt} leading-relaxed text-[var(--candle-ink-soft)]`}>
+      <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.misc}:</span> {miscLinesUnlocked}
+    </p>
+  ) : null;
+
+  const otherModifiersLockedLine =
+    showModifierDetails && miscLinesLocked ? (
       <p className={`${bt} leading-relaxed text-[var(--candle-ink-soft)]`}>
-        <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.misc}:</span> {formatModifierLines(miscRows)}
+        <span className="text-[var(--candle-ink-faint)]">Other modifiers (in progress):</span> {miscLinesLocked}
       </p>
     ) : null;
 
@@ -339,6 +451,7 @@ export function CharacterTab({
         </table>
       ) : null}
       {otherModifiersLine}
+      {otherModifiersLockedLine}
 
       <div className="flex w-full justify-center pt-2">
         <button

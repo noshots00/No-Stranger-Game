@@ -272,8 +272,10 @@ export const getLevelFromXp = (xp: number): number => {
 
 /**
  * Organic `*Skill` / `*Spell` modifiers (and `skill:` / `spell:` prefixed keys) are shown on the
- * character sheet when |value| is at least this magnitude — rank **1** counts as visible.
- * (Other modifier families keep their own UI rules.)
+ * character sheet when |value| is at least this magnitude — rank **1** counts as **unlocked**.
+ * Traits, blessings, class tracks, misc, and non-primary `stat:` rewards use `CLASS_UNLOCK_POINTS`
+ * (5) as the unlock threshold on the sheet; sub-threshold rows appear only when modifier details
+ * are enabled in dev tools.
  */
 export const CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE = 1;
 
