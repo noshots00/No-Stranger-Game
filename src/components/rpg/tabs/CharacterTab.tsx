@@ -55,6 +55,9 @@ function chunkPairs<T>(arr: T[]): T[][] {
 /** Body copy (~50% of prior `text-sm` / 0.875rem). */
 const bt = 'font-serif text-[0.4375rem] leading-snug';
 
+/** Primary sheet: six stats in two rows of three (narrow portrait). */
+const PRIMARY_STAT_ROWS = [characterStats.slice(0, 3), characterStats.slice(3, 6)] as const;
+
 export function CharacterTab({
   questState,
   userPubkey,
@@ -214,19 +217,32 @@ export function CharacterTab({
         </span>
       </p>
 
-      <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-0">
-        {characterStats.map(([label]) => (
-          <div
-            key={label}
-            className={`flex min-w-0 items-baseline justify-between gap-4 border-b border-[var(--candle-rule)] py-0.5 ${bt}`}
-          >
-            <p className="uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">{label}</p>
-            <p className="shrink-0 font-mono text-[var(--candle-ink)]">
-              {getPrimaryStatTotal(questState.modifiers, label)}
-            </p>
-          </div>
-        ))}
-      </div>
+      <table
+        className="w-full min-w-0 table-fixed border-collapse font-serif text-[clamp(0.28rem,2.5vw,0.375rem)] leading-tight text-[var(--candle-ink-soft)]"
+        aria-label="Primary attributes"
+      >
+        <tbody>
+          {PRIMARY_STAT_ROWS.map((row, rowIdx) => (
+            <tr key={rowIdx} className="border-b border-[var(--candle-rule)]">
+              {row.map(([label], colIdx) => (
+                <td
+                  key={label}
+                  className={`min-w-0 w-1/3 px-0.5 py-1 text-center align-top ${
+                    colIdx < 2 ? 'border-r border-[var(--candle-rule)]/55' : ''
+                  }`}
+                >
+                  <div className="break-words uppercase tracking-[0.06em] text-[var(--candle-ink-faint)]">
+                    {label}
+                  </div>
+                  <div className="mt-0.5 font-mono tabular-nums text-[var(--candle-ink)]">
+                    {getPrimaryStatTotal(questState.modifiers, label)}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {detailTableCells.length > 0 ? (
         <table className={`w-full min-w-0 border-collapse ${bt} text-[var(--candle-ink-soft)]`}>
