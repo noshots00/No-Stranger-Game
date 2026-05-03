@@ -75,6 +75,9 @@
     --candle-y: 100%;
     --candle-radius: 60vmin;
 
+    /** Matches `.facsimile-scroll` gutter; used by fixed UI (e.g. character corner controls). */
+    --facsimile-scrollbar-width: 3px;
+
     /* Legacy names used by .game-login and older screens */
     --void: var(--candle-void);
     --surface: rgba(26, 22, 20, 0.55);
@@ -426,7 +429,6 @@
   }
 
   .facsimile-scroll {
-    --facsimile-scrollbar-width: 3px;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }

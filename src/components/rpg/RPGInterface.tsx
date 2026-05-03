@@ -679,6 +679,8 @@ export function RPGInterface() {
             onShowModifierDetailsChange={setShowModifierDetails}
             devUnlockAllQuests={devUnlockAllQuests}
             onDevUnlockAllQuestsChange={setDevUnlockAllQuests}
+            onLogout={handleLogout}
+            onResetStory={handleResetStory}
           />
         );
       case 'chronicle':
@@ -768,8 +770,6 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
-          onLogout={handleLogout}
-          onResetStory={handleResetStory}
         />
         <div
           className={`emerge min-h-0 flex-1 ${

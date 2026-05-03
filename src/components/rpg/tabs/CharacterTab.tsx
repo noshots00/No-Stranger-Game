@@ -21,8 +21,8 @@ import { formatUnlockedTraitsLine } from '../traitSheet';
 import { getRacePortraitSrc } from '../rpgArtAssignments';
 import { getRaceDefinition } from '../races';
 import { nip19 } from 'nostr-tools';
-import { CharacterTabTopBar } from './CharacterTabTopBar';
-import type { CharacterTabTopBarProps } from './CharacterTabTopBar';
+import { CharacterScreenCornerControls } from './CharacterScreenCornerControls';
+import type { CharacterScreenCornerControlsProps } from './CharacterScreenCornerControls';
 
 type CharacterTabProps = {
   questState: QuestState;
@@ -30,7 +30,7 @@ type CharacterTabProps = {
   /** Kindred count from social layer (logged-in only). */
   kindredSpirits?: number;
   onOpenChronicle: () => void;
-} & CharacterTabTopBarProps;
+} & CharacterScreenCornerControlsProps;
 
 const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
 
@@ -85,6 +85,8 @@ export function CharacterTab({
   onShowModifierDetailsChange,
   devUnlockAllQuests,
   onDevUnlockAllQuestsChange,
+  onLogout,
+  onResetStory,
 }: CharacterTabProps) {
   const characterLevel = getCharacterLevel(questState);
   const characterClass = getCharacterClass(questState.modifiers);
@@ -204,19 +206,7 @@ export function CharacterTab({
     ) : null;
 
   return (
-    <section className="min-w-0 pb-4">
-      <CharacterTabTopBar
-        showDevTools={showDevTools}
-        onAdvanceDay={onAdvanceDay}
-        devFiveMinuteDays={devFiveMinuteDays}
-        onDevFiveMinuteDaysChange={onDevFiveMinuteDaysChange}
-        rapidDaySimulation={rapidDaySimulation}
-        onRapidDaySimulationChange={onRapidDaySimulationChange}
-        showModifierDetails={showModifierDetails}
-        onShowModifierDetailsChange={onShowModifierDetailsChange}
-        devUnlockAllQuests={devUnlockAllQuests}
-        onDevUnlockAllQuestsChange={onDevUnlockAllQuestsChange}
-      />
+    <section className="relative min-w-0 pb-14">
       <div className="facsimile-scroll-dialogue-inner min-w-0 space-y-2">
         <div className="flex min-w-0 items-start gap-3 py-0.5">
           <img
@@ -330,6 +320,20 @@ export function CharacterTab({
         )}
       </p>
       </div>
+      <CharacterScreenCornerControls
+        showDevTools={showDevTools}
+        onAdvanceDay={onAdvanceDay}
+        devFiveMinuteDays={devFiveMinuteDays}
+        onDevFiveMinuteDaysChange={onDevFiveMinuteDaysChange}
+        rapidDaySimulation={rapidDaySimulation}
+        onRapidDaySimulationChange={onRapidDaySimulationChange}
+        showModifierDetails={showModifierDetails}
+        onShowModifierDetailsChange={onShowModifierDetailsChange}
+        devUnlockAllQuests={devUnlockAllQuests}
+        onDevUnlockAllQuestsChange={onDevUnlockAllQuestsChange}
+        onLogout={onLogout}
+        onResetStory={onResetStory}
+      />
     </section>
   );
 }
