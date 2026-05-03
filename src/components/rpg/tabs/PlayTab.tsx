@@ -203,36 +203,18 @@ export function PlayTab({
           </div>
         </div>
       ) : null}
-      <div className="echo-log flex flex-col gap-0.5 py-1">
-        <div ref={eventLogScrollRef} className="facsimile-scroll -mr-3 h-[5.2rem] overflow-y-auto pr-1">
-          {visibleWorldLines.length > 0 ? (
-            <ul className="space-y-1 font-sans text-[11px] leading-snug">
-              {visibleWorldLines.map((entry, index) => (
-                <li
-                  key={`${entry.atMs}-${index}-${entry.text}`}
-                  className="italic text-[var(--candle-ember)]/80"
-                >
-                  {entry.text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="font-sans text-[11px] italic leading-snug text-[var(--candle-ember)]/70">
-              The road is quiet.
-            </p>
-          )}
-        </div>
-        <div className="border-t border-[var(--candle-rule)] pt-1">
-          <ChatPanel
-            groupId={getLocationGroupId(currentLocation)}
-            title={`${currentLocation} chat`}
-            emptyHint={`No one else is talking at ${currentLocation} right now.`}
-            characterNameLabel={characterNameLabel}
-            speakerNameMap={speakerNameMap}
-            messageListClassName="max-h-32"
-            hasCharacter={hasCharacter}
-          />
-        </div>
+      <div className="echo-log py-1">
+        <ChatPanel
+          groupId={getLocationGroupId(currentLocation)}
+          title={`${currentLocation} chat`}
+          emptyHint=""
+          worldEventLines={visibleWorldLines}
+          listScrollRef={eventLogScrollRef}
+          characterNameLabel={characterNameLabel}
+          speakerNameMap={speakerNameMap}
+          messageListClassName="max-h-52"
+          hasCharacter={hasCharacter}
+        />
       </div>
     </section>
   );

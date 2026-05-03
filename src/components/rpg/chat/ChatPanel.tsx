@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
 import { useChatRoom } from './useChatRoom';
 
 type ChatPanelProps = {
@@ -7,8 +8,16 @@ type ChatPanelProps = {
   groupId: string;
   /** Heading shown above the messages list. */
   title: string;
-  /** Empty-state hint when no one else has spoken in this room. */
+  /**
+   * Empty-state hint when no one else has spoken in this room.
+   * Pass `""` to show no hint (only applies when `events.length === 0`).
+   * Omit to use the default lobby-style hint.
+   */
   emptyHint?: string;
+  /** In-play world/event lines merged above chat in one scroll area (Play tab). */
+  worldEventLines?: WorldEventLogEntry[];
+  /** Scroll container ref for merged list (e.g. auto-scroll on new world lines). */
+  listScrollRef?: RefObject<HTMLDivElement | null>;
   /** Player's display name; used to label own messages. */
   characterNameLabel: string;
   /** Map pubkey -> rendered name for OTHER speakers. */
@@ -28,12 +37,16 @@ const truncate = (text: string, max: number): string => {
 export function ChatPanel({
   groupId,
   title,
-  emptyHint = 'No one else has spoken here yet.',
+  emptyHint,
+  worldEventLines,
+  listScrollRef,
   characterNameLabel,
   speakerNameMap,
   messageListClassName = 'max-h-40',
   hasCharacter,
 }: ChatPanelProps) {
+  const resolvedEmptyHint =
+    emptyHint !== undefined ? emptyHint : 'No one else has spoken here yet.';
   const { user } = useCurrentUser();
   const { events, status, send, isSending } = useChatRoom({ groupId, enabled: hasCharacter });
   const [draft, setDraft] = useState('');
@@ -69,16 +82,41 @@ export function ChatPanel({
     }
   };
 
+  const showWorldBlock = worldEventLines !== undefined;
+
   return (
     <div className="space-y-2">
       <p className="font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
-      <div className={`facsimile-scroll overflow-y-auto pr-1 ${messageListClassName}`}>
+      <div
+        ref={listScrollRef}
+        className={`facsimile-scroll overflow-y-auto pr-1 ${messageListClassName}`}
+      >
+        {showWorldBlock ? (
+          worldEventLines.length > 0 ? (
+            <ul className="mb-3 space-y-1 font-sans text-[11px] leading-snug">
+              {worldEventLines.map((entry, index) => (
+                <li
+                  key={`${entry.atMs}-${index}-${entry.text}`}
+                  className="italic text-[var(--candle-ember)]/80"
+                >
+                  {entry.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mb-3 font-sans text-[11px] italic leading-snug text-[var(--candle-ember)]/70">
+              The road is quiet.
+            </p>
+          )
+        ) : null}
         {status === 'pending' ? (
           <p className="text-sm text-[var(--candle-ink-faint)]">Loading messages…</p>
         ) : status === 'error' ? (
           <p className="text-sm text-rose-300/90">Could not load this room.</p>
         ) : events.length === 0 ? (
-          <p className="text-sm italic text-[var(--candle-ink-soft)]">{emptyHint}</p>
+          resolvedEmptyHint ? (
+            <p className="text-sm italic text-[var(--candle-ink-soft)]">{resolvedEmptyHint}</p>
+          ) : null
         ) : (
           <ul className="space-y-2 text-sm text-[var(--candle-ink-soft)]">
             {events.map((event) => {
@@ -108,7 +146,7 @@ export function ChatPanel({
               if (!isSending) void handleSend();
             }
           }}
-          placeholder="Say something…"
+          placeholder="Type your message here..."
           disabled={isSending}
           className="min-h-[40px] flex-1 border-0 bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)] focus:outline-none disabled:opacity-60"
         />
