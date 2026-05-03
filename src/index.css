@@ -600,6 +600,27 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/** Play tab shell: quick fade only (no translate) so dialogue bottom-snap stays stable. */
+@keyframes playSurfaceFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.play-surface-fade-in {
+  animation: playSurfaceFadeIn 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-surface-fade-in {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 @keyframes inkSpread {
   from { max-width: 0; opacity: 0; }
   to { max-width: 100%; opacity: 1; }

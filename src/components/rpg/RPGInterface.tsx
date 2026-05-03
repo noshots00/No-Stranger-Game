@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -142,8 +142,21 @@ export function RPGInterface() {
   const dialogueInstantScrollRef = useRef(false);
   /** False until first bottom snap on Play; avoids scrollTop=0 on mount marking the feed "unpinned". */
   const dialogueScrollReadyRef = useRef(false);
+  /** After switching to Play, keep snapping to bottom while layout/fonts grow until user scrolls up or timeout. */
+  const playDialogueSnapInitialRef = useRef(false);
   const prevPlayTabRef = useRef(false);
   const completedQuestCountRef = useRef(0);
+  const activeTabRef = useRef<MobileTab>(activeTab);
+  activeTabRef.current = activeTab;
+
+  const snapPlayDialogueBottom = useCallback(() => {
+    const el = dialogueScrollRef.current;
+    if (!el) return;
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.scrollTop = maxScroll;
+    dialoguePinnedRef.current = true;
+    dialogueScrollReadyRef.current = true;
+  }, []);
 
   const handleDialogueScroll = () => {
     if (!dialogueScrollReadyRef.current) return;
@@ -155,6 +168,9 @@ export function RPGInterface() {
       return;
     }
     dialoguePinnedRef.current = el.scrollTop >= maxScroll - DIALOGUE_SCROLL_PIN_EPS;
+    if (!dialoguePinnedRef.current) {
+      playDialogueSnapInitialRef.current = false;
+    }
   };
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
@@ -217,37 +233,74 @@ export function RPGInterface() {
     if (activeTab !== 'play') {
       prevPlayTabRef.current = false;
       dialogueScrollReadyRef.current = false;
+      playDialogueSnapInitialRef.current = false;
       return;
     }
 
     const justEnteredPlay = !prevPlayTabRef.current;
     prevPlayTabRef.current = true;
     if (justEnteredPlay) {
-      dialogueInstantScrollRef.current = true;
       dialoguePinnedRef.current = true;
       dialogueScrollReadyRef.current = false;
+      playDialogueSnapInitialRef.current = true;
     }
 
     const el = dialogueScrollRef.current;
     if (!el) return;
-    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+
+    let scheduleFollowUpSnap = false;
 
     if (dialogueInstantScrollRef.current) {
-      el.scrollTop = maxScroll;
+      snapPlayDialogueBottom();
       dialogueInstantScrollRef.current = false;
-      dialoguePinnedRef.current = true;
+      playDialogueSnapInitialRef.current = true;
+      scheduleFollowUpSnap = true;
+    } else if (!dialoguePinnedRef.current) {
       dialogueScrollReadyRef.current = true;
-      return;
+    } else {
+      snapPlayDialogueBottom();
+      scheduleFollowUpSnap = true;
     }
 
-    if (!dialoguePinnedRef.current) {
-      dialogueScrollReadyRef.current = true;
-      return;
+    if (scheduleFollowUpSnap || justEnteredPlay) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (activeTabRef.current !== 'play') return;
+          if (!playDialogueSnapInitialRef.current && !dialoguePinnedRef.current) return;
+          snapPlayDialogueBottom();
+        });
+      });
     }
+  }, [questState.dialogueLog, questState.worldEventLog, activeTab, snapPlayDialogueBottom]);
 
-    el.scrollTop = maxScroll;
-    dialogueScrollReadyRef.current = true;
-  }, [questState.dialogueLog, questState.worldEventLog, activeTab]);
+  /** Catch flex/font/layout growth after Play mounts so the latest line stays in view. */
+  useEffect(() => {
+    if (activeTab !== 'play') return;
+    const el = dialogueScrollRef.current;
+    if (!el) return;
+
+    const maybeSnap = () => {
+      if (activeTabRef.current !== 'play') return;
+      if (!playDialogueSnapInitialRef.current && !dialoguePinnedRef.current) return;
+      snapPlayDialogueBottom();
+    };
+
+    const ro = new ResizeObserver(maybeSnap);
+    ro.observe(el);
+    const inner = el.firstElementChild;
+    if (inner) ro.observe(inner);
+
+    maybeSnap();
+    return () => ro.disconnect();
+  }, [activeTab, snapPlayDialogueBottom, playFeedSegments.length]);
+
+  useEffect(() => {
+    if (activeTab !== 'play') return;
+    const id = window.setTimeout(() => {
+      playDialogueSnapInitialRef.current = false;
+    }, 2800);
+    return () => window.clearTimeout(id);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!isQuestStateHydrated || showEarlyDevResetGate) return;
@@ -770,12 +823,12 @@ export function RPGInterface() {
           locationIndicatorClass={locationIndicatorClass}
         />
         <div
-          className={`emerge min-h-0 flex-1 ${
+          className={`min-h-0 flex-1 ${
             activeTab === 'play'
-              ? 'overflow-hidden'
+              ? 'play-surface-fade-in overflow-hidden'
               : activeTab === 'social'
-                ? 'flex h-full min-h-0 flex-1 flex-col overflow-hidden'
-                : 'facsimile-scroll overflow-y-auto pr-0'
+                ? 'emerge flex h-full min-h-0 flex-1 flex-col overflow-hidden'
+                : 'emerge facsimile-scroll overflow-y-auto pr-0'
           }`}
         >
           {renderTabPanel()}
