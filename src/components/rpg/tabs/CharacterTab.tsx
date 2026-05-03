@@ -247,41 +247,47 @@ export function CharacterTab({
   return (
     <section className="relative min-w-0 pb-14">
       <div className="facsimile-scroll-dialogue-inner min-w-0 space-y-2">
-        <div className="flex min-w-0 flex-col items-center gap-3 py-0.5">
-          <img
-            src={getRacePortraitSrc(questState.assignedRaceSlug)}
-            alt="Character portrait"
-            className="aspect-[200/266] w-[min(100px,38vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
-          />
-          <div className="flex w-full min-w-0 max-w-md flex-col items-center gap-1.5 px-1 text-center">
-            <p className="max-w-full break-words font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
-              {questState.playerName || 'Stranger'}
-            </p>
-            <p className="max-w-full break-words font-mono text-[0.34375rem] uppercase tracking-[0.18em] text-[var(--candle-ink-soft)] leading-snug">
-              {raceEmoji ? (
-                <span aria-hidden="true">
-                  {raceEmoji}{' '}
-                </span>
-              ) : null}
-              Level {characterLevel} {raceMiddle} {characterClass}
-            </p>
-            <p className={`${bt} text-[var(--candle-ink-soft)]`}>Coal Miner</p>
-            <p className={bt}>
-              <span className="text-[var(--candle-ink-soft)]">Coin: </span>
-              <span
-                className={`font-mono ${
-                  copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
-                }`}
-              >
-                {coinLabel}
-              </span>
-            </p>
-            {userPubkey != null && kindredSpirits !== undefined ? (
-              <p className={bt}>
-                <span className="text-[var(--candle-ink-soft)]">Kindred: </span>
-                <span className="font-mono text-[var(--candle-ink)]">{kindredSpirits}</span>
-              </p>
-            ) : null}
+        <div className="min-w-0 space-y-2 py-0.5">
+          <p className="text-center font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
+            {questState.playerName || 'Stranger'}
+          </p>
+          <div className="flex min-w-0 justify-center">
+            <div className="flex max-w-full items-start gap-3">
+              <img
+                src={getRacePortraitSrc(questState.assignedRaceSlug)}
+                alt="Character portrait"
+                className="aspect-[200/266] w-[min(100px,32vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
+              />
+              <div className="flex min-w-0 flex-col gap-1.5 text-left leading-snug">
+                <p className="block max-w-[min(16rem,55vw)] break-words font-mono text-[0.34375rem] uppercase tracking-[0.18em] text-[var(--candle-ink-soft)]">
+                  {raceEmoji ? (
+                    <span aria-hidden="true">
+                      {raceEmoji}{' '}
+                    </span>
+                  ) : null}
+                  Level {characterLevel} {raceMiddle} {characterClass}
+                </p>
+                <p className={`${bt} block text-[var(--candle-ink-soft)]`}>Coal Miner</p>
+                <p className={`${bt} block`}>
+                  <span className="text-[var(--candle-ink-soft)]">Coin: </span>
+                  <span
+                    className={`font-mono ${
+                      copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
+                    }`}
+                  >
+                    {coinLabel}
+                  </span>
+                </p>
+                <p className={`${bt} block`}>
+                  <span className="text-[var(--candle-ink-soft)]">Kindred: </span>
+                  {userPubkey != null && kindredSpirits !== undefined ? (
+                    <span className="font-mono text-[var(--candle-ink)]">{kindredSpirits}</span>
+                  ) : (
+                    <span className="text-[var(--candle-ink-faint)]">—</span>
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
