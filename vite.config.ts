@@ -15,6 +15,14 @@ export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
+    /**
+     * Optional: set env `VITE_DEV_POLL=1` if file saves rarely trigger HMR (some Windows / VM setups).
+     * Polling uses more CPU; leave unset on healthy watchers.
+     */
+    watch:
+      process.env.VITE_DEV_POLL === "1"
+        ? { usePolling: true, interval: 250 }
+        : undefined,
   },
   plugins: [
     react(),

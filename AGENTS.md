@@ -916,6 +916,7 @@ The router includes automatic scroll-to-top functionality and a 404 NotFound pag
 - Follows shadcn/ui component patterns
 - Implements Path Aliases with `@/` prefix for cleaner imports
 - Uses Vite for fast development and production builds
+- If local dev feels stale or HMR is wrong until restart, prefer **`npm run dev:clean`** (clears `node_modules/.vite` + `vite --force`) — see [docs/README.md](docs/README.md) § Local development.
 - Component-based architecture with React hooks
 - Default connection to one Nostr relay for best performance
 - Comprehensive provider setup with NostrLoginProvider, QueryClientProvider, and custom AppProvider

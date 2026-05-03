@@ -14,6 +14,13 @@ These are human-curated; Cliff fills them in over time.
 - [Modifiers](./design/MODIFIERS.md) — non-class, non-race modifier categories (traits, blessings, characteristics, etc.).
 - [Guilds](./design/GUILDS.md) — the guild system — ideas and rules.
 
+## Local development
+
+- **`npm run dev`** — Vite dev server.
+- **Stale UI / HMR / wrong behavior until restart:** run **`npm run dev:clean`** instead (clears `node_modules/.vite`, then `vite --force`). That fixes most “must kill dev and restart” cases caused by dependency pre-bundle cache.
+- **Saved files not reloading:** set **`VITE_DEV_POLL=1`** when starting dev (enables polling watchers — helpful on some Windows or VM disks). Example PowerShell: `$env:VITE_DEV_POLL='1'; npm run dev`.
+- **Game state vs code:** quest/Nostr data comes from relays and `localStorage`; `dev:clean` does not reset saves — use in-game reset or clear site data if you mean ledger mismatch.
+
 ## Production
 
 - [Art pipeline](./ART_PIPELINE.md) — batch-export masters to standardized WebP (`npm run art:batch`).

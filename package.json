@@ -1,10 +1,11 @@
 {
   "name": "mkstack",
   "private": true,
-  "version": "0.5.29",
+  "version": "0.5.30",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:clean": "node scripts/clear-vite-cache.mjs && vite --force",
     "build": "vite build -l error && node -e \"const fs=require('node:fs');fs.copyFileSync('dist/index.html','dist/404.html')\" && echo 'Project built successfully!'",
     "check": "tsc --noEmit && eslint . --cache --cache-location .eslintcache",
     "art:batch": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/batch-art.ps1",
