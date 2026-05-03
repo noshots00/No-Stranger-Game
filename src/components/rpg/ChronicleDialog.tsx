@@ -36,7 +36,7 @@ export function ChronicleDialog({
                     key={`world-${row.atMs}-${index}-${row.text.slice(0, 24)}`}
                     className="border-b border-[var(--candle-rule)] pb-4 last:border-b-0"
                   >
-                    <p className="font-serif text-[10px] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+                    <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
                       {chronicleDateTimeFmt.format(row.atMs)}
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-[var(--candle-ink-soft)]">{row.text}</p>
@@ -49,7 +49,7 @@ export function ChronicleDialog({
                   key={`dlg-${segment.role}-${first?.id ?? index}`}
                   className="border-b border-[var(--candle-rule)] pb-4 last:border-b-0"
                 >
-                  <p className="font-serif text-[10px] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+                  <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
                     {chronicleDateTimeFmt.format(first.atMs)}
                   </p>
                   <div className="mt-1">

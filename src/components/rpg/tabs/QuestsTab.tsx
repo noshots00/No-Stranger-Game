@@ -43,7 +43,7 @@ export function QuestsTab({
             className={`space-y-2 pb-3 pt-1 ${compact ? 'pl-0 text-right sm:pl-2' : 'pl-0 sm:pl-1'}`}
           >
             <p
-              className={`font-serif leading-snug text-[var(--candle-ink-soft)] ${compact ? 'text-[11px]' : 'text-sm leading-relaxed'}`}
+              className={`font-serif leading-snug text-[var(--candle-ink-soft)] ${compact ? 'text-[0.6875rem]' : 'text-sm leading-relaxed'}`}
             >
               {quest.briefing}
             </p>
@@ -71,7 +71,7 @@ export function QuestsTab({
       <ul className="space-y-0 divide-y divide-[var(--candle-rule)]">{activeQuests.map((quest) => renderQuestRow(quest))}</ul>
       {completedQuests.length > 0 ? (
         <div className="ml-auto max-w-[min(100%,20rem)] space-y-1 border-t border-[var(--candle-rule)]/80 pt-2 sm:max-w-none">
-          <p className="font-serif text-[10px] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)] sm:text-right">
+          <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)] sm:text-right">
             Completed quests
           </p>
           <ul className="space-y-0 divide-y divide-[var(--candle-rule)]/70 text-right">

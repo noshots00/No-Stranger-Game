@@ -160,7 +160,9 @@
     @apply border-border;
   }
 
+  /* 150% of browser default (typically 16px → 24px): scales rem-based type ~50% larger site-wide. */
   html {
+    font-size: 150%;
     min-height: 100dvh;
     background-color: var(--candle-void);
   }

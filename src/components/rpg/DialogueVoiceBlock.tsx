@@ -17,7 +17,7 @@ const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
 
 /** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
 export const DIALOGUE_DEV_MESSAGE_CLASSES =
-  'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[13px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
+  'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[0.8125rem] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
 
 export function DialogueVoiceBlock({
   role,

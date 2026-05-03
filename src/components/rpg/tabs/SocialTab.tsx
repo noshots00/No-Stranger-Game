@@ -45,7 +45,7 @@ export function SocialTab({
       ) : null}
       <hr className="candle-rule" />
       <div>
-        <p className="mb-2 font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+        <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
           Activity
         </p>
         <div className="facsimile-scroll max-h-64 overflow-y-auto pr-1">
@@ -70,7 +70,7 @@ export function SocialTab({
       </div>
       <hr className="candle-rule" />
       <div>
-        <p className="mb-2 font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
+        <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
           Signals
         </p>
         {!user ? (
@@ -106,7 +106,7 @@ export function SocialTab({
               disabled
               aria-disabled="true"
               title="Coming soon"
-              className="social-channel-button min-h-[44px] cursor-not-allowed rounded-md px-2 py-2 text-center text-[11px] text-[var(--candle-ink-faint)] opacity-50"
+              className="social-channel-button min-h-[44px] cursor-not-allowed rounded-md px-2 py-2 text-center text-[0.6875rem] text-[var(--candle-ink-faint)] opacity-50"
             >
               {label}
             </button>

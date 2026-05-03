@@ -183,7 +183,7 @@ export function PlayTab({
         </div>
       </div>
       {dialogueLogLength > PLAY_DIALOGUE_RECENT_MAX ? (
-        <p className="text-center font-serif text-[10px] text-[var(--candle-ink-faint)]">
+        <p className="text-center font-serif text-[0.625rem] text-[var(--candle-ink-faint)]">
           Showing the last {PLAY_DIALOGUE_RECENT_MAX} dialogue lines. Older lines are in the chronicle.
         </p>
       ) : null}

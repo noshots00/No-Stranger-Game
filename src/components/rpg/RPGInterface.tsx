@@ -776,7 +776,7 @@ export function RPGInterface() {
                     aria-label={item.label}
                   >
                     {item.key === 'quests' && pendingQuestCount > 0 ? (
-                      <span className="absolute right-2 top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[9px] font-medium leading-none text-[var(--candle-ink)]">
+                      <span className="absolute right-2 top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[0.5625rem] font-medium leading-none text-[var(--candle-ink)]">
                         {pendingQuestCount}
                       </span>
                     ) : null}

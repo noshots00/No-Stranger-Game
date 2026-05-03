@@ -198,7 +198,7 @@ export function CharacterTab({
           <p className="font-cormorant text-3xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
             {questState.playerName || 'Stranger'}
           </p>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
+          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
             {raceEmoji ? (
               <span aria-hidden="true">
                 {raceEmoji}{' '}

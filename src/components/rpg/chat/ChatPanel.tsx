@@ -66,7 +66,7 @@ export function ChatPanel({
   if (!user) {
     return (
       <div className="space-y-2">
-        <p className="font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+        <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
         <p className="text-sm text-[var(--candle-ink-soft)]">Log in to join the conversation.</p>
       </div>
     );
@@ -75,7 +75,7 @@ export function ChatPanel({
   if (!hasCharacter) {
     return (
       <div className="space-y-2">
-        <p className="font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+        <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
         <p className="text-sm text-[var(--candle-ink-soft)]">
           Name your character first to join this room.
         </p>
@@ -97,14 +97,14 @@ export function ChatPanel({
 
   return (
     <div className="space-y-1">
-      <p className="font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
+      <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
       <div
         ref={listScrollRef}
         className={`facsimile-scroll overflow-y-auto pr-1 ${messageListClassName}`}
       >
         {showWorldBlock ? (
           worldEventLines.length > 0 ? (
-            <ul className="mb-3 space-y-1 font-sans text-[11px] leading-snug">
+            <ul className="mb-3 space-y-1 font-sans text-[0.6875rem] leading-snug">
               {worldEventLines.map((entry, index) => (
                 <li
                   key={`${entry.atMs}-${index}-${entry.text}`}
@@ -115,7 +115,7 @@ export function ChatPanel({
               ))}
             </ul>
           ) : (
-            <p className="mb-3 font-sans text-[11px] italic leading-snug text-[var(--candle-ember)]/70">
+            <p className="mb-3 font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/70">
               The road is quiet.
             </p>
           )

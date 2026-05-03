@@ -119,11 +119,11 @@ export function GameHeader({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <p className="text-center font-serif text-[10px] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
+      <p className="text-center font-serif text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
         {UI_VERSION_LABEL}
       </p>
       <p
-        className={`justify-self-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
+        className={`justify-self-center rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
       >
         {currentLocation}
       </p>
