@@ -10,17 +10,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toggleAudioMuted, useAudioMuted } from './audio/audioMute';
-import { formatResetIn, formatResetInCompact, formatWallClockTime } from './statusBarFormat';
-import { useWallClock } from './hooks/useWallClock';
 
 type GameHeaderProps = {
   dayCounter: number;
   currentLocation: string;
   locationIndicatorClass: string;
-  /** 0-100 player health (clamped). */
-  health: number;
-  /** Wall-clock ms when the next in-game day rolls over; null while loading. */
-  nextDayResetMs: number | null;
   /** Vite dev only: items 1–5 below. */
   showDevTools?: boolean;
   onAdvanceDay: () => void;
@@ -40,8 +34,6 @@ export function GameHeader({
   dayCounter,
   currentLocation,
   locationIndicatorClass,
-  health,
-  nextDayResetMs,
   showDevTools = false,
   onAdvanceDay,
   devFiveMinuteDays = false,
@@ -55,28 +47,7 @@ export function GameHeader({
   onLogout,
   onResetStory,
 }: GameHeaderProps) {
-  const wallNow = useWallClock(1000);
   const muted = useAudioMuted();
-  const clampedHealth = Math.max(0, Math.min(100, Math.round(health)));
-  const fillPct = `${clampedHealth}%`;
-  const clockText = formatWallClockTime(new Date(wallNow));
-  const resetText = formatResetIn(nextDayResetMs, wallNow);
-  const resetCompact = formatResetInCompact(nextDayResetMs, wallNow);
-
-  const healthTrack = (
-    <div
-      className="relative h-2.5 min-h-[10px] w-[min(5.5rem,22vw)] max-w-full shrink-0 overflow-hidden rounded-sm border border-[var(--candle-rule)] bg-black sm:h-3 sm:min-h-[12px] sm:w-[min(6.5rem,18vw)]"
-      aria-label={`Health ${clampedHealth} out of 100`}
-      title={`Health ${clampedHealth}/100`}
-    >
-      <div
-        className="relative h-full bg-gradient-to-b from-rose-500 to-red-700 transition-[width] duration-500 ease-out"
-        style={{ width: fillPct }}
-      >
-        <span aria-hidden className="hp-shimmer pointer-events-none absolute inset-y-0 -inset-x-1 block" />
-      </div>
-    </div>
-  );
 
   const muteButton = (
     <button
@@ -104,7 +75,7 @@ export function GameHeader({
 
   return (
     <header className="sticky top-0 z-20 -mx-1 select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-1 font-serif text-sm text-[var(--candle-ink)] backdrop-blur-sm sm:justify-between sm:gap-x-3 sm:px-3 sm:py-1">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-0.5 font-serif text-sm text-[var(--candle-ink)] backdrop-blur-sm sm:justify-between sm:gap-x-3 sm:px-3 sm:py-0.5">
         <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <p className="shrink-0 font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">
             Day {dayCounter}
@@ -180,30 +151,14 @@ export function GameHeader({
           <p className="shrink-0 font-serif text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
             {UI_VERSION_LABEL}
           </p>
-          <p
-            className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
-          >
-            {currentLocation}
-          </p>
-        </div>
-
-        <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-end">
-          {healthTrack}
-          <span className="shrink-0 font-serif text-sm tabular-nums text-[var(--candle-ink)]" aria-label="Current time">
-            {clockText}
-          </span>
-          <span
-            className="min-w-0 font-serif text-xs tabular-nums text-[var(--candle-ember)] sm:text-sm"
-            aria-label={`Day reset countdown: ${resetText}`}
-            title={resetText}
-          >
-            <span className="sm:hidden">
-              <span className="text-[var(--candle-ink-soft)]">Next </span>
-              {resetCompact}
-            </span>
-            <span className="hidden sm:inline">{resetText}</span>
-          </span>
-          {muteButton}
+          <div className="inline-flex min-w-0 max-w-full items-center gap-1">
+            <p
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
+            >
+              {currentLocation}
+            </p>
+            {muteButton}
+          </div>
         </div>
       </div>
     </header>

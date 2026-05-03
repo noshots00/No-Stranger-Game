@@ -93,6 +93,7 @@ A running inventory of every feature in No Stranger Game. One section per featur
 ## Status strip (game header)
 
 - Health (`QuestState.health`), wall clock (time only), countdown to next day reset, ambient mute — unified in [GameHeader.tsx](../../src/components/rpg/GameHeader.tsx) for all tabs.
+- **Hidden in the sticky header for density:** health bar, wall-clock time, and next-day reset countdown remain on `QuestState` / pacing hooks but are not rendered in the top bar; ambient mute stays beside the location pill.
 
 ## Ambient audio
 

@@ -94,7 +94,6 @@ export function RPGInterface() {
     setDevFiveMinuteDays,
     setDevDayOffsetMs,
     resetTimestamp,
-    nextDayResetMs,
     rapidDaySimulation,
     setRapidDaySimulation,
     isPacingResolved,
@@ -751,8 +750,6 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
-          health={questState.health}
-          nextDayResetMs={nextDayResetMs}
           showDevTools={import.meta.env.DEV}
           onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
           devFiveMinuteDays={devFiveMinuteDays}
