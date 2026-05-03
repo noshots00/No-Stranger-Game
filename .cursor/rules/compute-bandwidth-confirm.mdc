@@ -1,0 +1,26 @@
+---
+description: Ask before heavy compute/bandwidth; never push without explicit ask
+alwaysApply: true
+---
+
+# Compute, bandwidth, and git push — confirm first
+
+## When you MUST stop and ask the user (do not proceed silently)
+
+- **Batch or bulk work** that could process many files or large inputs: e.g. `npm run art:batch`, ImageMagick over a whole folder, mass asset conversion, recursive codegen, or anything where **count or total bytes is unclear or large**.
+- **Large installs / downloads**: full `npm install` when lockfile or network scope is huge; pulling large binaries; installing system tools without prior agreement.
+- **Heavy validation** beyond project defaults: full `npm run verify`, long test suites, repeated full builds, or parallel agents doing redundant heavy jobs.
+- **Git push / publish**: **never** `git push` (or publish to npm/registry/CDN) unless the user **explicitly** asked to push or publish in this task.
+
+## Signals that mean “ask before acting”
+
+- User dropped **many files** into a batch folder (e.g. `public/art/To be converted/`) or mentioned a **large** set — assume they want a **scope decision** (smoke subset vs full run), not an automatic full batch.
+- Output would **upload** significant data (pushing commits with large assets, CI that burns minutes, etc.).
+
+## What to do instead
+
+1. **Propose** the smallest safe step (e.g. 2–3 sample files, dry-run, or `magick identify` counts only).
+2. **Ask** which scope they want and wait for an answer before running the heavy command.
+3. After code changes, **commit locally** when appropriate; **push only** after the user clearly requests it.
+
+When in doubt: **ask** — saving compute and bandwidth beats finishing one turn faster.

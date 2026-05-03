@@ -1178,6 +1178,8 @@ If git is available in your environment (through a `shell` tool, or other git-sp
 
 When your changes are complete and validated, create a git commit with a descriptive message summarizing your changes.
 
+Do **not** run `git push` unless the user explicitly asked to push (or publish) in this task; local commits are enough until then.
+
 ### Versioning Policy
 
 The patch version must increment on every completed change, not only on commits.
