@@ -1,6 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
 import { SKILL_SHEET_LABEL, SKILL_XP_KEYS } from '../quests/skills-config';
-import { getCharacterLevel, getLevelFromXp } from '../quests/engine';
+import {
+  CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE,
+  getCharacterLevel,
+  getLevelFromXp,
+} from '../quests/engine';
 import {
   formatCoinShort,
   formatModifierKeyForCharacterSheet,
@@ -32,11 +36,20 @@ type CharacterTabProps = {
   onOpenChronicle: () => void;
 } & CharacterScreenCornerControlsProps;
 
-const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = ['stat', 'trait', 'skill', 'class', 'blessing', 'misc'];
+const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = [
+  'stat',
+  'trait',
+  'skill',
+  'spell',
+  'class',
+  'blessing',
+  'misc',
+];
 
 const BUCKET_LABEL: Record<Exclude<ModifierSheetBucket, 'skill'>, string> = {
   stat: 'Stats (quests)',
   trait: 'Traits',
+  spell: 'Spells',
   class: 'Archetype tracks',
   blessing: 'Blessings',
   misc: 'Other modifiers',
@@ -108,12 +121,16 @@ export function CharacterTab({
     allSkillSheetParts.push(`${SKILL_SHEET_LABEL[key]} ${level}`);
   }
 
-  const visibleModifiers = Object.entries(questState.modifiers).filter(
-    ([name, value]) =>
-      value !== 0 &&
-      getModifierMessageKind(name) !== 'hidden_class' &&
-      !name.startsWith('currency:')
-  );
+  const visibleModifiers = Object.entries(questState.modifiers).filter(([name, value]) => {
+    if (getModifierMessageKind(name) === 'hidden_class' || name.startsWith('currency:')) return false;
+    const mag = Math.abs(value);
+    if (mag === 0) return false;
+    const bucket = getModifierSheetBucket(name);
+    if (bucket === 'skill' || bucket === 'spell') {
+      return mag >= CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE;
+    }
+    return true;
+  });
 
   const byBucket = new Map<ModifierSheetBucket, [string, number][]>();
   for (const b of ALL_MODIFIER_BUCKETS) byBucket.set(b, []);
@@ -123,7 +140,11 @@ export function CharacterTab({
   }
 
   const blessingLines = formatModifierLines(byBucket.get('blessing') ?? []);
-  const skillGroups = groupSkillModifiersByCategory(byBucket.get('skill') ?? []);
+  const spellLines = formatModifierLines(byBucket.get('spell') ?? []);
+  const skillBucketEntries = byBucket.get('skill') ?? [];
+  const skillPrefixedForGroups = skillBucketEntries.filter(([k]) => k.startsWith('skill:'));
+  const skillOrganicRows = skillBucketEntries.filter(([k]) => !k.startsWith('skill:'));
+  const skillGroups = groupSkillModifiersByCategory(skillPrefixedForGroups);
 
   const statQuestRows = (byBucket.get('stat') ?? []).filter(([key]) => !isPrimaryStatCanonicalKey(key));
   const traitRows = byBucket.get('trait') ?? [];
@@ -183,6 +204,24 @@ export function CharacterTab({
         <Fragment key={`skill-cat-${categoryKey}`}>
           <span className="text-[var(--candle-ink)]">{headingLabel} skills:</span>{' '}
           <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(rows)}</span>
+        </Fragment>
+      );
+    }
+
+    if (skillOrganicRows.length > 0) {
+      detailTableCells.push(
+        <Fragment key="skills-organic">
+          <span className="text-[var(--candle-ink)]">Skills (ranks):</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{formatModifierLines(skillOrganicRows)}</span>
+        </Fragment>
+      );
+    }
+
+    if (spellLines) {
+      detailTableCells.push(
+        <Fragment key="spells">
+          <span className="text-[var(--candle-ink)]">{BUCKET_LABEL.spell}:</span>{' '}
+          <span className="text-[var(--candle-ink-soft)]">{spellLines}</span>
         </Fragment>
       );
     }

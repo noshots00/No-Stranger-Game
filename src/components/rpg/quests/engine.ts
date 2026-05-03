@@ -270,6 +270,13 @@ export const getLevelFromXp = (xp: number): number => {
   return Math.max(1, n + 1);
 };
 
+/**
+ * Organic `*Skill` / `*Spell` modifiers (and `skill:` / `spell:` prefixed keys) are shown on the
+ * character sheet when |value| is at least this magnitude — rank **1** counts as visible.
+ * (Other modifier families keep their own UI rules.)
+ */
+export const CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE = 1;
+
 /** World log lines when XP-based skill level increases (exploration, foraging, …). */
 export const getSkillLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => {
   const lines: string[] = [];

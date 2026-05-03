@@ -67,12 +67,24 @@ export function formatOrganicSlugForDisplay(slug: string): string {
     .join(' ');
 }
 
-export type ModifierSheetBucket = 'stat' | 'trait' | 'skill' | 'class' | 'blessing' | 'misc';
+/** `HealingSpell` / `Combat_AttackSkill` → spaced words for the character sheet. */
+export function formatPascalCaseModifierDisplay(key: string): string {
+  const withUnderscores = key.replace(/_/g, ' ');
+  return withUnderscores
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .trim();
+}
+
+export type ModifierSheetBucket = 'stat' | 'trait' | 'skill' | 'spell' | 'class' | 'blessing' | 'misc';
 
 export function getModifierSheetBucket(key: string): ModifierSheetBucket {
   if (key.startsWith('stat:')) return 'stat';
   if (key.startsWith('trait:')) return 'trait';
+  if (key.startsWith('spell:')) return 'spell';
+  if (/Spell$/.test(key)) return 'spell';
   if (key.startsWith('skill:')) return 'skill';
+  if (/Skill$/.test(key)) return 'skill';
   if (key.startsWith('class:')) return 'class';
   if (key.startsWith('blessing:')) return 'blessing';
   return 'misc';
@@ -133,6 +145,9 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
     const legacy = slugToPrimaryStatKey(slug);
     if (legacy) return legacy;
   }
+  if (key.startsWith('spell:')) {
+    return formatOrganicSlugForDisplay(key.slice('spell:'.length));
+  }
   if (key.startsWith('skill:')) {
     const parsed = parseSkillModifierKey(key);
     if (parsed) return formatOrganicSlugForDisplay(parsed.skillSlug);
@@ -140,6 +155,9 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
   if (key.startsWith('trait:') || key.startsWith('class:') || key.startsWith('blessing:')) {
     const slug = key.slice(key.indexOf(':') + 1);
     return formatOrganicSlugForDisplay(slug);
+  }
+  if (key.endsWith('Spell') || (/Skill$/.test(key) && !key.startsWith('skill:'))) {
+    return formatPascalCaseModifierDisplay(key);
   }
   return key;
 }
@@ -199,6 +217,7 @@ export type ModifierMessageKind =
   | 'primary_stat'
   | 'organic_trait'
   | 'organic_skill'
+  | 'organic_spell'
   | 'organic_class'
   | 'organic_blessing'
   | 'other';
@@ -212,7 +231,10 @@ export const getModifierMessageKind = (key: string): ModifierMessageKind => {
     return 'primary_stat';
   }
   if (key.startsWith('trait:')) return 'organic_trait';
+  if (key.startsWith('spell:')) return 'organic_spell';
+  if (/Spell$/.test(key)) return 'organic_spell';
   if (key.startsWith('skill:')) return 'organic_skill';
+  if (/Skill$/.test(key)) return 'organic_skill';
   if (key.startsWith('class:')) return 'organic_class';
   if (key.startsWith('blessing:')) return 'organic_blessing';
   return 'other';
@@ -281,14 +303,27 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
       lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (trait).`);
       return;
     }
+    if (kind === 'organic_spell') {
+      const label = key.startsWith('spell:')
+        ? formatOrganicSlugForDisplay(canonicalSlug(key, 'spell:'))
+        : formatPascalCaseModifierDisplay(key);
+      lines.push(`You gain ${delta} ${label} (spell).`);
+      return;
+    }
     if (kind === 'organic_skill') {
-      const parsed = parseSkillModifierKey(key);
-      const name = parsed ? formatOrganicSlugForDisplay(parsed.skillSlug) : formatOrganicSlugForDisplay(canonicalSlug(key, 'skill:'));
-      if (parsed?.category) {
-        const cat = getSkillCategoryDisplayLabel(parsed.category);
-        lines.push(`You gain ${delta} ${name} (${cat} skill).`);
+      if (key.startsWith('skill:')) {
+        const parsed = parseSkillModifierKey(key);
+        const name = parsed
+          ? formatOrganicSlugForDisplay(parsed.skillSlug)
+          : formatOrganicSlugForDisplay(canonicalSlug(key, 'skill:'));
+        if (parsed?.category) {
+          const cat = getSkillCategoryDisplayLabel(parsed.category);
+          lines.push(`You gain ${delta} ${name} (${cat} skill).`);
+        } else {
+          lines.push(`You gain ${delta} ${name} (skill).`);
+        }
       } else {
-        lines.push(`You gain ${delta} ${name} (skill).`);
+        lines.push(`You gain ${delta} ${formatPascalCaseModifierDisplay(key)} (skill).`);
       }
       return;
     }
