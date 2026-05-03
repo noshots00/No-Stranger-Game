@@ -276,7 +276,17 @@ export function CharacterTab({
       ) : null}
       {otherModifiersLine}
 
-      <p className={`${bt} py-1 text-center leading-snug`}>
+      <div className="flex w-full justify-center border-t border-[var(--candle-rule)]/60 pt-2">
+        <button
+          type="button"
+          onClick={onOpenChronicle}
+          className="choice-line !w-fit !max-w-full !py-0.5 !text-[0.4375rem] text-center text-[var(--candle-wax)]"
+        >
+          Chronicle
+        </button>
+      </div>
+
+      <p className={`${bt} mt-2 border-t border-[var(--candle-rule)]/60 pt-2 pb-0 text-center leading-snug`}>
         {profileNpub ? (
           <a
             href={`https://ditto.pub/${profileNpub}`}
@@ -290,16 +300,6 @@ export function CharacterTab({
           <span className="text-[var(--candle-ink-faint)]">Your Public Nostr Profile</span>
         )}
       </p>
-
-      <div className="flex w-full justify-center border-t border-[var(--candle-rule)]/60 pt-2">
-        <button
-          type="button"
-          onClick={onOpenChronicle}
-          className="choice-line !w-fit !max-w-full !py-0.5 !text-[0.4375rem] text-center text-[var(--candle-wax)]"
-        >
-          Chronicle
-        </button>
-      </div>
     </section>
   );
 }
