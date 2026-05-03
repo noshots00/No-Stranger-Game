@@ -72,7 +72,8 @@ export function RPGInterface() {
   const { logout } = useLoginActions();
   const navigate = useNavigate();
 
-  const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestState } = useQuestState();
+  const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestStateAndSync } =
+    useQuestState();
   const {
     dayCounter,
     setDevDayOffsetMs,
@@ -396,7 +397,7 @@ export function RPGInterface() {
   }, [questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
 
   const handleResetStory = async () => {
-    resetQuestState();
+    await resetQuestStateAndSync();
     setNameInput('');
     setNameInputError(null);
     setDevDayOffsetMs(0);

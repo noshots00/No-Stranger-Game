@@ -88,10 +88,23 @@ export function useQuestState() {
     [nostr, questStateStorageKey, user]
   );
 
-  const resetQuestState = useCallback(() => {
-    localStorage.removeItem(questStateStorageKey);
-    setQuestState(createInitialQuestState());
-  }, [questStateStorageKey]);
+  const resetQuestStateAndSync = useCallback(async () => {
+    const initial = createInitialQuestState();
+    setQuestState(initial);
+    localStorage.setItem(questStateStorageKey, JSON.stringify(initial));
+    if (!user?.signer) return;
+    try {
+      await publishQuestStateSnapshot(nostr, user.signer, initial);
+    } catch (error) {
+      console.warn('Failed to publish reset quest checkpoint; story may revert after reload.', error);
+    }
+  }, [nostr, questStateStorageKey, user]);
 
-  return { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestState };
+  return {
+    questState,
+    setQuestState,
+    isQuestStateHydrated,
+    persistQuestCheckpoint,
+    resetQuestStateAndSync,
+  };
 }
