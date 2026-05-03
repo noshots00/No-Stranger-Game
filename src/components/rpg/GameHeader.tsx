@@ -74,7 +74,7 @@ export function GameHeader({
   );
 
   return (
-    <header className="sticky top-0 z-20 -mx-1 select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
+    <header className="sticky top-0 z-20 w-full select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
       <div className="flex min-w-0 items-center gap-2 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-0.5 font-serif text-sm text-[var(--candle-ink)] backdrop-blur-sm">
         <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-1">
           <p className="min-w-0 text-center font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">

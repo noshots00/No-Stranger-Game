@@ -108,7 +108,7 @@ export function SocialTab({
         <p className="mb-2 font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">
           Activity
         </p>
-        <div className="facsimile-scroll max-h-64 overflow-y-auto pr-1">
+        <div className="facsimile-scroll max-h-64 overflow-y-auto pr-0">
           {activityStatus === 'pending' ? (
             <p className="text-sm text-[var(--candle-ink-faint)]">Loading…</p>
           ) : activityStatus === 'error' ? (

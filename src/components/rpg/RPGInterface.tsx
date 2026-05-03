@@ -763,9 +763,9 @@ export function RPGInterface() {
     <GamePortraitViewport>
     <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)]">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-1.5 px-0 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)]">
         {!isQuestStateHydrated ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
             <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">
               Syncing character state so dates and quests stay matched to this account.
@@ -774,7 +774,7 @@ export function RPGInterface() {
         ) : showEarlyDevResetGate ? (
           <EarlyDevCharacterResetGate onOkay={handleMandatoryEarlyDevReset} />
         ) : !isPacingResolved ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
             <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">
               Syncing character state so dates and quests stay matched to this account.
@@ -800,7 +800,7 @@ export function RPGInterface() {
           onResetStory={handleResetStory}
         />
         <div
-          className={`emerge min-h-0 flex-1 ${activeTab === 'play' ? 'overflow-hidden' : 'facsimile-scroll overflow-y-auto pr-1'}`}
+          className={`emerge min-h-0 flex-1 ${activeTab === 'play' ? 'overflow-hidden' : 'facsimile-scroll overflow-y-auto pr-0'}`}
         >
           {renderTabPanel()}
         </div>

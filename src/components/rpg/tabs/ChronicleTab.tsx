@@ -11,7 +11,7 @@ export function ChronicleTab({ chronicleSegments, chronicleDateTimeFmt }: Chroni
   return (
     <section className="min-w-0 space-y-4 pb-4 font-serif">
       <p className="facsimile-kicker">Chronicle</p>
-      <div className="space-y-4 pr-1">
+      <div className="space-y-4 pr-0">
         {chronicleSegments.map((segment, index) => {
           if (segment.type === 'world') {
             const row = segment.row;

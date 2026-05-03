@@ -89,7 +89,7 @@ export function PlayTab({
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
-        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-1"
+        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0"
       >
         <div className="space-y-2">
           {playDialogueBlocks.map((block, blockIndex) => (
@@ -194,7 +194,7 @@ export function PlayTab({
         <div
           ref={eventLogScrollRef}
           aria-label="Character events"
-          className="facsimile-scroll max-h-[6.5rem] overflow-y-auto pr-1"
+          className="facsimile-scroll max-h-[6.5rem] overflow-y-auto pr-0"
         >
           {visibleWorldLines.length > 0 ? (
             <ul className="space-y-1 font-sans text-[0.6875rem] leading-snug">

@@ -14,7 +14,7 @@ export function TitleScreen() {
     <GamePortraitViewport>
     <main className="candlelit-shell relative flex min-h-0 flex-1 flex-col overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-10 px-8 py-16">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-10 px-0 py-16">
         <div className="emerge flex w-full flex-col items-center gap-8 text-center">
           <h1 className="font-cormorant text-4xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
             No Stranger Game

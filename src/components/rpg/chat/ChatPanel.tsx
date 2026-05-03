@@ -105,7 +105,7 @@ export function ChatPanel({
       {titleLine}
       <div
         ref={listScrollRef}
-        className={`facsimile-scroll overflow-y-auto pr-1 ${messageListClassName}`}
+        className={`facsimile-scroll overflow-y-auto pr-0 ${messageListClassName}`}
       >
         {showWorldBlock ? (
           worldEventLines.length > 0 ? (
