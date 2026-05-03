@@ -216,12 +216,16 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       foragingXp,
       meleeAttackXp,
     },
-    lastDailyXpDay:
-      typeof state.lastDailyXpDay === 'number'
-        ? state.lastDailyXpDay === 0
-          ? 1
-          : state.lastDailyXpDay
-        : initial.lastDailyXpDay,
+    lastDailyXpDay: Math.max(
+      1,
+      Math.floor(
+        typeof state.lastDailyXpDay === 'number'
+          ? state.lastDailyXpDay === 0
+            ? 1
+            : state.lastDailyXpDay
+          : initial.lastDailyXpDay
+      )
+    ),
     dialogueLog,
     worldEventLog,
     questItems,

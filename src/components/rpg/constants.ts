@@ -38,6 +38,11 @@ export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';
 /** Eastern `yyyy-MM-dd` when the player named their character (game pacing + future verification). */
 export const CHARACTER_CREATION_DATE_STORAGE_KEY = 'nsg:character-creation-date-eastern';
+
+/** Per-pubkey creation date (preferred when logged in — avoids cross-account bleed from a global key). */
+export function characterCreationDateStorageKeyForPubkey(pubkey: string): string {
+  return `${CHARACTER_CREATION_DATE_STORAGE_KEY}:${pubkey}`;
+}
 /** After "Reset story", ignore relay kind 10031 until a new creation date exists in quest state. */
 export const CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY = 'nsg:character-creation-reset-pending';
 export const DEV_DAY_OFFSET_STORAGE_KEY = 'nsg:dev-day-offset-ms';

@@ -15,6 +15,7 @@ import {
   CHARACTER_CREATION_DATE_STORAGE_KEY,
   CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
   CHARACTER_START_TS_STORAGE_KEY,
+  characterCreationDateStorageKeyForPubkey,
   DAY_IN_MS,
   DEV_DAY_OFFSET_STORAGE_KEY,
   DEV_FIVE_MINUTE_DAYS_STORAGE_KEY,
@@ -23,6 +24,27 @@ import {
 } from '../constants';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Legacy global + timestamp → Eastern date (logged-out / migration only). */
+function resolveLegacyGlobalCreationDate(): string | null {
+  const fromLs = localStorage.getItem(CHARACTER_CREATION_DATE_STORAGE_KEY);
+  if (fromLs && YMD_RE.test(fromLs)) return fromLs;
+  const legacyRaw = localStorage.getItem(CHARACTER_START_TS_STORAGE_KEY);
+  if (legacyRaw) {
+    const n = Number(legacyRaw);
+    if (!Number.isNaN(n) && n > 0) {
+      return formatInTimeZone(n, EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
+    }
+  }
+  return null;
+}
+
+/** Per-pubkey cache only — never read legacy global keys while logged in (avoids cross-account bleed). */
+function resolveScopedCreationDateOnly(pubkey: string): string | null {
+  const scoped = localStorage.getItem(characterCreationDateStorageKeyForPubkey(pubkey));
+  if (scoped && YMD_RE.test(scoped)) return scoped;
+  return null;
+}
 
 export type UseDayCounterArgs = {
   /** From hydrated quest state — merged with relay + localStorage for creation Eastern date. */
@@ -48,6 +70,7 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   const [creationDateEastern, setCreationDateEastern] = useState<string | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
   const [rapidDaySimulation, setRapidDaySimulation] = useState(false);
+  const [isPacingResolved, setIsPacingResolved] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_RAPID_DAY_SIM_STORAGE_KEY);
@@ -82,20 +105,9 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   useEffect(() => {
     let cancelled = false;
 
-    const resolveLocalCreationDate = (): string | null => {
-      const fromLs = localStorage.getItem(CHARACTER_CREATION_DATE_STORAGE_KEY);
-      if (fromLs && YMD_RE.test(fromLs)) return fromLs;
-      const legacyRaw = localStorage.getItem(CHARACTER_START_TS_STORAGE_KEY);
-      if (legacyRaw) {
-        const n = Number(legacyRaw);
-        if (!Number.isNaN(n) && n > 0) {
-          return formatInTimeZone(n, EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
-        }
-      }
-      return null;
-    };
-
     const load = async () => {
+      setIsPacingResolved(false);
+
       let relayDate: string | null = null;
       try {
         if (user) {
@@ -106,7 +118,9 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
       }
       if (cancelled) return;
 
-      const localDate = resolveLocalCreationDate();
+      const localDate = user?.pubkey
+        ? resolveScopedCreationDateOnly(user.pubkey)
+        : resolveLegacyGlobalCreationDate();
       const fromQuest = questCreationDateEastern;
 
       const resetPending =
@@ -125,7 +139,11 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
       }
 
       if (merged) {
-        localStorage.setItem(CHARACTER_CREATION_DATE_STORAGE_KEY, merged);
+        if (user?.pubkey) {
+          localStorage.setItem(characterCreationDateStorageKeyForPubkey(user.pubkey), merged);
+        } else {
+          localStorage.setItem(CHARACTER_CREATION_DATE_STORAGE_KEY, merged);
+        }
       }
 
       if (!relayDate && fromQuest && user?.signer && YMD_RE.test(fromQuest)) {
@@ -138,6 +156,7 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
 
       if (cancelled) return;
       setCreationDateEastern(merged);
+      setIsPacingResolved(true);
     };
 
     void load();
@@ -162,11 +181,14 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   const nextDayResetMs =
     nextDayResetUtc !== null ? nextDayResetUtc - devDayOffsetMs : null;
 
-  /** Clears local creation cache only — quest reset clears canonical state via `resetQuestStateAndSync`. */
+  /** Clears local creation cache — global, legacy ts, and per-pubkey scoped key. */
   const resetTimestamp = async () => {
     setCreationDateEastern(null);
     localStorage.removeItem(CHARACTER_CREATION_DATE_STORAGE_KEY);
     localStorage.removeItem(CHARACTER_START_TS_STORAGE_KEY);
+    if (user?.pubkey) {
+      localStorage.removeItem(characterCreationDateStorageKeyForPubkey(user.pubkey));
+    }
   };
 
   return {
@@ -181,5 +203,6 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
     nextDayResetMs,
     rapidDaySimulation,
     setRapidDaySimulation,
+    isPacingResolved,
   };
 }

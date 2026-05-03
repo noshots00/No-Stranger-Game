@@ -23,6 +23,7 @@ import {
   BRACELET_DAILY_FLAG,
   CHARACTER_CREATION_DATE_STORAGE_KEY,
   CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
+  characterCreationDateStorageKeyForPubkey,
   DAY_IN_MS,
   DELAYED_QUEST_UNLOCKS,
   DAILY_ITEM_QUEST_CHANCE,
@@ -72,7 +73,7 @@ import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
 import { useAmbientPad } from './audio/useAmbientPad';
 import { publishCharacterCreation } from './gameProfile';
-import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
+import { computeGameDayCounterFromCreationYmd, EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 import { publicAsset } from '@/lib/publicAsset';
 
 export function RPGInterface() {
@@ -93,7 +94,11 @@ export function RPGInterface() {
     nextDayResetMs,
     rapidDaySimulation,
     setRapidDaySimulation,
+    isPacingResolved,
+    useFiveMinuteTestPeriods,
   } = useDayCounter({ questCreationDateEastern: questState.characterCreationDateEastern });
+
+  const canShowGame = isQuestStateHydrated && isPacingResolved;
 
   useAmbientPad({
     active: questState.currentLocation === 'Silver Lake',
@@ -282,7 +287,7 @@ export function RPGInterface() {
   // so they aren't retroactively hidden by the new 2/day cap.
   const unveilBackfillDoneRef = useRef(false);
   useEffect(() => {
-    if (!isQuestStateHydrated || unveilBackfillDoneRef.current) return;
+    if (!isQuestStateHydrated || !isPacingResolved || unveilBackfillDoneRef.current) return;
     const hasProgress = Object.keys(questState.progressByQuestId).length > 0;
     if (!hasProgress) {
       unveilBackfillDoneRef.current = true;
@@ -296,11 +301,17 @@ export function RPGInterface() {
       void persistQuestCheckpoint(next);
     }
     unveilBackfillDoneRef.current = true;
-  }, [isQuestStateHydrated, questState, questContext, persistQuestCheckpoint, setQuestState]);
+  }, [isQuestStateHydrated, isPacingResolved, questState, questContext, persistQuestCheckpoint, setQuestState]);
 
   // Catch-up on login/session: when the in-game day advances vs last grant, apply XP, report, unveil.
   useEffect(() => {
-    if (!isQuestStateHydrated || creationDateEastern === null) return;
+    if (!isQuestStateHydrated || !isPacingResolved) return;
+
+    const qc = questState.characterCreationDateEastern;
+    const pacingAligned =
+      creationDateEastern === null ? qc === null : qc === creationDateEastern;
+    if (!pacingAligned) return;
+
     if (dayCounter <= questState.lastDailyXpDay) return;
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
@@ -409,6 +420,7 @@ export function RPGInterface() {
     creationDateEastern,
     dayCounter,
     isQuestStateHydrated,
+    isPacingResolved,
     questState,
     persistQuestCheckpoint,
     setQuestState,
@@ -419,6 +431,7 @@ export function RPGInterface() {
   }, [newestPendingQuestId]);
 
   useEffect(() => {
+    if (!canShowGame) return;
     if (questState.dialogueLog.length > 0) return;
     const quest = questById[questState.activeQuestId ?? ''];
     if (!quest) return;
@@ -434,7 +447,7 @@ export function RPGInterface() {
         ],
       };
     });
-  }, [questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
+  }, [canShowGame, questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
 
   const handleResetStory = async () => {
     localStorage.setItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY, '1');
@@ -524,9 +537,16 @@ export function RPGInterface() {
 
     if (activeQuest.id === 'quest-001-origin') {
       const creationYmd = formatInTimeZone(Date.now(), EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
+      const characterCreationDateEastern = nextState.characterCreationDateEastern ?? creationYmd;
+      const lastDailyXpDay = computeGameDayCounterFromCreationYmd(
+        characterCreationDateEastern,
+        Date.now(),
+        useFiveMinuteTestPeriods
+      );
       const updatedState = {
         ...nextState,
-        characterCreationDateEastern: nextState.characterCreationDateEastern ?? creationYmd,
+        characterCreationDateEastern,
+        lastDailyXpDay,
         activeQuestId: null,
         flags: Array.from(new Set([...nextState.flags, 'quest001-complete'])),
         progressByQuestId: {
@@ -546,7 +566,15 @@ export function RPGInterface() {
       setQuestState(updatedState);
       void persistQuestCheckpoint(updatedState);
       if (updatedState.characterCreationDateEastern) {
-        localStorage.setItem(CHARACTER_CREATION_DATE_STORAGE_KEY, updatedState.characterCreationDateEastern);
+        if (user?.pubkey) {
+          localStorage.setItem(
+            characterCreationDateStorageKeyForPubkey(user.pubkey),
+            updatedState.characterCreationDateEastern
+          );
+          localStorage.removeItem(CHARACTER_CREATION_DATE_STORAGE_KEY);
+        } else {
+          localStorage.setItem(CHARACTER_CREATION_DATE_STORAGE_KEY, updatedState.characterCreationDateEastern);
+        }
       }
       localStorage.removeItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY);
       if (user?.signer && updatedState.characterCreationDateEastern) {
@@ -687,6 +715,15 @@ export function RPGInterface() {
     <main className="candlelit-shell relative h-[100dvh] max-h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
       <div className="relative z-[2] mx-auto flex h-[100dvh] w-full max-w-2xl flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] sm:px-8 sm:pt-2">
+        {!canShowGame ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+            <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
+            <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">
+              Syncing character state so dates and quests stay matched to this account.
+            </p>
+          </div>
+        ) : (
+          <>
         <GameHeader
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
@@ -709,30 +746,34 @@ export function RPGInterface() {
         >
           {renderTabPanel()}
         </div>
+          </>
+        )}
       </div>
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40">
         <nav className="candlelit-bottom-nav pointer-events-auto mx-auto w-full max-w-2xl" aria-label="Primary game navigation">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setActiveTab(item.key)}
-                className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
-                aria-label={item.label}
-              >
-                {item.key === 'quests' && pendingQuestCount > 0 ? (
-                  <span className="absolute right-2 top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[9px] font-medium leading-none text-[var(--candle-ink)]">
-                    {pendingQuestCount}
-                  </span>
-                ) : null}
-                <span className="text-base leading-none" aria-hidden>
-                  {item.icon}
-                </span>
-              </button>
-            );
-          })}
+          {canShowGame
+            ? navItems.map((item) => {
+                const isActive = activeTab === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setActiveTab(item.key)}
+                    className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
+                    aria-label={item.label}
+                  >
+                    {item.key === 'quests' && pendingQuestCount > 0 ? (
+                      <span className="absolute right-2 top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[9px] font-medium leading-none text-[var(--candle-ink)]">
+                        {pendingQuestCount}
+                      </span>
+                    ) : null}
+                    <span className="text-base leading-none" aria-hidden>
+                      {item.icon}
+                    </span>
+                  </button>
+                );
+              })
+            : null}
         </nav>
       </div>
     </main>

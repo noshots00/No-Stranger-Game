@@ -170,6 +170,7 @@
     @apply bg-background text-foreground antialiased;
     min-height: 100dvh;
     font-family: "Cormorant Garamond", ui-serif, Georgia, serif;
+    font-size: 1.0625rem;
     line-height: 1.6;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -295,7 +296,7 @@
     width: 100%;
     text-align: left;
     font-family: "Cormorant Garamond", ui-serif, Georgia, serif;
-    font-size: 0.95rem;
+    font-size: 1.02rem;
     line-height: 1.55;
     color: var(--candle-ink-soft);
     padding: 0.65rem 0;
@@ -346,7 +347,7 @@
     border-radius: 0.85rem;
     padding: 0.65rem 0.75rem;
     backdrop-filter: blur(6px);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--candle-ink-faint);
   }
 
@@ -370,7 +371,7 @@
   }
 
   .facsimile-kicker {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     color: var(--facsimile-ink-muted);
