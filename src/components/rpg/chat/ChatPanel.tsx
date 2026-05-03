@@ -1,7 +1,9 @@
-import { useState, type RefObject } from 'react';
+import { useMemo, useState, type RefObject } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { genUserName } from '@/lib/genUserName';
 import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
 import { useChatRoom } from './useChatRoom';
+import { useRpgSpeakerNamesForPubkeys } from './useRpgSpeakerNamesForPubkeys';
 
 type ChatPanelProps = {
   /** Stable group identifier (NIP-29 `h` tag). */
@@ -49,6 +51,15 @@ export function ChatPanel({
     emptyHint !== undefined ? emptyHint : 'No one else has spoken here yet.';
   const { user } = useCurrentUser();
   const { events, status, send, isSending } = useChatRoom({ groupId, enabled: hasCharacter });
+  const otherSpeakerPubkeys = useMemo(() => {
+    if (!user) return [];
+    const next = new Set<string>();
+    for (const e of events) {
+      if (e.pubkey !== user.pubkey) next.add(e.pubkey);
+    }
+    return Array.from(next);
+  }, [events, user]);
+  const checkpointNames = useRpgSpeakerNamesForPubkeys(otherSpeakerPubkeys);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -123,7 +134,9 @@ export function ChatPanel({
               const isMine = event.pubkey === user.pubkey;
               const speaker = isMine
                 ? characterNameLabel
-                : (speakerNameMap?.get(event.pubkey) ?? event.pubkey.slice(0, 8));
+                : (checkpointNames.get(event.pubkey) ??
+                  speakerNameMap?.get(event.pubkey) ??
+                  genUserName(event.pubkey));
               return (
                 <li key={event.id}>
                   <span className="text-[var(--candle-ink)]">{speaker}</span>{' '}
