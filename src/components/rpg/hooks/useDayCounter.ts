@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -6,7 +6,6 @@ import {
   computeGameDayCounterFromCreationYmd,
   computeNextGameResetUtcFromCreationYmd,
   EASTERN_GAME_TIMEZONE,
-  FIVE_MINUTE_GAME_PERIOD_MS,
 } from '@/lib/easternGameTime';
 import {
   fetchCharacterCreationDateFromRelay,
@@ -50,11 +49,6 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
   const [rapidDaySimulation, setRapidDaySimulation] = useState(false);
 
-  const advancePeriodMs = useMemo(
-    () => (useFiveMinuteTestPeriods ? FIVE_MINUTE_GAME_PERIOD_MS : DAY_IN_MS),
-    [useFiveMinuteTestPeriods]
-  );
-
   useEffect(() => {
     const raw = localStorage.getItem(DEV_RAPID_DAY_SIM_STORAGE_KEY);
     if (raw === '1') setRapidDaySimulation(true);
@@ -67,10 +61,10 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   useEffect(() => {
     if (!rapidDaySimulation) return;
     const id = window.setInterval(() => {
-      setDevDayOffsetMs((prev) => prev + advancePeriodMs);
+      setDevDayOffsetMs((prev) => prev + DAY_IN_MS);
     }, DEV_RAPID_DAY_SIM_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [advancePeriodMs, rapidDaySimulation]);
+  }, [rapidDaySimulation]);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_DAY_OFFSET_STORAGE_KEY);
@@ -178,7 +172,6 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   return {
     creationDateEastern,
     dayCounter,
-    advancePeriodMs,
     useFiveMinuteTestPeriods,
     devFiveMinuteDays,
     setDevFiveMinuteDays,

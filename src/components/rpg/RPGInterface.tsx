@@ -23,6 +23,7 @@ import {
   BRACELET_DAILY_FLAG,
   CHARACTER_CREATION_DATE_STORAGE_KEY,
   CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
+  DAY_IN_MS,
   DELAYED_QUEST_UNLOCKS,
   DAILY_ITEM_QUEST_CHANCE,
   DILEMMA_DAILY_CHANCE,
@@ -85,8 +86,6 @@ export function RPGInterface() {
   const {
     creationDateEastern,
     dayCounter,
-    advancePeriodMs,
-    useFiveMinuteTestPeriods,
     devFiveMinuteDays,
     setDevFiveMinuteDays,
     setDevDayOffsetMs,
@@ -692,9 +691,8 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
-          onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + advancePeriodMs)}
-          useFiveMinuteGamePeriods={useFiveMinuteTestPeriods}
-          showDevFiveMinuteToggle={import.meta.env.DEV}
+          showDevTools={import.meta.env.DEV}
+          onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
           devFiveMinuteDays={devFiveMinuteDays}
           onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
           rapidDaySimulation={rapidDaySimulation}

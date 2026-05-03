@@ -14,11 +14,9 @@ type GameHeaderProps = {
   dayCounter: number;
   currentLocation: string;
   locationIndicatorClass: string;
+  /** Vite dev only: items 1–5 below. */
+  showDevTools?: boolean;
   onAdvanceDay: () => void;
-  /** True when Vite dev menu enables 5-minute game days (America/New_York midnight grid). */
-  useFiveMinuteGamePeriods: boolean;
-  /** Vite dev only: offer 5-minute day toggle. */
-  showDevFiveMinuteToggle?: boolean;
   devFiveMinuteDays?: boolean;
   onDevFiveMinuteDaysChange?: (enabled: boolean) => void;
   rapidDaySimulation: boolean;
@@ -35,9 +33,8 @@ export function GameHeader({
   dayCounter,
   currentLocation,
   locationIndicatorClass,
+  showDevTools = false,
   onAdvanceDay,
-  useFiveMinuteGamePeriods,
-  showDevFiveMinuteToggle = false,
   devFiveMinuteDays = false,
   onDevFiveMinuteDaysChange,
   rapidDaySimulation,
@@ -66,57 +63,59 @@ export function GameHeader({
             <MoreHorizontal className="h-5 w-5" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="whisper-tooltip-surface min-w-[11rem] font-serif text-sm">
-          {showDevFiveMinuteToggle && onDevFiveMinuteDaysChange ? (
-            <DropdownMenuCheckboxItem
-              className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-              checked={devFiveMinuteDays}
-              onCheckedChange={(v) => onDevFiveMinuteDaysChange(v === true)}
-            >
-              5-minute days (dev test)
-            </DropdownMenuCheckboxItem>
+        <DropdownMenuContent align="center" className="whisper-tooltip-surface min-w-[12rem] font-serif text-sm">
+          {showDevTools ? (
+            <>
+              <DropdownMenuItem
+                className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
+                onSelect={() => onAdvanceDay()}
+              >
+                Advance 24 hours
+              </DropdownMenuItem>
+              {onDevFiveMinuteDaysChange ? (
+                <DropdownMenuCheckboxItem
+                  className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                  checked={devFiveMinuteDays}
+                  onCheckedChange={(v) => onDevFiveMinuteDaysChange(v === true)}
+                >
+                  Set reset to every 5 minutes
+                </DropdownMenuCheckboxItem>
+              ) : null}
+              <DropdownMenuCheckboxItem
+                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                checked={rapidDaySimulation}
+                onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
+              >
+                Simulate 24 hours every 2 seconds
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                checked={showModifierDetails}
+                onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
+              >
+                Show modifier details
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                checked={devUnlockAllQuests}
+                onCheckedChange={(v) => onDevUnlockAllQuestsChange(v === true)}
+              >
+                Show all quests
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
+            </>
           ) : null}
-          <DropdownMenuItem
-            className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
-            onSelect={() => onAdvanceDay()}
-          >
-            {useFiveMinuteGamePeriods ? 'Advance 5 minutes (test)' : 'Advance to next day (ET midnight)'}
-          </DropdownMenuItem>
-          <DropdownMenuCheckboxItem
-            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-            checked={rapidDaySimulation}
-            onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
-          >
-            {useFiveMinuteGamePeriods
-              ? 'Simulate time (5 min / 2s)'
-              : 'Simulate time (1 ET day / 2s)'}
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-            checked={showModifierDetails}
-            onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
-          >
-            Show modifier details (Character)
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-            checked={devUnlockAllQuests}
-            onCheckedChange={(v) => onDevUnlockAllQuestsChange(v === true)}
-          >
-            Unlock all quests (dev)
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
           <DropdownMenuItem
             className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
             onSelect={() => onLogout()}
           >
-            Log out
+            Log Out
           </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer font-serif text-[var(--candle-ember)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
             onSelect={() => onResetStory()}
           >
-            Reset story
+            Reset Progress
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
