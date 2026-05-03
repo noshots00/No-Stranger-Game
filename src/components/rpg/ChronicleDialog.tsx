@@ -17,7 +17,7 @@ export function ChronicleDialog({
 }: ChronicleDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-6 font-serif text-[var(--candle-ink)] shadow-[0_30px_80px_rgba(0,0,0,0.6),inset_0_0_60px_rgba(230,161,87,0.04)] sm:rounded-2xl">
+      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto rounded-2xl border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-6 font-serif text-[var(--candle-ink)] shadow-[0_30px_80px_rgba(0,0,0,0.6),inset_0_0_60px_rgba(230,161,87,0.04)]">
         <DialogHeader className="space-y-2 text-left">
           <DialogTitle className="font-serif text-2xl font-medium tracking-[0.04em] text-[var(--candle-ink)]">
             Chronicle

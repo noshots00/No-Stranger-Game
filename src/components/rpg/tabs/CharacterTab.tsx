@@ -186,7 +186,7 @@ export function CharacterTab({
           Open full chronicle (dialogue and world events)
         </button>
       </div>
-      <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+      <div className="grid min-w-0 grid-cols-1 gap-6">
         <div className="flex min-w-0 justify-center">
           <img
             src={getRacePortraitSrc(questState.assignedRaceSlug)}
@@ -231,7 +231,7 @@ export function CharacterTab({
           your Ditto public profile
         </a>
       </p>
-      <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-0 sm:grid-cols-2 md:grid-cols-3 md:gap-x-8">
+      <div className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-0">
         {characterStats.map(([label]) => (
           <div
             key={label}

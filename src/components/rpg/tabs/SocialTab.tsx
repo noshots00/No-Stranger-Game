@@ -54,7 +54,7 @@ export function SocialTab({
             emptyHint="No one has spoken in the global lobby yet."
             characterNameLabel={characterNameLabel}
             speakerNameMap={lobbyNameMap}
-            messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)] sm:min-h-[15rem]"
+            messageListClassName="min-h-[13rem] max-h-[min(48vh,26rem)]"
             hasCharacter={hasCharacter}
           />
         </div>

@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { GamePortraitViewport } from '@/components/rpg/GamePortraitViewport';
 
 export function TitleScreen() {
   const { user } = useCurrentUser();
@@ -10,11 +11,12 @@ export function TitleScreen() {
   }
 
   return (
-    <main className="candlelit-shell relative min-h-[100dvh] w-full overflow-x-hidden">
+    <GamePortraitViewport>
+    <main className="candlelit-shell relative flex min-h-0 flex-1 flex-col overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center gap-10 px-8 py-16">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-10 px-8 py-16">
         <div className="emerge flex w-full flex-col items-center gap-8 text-center">
-          <h1 className="font-cormorant text-4xl font-semibold tracking-[0.04em] text-[var(--candle-ink)] sm:text-5xl">
+          <h1 className="font-cormorant text-4xl font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
             No Stranger Game
           </h1>
           <div className="breathing-flame" aria-hidden />
@@ -27,5 +29,6 @@ export function TitleScreen() {
         </div>
       </div>
     </main>
+    </GamePortraitViewport>
   );
 }

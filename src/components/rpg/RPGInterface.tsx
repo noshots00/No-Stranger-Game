@@ -80,6 +80,7 @@ import { computeGameDayCounterFromCreationYmd, EASTERN_GAME_TIMEZONE } from '@/l
 import { publicAsset } from '@/lib/publicAsset';
 import { needsMandatoryCharacterReset } from './characterSaveVersion';
 import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
+import { GamePortraitViewport } from './GamePortraitViewport';
 
 export function RPGInterface() {
   const { nostr } = useNostr();
@@ -755,9 +756,10 @@ export function RPGInterface() {
 
   return (
     <>
-    <main className="candlelit-shell relative h-[100dvh] max-h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
+    <GamePortraitViewport>
+    <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex h-[100dvh] w-full max-w-2xl flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] sm:px-8 sm:pt-2">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)]">
         {!isQuestStateHydrated ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
@@ -801,8 +803,8 @@ export function RPGInterface() {
           </>
         )}
       </div>
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40">
-        <nav className="candlelit-bottom-nav pointer-events-auto mx-auto w-full max-w-2xl" aria-label="Primary game navigation">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
+        <nav className="candlelit-bottom-nav pointer-events-auto w-full" aria-label="Primary game navigation">
           {canShowGame
             ? navItems.map((item) => {
                 const isActive = activeTab === item.key;
@@ -829,6 +831,7 @@ export function RPGInterface() {
         </nav>
       </div>
     </main>
+    </GamePortraitViewport>
     <ChronicleDialog
       isOpen={isChronicleOpen}
       onOpenChange={setIsChronicleOpen}

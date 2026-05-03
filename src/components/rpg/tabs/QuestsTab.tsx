@@ -40,7 +40,7 @@ export function QuestsTab({
         </button>
         {isExpanded ? (
           <div
-            className={`space-y-2 pb-3 pt-1 ${compact ? 'pl-0 text-right sm:pl-2' : 'pl-0 sm:pl-1'}`}
+            className={`space-y-2 pb-3 pt-1 ${compact ? 'pl-0 text-right' : 'pl-0'}`}
           >
             <p
               className={`font-serif leading-snug text-[var(--candle-ink-soft)] ${compact ? 'text-[0.6875rem]' : 'text-sm leading-relaxed'}`}
@@ -70,8 +70,8 @@ export function QuestsTab({
       <p className="facsimile-kicker">Quests</p>
       <ul className="space-y-0 divide-y divide-[var(--candle-rule)]">{activeQuests.map((quest) => renderQuestRow(quest))}</ul>
       {completedQuests.length > 0 ? (
-        <div className="ml-auto max-w-[min(100%,20rem)] space-y-1 border-t border-[var(--candle-rule)]/80 pt-2 sm:max-w-none">
-          <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)] sm:text-right">
+        <div className="ml-auto max-w-[min(100%,20rem)] space-y-1 border-t border-[var(--candle-rule)]/80 pt-2">
+          <p className="text-right font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
             Completed quests
           </p>
           <ul className="space-y-0 divide-y divide-[var(--candle-rule)]/70 text-right">
