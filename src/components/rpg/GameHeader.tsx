@@ -54,8 +54,8 @@ export function GameHeader({
       type="button"
       onClick={toggleAudioMuted}
       aria-pressed={muted}
-      aria-label={muted ? 'Unmute ambient audio' : 'Mute ambient audio'}
-      title={muted ? 'Unmute ambient audio' : 'Mute ambient audio'}
+      aria-label={muted ? 'Unmute music' : 'Mute music'}
+      title={muted ? 'Unmute music' : 'Mute music'}
       className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-[var(--candle-ink-soft)] transition-colors hover:text-[var(--candle-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--candle-flame-soft)]"
     >
       {muted ? (

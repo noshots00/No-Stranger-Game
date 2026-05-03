@@ -73,7 +73,7 @@ import { QuestsTab } from './tabs/QuestsTab';
 import { PlayTab } from './tabs/PlayTab';
 import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
-import { useAmbientPad } from './audio/useAmbientPad';
+import { useGameMusic } from './audio/useGameMusic';
 import { publishCharacterCreation, publishMergedProfileDisplayName } from './gameProfile';
 import { computeGameDayCounterFromCreationYmd, EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 import { publicAsset } from '@/lib/publicAsset';
@@ -102,9 +102,9 @@ export function RPGInterface() {
 
   const canShowGame = isQuestStateHydrated && isPacingResolved;
 
-  useAmbientPad({
-    active: canShowGame,
-    preferFile: publicAsset('music/silver-lake.mp3'),
+  useGameMusic({
+    active: true,
+    src: publicAsset('audio/music/SoaveSiaII.mp3'),
   });
   const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries();
 

@@ -7,11 +7,13 @@ const listeners = new Set<Listener>();
 let cachedMuted: boolean | null = null;
 
 const readInitial = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return true;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === '1';
+    // Default: muted until the user turns music on via the speaker control (`'0'` = unmuted).
+    const v = window.localStorage.getItem(STORAGE_KEY);
+    return v !== '0';
   } catch {
-    return false;
+    return true;
   }
 };
 
