@@ -15,6 +15,9 @@ dist-ssr
 .ai/
 yarn.lock
 
+# Tooling cache
+.eslintcache
+
 # Editor directories and files
 .idea
 .DS_Store

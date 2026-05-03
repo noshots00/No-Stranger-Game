@@ -85,7 +85,7 @@ export function ChatPanel({
   const showWorldBlock = worldEventLines !== undefined;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <p className="font-serif text-[10px] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
       <div
         ref={listScrollRef}
@@ -135,7 +135,7 @@ export function ChatPanel({
         )}
       </div>
       {error ? <p className="text-xs text-rose-300/90">{error}</p> : null}
-      <div className="flex min-h-[44px] items-end gap-3 border-b border-[var(--candle-rule)] pb-1 focus-within:border-[var(--candle-flame-soft)]">
+      <div className="flex items-center gap-2 border-b border-[var(--candle-rule)] focus-within:border-[var(--candle-flame-soft)]">
         <input
           type="text"
           value={draft}
@@ -148,13 +148,13 @@ export function ChatPanel({
           }}
           placeholder="Type your message here..."
           disabled={isSending}
-          className="min-h-[40px] flex-1 border-0 bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)] focus:outline-none disabled:opacity-60"
+          className="flex-1 border-0 bg-transparent px-0 py-1 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)] focus:outline-none disabled:opacity-60"
         />
         <button
           type="button"
           disabled={isSending}
           onClick={() => void handleSend()}
-          className="mb-1 min-h-[40px] shrink-0 px-2 font-serif text-sm text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)] disabled:opacity-60"
+          className="shrink-0 px-2 font-serif text-sm text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)] disabled:opacity-60"
         >
           Send
         </button>

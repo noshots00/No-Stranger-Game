@@ -108,7 +108,7 @@ export function PlayTab({
         onScroll={onDialogueScroll}
         className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-1"
       >
-        <div className="space-y-4">
+        <div className="space-y-2">
           {playDialogueBlocks.map((block, blockIndex) => (
             <div
               key={`${block.role}-${block.lines[0]?.id ?? `b-${blockIndex}`}`}
@@ -212,7 +212,7 @@ export function PlayTab({
           listScrollRef={eventLogScrollRef}
           characterNameLabel={characterNameLabel}
           speakerNameMap={speakerNameMap}
-          messageListClassName="max-h-52"
+          messageListClassName="max-h-[6.5rem]"
           hasCharacter={hasCharacter}
         />
       </div>
