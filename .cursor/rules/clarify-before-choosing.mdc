@@ -1,0 +1,28 @@
+---
+description: Prefer asking the user over guessing when requirements or tradeoffs are unclear
+alwaysApply: true
+---
+
+# Clarify before choosing
+
+## Default bias
+
+**Heavily prefer asking a clarifying question** over making a product, UX, or architectural **choice on your own** when:
+
+- The user’s request allows **more than one reasonable interpretation** (scope, behavior, data source, copy, or priority).
+- A tradeoff exists (speed vs thoroughness, strict vs lenient, A vs B pattern) and they did **not** state a preference.
+- You would need to **assume** business intent, user skill level, or deployment context to proceed.
+
+## What to do
+
+1. **Stop** and ask **1–2 focused questions** (use the **AskQuestion** tool when the choice is multiple-choice or scoped).
+2. If only one small ambiguity blocks everything, a **single** short question in prose is fine.
+3. **Do not** “just pick” an option to save a turn when the user would reasonably care which way it went.
+
+## When you may proceed without asking
+
+- The user already decided in the same thread, in linked docs, or in repo conventions (e.g. AGENTS.md, existing patterns in the file you are editing).
+- The change is **fully specified** and there is only one sensible implementation.
+- The only risk is trivial (e.g. exact variable name) and asking would add noise.
+
+When in doubt between **guessing** and **asking**: **ask**.
