@@ -36,6 +36,7 @@ import {
   DAY_IN_MS,
   DIALOGUE_BREATHE_OVERFLOW_RATIO,
   DIALOGUE_SCROLL_PIN_EPS,
+  DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
   INTRO_DEV_MESSAGE,
   locationActions,
@@ -94,6 +95,16 @@ export function RPGInterface() {
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
   const [isChronicleOpen, setIsChronicleOpen] = useState(false);
+  const [showModifierDetails, setShowModifierDetails] = useState(false);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY);
+    if (raw === '1') setShowModifierDetails(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY, showModifierDetails ? '1' : '0');
+  }, [showModifierDetails]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
   const eventLogScrollRef = useRef<HTMLDivElement | null>(null);
@@ -564,6 +575,7 @@ export function RPGInterface() {
             questState={questState}
             userPubkey={user?.pubkey}
             onOpenChronicle={() => setIsChronicleOpen(true)}
+            showModifierDetails={showModifierDetails}
           />
         );
       case 'quests':
@@ -643,6 +655,8 @@ export function RPGInterface() {
           onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
           rapidDaySimulation={rapidDaySimulation}
           onRapidDaySimulationChange={setRapidDaySimulation}
+          showModifierDetails={showModifierDetails}
+          onShowModifierDetailsChange={setShowModifierDetails}
           onLogout={handleLogout}
           onResetStory={handleResetStory}
         />

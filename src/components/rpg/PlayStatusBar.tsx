@@ -55,7 +55,7 @@ export function PlayStatusBar({ health, nextDayResetMs }: PlayStatusBarProps) {
 
   const healthTrack = (
     <div
-      className="relative h-3 min-w-0 w-full max-w-[200px] flex-1 overflow-hidden rounded-sm border border-[var(--candle-rule)] bg-black sm:w-[200px] sm:flex-none"
+      className="relative h-3 min-h-[12px] w-[min(7.5rem,40vw)] max-w-full shrink-0 overflow-hidden rounded-sm border border-[var(--candle-rule)] bg-black sm:w-[200px] sm:max-w-[200px] sm:flex-none"
       aria-label={`Health ${clampedHealth} out of 100`}
       title={`Health ${clampedHealth}/100`}
     >
@@ -92,44 +92,56 @@ export function PlayStatusBar({ health, nextDayResetMs }: PlayStatusBarProps) {
     </button>
   );
 
-  const resetDisplay = (
+  const resetDisplayNarrow = (
     <div
-      className="shrink-0 whitespace-nowrap text-right text-[var(--candle-ember)]"
+      className="min-w-0 text-[var(--candle-ember)]"
       aria-label={`Day reset countdown: ${resetText}`}
       title={resetText}
     >
-      <span className="tabular-nums sm:hidden">{resetCompact}</span>
-      <span className="hidden tabular-nums sm:inline">{resetText}</span>
+      <span className="block font-serif tabular-nums leading-tight sm:hidden">
+        <span className="text-[var(--candle-ink-faint)]">Next day </span>
+        {resetCompact}
+      </span>
+    </div>
+  );
+
+  const resetDisplayWide = (
+    <div
+      className="hidden shrink-0 whitespace-nowrap text-right font-serif tabular-nums text-[var(--candle-ember)] sm:block"
+      aria-label={`Day reset countdown: ${resetText}`}
+      title={resetText}
+    >
+      {resetText}
     </div>
   );
 
   return (
     <div
-      className="mx-auto w-full max-w-2xl select-none px-0.5 sm:w-3/4 sm:max-w-none sm:px-0"
+      className="mx-auto w-full min-w-0 max-w-2xl select-none px-0.5 sm:w-3/4 sm:max-w-none sm:px-0"
       role="status"
       aria-label="Player status"
     >
-      {/* Narrow screens: stack so the day countdown is never clipped (iOS). */}
-      <div className="flex flex-col gap-2 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-1.5 font-serif text-[11px] text-[var(--candle-ink-soft)] backdrop-blur-sm sm:hidden">
+      {/* Narrow screens: stack; health width capped so time/reset stay on-screen. */}
+      <div className="flex flex-col gap-2 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-1.5 font-serif text-xs leading-snug text-[var(--candle-ink-soft)] backdrop-blur-sm sm:hidden">
         <div className="flex min-w-0 items-center gap-2">
           {healthTrack}
           {muteButton}
         </div>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="min-w-0 truncate text-[var(--candle-ink)]" aria-label="Current time">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="min-w-0 font-serif text-[var(--candle-ink)]" aria-label="Current time">
             <span className="tabular-nums">{clockText}</span>
           </div>
-          {resetDisplay}
+          {resetDisplayNarrow}
         </div>
       </div>
 
       {/* sm+: single row — original order */}
-      <div className="hidden items-center gap-3 rounded-md border border-[var(--candle-rule)] bg-black/40 px-3 py-1.5 font-serif text-[11px] text-[var(--candle-ink-soft)] backdrop-blur-sm sm:flex">
+      <div className="hidden min-w-0 items-center gap-3 rounded-md border border-[var(--candle-rule)] bg-black/40 px-3 py-1.5 font-serif text-[11px] text-[var(--candle-ink-soft)] backdrop-blur-sm sm:flex">
         {healthTrack}
-        <div className="flex-1 text-center text-[var(--candle-ink)]" aria-label="Current time">
+        <div className="min-w-0 flex-1 text-center text-[var(--candle-ink)]" aria-label="Current time">
           <span className="tabular-nums">{clockText}</span>
         </div>
-        {resetDisplay}
+        {resetDisplayWide}
         {muteButton}
       </div>
     </div>

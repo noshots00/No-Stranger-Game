@@ -17,6 +17,8 @@ type GameHeaderProps = {
   onAdvanceDay: () => void;
   rapidDaySimulation: boolean;
   onRapidDaySimulationChange: (enabled: boolean) => void;
+  showModifierDetails: boolean;
+  onShowModifierDetailsChange: (enabled: boolean) => void;
   onLogout: () => void;
   onResetStory: () => void;
 };
@@ -28,6 +30,8 @@ export function GameHeader({
   onAdvanceDay,
   rapidDaySimulation,
   onRapidDaySimulationChange,
+  showModifierDetails,
+  onShowModifierDetailsChange,
   onLogout,
   onResetStory,
 }: GameHeaderProps) {
@@ -61,6 +65,13 @@ export function GameHeader({
             onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
           >
             Simulate time (1 day / 2s)
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+            checked={showModifierDetails}
+            onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
+          >
+            Show modifier details (Character)
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
           <DropdownMenuItem
