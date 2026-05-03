@@ -2,13 +2,37 @@ import { useEffect, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { fetchOrCreateCharacterStartTimestamp, publishCharacterStartTimestamp } from '../gameProfile';
-import { CHARACTER_START_TS_STORAGE_KEY, DAY_IN_MS, DEV_DAY_OFFSET_STORAGE_KEY } from '../constants';
+import {
+  CHARACTER_START_TS_STORAGE_KEY,
+  DAY_IN_MS,
+  DEV_DAY_OFFSET_STORAGE_KEY,
+  DEV_RAPID_DAY_SIM_INTERVAL_MS,
+  DEV_RAPID_DAY_SIM_STORAGE_KEY,
+} from '../constants';
 
 export function useDayCounter() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const [characterStartTimestamp, setCharacterStartTimestamp] = useState<number | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
+  const [rapidDaySimulation, setRapidDaySimulation] = useState(false);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(DEV_RAPID_DAY_SIM_STORAGE_KEY);
+    if (raw === '1') setRapidDaySimulation(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_RAPID_DAY_SIM_STORAGE_KEY, rapidDaySimulation ? '1' : '0');
+  }, [rapidDaySimulation]);
+
+  useEffect(() => {
+    if (!rapidDaySimulation) return;
+    const id = window.setInterval(() => {
+      setDevDayOffsetMs((prev) => prev + DAY_IN_MS);
+    }, DEV_RAPID_DAY_SIM_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [rapidDaySimulation]);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_DAY_OFFSET_STORAGE_KEY);
@@ -86,5 +110,13 @@ export function useDayCounter() {
     }
   };
 
-  return { dayCounter, devDayOffsetMs, setDevDayOffsetMs, resetTimestamp, nextDayResetMs };
+  return {
+    dayCounter,
+    devDayOffsetMs,
+    setDevDayOffsetMs,
+    resetTimestamp,
+    nextDayResetMs,
+    rapidDaySimulation,
+    setRapidDaySimulation,
+  };
 }

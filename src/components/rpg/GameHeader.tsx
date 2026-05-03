@@ -3,8 +3,10 @@ import { UI_VERSION_LABEL } from './constants';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -13,6 +15,8 @@ type GameHeaderProps = {
   currentLocation: string;
   locationIndicatorClass: string;
   onAdvanceDay: () => void;
+  rapidDaySimulation: boolean;
+  onRapidDaySimulationChange: (enabled: boolean) => void;
   onLogout: () => void;
   onResetStory: () => void;
 };
@@ -22,6 +26,8 @@ export function GameHeader({
   currentLocation,
   locationIndicatorClass,
   onAdvanceDay,
+  rapidDaySimulation,
+  onRapidDaySimulationChange,
   onLogout,
   onResetStory,
 }: GameHeaderProps) {
@@ -49,6 +55,14 @@ export function GameHeader({
           >
             Advance 24 hours
           </DropdownMenuItem>
+          <DropdownMenuCheckboxItem
+            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+            checked={rapidDaySimulation}
+            onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
+          >
+            Simulate time (1 day / 2s)
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
           <DropdownMenuItem
             className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
             onSelect={() => onLogout()}

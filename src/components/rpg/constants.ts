@@ -35,6 +35,9 @@ export const QUEST_ORIGIN_ID = 'quest-001-origin';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';
 export const DEV_DAY_OFFSET_STORAGE_KEY = 'nsg:dev-day-offset-ms';
+/** When enabled in the game menu, advances in-game time by one day every 2s (dev only). */
+export const DEV_RAPID_DAY_SIM_STORAGE_KEY = 'nsg:dev-rapid-day-simulation';
+export const DEV_RAPID_DAY_SIM_INTERVAL_MS = 2000;
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 export const DAILY_XP = 1440;
 export const NPC_AVATAR_URL = 'https://api.dicebear.com/8.x/adventurer/svg?seed=Elira';

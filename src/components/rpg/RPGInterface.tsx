@@ -73,7 +73,14 @@ export function RPGInterface() {
   const navigate = useNavigate();
 
   const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestState } = useQuestState();
-  const { dayCounter, setDevDayOffsetMs, resetTimestamp, nextDayResetMs } = useDayCounter();
+  const {
+    dayCounter,
+    setDevDayOffsetMs,
+    resetTimestamp,
+    nextDayResetMs,
+    rapidDaySimulation,
+    setRapidDaySimulation,
+  } = useDayCounter();
 
   useAmbientPad({
     active: questState.currentLocation === 'Silver Lake',
@@ -393,6 +400,7 @@ export function RPGInterface() {
     setNameInput('');
     setNameInputError(null);
     setDevDayOffsetMs(0);
+    setRapidDaySimulation(false);
     await resetTimestamp();
   };
 
@@ -632,6 +640,8 @@ export function RPGInterface() {
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
           onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
+          rapidDaySimulation={rapidDaySimulation}
+          onRapidDaySimulationChange={setRapidDaySimulation}
           onLogout={handleLogout}
           onResetStory={handleResetStory}
         />
