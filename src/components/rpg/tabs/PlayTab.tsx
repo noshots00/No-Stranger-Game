@@ -102,7 +102,7 @@ export function PlayTab({
                   {showOriginStartHint ? (
                     <p className={DIALOGUE_DEV_MESSAGE_CLASSES}>Select a line below to continue.</p>
                   ) : null}
-                  <ul className="space-y-0">
+                  <ul className="space-y-0 border-t border-[var(--candle-rule)]/80 pt-2">
                     {activeStep.choices.map((choice) => {
                       const isPending = pendingChoiceId !== null;
                       const isChosen = pendingChoiceId === choice.id;
@@ -114,13 +114,13 @@ export function PlayTab({
                         ? `${choice.label}${choice.disabledLabel ?? ' (already explored)'}`
                         : choice.label;
                       return (
-                        <li key={choice.id}>
+                        <li key={choice.id} className="pl-2">
                           <button
                             type="button"
                             disabled={isPending || isLocked}
                             aria-disabled={isLocked || undefined}
-                            className={`choice-line ${isFading ? 'choice-fade-out' : ''} ${
-                              isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                            className={`choice-line play-quest-choice ${isFading ? 'choice-fade-out' : ''} ${
+                              isLocked ? 'cursor-not-allowed opacity-50' : ''
                             }`}
                             onClick={() => {
                               if (isLocked) return;

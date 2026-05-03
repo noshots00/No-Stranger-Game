@@ -6,8 +6,9 @@ import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
 const DIALOGUE_NARRATOR_CLASSES =
   'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
+/** Play tab: narration reads as steady body text; choices use `.choice-line.play-quest-choice` (italic, smaller). */
 const DIALOGUE_NARRATOR_PLAY_CLASSES =
-  'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--candle-ink-soft)]';
+  'font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';
