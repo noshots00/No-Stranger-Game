@@ -25,6 +25,8 @@ import { nip19 } from 'nostr-tools';
 type CharacterTabProps = {
   questState: QuestState;
   userPubkey: string | undefined;
+  /** Kindred count from social layer (logged-in only). */
+  kindredSpirits?: number;
   onOpenChronicle: () => void;
   /** Dev menu: show quest modifier breakdown (traits, archetype tracks, etc.). */
   showModifierDetails: boolean;
@@ -71,6 +73,7 @@ const bt = 'font-serif text-[0.4375rem] leading-snug';
 export function CharacterTab({
   questState,
   userPubkey,
+  kindredSpirits,
   onOpenChronicle,
   showModifierDetails,
 }: CharacterTabProps) {
@@ -225,6 +228,12 @@ export function CharacterTab({
               {coinLabel}
             </span>
           </p>
+          {userPubkey != null && kindredSpirits !== undefined ? (
+            <p className={bt}>
+              <span className="text-[var(--candle-ink-soft)]">Kindred: </span>
+              <span className="font-mono text-[var(--candle-ink)]">{kindredSpirits}</span>
+            </p>
+          ) : null}
         </div>
       </div>
 

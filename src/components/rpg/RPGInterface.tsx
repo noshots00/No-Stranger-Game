@@ -691,6 +691,7 @@ export function RPGInterface() {
           <CharacterTab
             questState={questState}
             userPubkey={user?.pubkey}
+            kindredSpirits={user ? socialStats.kindredSpirits : undefined}
             onOpenChronicle={() => setActiveTab('chronicle')}
             showModifierDetails={showModifierDetails}
           />
@@ -800,7 +801,13 @@ export function RPGInterface() {
           onResetStory={handleResetStory}
         />
         <div
-          className={`emerge min-h-0 flex-1 ${activeTab === 'play' ? 'overflow-hidden' : 'facsimile-scroll overflow-y-auto pr-0'}`}
+          className={`emerge min-h-0 flex-1 ${
+            activeTab === 'play'
+              ? 'overflow-hidden'
+              : activeTab === 'social'
+                ? 'flex min-h-0 flex-col overflow-hidden'
+                : 'facsimile-scroll overflow-y-auto pr-0'
+          }`}
         >
           {renderTabPanel()}
         </div>
