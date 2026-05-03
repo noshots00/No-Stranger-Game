@@ -225,3 +225,44 @@ export async function publishQuestStateSnapshot(
   await nostr.event(event);
   return savedAtMs;
 }
+
+/**
+ * Merge character name into Kind 0 profile JSON (preserves picture, about, etc.)
+ * so Ditto and other clients show the same label as in-game chat.
+ */
+export async function publishMergedProfileDisplayName(
+  nostr: NostrClient,
+  signer: Signer,
+  pubkey: string,
+  displayName: string
+): Promise<void> {
+  const trimmed = displayName.trim();
+  if (!trimmed) return;
+
+  const [existing] = await nostr.query([{ kinds: [0], authors: [pubkey], limit: 1 }]);
+
+  const base: Record<string, string> = {};
+  if (existing?.content) {
+    try {
+      const parsed = JSON.parse(existing.content) as Record<string, unknown>;
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === 'string') base[k] = v;
+      }
+    } catch {
+      // leave base empty
+    }
+  }
+
+  base.name = trimmed;
+  base.display_name = trimmed;
+
+  const draft = {
+    kind: 0,
+    content: JSON.stringify(base),
+    tags: [] as string[][],
+    created_at: Math.floor(Date.now() / 1000),
+  };
+
+  const event = await signer.signEvent(draft);
+  await nostr.event(event);
+}

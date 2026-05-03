@@ -1,6 +1,7 @@
 import { useMemo, useState, type RefObject } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { genUserName } from '@/lib/genUserName';
+import { normalizePubkeyHex, pubkeysEqual } from '@/lib/nostrPubkey';
 import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
 import { useChatRoom } from './useChatRoom';
 import { useRpgSpeakerNamesForPubkeys } from './useRpgSpeakerNamesForPubkeys';
@@ -55,7 +56,7 @@ export function ChatPanel({
     if (!user) return [];
     const next = new Set<string>();
     for (const e of events) {
-      if (e.pubkey !== user.pubkey) next.add(e.pubkey);
+      if (!pubkeysEqual(e.pubkey, user.pubkey)) next.add(e.pubkey);
     }
     return Array.from(next);
   }, [events, user]);
@@ -131,11 +132,12 @@ export function ChatPanel({
         ) : (
           <ul className="space-y-2 text-sm text-[var(--candle-ink-soft)]">
             {events.map((event) => {
-              const isMine = event.pubkey === user.pubkey;
+              const pkNorm = normalizePubkeyHex(event.pubkey);
+              const isMine = pubkeysEqual(event.pubkey, user.pubkey);
               const speaker = isMine
                 ? characterNameLabel
-                : (checkpointNames.get(event.pubkey) ??
-                  speakerNameMap?.get(event.pubkey) ??
+                : (checkpointNames.get(pkNorm) ??
+                  speakerNameMap?.get(pkNorm) ??
                   genUserName(event.pubkey));
               return (
                 <li key={event.id}>

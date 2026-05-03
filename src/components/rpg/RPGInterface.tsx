@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -73,13 +74,14 @@ import { PlayTab } from './tabs/PlayTab';
 import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
 import { useAmbientPad } from './audio/useAmbientPad';
-import { publishCharacterCreation } from './gameProfile';
+import { publishCharacterCreation, publishMergedProfileDisplayName } from './gameProfile';
 import { computeGameDayCounterFromCreationYmd, EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 import { publicAsset } from '@/lib/publicAsset';
 
 export function RPGInterface() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const { logout } = useLoginActions();
   const navigate = useNavigate();
 
@@ -588,6 +590,16 @@ export function RPGInterface() {
       localStorage.removeItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY);
       if (user?.signer && updatedState.characterCreationDateEastern) {
         void publishCharacterCreation(nostr, user.signer, updatedState.characterCreationDateEastern);
+      }
+      if (user?.signer && user.pubkey) {
+        void (async () => {
+          try {
+            await publishMergedProfileDisplayName(nostr, user.signer, user.pubkey, submittedName);
+            await queryClient.invalidateQueries({ queryKey: ['nostr', 'author', user.pubkey] });
+          } catch (e) {
+            console.warn('Failed to sync profile display name', e);
+          }
+        })();
       }
       return;
     }

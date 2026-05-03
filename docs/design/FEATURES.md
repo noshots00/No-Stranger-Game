@@ -82,6 +82,8 @@ A running inventory of every feature in No Stranger Game. One section per featur
 - Global lobby on Social tab; optional per-location rooms from Play (see [src/components/rpg/chat/](../../src/components/rpg/chat/)).
 - Hosted on a dedicated chat relay so traffic does not spam the user’s normal nostr feed.
 - Membership: non-empty `playerName` (character named).
+- **Display names**: Own messages use `questState.playerName`; others resolve from latest kind **10032** checkpoint (`playerName`), then kindred lobby map, then a deterministic fallback ([ChatPanel.tsx](../../src/components/rpg/chat/ChatPanel.tsx)). Pubkeys are compared case-normalized so live relays/extensions cannot mislabel “your” lines as someone else’s.
+- **Profile sync**: On origin quest name submit, the app merges that name into **kind 0** metadata (`publishMergedProfileDisplayName` in [gameProfile.ts](../../src/components/rpg/gameProfile.ts)) so Ditto-style viewers stay aligned with the character name.
 
 ## Social signals and activity
 

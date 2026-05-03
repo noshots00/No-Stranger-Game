@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { normalizePubkeyHex } from '@/lib/nostrPubkey';
 import { NSG_QUEST_STATE_D_TAG, NSG_QUEST_STATE_KIND, parseQuestCheckpointPayload } from '../gameProfile';
 
 const STALE_MS = 60_000;
@@ -49,7 +50,7 @@ export function useRpgSpeakerNamesForPubkeys(pubkeys: readonly string[]) {
       for (const [pubkey, ev] of latest) {
         const payload = parseQuestCheckpointPayload(ev.content);
         const name = payload?.state?.playerName?.trim();
-        if (name) nameMap.set(pubkey, name);
+        if (name) nameMap.set(normalizePubkeyHex(pubkey), name);
       }
       return nameMap;
     },

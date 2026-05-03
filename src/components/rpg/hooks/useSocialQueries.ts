@@ -9,6 +9,7 @@ import { getCharacterClass } from '../classArchetype';
 import { getCharacterLevel } from '../quests/engine';
 import { getRaceDefinition } from '../races';
 import { questStateHasRememberedName } from '../helpers';
+import { normalizePubkeyHex } from '@/lib/nostrPubkey';
 
 export function useSocialQueries() {
   const { nostr } = useNostr();
@@ -203,7 +204,7 @@ export function useSocialQueries() {
       for (const [pubkey, ev] of latest) {
         const payload = parseQuestCheckpointPayload(ev.content);
         const name = payload?.state?.playerName?.trim();
-        if (name) nameMap.set(pubkey, name);
+        if (name) nameMap.set(normalizePubkeyHex(pubkey), name);
       }
       return nameMap;
     },
