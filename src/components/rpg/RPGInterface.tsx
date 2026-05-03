@@ -102,7 +102,7 @@ export function RPGInterface() {
   const canShowGame = isQuestStateHydrated && isPacingResolved;
 
   useAmbientPad({
-    active: questState.currentLocation === 'Silver Lake',
+    active: canShowGame,
     preferFile: publicAsset('music/silver-lake.mp3'),
   });
   const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries();
@@ -712,8 +712,6 @@ export function RPGInterface() {
             showOriginStartHint={showOriginStartHint}
             onLocationAction={handleLocationSceneAction}
             playerFlags={questState.flags}
-            playerHealth={questState.health}
-            nextDayResetMs={nextDayResetMs}
             currentLocation={questState.currentLocation}
             characterNameLabel={characterNameLabel}
             speakerNameMap={lobbyNameMap}
@@ -741,6 +739,8 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
+          health={questState.health}
+          nextDayResetMs={nextDayResetMs}
           showDevTools={import.meta.env.DEV}
           onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
           devFiveMinuteDays={devFiveMinuteDays}

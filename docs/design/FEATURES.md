@@ -88,14 +88,13 @@ A running inventory of every feature in No Stranger Game. One section per featur
 - Strangers / Kindred counts and kindred “signals” from peer checkpoints.
 - **Activity** rows: latest checkpoint per author; if `assignedRaceSlug` is set, shows lake-return summary with level, race display name, and class label — [useSocialQueries.ts](../../src/components/rpg/hooks/useSocialQueries.ts), [SocialTab.tsx](../../src/components/rpg/tabs/SocialTab.tsx).
 
-## Status bar (Play tab)
+## Status strip (game header)
 
-- Health (placeholder, `QuestState.health`), clock, countdown to next day reset, ambient mute.
-- Component: [PlayStatusBar.tsx](../../src/components/rpg/PlayStatusBar.tsx).
+- Health (`QuestState.health`), wall clock (time only), countdown to next day reset, ambient mute — unified in [GameHeader.tsx](../../src/components/rpg/GameHeader.tsx) for all tabs.
 
 ## Ambient audio
 
-- Location-based pad / optional MP3 under `public/` via [useAmbientPad.ts](../../src/components/rpg/audio/useAmbientPad.ts).
+- Ambient pad / optional MP3 (`public/music/silver-lake.mp3` when present) via [useAmbientPad.ts](../../src/components/rpg/audio/useAmbientPad.ts) whenever the game shell is ready (`canShowGame`).
 - Mute persists (`nsg:audio-muted`).
 
 ## Chronicle

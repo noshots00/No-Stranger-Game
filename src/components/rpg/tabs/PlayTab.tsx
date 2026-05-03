@@ -3,7 +3,6 @@ import { DialogueVoiceBlock, DIALOGUE_DEV_MESSAGE_CLASSES } from '../DialogueVoi
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
 import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
 import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
-import { PlayStatusBar } from '../PlayStatusBar';
 import { ChatPanel } from '../chat/ChatPanel';
 import { getLocationGroupId } from '../chat/nip29Client';
 
@@ -27,10 +26,6 @@ type PlayTabProps = {
   onLocationAction?: (actionLabel: string) => void;
   /** Player flag set; used by `disabledIfAnyFlags` on QuestChoice. */
   playerFlags: string[];
-  /** Player health 0-100 for the status bar. */
-  playerHealth: number;
-  /** Wall-clock ms when the next in-game day rolls over (for "Reset in X.Yh"). */
-  nextDayResetMs: number | null;
   /** Current location label, used to derive the per-location chat group. */
   currentLocation: string;
   /** Display name for the player's own messages. */
@@ -62,8 +57,6 @@ export function PlayTab({
   showOriginStartHint,
   onLocationAction,
   playerFlags,
-  playerHealth,
-  nextDayResetMs,
   currentLocation,
   characterNameLabel,
   speakerNameMap,
@@ -102,7 +95,6 @@ export function PlayTab({
 
   return (
     <section className="flex h-full flex-col justify-end gap-1.5">
-      <PlayStatusBar health={playerHealth} nextDayResetMs={nextDayResetMs} />
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
