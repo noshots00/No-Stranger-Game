@@ -75,90 +75,92 @@ export function GameHeader({
 
   return (
     <header className="sticky top-0 z-20 -mx-1 select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-0.5 font-serif text-sm text-[var(--candle-ink)] backdrop-blur-sm sm:justify-between sm:gap-x-3 sm:px-3 sm:py-0.5">
-        <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <p className="shrink-0 font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">
+      <div className="flex min-w-0 items-center gap-2 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-0.5 font-serif text-sm text-[var(--candle-ink)] backdrop-blur-sm sm:gap-3 sm:px-3 sm:py-0.5">
+        <div className="grid min-w-0 flex-1 grid-cols-3 items-center gap-1 sm:gap-2">
+          <p className="min-w-0 text-center font-serif text-sm font-medium tracking-[0.02em] text-[var(--candle-ink)]">
             Day {dayCounter}
           </p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-[var(--candle-ink-soft)] hover:bg-transparent hover:text-[var(--candle-ink)]"
-                aria-label="Game menu"
-              >
-                <MoreHorizontal className="h-5 w-5" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="whisper-tooltip-surface min-w-[12rem] font-serif text-sm">
-              {showDevTools ? (
-                <>
-                  <DropdownMenuItem
-                    className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
-                    onSelect={() => onAdvanceDay()}
-                  >
-                    Advance 24 hours
-                  </DropdownMenuItem>
-                  {onDevFiveMinuteDaysChange ? (
+          <div className="flex min-w-0 justify-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-[var(--candle-ink-soft)] hover:bg-transparent hover:text-[var(--candle-ink)]"
+                  aria-label="Game menu"
+                >
+                  <MoreHorizontal className="h-5 w-5" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="whisper-tooltip-surface min-w-[12rem] font-serif text-sm">
+                {showDevTools ? (
+                  <>
+                    <DropdownMenuItem
+                      className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
+                      onSelect={() => onAdvanceDay()}
+                    >
+                      Advance 24 hours
+                    </DropdownMenuItem>
+                    {onDevFiveMinuteDaysChange ? (
+                      <DropdownMenuCheckboxItem
+                        className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                        checked={devFiveMinuteDays}
+                        onCheckedChange={(v) => onDevFiveMinuteDaysChange(v === true)}
+                      >
+                        Set reset to every 5 minutes
+                      </DropdownMenuCheckboxItem>
+                    ) : null}
                     <DropdownMenuCheckboxItem
                       className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-                      checked={devFiveMinuteDays}
-                      onCheckedChange={(v) => onDevFiveMinuteDaysChange(v === true)}
+                      checked={rapidDaySimulation}
+                      onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
                     >
-                      Set reset to every 5 minutes
+                      Simulate 24 hours every 2 seconds
                     </DropdownMenuCheckboxItem>
-                  ) : null}
-                  <DropdownMenuCheckboxItem
-                    className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-                    checked={rapidDaySimulation}
-                    onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
-                  >
-                    Simulate 24 hours every 2 seconds
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-                    checked={showModifierDetails}
-                    onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
-                  >
-                    Show modifier details
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-                    checked={devUnlockAllQuests}
-                    onCheckedChange={(v) => onDevUnlockAllQuestsChange(v === true)}
-                  >
-                    Show all quests
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
-                </>
-              ) : null}
-              <DropdownMenuItem
-                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-                onSelect={() => onLogout()}
-              >
-                Log Out
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer font-serif text-[var(--candle-ember)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
-                onSelect={() => onResetStory()}
-              >
-                Reset Progress
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <p className="shrink-0 font-serif text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
+                    <DropdownMenuCheckboxItem
+                      className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                      checked={showModifierDetails}
+                      onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
+                    >
+                      Show modifier details
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                      checked={devUnlockAllQuests}
+                      onCheckedChange={(v) => onDevUnlockAllQuestsChange(v === true)}
+                    >
+                      Show all quests
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
+                  </>
+                ) : null}
+                <DropdownMenuItem
+                  className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                  onSelect={() => onLogout()}
+                >
+                  Log Out
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer font-serif text-[var(--candle-ember)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
+                  onSelect={() => onResetStory()}
+                >
+                  Reset Progress
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <p className="min-w-0 truncate text-center font-serif text-[0.625rem] uppercase leading-none tracking-[0.18em] text-[var(--candle-ink-faint)]">
             {UI_VERSION_LABEL}
           </p>
-          <div className="inline-flex min-w-0 max-w-full items-center gap-1">
-            <p
-              className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
-            >
-              {currentLocation}
-            </p>
-            {muteButton}
-          </div>
+        </div>
+        <div className="inline-flex shrink-0 items-center gap-1">
+          <p
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.16em] ${locationIndicatorClass}`}
+          >
+            {currentLocation}
+          </p>
+          {muteButton}
         </div>
       </div>
     </header>
