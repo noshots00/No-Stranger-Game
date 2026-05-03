@@ -4,7 +4,8 @@ import { genUserName } from '@/lib/genUserName';
 import { normalizePubkeyHex, pubkeysEqual } from '@/lib/nostrPubkey';
 import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
 import { useChatRoom } from './useChatRoom';
-import { useRpgSpeakerNamesForPubkeys } from './useRpgSpeakerNamesForPubkeys';
+import { PlayerBioDialog } from './PlayerBioDialog';
+import { useRpgSpeakerLobbySnapshots } from './useRpgSpeakerLobbySnapshots';
 
 type ChatPanelProps = {
   /** Stable group identifier (NIP-29 `h` tag). */
@@ -63,9 +64,11 @@ export function ChatPanel({
     }
     return Array.from(next);
   }, [events, user]);
-  const checkpointNames = useRpgSpeakerNamesForPubkeys(otherSpeakerPubkeys);
+  const { nameByPubkey: checkpointNames, questStateByPubkey: speakerQuestStates } =
+    useRpgSpeakerLobbySnapshots(otherSpeakerPubkeys);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [bioDialog, setBioDialog] = useState<{ pubkeyHex: string; displayName: string } | null>(null);
   const titleLine =
     title.trim().length > 0 ? (
       <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
@@ -163,7 +166,17 @@ export function ChatPanel({
                   genUserName(event.pubkey));
               return (
                 <li key={event.id}>
-                  <span className="text-[var(--candle-ink)]">{speaker}</span>{' '}
+                  {isMine ? (
+                    <span className="text-[var(--candle-ink)]">{speaker}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-left text-[var(--candle-ink)] underline decoration-[var(--candle-rule)] decoration-1 underline-offset-2 transition-colors hover:decoration-[var(--candle-flame-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--candle-flame-soft)]"
+                      onClick={() => setBioDialog({ pubkeyHex: pkNorm, displayName: speaker })}
+                    >
+                      {speaker}
+                    </button>
+                  )}{' '}
                   {truncate(event.content, 280)}
                 </li>
               );
@@ -203,6 +216,15 @@ export function ChatPanel({
           Send
         </button>
       </div>
+      <PlayerBioDialog
+        open={bioDialog !== null}
+        onOpenChange={(next) => {
+          if (!next) setBioDialog(null);
+        }}
+        pubkeyHex={bioDialog?.pubkeyHex ?? null}
+        displayName={bioDialog?.displayName ?? ''}
+        questState={bioDialog ? speakerQuestStates.get(bioDialog.pubkeyHex) : undefined}
+      />
     </div>
   );
 }
