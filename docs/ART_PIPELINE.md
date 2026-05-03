@@ -18,7 +18,7 @@ The pipeline produces vivid, soft-edged "card" images: shrunk to fit a max box, 
 | **Contrast** | Sigmoidal S-curve (`4,50%`) | Punchy midtones, deeper shadows, brighter highlights. |
 | **Sharpen** | Subtle unsharp | Recovers detail lost during downscale. |
 | **Rounded corners** | 18px | Soft "card" silhouette; no harsh 90-degree corners. |
-| **Edge fade** | Rectangular feather, ~10% of shorter side, fades to transparent | Hides hard edges; uniform across mixed art. |
+| **Edge fade** | Rectangular feather, ~1% of shorter side (default), fades to transparent | Soft edge without eating the frame; tune `-FeatherPercent`. |
 | **Format** | WebP (alpha-supporting) | Small files, broad browser support, transparency. |
 | **Quality** | 82 | Good balance; raise if you see banding on gradients. |
 | **Metadata** | Stripped | Fewer bytes, no accidental EXIF location data. |
@@ -73,7 +73,7 @@ If a single file fails, it stays in `To be converted/` for retry; the script log
 | `-Saturation` | `130` | `-modulate` saturation multiplier (100 = unchanged). |
 | `-SigmoidalContrast` | `'4,50%'` | S-curve contrast; first number is strength, second is midpoint. Pass `''` to disable. |
 | `-CornerRadius` | `18` | Rounded corner radius (px). |
-| `-FeatherPercent` | `10` | Edge fade width as % of shorter side. |
+| `-FeatherPercent` | `1` | Edge fade width as % of shorter side (88% gentler than former default `10`). |
 | `-AutoGamma` | `$true` | Auto white-balance. |
 | `-Sharpen` | `$true` | Subtle unsharp after resize. |
 | `-Kebab` | `$true` | Kebab-case output filenames. |

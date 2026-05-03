@@ -30,7 +30,7 @@ param(
   [string] $SigmoidalContrast = '4,50%',
   [int] $CornerRadius = 18,
   [ValidateRange(0, 40)]
-  [int] $FeatherPercent = 10,
+  [int] $FeatherPercent = 1,
   $AutoGamma = $true,
   $Sharpen = $true,
   $Kebab = $true,
