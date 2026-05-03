@@ -359,10 +359,7 @@ export function CharacterTab({
   return (
     <section className="relative min-w-0 pb-14">
       <div className="facsimile-scroll-dialogue-inner min-w-0 space-y-2">
-        <div className="min-w-0 space-y-2 py-0.5">
-          <p className="text-center font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
-            {questState.playerName || 'Stranger'}
-          </p>
+        <div className="min-w-0 py-0.5">
           <div className="flex min-w-0 justify-center">
             <div className="flex max-w-full items-start gap-3">
               <img
@@ -371,6 +368,9 @@ export function CharacterTab({
                 className="aspect-[200/266] w-[min(100px,32vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
               />
               <div className="flex min-w-0 flex-col gap-1.5 text-left leading-snug">
+                <p className="block max-w-[min(16rem,55vw)] break-words font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
+                  {questState.playerName || 'Stranger'}
+                </p>
                 <p className="block max-w-[min(16rem,55vw)] break-words font-mono text-[0.34375rem] uppercase tracking-[0.18em] text-[var(--candle-ink-soft)]">
                   {raceEmoji ? (
                     <span aria-hidden="true">
