@@ -202,13 +202,13 @@ export function CharacterTab({
         </p>
       </div>
 
-      <div className="flex min-w-0 items-start gap-3 py-0.5">
+      <div className="flex min-w-0 flex-col items-center gap-3 py-0.5">
         <img
           src={getRacePortraitSrc(questState.assignedRaceSlug)}
           alt="Character portrait"
           className="aspect-[200/266] w-[min(100px,38vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
         />
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pt-0.5 text-left">
+        <div className="flex min-w-0 w-full max-w-md flex-col items-center justify-center gap-1 pt-0.5 text-center">
           <p className="font-mono text-[0.34375rem] uppercase tracking-[0.18em] text-[var(--candle-ink-soft)] leading-snug">
             {raceEmoji ? (
               <span aria-hidden="true">
@@ -276,7 +276,7 @@ export function CharacterTab({
         <table className={`w-full min-w-0 border-collapse ${bt} text-[var(--candle-ink-soft)]`}>
           <tbody>
             {chunkPairs(detailTableCells).map((pair, rowIdx) => (
-              <tr key={rowIdx} className="align-top border-b border-[var(--candle-rule)]/40">
+              <tr key={rowIdx} className="align-top">
                 <td className="w-1/2 min-w-0 py-0.5 pr-2 align-top break-words">{pair[0]}</td>
                 <td className="w-1/2 min-w-0 py-0.5 pl-2 align-top break-words">{pair[1] ?? null}</td>
               </tr>
@@ -286,7 +286,7 @@ export function CharacterTab({
       ) : null}
       {otherModifiersLine}
 
-      <div className="flex w-full justify-center border-t border-[var(--candle-rule)]/60 pt-2">
+      <div className="flex w-full justify-center pt-2">
         <button
           type="button"
           onClick={onOpenChronicle}
@@ -296,7 +296,7 @@ export function CharacterTab({
         </button>
       </div>
 
-      <p className={`${bt} mt-2 border-t border-[var(--candle-rule)]/60 pt-2 pb-0 text-center leading-snug`}>
+      <p className={`${bt} mt-2 pt-2 pb-0 text-center leading-snug`}>
         {profileNpub ? (
           <a
             href={`https://ditto.pub/${profileNpub}`}
