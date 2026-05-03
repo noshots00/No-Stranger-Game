@@ -80,7 +80,7 @@ export function PlayTab({
         onScroll={onDialogueScroll}
         className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0"
       >
-        <div className="space-y-2">
+        <div className="facsimile-scroll-dialogue-inner space-y-2">
           {playFeedSegments.map((segment, segIndex) => {
             if (segment.type === 'world') {
               const row = segment.row;

@@ -426,12 +426,17 @@
   }
 
   .facsimile-scroll {
+    --facsimile-scrollbar-width: 3px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(161, 161, 170, 0.2) transparent;
+    scrollbar-color: transparent transparent;
+  }
+
+  .facsimile-scroll:hover {
+    scrollbar-color: rgba(161, 161, 170, 0.38) transparent;
   }
 
   .facsimile-scroll::-webkit-scrollbar {
-    width: 6px;
+    width: var(--facsimile-scrollbar-width);
   }
 
   .facsimile-scroll::-webkit-scrollbar-track {
@@ -439,12 +444,21 @@
   }
 
   .facsimile-scroll::-webkit-scrollbar-thumb {
-    background: rgba(161, 161, 170, 0.2);
+    background: transparent;
     border-radius: 9999px;
   }
 
+  .facsimile-scroll:hover::-webkit-scrollbar-thumb {
+    background: rgba(161, 161, 170, 0.38);
+  }
+
   .facsimile-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(161, 161, 170, 0.32);
+    background: rgba(161, 161, 170, 0.48);
+  }
+
+  /** Play dialogue: inset content on the left by the same width as the scrollbar gutter. */
+  .facsimile-scroll-dialogue-inner {
+    padding-left: var(--facsimile-scrollbar-width);
   }
 
   /* Utility classes below are optional helpers you add in JSX className.
