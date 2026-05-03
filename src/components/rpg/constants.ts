@@ -39,6 +39,8 @@ export const DEV_DAY_OFFSET_STORAGE_KEY = 'nsg:dev-day-offset-ms';
 export const DEV_RAPID_DAY_SIM_STORAGE_KEY = 'nsg:dev-rapid-day-simulation';
 /** When enabled in the game menu, shows quest modifier breakdown on the Character tab. */
 export const DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY = 'nsg:dev-show-modifier-details';
+/** When enabled, Quests tab lists every quest for testing (dev only). */
+export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';
 export const DEV_RAPID_DAY_SIM_INTERVAL_MS = 2000;
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 export const DAILY_XP = 1440;

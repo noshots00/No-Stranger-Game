@@ -19,6 +19,8 @@ type GameHeaderProps = {
   onRapidDaySimulationChange: (enabled: boolean) => void;
   showModifierDetails: boolean;
   onShowModifierDetailsChange: (enabled: boolean) => void;
+  devUnlockAllQuests: boolean;
+  onDevUnlockAllQuestsChange: (enabled: boolean) => void;
   onLogout: () => void;
   onResetStory: () => void;
 };
@@ -32,6 +34,8 @@ export function GameHeader({
   onRapidDaySimulationChange,
   showModifierDetails,
   onShowModifierDetailsChange,
+  devUnlockAllQuests,
+  onDevUnlockAllQuestsChange,
   onLogout,
   onResetStory,
 }: GameHeaderProps) {
@@ -72,6 +76,13 @@ export function GameHeader({
             onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
           >
             Show modifier details (Character)
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+            checked={devUnlockAllQuests}
+            onCheckedChange={(v) => onDevUnlockAllQuestsChange(v === true)}
+          >
+            Unlock all quests (dev)
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
           <DropdownMenuItem

@@ -293,6 +293,19 @@ export const getPlayerVisibleQuests = (
   );
 };
 
+/** Quest list for the Quests tab: either normal unveil/eligibility rules or all quests (dev testing). */
+export const getQuestListForUi = (
+  quests: QuestDefinition[],
+  context: QuestContext,
+  unveiledQuestIds: string[],
+  devUnlockAllQuests: boolean
+): QuestDefinition[] => {
+  if (devUnlockAllQuests) {
+    return [...quests].sort((a, b) => b.createdAt - a.createdAt);
+  }
+  return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
+};
+
 export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => {
   if (state.progressByQuestId[quest.id]) return state;
 

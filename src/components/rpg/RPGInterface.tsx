@@ -6,8 +6,8 @@ import {
   applyChoice,
   getCompletedQuestIds,
   getCurrentStep,
-  getPlayerVisibleQuests,
   getQuestContext,
+  getQuestListForUi,
   getVisibleQuests,
   questNumberFromId,
   interpolateStepText,
@@ -37,6 +37,7 @@ import {
   DIALOGUE_BREATHE_OVERFLOW_RATIO,
   DIALOGUE_SCROLL_PIN_EPS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
+  DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
   INTRO_DEV_MESSAGE,
   locationActions,
@@ -96,6 +97,7 @@ export function RPGInterface() {
   const [nameInputError, setNameInputError] = useState<string | null>(null);
   const [isChronicleOpen, setIsChronicleOpen] = useState(false);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
+  const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY);
@@ -105,6 +107,15 @@ export function RPGInterface() {
   useEffect(() => {
     localStorage.setItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY, showModifierDetails ? '1' : '0');
   }, [showModifierDetails]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY);
+    if (raw === '1') setDevUnlockAllQuests(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY, devUnlockAllQuests ? '1' : '0');
+  }, [devUnlockAllQuests]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
   const eventLogScrollRef = useRef<HTMLDivElement | null>(null);
@@ -127,8 +138,8 @@ export function RPGInterface() {
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
   const questContext = useMemo(() => getQuestContext(questState, dayCounter), [questState, dayCounter]);
   const visibleQuests = useMemo(
-    () => getPlayerVisibleQuests(allQuests, questContext, questState.unveiledQuestIds),
-    [questContext, questState.unveiledQuestIds]
+    () => getQuestListForUi(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
+    [questContext, questState.unveiledQuestIds, devUnlockAllQuests]
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
@@ -408,12 +419,12 @@ export function RPGInterface() {
   }, [questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
 
   const handleResetStory = async () => {
+    await resetTimestamp();
+    setDevDayOffsetMs(0);
+    setRapidDaySimulation(false);
     await resetQuestStateAndSync();
     setNameInput('');
     setNameInputError(null);
-    setDevDayOffsetMs(0);
-    setRapidDaySimulation(false);
-    await resetTimestamp();
   };
 
   const handleLogout = async () => {
@@ -542,7 +553,7 @@ export function RPGInterface() {
 
     setQuestState((prev) => {
       const ctx = getQuestContext(prev, dayCounter);
-      if (!quest.isAvailable(ctx)) return prev;
+      if (!devUnlockAllQuests && !quest.isAvailable(ctx)) return prev;
       dialogueInstantScrollRef.current = true;
       const restarted = restartQuestProgress(prev, quest);
       const started = startQuest(restarted, quest);
@@ -657,6 +668,8 @@ export function RPGInterface() {
           onRapidDaySimulationChange={setRapidDaySimulation}
           showModifierDetails={showModifierDetails}
           onShowModifierDetailsChange={setShowModifierDetails}
+          devUnlockAllQuests={devUnlockAllQuests}
+          onDevUnlockAllQuestsChange={setDevUnlockAllQuests}
           onLogout={handleLogout}
           onResetStory={handleResetStory}
         />
