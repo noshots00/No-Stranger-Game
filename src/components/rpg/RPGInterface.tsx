@@ -723,10 +723,6 @@ export function RPGInterface() {
             showOriginStartHint={showOriginStartHint}
             onLocationAction={handleLocationSceneAction}
             playerFlags={questState.flags}
-            currentLocation={questState.currentLocation}
-            characterNameLabel={characterNameLabel}
-            speakerNameMap={lobbyNameMap}
-            hasCharacter={questState.playerName.trim().length > 0}
           />
         );
     }

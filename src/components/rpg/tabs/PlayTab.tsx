@@ -3,8 +3,6 @@ import { DialogueVoiceBlock, DIALOGUE_DEV_MESSAGE_CLASSES } from '../DialogueVoi
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
 import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
 import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
-import { ChatPanel } from '../chat/ChatPanel';
-import { getLocationGroupId } from '../chat/nip29Client';
 
 type PlayTabProps = {
   playDialogueBlocks: DialogueVoiceBlockModel[];
@@ -26,14 +24,6 @@ type PlayTabProps = {
   onLocationAction?: (actionLabel: string) => void;
   /** Player flag set; used by `disabledIfAnyFlags` on QuestChoice. */
   playerFlags: string[];
-  /** Current location label, used to derive the per-location chat group. */
-  currentLocation: string;
-  /** Display name for the player's own messages. */
-  characterNameLabel: string;
-  /** Map pubkey -> display name for other players' chat messages. */
-  speakerNameMap: Map<string, string>;
-  /** True when player has set their character name; gates chat membership. */
-  hasCharacter: boolean;
 };
 
 const CHOICE_FADE_MS = 1200;
@@ -57,10 +47,6 @@ export function PlayTab({
   showOriginStartHint,
   onLocationAction,
   playerFlags,
-  currentLocation,
-  characterNameLabel,
-  speakerNameMap,
-  hasCharacter,
 }: PlayTabProps) {
   const playerFlagSet = new Set(playerFlags);
   const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
@@ -196,17 +182,28 @@ export function PlayTab({
         </div>
       ) : null}
       <div className="echo-log py-1">
-        <ChatPanel
-          groupId={getLocationGroupId(currentLocation)}
-          title={`${currentLocation} chat`}
-          emptyHint=""
-          worldEventLines={visibleWorldLines}
-          listScrollRef={eventLogScrollRef}
-          characterNameLabel={characterNameLabel}
-          speakerNameMap={speakerNameMap}
-          messageListClassName="max-h-[6.5rem]"
-          hasCharacter={hasCharacter}
-        />
+        <div
+          ref={eventLogScrollRef}
+          aria-label="Character events"
+          className="facsimile-scroll max-h-[6.5rem] overflow-y-auto pr-1"
+        >
+          {visibleWorldLines.length > 0 ? (
+            <ul className="space-y-1 font-sans text-[0.6875rem] leading-snug">
+              {visibleWorldLines.map((entry, index) => (
+                <li
+                  key={`${entry.atMs}-${index}-${entry.text}`}
+                  className="italic text-[var(--candle-ember)]/80"
+                >
+                  {entry.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/70">
+              The road is quiet.
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );
