@@ -111,6 +111,7 @@ export function useDayCounter() {
   };
 
   return {
+    characterStartTimestamp,
     dayCounter,
     devDayOffsetMs,
     setDevDayOffsetMs,

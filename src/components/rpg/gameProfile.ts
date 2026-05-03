@@ -1,6 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { normalizeQuestState } from '@/components/rpg/quests/engine';
 import type { QuestState } from '@/components/rpg/quests/types';
+import { CHARACTER_START_TS_STORAGE_KEY, DAY_IN_MS } from './constants';
 
 const CHARACTER_START_KIND = 10031;
 const CHARACTER_START_D_TAG = 'character-start';
@@ -139,7 +140,46 @@ export async function fetchOrCreateCharacterStartTimestamp(
   signer: Signer
 ): Promise<number> {
   const existing = await fetchCharacterStartTimestamp(nostr, pubkey);
-  if (existing) return existing;
+  if (existing !== null) return existing;
+
+  // Same browser as a prior session (e.g. live vs dev are different origins — each has its own storage).
+  if (typeof localStorage !== 'undefined') {
+    const raw = localStorage.getItem(CHARACTER_START_TS_STORAGE_KEY);
+    if (raw) {
+      const parsed = Number(raw);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        try {
+          await publishCharacterStartTimestamp(nostr, signer, parsed);
+        } catch {
+          // Relay may be unavailable; keep local continuity so the day counter can still advance.
+        }
+        return parsed;
+      }
+    }
+  }
+
+  // Relay miss on first visit to a new origin: republish a start time consistent with the latest
+  // quest checkpoint so `dayCounter` does not reset to 1 while `lastDailyXpDay` stays high (which
+  // blocks daily XP/report for many real days).
+  try {
+    const snapshot = await fetchQuestStateSnapshot(nostr, pubkey);
+    const d = snapshot?.state.lastDailyXpDay;
+    if (snapshot && typeof d === 'number' && d >= 1) {
+      const synthetic = snapshot.savedAtMs - (d - 1) * DAY_IN_MS;
+      const now = Date.now();
+      if (synthetic > 0 && synthetic <= now) {
+        try {
+          await publishCharacterStartTimestamp(nostr, signer, synthetic);
+        } catch {
+          return synthetic;
+        }
+        return synthetic;
+      }
+    }
+  } catch {
+    // Fall through to fresh start.
+  }
+
   const timestampMs = Date.now();
   return publishCharacterStartTimestamp(nostr, signer, timestampMs);
 }

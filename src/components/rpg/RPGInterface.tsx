@@ -77,6 +77,7 @@ export function RPGInterface() {
   const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestStateAndSync } =
     useQuestState();
   const {
+    characterStartTimestamp,
     dayCounter,
     setDevDayOffsetMs,
     resetTimestamp,
@@ -289,7 +290,7 @@ export function RPGInterface() {
   }, [isQuestStateHydrated, questState, questContext, persistQuestCheckpoint, setQuestState]);
 
   useEffect(() => {
-    if (!isQuestStateHydrated) return;
+    if (!isQuestStateHydrated || characterStartTimestamp === null) return;
     if (dayCounter <= questState.lastDailyXpDay) return;
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
@@ -394,7 +395,14 @@ export function RPGInterface() {
 
     setQuestState(updatedState);
     void persistQuestCheckpoint(updatedState);
-  }, [dayCounter, isQuestStateHydrated, questState, persistQuestCheckpoint, setQuestState]);
+  }, [
+    characterStartTimestamp,
+    dayCounter,
+    isQuestStateHydrated,
+    questState,
+    persistQuestCheckpoint,
+    setQuestState,
+  ]);
 
   useEffect(() => {
     setExpandedQuestId(newestPendingQuestId);
