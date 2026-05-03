@@ -197,35 +197,36 @@ export function CharacterTab({
         <p className="font-cormorant text-[0.9375rem] font-semibold tracking-[0.04em] text-[var(--candle-ink)]">
           {questState.playerName || 'Stranger'}
         </p>
-        <p className="font-mono text-[0.34375rem] uppercase tracking-[0.2em] text-[var(--candle-ink-soft)]">
-          {raceEmoji ? (
-            <span aria-hidden="true">
-              {raceEmoji}{' '}
-            </span>
-          ) : null}
-          Level {characterLevel} {raceMiddle} {characterClass}
-        </p>
       </div>
 
-      <div className="flex justify-center py-0.5">
+      <div className="flex min-w-0 items-start gap-3 py-0.5">
         <img
           src={getRacePortraitSrc(questState.assignedRaceSlug)}
           alt="Character portrait"
-          className="aspect-[200/266] w-full max-w-[min(100px,85vw)] rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
+          className="aspect-[200/266] w-[min(100px,38vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
         />
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 pt-0.5 text-left">
+          <p className="font-mono text-[0.34375rem] uppercase tracking-[0.18em] text-[var(--candle-ink-soft)] leading-snug">
+            {raceEmoji ? (
+              <span aria-hidden="true">
+                {raceEmoji}{' '}
+              </span>
+            ) : null}
+            Level {characterLevel} {raceMiddle} {characterClass}
+          </p>
+          <p className={`${bt} text-[var(--candle-ink-soft)]`}>Coal Miner</p>
+          <p className={bt}>
+            <span className="text-[var(--candle-ink-soft)]">Coin: </span>
+            <span
+              className={`font-mono ${
+                copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
+              }`}
+            >
+              {coinLabel}
+            </span>
+          </p>
+        </div>
       </div>
-
-      <p className={`${bt} text-center text-[var(--candle-ink-soft)]`}>Coal Miner</p>
-      <p className={`${bt} text-center`}>
-        <span className="text-[var(--candle-ink-soft)]">Coin: </span>
-        <span
-          className={`font-mono ${
-            copperTotal > 0 ? 'text-[var(--candle-ink)]' : 'text-[var(--candle-ink-faint)]'
-          }`}
-        >
-          {coinLabel}
-        </span>
-      </p>
 
       <table
         className="w-full min-w-0 table-fixed border-collapse font-serif text-[clamp(0.28rem,2.5vw,0.375rem)] leading-tight text-[var(--candle-ink-soft)]"
