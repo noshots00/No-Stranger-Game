@@ -112,8 +112,8 @@ export function PlayStatusBar({ health, nextDayResetMs }: PlayStatusBarProps) {
       aria-label={`Day reset countdown: ${resetText}`}
       title={resetText}
     >
-      <span className="block font-serif tabular-nums leading-tight sm:hidden">
-        <span className="text-[var(--candle-ink-faint)]">Next day </span>
+      <span className="block font-serif text-sm tabular-nums leading-tight sm:hidden">
+        <span className="text-[var(--candle-ink-soft)]">Next day </span>
         {resetCompact}
       </span>
     </div>
@@ -121,7 +121,7 @@ export function PlayStatusBar({ health, nextDayResetMs }: PlayStatusBarProps) {
 
   const resetDisplayWide = (
     <div
-      className="hidden shrink-0 whitespace-nowrap text-right font-serif tabular-nums text-[var(--candle-ember)] sm:block"
+      className="hidden shrink-0 whitespace-nowrap text-right font-serif text-sm tabular-nums text-[var(--candle-ember)] sm:block"
       aria-label={`Day reset countdown: ${resetText}`}
       title={resetText}
     >
@@ -136,13 +136,13 @@ export function PlayStatusBar({ health, nextDayResetMs }: PlayStatusBarProps) {
       aria-label="Player status"
     >
       {/* Narrow screens: stack; health width capped so time/reset stay on-screen. */}
-      <div className="flex flex-col gap-2 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-1.5 font-serif text-xs leading-snug text-[var(--candle-ink-soft)] backdrop-blur-sm sm:hidden">
+      <div className="flex flex-col gap-2 rounded-md border border-[var(--candle-rule)] bg-black/40 px-2 py-1.5 font-serif text-sm leading-snug text-[var(--candle-ink)] backdrop-blur-sm sm:hidden">
         <div className="flex min-w-0 items-center gap-2">
           {healthTrack}
           {muteButton}
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <div className="min-w-0 font-serif text-[var(--candle-ink)]" aria-label="Current time">
+          <div className="min-w-0 font-serif text-base text-[var(--candle-ink)]" aria-label="Current time">
             <span className="tabular-nums">{clockText}</span>
           </div>
           {resetDisplayNarrow}
@@ -150,9 +150,9 @@ export function PlayStatusBar({ health, nextDayResetMs }: PlayStatusBarProps) {
       </div>
 
       {/* sm+: single row — original order */}
-      <div className="hidden min-w-0 items-center gap-3 rounded-md border border-[var(--candle-rule)] bg-black/40 px-3 py-1.5 font-serif text-[11px] text-[var(--candle-ink-soft)] backdrop-blur-sm sm:flex">
+      <div className="hidden min-w-0 items-center gap-3 rounded-md border border-[var(--candle-rule)] bg-black/40 px-3 py-1.5 font-serif text-sm text-[var(--candle-ink)] backdrop-blur-sm sm:flex">
         {healthTrack}
-        <div className="min-w-0 flex-1 text-center text-[var(--candle-ink)]" aria-label="Current time">
+        <div className="min-w-0 flex-1 text-center text-base text-[var(--candle-ink)]" aria-label="Current time">
           <span className="tabular-nums">{clockText}</span>
         </div>
         {resetDisplayWide}

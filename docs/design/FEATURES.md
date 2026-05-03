@@ -69,6 +69,14 @@ A running inventory of every feature in No Stranger Game. One section per featur
 - **Map**: locations gated by flags (e.g. Silver Lake, airship).
 - **Social**: strangers/kindred counts, activity feed, global lobby chat — see below.
 
+### First session and gameflow
+
+- **Goal**: Teach through **UI affordance**, not a heavy tutorial: players must recognize when **story beats** end and **their turn** (choices, naming, character creation) begins.
+- **Play column**: Distinct treatment for the **choice / input block** below the scrollback (vs narrator lines); optional scroll/focus toward new choices when they appear ([PlayTab.tsx](../../src/components/rpg/tabs/PlayTab.tsx)).
+- **Hints**: Short UI-only notes use the same sky/dev-message styling as `Dev Message` lines ([DialogueVoiceBlock.tsx](../../src/components/rpg/DialogueVoiceBlock.tsx)), so guidance reads as interface copy, not narrator voice.
+- **Duplicate opening guard**: Appending a quest’s opening image + first narrator line is skipped when that pair already appears at the end of the dialogue log (`dialogueHasQuestOpeningAtEnd` in [dialogueFormat.ts](../../src/components/rpg/dialogueFormat.ts)) — avoids doubled Day 1 forest beat when the empty-log seed and “track quest” both run.
+- **Character sheet**: Skills are listed only once any skill reaches **level 1**; the quest-items row appears only when `questItems` is non-empty ([CharacterTab.tsx](../../src/components/rpg/tabs/CharacterTab.tsx)).
+
 ## Chat (NIP-29)
 
 - Global lobby on Social tab; optional per-location rooms from Play (see [src/components/rpg/chat/](../../src/components/rpg/chat/)).

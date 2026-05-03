@@ -73,7 +73,9 @@ export function CharacterTab({
   const allSkillSheetParts: string[] = [];
   for (const key of SKILL_XP_KEYS) {
     const xp = questState.skills[key];
-    allSkillSheetParts.push(`${SKILL_SHEET_LABEL[key]} ${getLevelFromXp(xp)}`);
+    const level = getLevelFromXp(xp);
+    if (level < 1) continue;
+    allSkillSheetParts.push(`${SKILL_SHEET_LABEL[key]} ${level}`);
   }
 
   const visibleModifiers = Object.entries(questState.modifiers).filter(
@@ -100,20 +102,22 @@ export function CharacterTab({
 
   const detailTableCells: ReactNode[] = [];
 
-  detailTableCells.push(
-    <Fragment key="skills-xp">
-      <span className="text-[var(--candle-ink)]">Skills:</span>{' '}
-      <span className="text-[var(--candle-ink-soft)]">{allSkillSheetParts.join(', ')}</span>
-    </Fragment>
-  );
-  detailTableCells.push(
-    <Fragment key="quest-items">
-      <span className="text-[var(--candle-ink)]">Quest items:</span>{' '}
-      <span className="text-[var(--candle-ink-soft)]">
-        {questState.questItems.length > 0 ? questState.questItems.join(', ') : '—'}
-      </span>
-    </Fragment>
-  );
+  if (allSkillSheetParts.length > 0) {
+    detailTableCells.push(
+      <Fragment key="skills-xp">
+        <span className="text-[var(--candle-ink)]">Skills:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{allSkillSheetParts.join(', ')}</span>
+      </Fragment>
+    );
+  }
+  if (questState.questItems.length > 0) {
+    detailTableCells.push(
+      <Fragment key="quest-items">
+        <span className="text-[var(--candle-ink)]">Quest items:</span>{' '}
+        <span className="text-[var(--candle-ink-soft)]">{questState.questItems.join(', ')}</span>
+      </Fragment>
+    );
+  }
 
   if (showModifierDetails) {
     if (blessingLines) {

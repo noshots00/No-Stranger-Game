@@ -7,16 +7,17 @@ const DIALOGUE_NARRATOR_CLASSES =
   'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
 const DIALOGUE_NARRATOR_PLAY_CLASSES =
-  'font-serif text-sm leading-relaxed tracking-wide italic text-[var(--candle-ink-soft)]';
+  'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--candle-ink-soft)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';
 
 const DIALOGUE_PLAYER_BODY_PLAY_CLASSES =
-  'font-serif text-sm font-medium leading-relaxed text-[var(--candle-wax)]';
+  'font-serif text-[0.9375rem] font-medium leading-relaxed text-[var(--candle-wax)]';
 
-const DIALOGUE_DEV_MESSAGE_CLASSES =
-  'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[12px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
+/** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
+export const DIALOGUE_DEV_MESSAGE_CLASSES =
+  'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[13px] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
 
 export function DialogueVoiceBlock({
   role,

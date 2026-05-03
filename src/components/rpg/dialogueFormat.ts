@@ -10,6 +10,23 @@ export const DAY_REPORT_SPEAKER = 'Day Report';
 export const CLASS_LOCK_REPORT_TITLE = 'Path secured';
 export const RACE_LOCK_REPORT_TITLE = 'The lake answers';
 
+/** True when the log already ends with the standard quest opening (image + first narrator line). */
+export function dialogueHasQuestOpeningAtEnd(
+  log: DialogueLogEntry[],
+  questTitle: string,
+  openingNarratorText: string
+): boolean {
+  if (log.length < 2) return false;
+  const imageEntry = log[log.length - 2];
+  const narratorEntry = log[log.length - 1];
+  return (
+    imageEntry.speaker === QUEST_IMAGE_SPEAKER &&
+    imageEntry.text === questTitle &&
+    narratorEntry.speaker === 'Narrator' &&
+    narratorEntry.text === openingNarratorText
+  );
+}
+
 export const appendDialogue = (speaker: string, text: string): DialogueLogEntry => {
   const atMs = Date.now();
   return {

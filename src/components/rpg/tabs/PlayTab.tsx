@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
+import { DialogueVoiceBlock, DIALOGUE_DEV_MESSAGE_CLASSES } from '../DialogueVoiceBlock';
 import type { DialogueVoiceBlockModel } from '../dialogueFormat';
 import { PLAY_DIALOGUE_RECENT_MAX } from '../constants';
 import type { QuestDefinition, QuestStep, WorldEventLogEntry } from '../quests/types';
@@ -122,7 +122,7 @@ export function PlayTab({
               {activeStep.type === 'choice' ? (
                 <div className="space-y-2">
                   {showOriginStartHint ? (
-                    <p className="facsimile-kicker px-0.5">Choose a reply to continue</p>
+                    <p className={DIALOGUE_DEV_MESSAGE_CLASSES}>Select a line below to continue.</p>
                   ) : null}
                   <ul className="space-y-0">
                     {activeStep.choices.map((choice) => {

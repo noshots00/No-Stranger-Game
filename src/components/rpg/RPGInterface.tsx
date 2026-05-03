@@ -53,6 +53,7 @@ import {
 import type { MobileTab } from './constants';
 import { appendDialogue, appendUniqueWorldEntries, buildDayReportDialogueLines, getLevelUpLines, getRewardLines } from './helpers';
 import {
+  dialogueHasQuestOpeningAtEnd,
   formatPlayerChoiceDialogueLine,
   groupChronicleRows,
   groupDialogueLinesByVoice,
@@ -439,11 +440,15 @@ export function RPGInterface() {
       if (prev.dialogueLog.length > 0) return prev;
       const started = startQuest(prev, quest);
       const firstStep = getCurrentStep(started, quest);
+      const openingText = interpolateStepText(firstStep.text, started.playerName);
+      if (dialogueHasQuestOpeningAtEnd(started.dialogueLog, quest.title, openingText)) {
+        return started;
+      }
       return {
         ...started,
         dialogueLog: [
           appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
-          appendDialogue('Narrator', interpolateStepText(firstStep.text, started.playerName)),
+          appendDialogue('Narrator', openingText),
         ],
       };
     });
@@ -470,12 +475,16 @@ export function RPGInterface() {
     setQuestState((prev) => {
       const started = startQuest(prev, quest);
       const firstStep = getCurrentStep(started, quest);
+      const openingText = interpolateStepText(firstStep.text, started.playerName);
+      if (dialogueHasQuestOpeningAtEnd(started.dialogueLog, quest.title, openingText)) {
+        return started;
+      }
       return {
         ...started,
         dialogueLog: [
           ...started.dialogueLog,
           appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
-          appendDialogue('Narrator', interpolateStepText(firstStep.text, started.playerName)),
+          appendDialogue('Narrator', openingText),
         ],
       };
     });
@@ -614,12 +623,16 @@ export function RPGInterface() {
       const restarted = restartQuestProgress(prev, quest);
       const started = startQuest(restarted, quest);
       const firstStep = getCurrentStep(started, quest);
+      const openingText = interpolateStepText(firstStep.text, started.playerName);
+      if (dialogueHasQuestOpeningAtEnd(started.dialogueLog, quest.title, openingText)) {
+        return started;
+      }
       return {
         ...started,
         dialogueLog: [
           ...started.dialogueLog,
           appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
-          appendDialogue('Narrator', interpolateStepText(firstStep.text, started.playerName)),
+          appendDialogue('Narrator', openingText),
         ],
       };
     });

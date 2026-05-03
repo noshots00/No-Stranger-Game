@@ -9,6 +9,14 @@ type MapTabProps = {
 export function MapTab({ currentLocation, flags, onLocationChange }: MapTabProps) {
   return (
     <section className="space-y-8 pb-4">
+      <div className="rounded-lg border border-dashed border-[var(--candle-rule)] bg-black/25 px-4 py-6 text-center">
+        <p className="font-cormorant text-2xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
+          Coming Soon!
+        </p>
+        <p className="mt-2 font-serif text-sm text-[var(--candle-ink-soft)]">
+          The world map is not yet connected to your journey.
+        </p>
+      </div>
       <div>
         <button
           type="button"
