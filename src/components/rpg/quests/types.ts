@@ -149,4 +149,9 @@ export type QuestState = {
    * on the origin quest — immutable for this playthrough; used for day pacing and future verification.
    */
   characterCreationDateEastern: string | null;
+  /**
+   * App semver (`package.json` / `__APP_VERSION__`) recorded when the character was committed on the origin quest.
+   * Used for occasional mandatory resets during early development.
+   */
+  characterCreatedAtAppVersion: string | null;
 };

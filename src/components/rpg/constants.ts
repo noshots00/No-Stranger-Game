@@ -1,6 +1,9 @@
 /** Set by Vite from `package.json` `version` — canonical in-app display version (see `vite.config.ts`). */
 declare const __APP_VERSION__: string;
 
+/** Same as `UI_VERSION_LABEL` without prefix/suffix — use when storing semver in save data. */
+export const APP_VERSION = __APP_VERSION__;
+
 export const INTRO_DEV_MESSAGE = `Welcome to No Stranger Game! Your character is autonomous! He will act according to his own needs and desires. The primary means of progressing the game is by completing quests. Every choice has a permanent and irrevocable impact on the trajectory of your character, tread CAREFULLY! The game is designed to take about three minutes of your time each day. Be patient... it may seem like nothing is happening... but the game is MASSIVE and changes take place over Days, not seconds. For now your character will explore the forest around him, seeking food and shelter. Soon he will discover a village, which will unlock the next part of the Main Quest. The forest is very large, and your character may discover other locales before the village, and it could take longer than you are anticipating. I recommend you take a few minutes to look around the game, and then check your character's progress tomorrow.
 
 If you have any questions please reach out to me on Nostr.

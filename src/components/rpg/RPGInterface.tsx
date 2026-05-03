@@ -21,6 +21,7 @@ import {
 import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
+  APP_VERSION,
   BRACELET_DAILY_FLAG,
   CHARACTER_CREATION_DATE_STORAGE_KEY,
   CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
@@ -77,6 +78,8 @@ import { useGameMusic } from './audio/useGameMusic';
 import { publishCharacterCreation, publishMergedProfileDisplayName } from './gameProfile';
 import { computeGameDayCounterFromCreationYmd, EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 import { publicAsset } from '@/lib/publicAsset';
+import { needsMandatoryCharacterReset } from './characterSaveVersion';
+import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 
 export function RPGInterface() {
   const { nostr } = useNostr();
@@ -100,10 +103,11 @@ export function RPGInterface() {
     useFiveMinuteTestPeriods,
   } = useDayCounter({ questCreationDateEastern: questState.characterCreationDateEastern });
 
-  const canShowGame = isQuestStateHydrated && isPacingResolved;
+  const showEarlyDevResetGate = isQuestStateHydrated && needsMandatoryCharacterReset(questState);
+  const canShowGame = isQuestStateHydrated && isPacingResolved && !showEarlyDevResetGate;
 
   useGameMusic({
-    active: true,
+    active: !showEarlyDevResetGate,
     src: publicAsset('audio/music/SoaveSiaII.mp3'),
   });
   const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries();
@@ -272,12 +276,12 @@ export function RPGInterface() {
   }, [questState.worldEventLog, activeTab]);
 
   useEffect(() => {
-    if (!isQuestStateHydrated) return;
+    if (!isQuestStateHydrated || showEarlyDevResetGate) return;
     if (completedQuestIds.length > completedQuestCountRef.current) {
       void persistQuestCheckpoint(questState);
     }
     completedQuestCountRef.current = completedQuestIds.length;
-  }, [completedQuestIds, isQuestStateHydrated, questState, persistQuestCheckpoint]);
+  }, [completedQuestIds, isQuestStateHydrated, questState, persistQuestCheckpoint, showEarlyDevResetGate]);
 
   const getDeterministicDailyRoll = (day: number, seedOffset = 0): number => {
     const x = Math.sin(day * 12.9898 + 78.233 + seedOffset * 17.719) * 43758.5453;
@@ -289,7 +293,7 @@ export function RPGInterface() {
   // so they aren't retroactively hidden by the new 2/day cap.
   const unveilBackfillDoneRef = useRef(false);
   useEffect(() => {
-    if (!isQuestStateHydrated || !isPacingResolved || unveilBackfillDoneRef.current) return;
+    if (!isQuestStateHydrated || !isPacingResolved || unveilBackfillDoneRef.current || showEarlyDevResetGate) return;
     const hasProgress = Object.keys(questState.progressByQuestId).length > 0;
     if (!hasProgress) {
       unveilBackfillDoneRef.current = true;
@@ -303,11 +307,19 @@ export function RPGInterface() {
       void persistQuestCheckpoint(next);
     }
     unveilBackfillDoneRef.current = true;
-  }, [isQuestStateHydrated, isPacingResolved, questState, questContext, persistQuestCheckpoint, setQuestState]);
+  }, [
+    isQuestStateHydrated,
+    isPacingResolved,
+    questState,
+    questContext,
+    persistQuestCheckpoint,
+    setQuestState,
+    showEarlyDevResetGate,
+  ]);
 
   // Catch-up on login/session: when the in-game day advances vs last grant, apply XP, report, unveil.
   useEffect(() => {
-    if (!isQuestStateHydrated || !isPacingResolved) return;
+    if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
 
     const qc = questState.characterCreationDateEastern;
     const pacingAligned =
@@ -426,6 +438,7 @@ export function RPGInterface() {
     questState,
     persistQuestCheckpoint,
     setQuestState,
+    showEarlyDevResetGate,
   ]);
 
   useEffect(() => {
@@ -463,6 +476,17 @@ export function RPGInterface() {
     await resetQuestStateAndSync();
     setNameInput('');
     setNameInputError(null);
+  };
+
+  const handleMandatoryEarlyDevReset = async () => {
+    localStorage.setItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY, '1');
+    await resetTimestamp();
+    setDevDayOffsetMs(0);
+    setRapidDaySimulation(false);
+    await resetQuestStateAndSync();
+    setNameInput('');
+    setNameInputError(null);
+    window.location.reload();
   };
 
   const handleLogout = async () => {
@@ -556,6 +580,7 @@ export function RPGInterface() {
       const updatedState = {
         ...nextState,
         characterCreationDateEastern,
+        characterCreatedAtAppVersion: APP_VERSION,
         lastDailyXpDay,
         activeQuestId: null,
         flags: Array.from(new Set([...nextState.flags, 'quest001-complete'])),
@@ -733,7 +758,16 @@ export function RPGInterface() {
     <main className="candlelit-shell relative h-[100dvh] max-h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
       <div className="relative z-[2] mx-auto flex h-[100dvh] w-full max-w-2xl flex-col gap-1.5 px-5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] sm:px-8 sm:pt-2">
-        {!canShowGame ? (
+        {!isQuestStateHydrated ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+            <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
+            <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">
+              Syncing character state so dates and quests stay matched to this account.
+            </p>
+          </div>
+        ) : showEarlyDevResetGate ? (
+          <EarlyDevCharacterResetGate onOkay={handleMandatoryEarlyDevReset} />
+        ) : !isPacingResolved ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
             <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">

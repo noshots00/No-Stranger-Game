@@ -116,6 +116,7 @@ export const createInitialQuestState = (): QuestState => ({
   unveiledQuestIds: ['quest-001-origin'],
   health: 75,
   characterCreationDateEastern: null,
+  characterCreatedAtAppVersion: null,
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -170,6 +171,12 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const rawCreation = (state as { characterCreationDateEastern?: unknown }).characterCreationDateEastern;
   const characterCreationDateEastern =
     typeof rawCreation === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawCreation) ? rawCreation : null;
+
+  const rawCreatedVer = (state as { characterCreatedAtAppVersion?: unknown }).characterCreatedAtAppVersion;
+  const characterCreatedAtAppVersion =
+    typeof rawCreatedVer === 'string' && /^\d+\.\d+\.\d+/.test(rawCreatedVer.trim())
+      ? rawCreatedVer.trim().split(/[-+]/, 1)[0]!
+      : null;
 
   const rawModifiers =
     state.modifiers && typeof state.modifiers === 'object' ? (state.modifiers as ModifierMap) : initial.modifiers;
@@ -232,6 +239,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     unveiledQuestIds,
     health,
     characterCreationDateEastern,
+    characterCreatedAtAppVersion,
   };
 };
 
