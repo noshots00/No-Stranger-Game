@@ -20,6 +20,7 @@ This project is a Nostr client application built with React 19.x, TailwindCSS 3.
   - `/src/components/auth/`: Authentication-related components (LoginArea, LoginDialog, etc.)
   - `/src/components/dm/`: Direct messaging UI components (DMMessagingInterface, DMConversationList, DMChatArea)
   - `/src/components/rpg/`: No Stranger Game UI — **kind 10031** stores the character’s **Eastern calendar creation date** (and signed metadata) when the player submits their name on the origin quest; that event is the intended **account-age anchor** for future anti-cheat. In-game day pacing uses only the `creationDateEastern` field (America/New_York, civil midnight rollovers).
+    - **Terminology**: When the maintainer says **quests**, they mean **quest UI on the Play screen** (the embedded quest list and choices in `PlayTab`, backed by `QuestsTab`), not a dedicated nav tab unless they specify otherwise.
   - Zap components: `ZapButton`, `ZapDialog`, `WalletModal` for Lightning payments
 - `/src/hooks/`: Custom hooks including:
   - `useNostr`: Core Nostr protocol integration
