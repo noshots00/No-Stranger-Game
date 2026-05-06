@@ -7,9 +7,15 @@ import {
 } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
 import type { QuestDefinition, QuestStep } from '../quests/types';
+import { QuestsTab } from './QuestsTab';
 
 type PlayTabProps = {
   playFeedSegments: ChronicleSegment[];
+  visibleQuests: QuestDefinition[];
+  completedQuestIds: string[];
+  expandedQuestId: string | null;
+  onExpandQuest: (id: string | null) => void;
+  onTrackQuest: (questId: string) => void;
   activeQuest: QuestDefinition | null;
   activeStep: QuestStep | null;
   nameInput: string;
@@ -30,6 +36,11 @@ const CHOICE_FADE_MS = 1200;
 
 export function PlayTab({
   playFeedSegments,
+  visibleQuests,
+  completedQuestIds,
+  expandedQuestId,
+  onExpandQuest,
+  onTrackQuest,
   activeQuest,
   activeStep,
   nameInput,
@@ -103,6 +114,19 @@ export function PlayTab({
               </div>
             );
           })}
+          <div className="dialogue-line-reveal border-t border-[var(--candle-rule)]/80 pt-3 mt-1">
+            <QuestsTab
+              visibleQuests={visibleQuests}
+              completedQuestIds={completedQuestIds}
+              activeQuestId={activeQuest?.id ?? null}
+              expandedQuestId={expandedQuestId}
+              onExpandQuest={onExpandQuest}
+              onTrackQuest={onTrackQuest}
+              trackButtonLabel="Start quest"
+              showSectionKicker={false}
+              showCompletedSection={false}
+            />
+          </div>
           {activeQuest && activeStep ? (
             <div className="dialogue-line-reveal py-0.5">
               {activeStep.type === 'choice' ? (
@@ -170,6 +194,7 @@ export function PlayTab({
               ) : null}
             </div>
           ) : null}
+          <div data-stick-scroll-bottom-sentinel="" aria-hidden className="h-px w-full shrink-0" />
         </div>
       </div>
       {visibleLocationActions.length > 0 ? (
