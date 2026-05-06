@@ -20,6 +20,8 @@ import {
 } from '@/components/rpg/quests/engine';
 import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
+import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
+import type { QuestState } from '@/components/rpg/quests/types';
 import {
   APP_VERSION,
   BRACELET_DAILY_FLAG,
@@ -45,10 +47,10 @@ import {
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
-  INTRO_DEV_MESSAGE,
   locationActions,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
+  PLAY_JOURNAL_RECENT_MAX,
   PLAY_WORLD_RECENT_MAX,
 } from './constants';
 import type { MobileTab } from './constants';
@@ -58,9 +60,10 @@ import {
   formatPlayerChoiceDialogueLine,
   groupChronicleRows,
   mergeDialogueAndWorldRows,
+  mergePlayFeedRows,
   PLAYER_ACTION_SPEAKER,
   QUEST_DIVIDER_SPEAKER,
-  QUEST_IMAGE_SPEAKER,
+  visualDialogueEntriesForQuestStep,
 } from './dialogueFormat';
 import type { ChronicleMergedRow } from './dialogueFormat';
 import { useQuestState } from './hooks/useQuestState';
@@ -152,8 +155,11 @@ export function RPGInterface() {
   const snapPlayDialogueBottom = useCallback(() => {
     const el = dialogueScrollRef.current;
     if (!el) return;
-    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
-    el.scrollTop = maxScroll;
+    el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.querySelector<HTMLElement>('[data-stick-scroll-bottom-sentinel]')?.scrollIntoView({
+      block: 'end',
+      behavior: 'auto',
+    });
     dialoguePinnedRef.current = true;
     dialogueScrollReadyRef.current = true;
   }, []);
@@ -206,9 +212,36 @@ export function RPGInterface() {
     () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
     [questState.worldEventLog]
   );
+  const playJournalLines = useMemo(
+    () => questState.journalLog.slice(-PLAY_JOURNAL_RECENT_MAX),
+    [questState.journalLog]
+  );
   const playFeedSegments = useMemo(
-    () => groupChronicleRows(mergeDialogueAndWorldRows(playDialogueLines, playWorldLines)),
-    [playDialogueLines, playWorldLines]
+    () => groupChronicleRows(mergePlayFeedRows(playDialogueLines, playWorldLines, playJournalLines)),
+    [playDialogueLines, playWorldLines, playJournalLines]
+  );
+
+  /** Drives bottom-stick retries after journal/composer layout shifts (expand quest, new lines). */
+  const playScrollStickRevision = useMemo(
+    () =>
+      [
+        questState.dialogueLog.length,
+        questState.worldEventLog.length,
+        questState.journalLog.length,
+        expandedQuestId ?? '',
+        visibleQuests.length,
+        activeQuest?.id ?? '',
+        playFeedSegments.length,
+      ].join('|'),
+    [
+      questState.dialogueLog.length,
+      questState.worldEventLog.length,
+      questState.journalLog.length,
+      expandedQuestId,
+      visibleQuests.length,
+      activeQuest?.id,
+      playFeedSegments.length,
+    ]
   );
   const characterNameLabel = useMemo(() => {
     const trimmed = questState.playerName.trim();
@@ -220,8 +253,8 @@ export function RPGInterface() {
       : questState.currentLocation === 'Silver Lake'
         ? 'location-indicator-silver-lake'
         : 'candle-ink-muted';
-  const showOriginStartHint =
-    activeQuest?.id === 'quest-001-origin' && activeStep?.id === 'start' && activeStep.type === 'choice';
+  /** Origin quest “click a choice” hint — off until copy/UI is finalized. */
+  const showOriginStartHint = false;
 
   const chronicleRows = useMemo((): ChronicleMergedRow[] => {
     if (activeTab !== 'chronicle') return [];
@@ -271,7 +304,7 @@ export function RPGInterface() {
         });
       });
     }
-  }, [questState.dialogueLog, questState.worldEventLog, activeTab, snapPlayDialogueBottom]);
+  }, [playScrollStickRevision, activeTab, snapPlayDialogueBottom]);
 
   /** Catch flex/font/layout growth after Play mounts so the latest line stays in view. */
   useEffect(() => {
@@ -292,13 +325,27 @@ export function RPGInterface() {
 
     maybeSnap();
     return () => ro.disconnect();
-  }, [activeTab, snapPlayDialogueBottom, playFeedSegments.length]);
+  }, [activeTab, snapPlayDialogueBottom, playScrollStickRevision]);
+
+  /** Fonts + late image layout after refresh — re-pin when still following the tail. */
+  useEffect(() => {
+    if (activeTab !== 'play' || !canShowGame) return;
+    let cancelled = false;
+    void document.fonts?.ready?.then(() => {
+      if (cancelled || activeTabRef.current !== 'play') return;
+      if (!playDialogueSnapInitialRef.current && !dialoguePinnedRef.current) return;
+      snapPlayDialogueBottom();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, canShowGame, snapPlayDialogueBottom, playScrollStickRevision]);
 
   useEffect(() => {
     if (activeTab !== 'play') return;
     const id = window.setTimeout(() => {
       playDialogueSnapInitialRef.current = false;
-    }, 2800);
+    }, 8000);
     return () => window.clearTimeout(id);
   }, [activeTab]);
 
@@ -488,7 +535,7 @@ export function RPGInterface() {
       return {
         ...started,
         dialogueLog: [
-          appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
+          ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
           appendDialogue('Narrator', openingText),
         ],
       };
@@ -535,7 +582,7 @@ export function RPGInterface() {
         ...started,
         dialogueLog: [
           ...started.dialogueLog,
-          appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
+          ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
           appendDialogue('Narrator', openingText),
         ],
       };
@@ -560,6 +607,7 @@ export function RPGInterface() {
           PLAYER_ACTION_SPEAKER,
           formatPlayerChoiceDialogueLine(prev.playerName, selectedChoice.label)
         ),
+        ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
       ];
 
       if (nextStep.type === 'message') {
@@ -577,11 +625,13 @@ export function RPGInterface() {
       const levelUpLines = getLevelUpLines(prev, nextState);
       const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [...rewardLines, ...levelUpLines]);
 
-      return {
+      let merged: QuestState = {
         ...nextState,
         dialogueLog: nextLog,
         worldEventLog,
       };
+      merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
+      return merged;
     });
   };
 
@@ -620,13 +670,14 @@ export function RPGInterface() {
         },
         dialogueLog: [
           ...nextState.dialogueLog,
+          ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
           appendDialogue('You', submittedName),
           appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)),
-          appendDialogue('Dev Message', INTRO_DEV_MESSAGE),
         ],
       };
-      setQuestState(updatedState);
-      void persistQuestCheckpoint(updatedState);
+      const withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
+      setQuestState(withJournal);
+      void persistQuestCheckpoint(withJournal);
       if (updatedState.characterCreationDateEastern) {
         if (user?.pubkey) {
           localStorage.setItem(
@@ -639,8 +690,8 @@ export function RPGInterface() {
         }
       }
       localStorage.removeItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY);
-      if (user?.signer && updatedState.characterCreationDateEastern) {
-        void publishCharacterCreation(nostr, user.signer, updatedState.characterCreationDateEastern);
+      if (user?.signer && withJournal.characterCreationDateEastern) {
+        void publishCharacterCreation(nostr, user.signer, withJournal.characterCreationDateEastern);
       }
       if (user?.signer && user.pubkey) {
         void (async () => {
@@ -659,12 +710,14 @@ export function RPGInterface() {
       ...nextState,
       dialogueLog: [
         ...nextState.dialogueLog,
+        ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
         appendDialogue('You', submittedName),
         appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)),
       ],
     };
-    setQuestState(updatedState);
-    void persistQuestCheckpoint(updatedState);
+    const withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
+    setQuestState(withJournal);
+    void persistQuestCheckpoint(withJournal);
   };
 
   const handleTrackQuest = (questId: string) => {
@@ -694,7 +747,7 @@ export function RPGInterface() {
         ...started,
         dialogueLog: [
           ...started.dialogueLog,
-          appendDialogue(QUEST_IMAGE_SPEAKER, quest.title),
+          ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
           appendDialogue('Narrator', openingText),
         ],
       };
@@ -775,6 +828,11 @@ export function RPGInterface() {
         return (
           <PlayTab
             playFeedSegments={playFeedSegments}
+            visibleQuests={visibleQuests}
+            completedQuestIds={completedQuestIds}
+            expandedQuestId={expandedQuestId}
+            onExpandQuest={setExpandedQuestId}
+            onTrackQuest={handleTrackQuest}
             activeQuest={activeQuest ?? null}
             activeStep={activeStep ?? null}
             nameInput={nameInput}

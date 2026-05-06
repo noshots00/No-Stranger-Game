@@ -73,6 +73,17 @@ function isDialogueLogRow(value: unknown): boolean {
   );
 }
 
+function isJournalLogRow(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.id === 'string' &&
+    typeof row.questId === 'string' &&
+    typeof row.text === 'string' &&
+    typeof row.atMs === 'number'
+  );
+}
+
 function isQuestState(value: unknown): value is QuestState {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
@@ -80,6 +91,9 @@ function isQuestState(value: unknown): value is QuestState {
     !('worldEventLog' in candidate) ||
     (Array.isArray(candidate.worldEventLog) &&
       candidate.worldEventLog.every((line) => isWorldEventLogRow(line)));
+  const journalLogOk =
+    !('journalLog' in candidate) ||
+    (Array.isArray(candidate.journalLog) && candidate.journalLog.every((row) => isJournalLogRow(row)));
   const dialogueOk =
     Array.isArray(candidate.dialogueLog) &&
     candidate.dialogueLog.every((row) => isDialogueLogRow(row));
@@ -103,7 +117,8 @@ function isQuestState(value: unknown): value is QuestState {
     assignedRaceOk &&
     lockedClassOk &&
     dialogueOk &&
-    worldLogOk
+    worldLogOk &&
+    journalLogOk
   );
 }
 

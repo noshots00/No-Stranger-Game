@@ -3,67 +3,91 @@ import type { QuestDefinition } from './types';
 export const quest001Origin: QuestDefinition = {
   id: 'quest-001-origin',
   title: 'The Forest',
-  briefing: 'Remember who you are and decide what kind of person you become.',
+  briefing: 'You find yourself in the forest.',
   createdAt: 1,
   startStepId: 'start',
   isAvailable: () => true,
+  journalSummariesByChoicePath: {
+    'q1-click-here-to-continue|q2-i-dont-know|q3-my-name-is-':
+      'You found yourself in a forest with no memory of how you got there. You remembered your name is {playerName}.',
+  },
+  stepVisuals: {
+    start: [
+      {
+        kind: 'image-row',
+        images: [
+          {
+            src: 'art/converted/batch-2026-05-02_21-10-35/pleasant-forest.webp',
+            alt: 'Forest',
+          },
+          {
+            src: 'art/converted/batch-2026-05-02_21-10-35/door-in-the-forest.webp',
+            alt: 'Door in the forest',
+          },
+          {
+            src: 'art/converted/batch-2026-05-02_21-10-35/dream-of-fae.webp',
+            alt: 'Dream of fae',
+          },
+        ],
+      },
+    ],
+    two: [
+      {
+        kind: 'image',
+        src: 'art/converted/batch-2026-05-02_21-10-35/forest-gnomes.webp',
+        alt: 'Forest gnomes',
+      },
+    ],
+  },
   steps: {
     start: {
       id: 'start',
       type: 'choice',
-      text: 'You find yourself in a moonlit forest.',
+      text: 'You find yourself in a forest.',
       choices: [
         {
-          id: 'q1-cant-see',
-          label: 'I can barely see a thing... how did I get here?',
-          nextStepId: 'memory-gap',
-          effects: {
-            modifiersDelta: {
-              NightElfRace: 1,
-              WoodElfRace: 1,
-              CatfolkRace: 1,
-            },
-          },
+          id: 'q1-click-here-to-continue',
+          label: 'Click here to continue...',
+          nextStepId: 'two',
         },
       ],
     },
-    'memory-gap': {
-      id: 'memory-gap',
+    'two': {
+      id: 'two',
       type: 'choice',
-      text: "I don't even know... who I am.",
+      text: "How did I get here?",
       choices: [
         {
-          id: 'q1-who-am-i',
-          label: 'Wait... I think I remember something...',
-          nextStepId: 'name-input',
-          effects: {
-            modifiersDelta: {
-              RiverKingdomRace: 1,
-              SunbornRace: 1,
-              HighElfRace: 1,
-            },
-          },
+          id: 'q2-i-dont-know',
+          label: 'It\'s like I just woke up... only I don\'t remember a thing.',
+          nextStepId: 'three',
+         
         },
       ],
     },
-    'name-input': {
-      id: 'name-input',
-      type: 'input',
-      text: 'I remember my name is...',
-      field: 'playerName',
-      placeholder: 'Enter your character name',
-      submitLabel: 'Confirm Name',
-      nextStepId: 'name-confirm',
-      minLength: 2,
-      maxLength: 32,
-      worldEventLogAfterSubmit: [
-        'You found yourself in a forest.',
-        '{playerName} remembered his name.',
-        '{playerName} is exploring the forest.',
+    'three': {
+      id: 'three',
+      type: 'choice',
+      text: 'I don\'t even remember my name...',
+      choices: [
+        {
+          id: 'q3-my-name-is-',
+          label: 'Wait... I think I remember something...',
+          nextStepId: 'four',
+        },
       ],
     },
-    'name-confirm': {
-      id: 'name-confirm',
+    'four': {
+      id: 'four',
+      type: 'input',
+      text: 'What is your name?',
+      field: 'playerName',
+      placeholder: 'Enter your name',
+      submitLabel: 'Confirm Name',
+      nextStepId: 'five',
+    },
+    'five': {
+      id: 'five',
       type: 'message',
       text: 'Your name is... {playerName}!',
       completeQuest: true,

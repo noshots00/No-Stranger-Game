@@ -1,13 +1,16 @@
 import type {
   ChoiceEffect,
   DialogueLogEntry,
+  JournalLogEntry,
   ModifierMap,
   QuestChoice,
   QuestContext,
   QuestDefinition,
+  QuestImageRef,
   QuestProgress,
   QuestState,
   QuestStep,
+  QuestVisualBeat,
   WorldEventLogEntry,
 } from './types';
 import {
@@ -33,6 +36,38 @@ const parseTimestampFromDialogueId = (id: string): number | null => {
   return Number(m[1]);
 };
 
+const normalizeQuestImageRef = (raw: unknown): QuestImageRef | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.src !== 'string' || o.src.trim().length === 0) return null;
+  const alt = typeof o.alt === 'string' && o.alt.trim().length > 0 ? o.alt : undefined;
+  return alt !== undefined ? { src: o.src.trim(), alt } : { src: o.src.trim() };
+};
+
+const normalizeVisualBeat = (raw: unknown): QuestVisualBeat | undefined => {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const kind = o.kind;
+  if (kind === 'image') {
+    if (typeof o.src !== 'string' || o.src.trim().length === 0) return undefined;
+    const alt = typeof o.alt === 'string' && o.alt.trim().length > 0 ? o.alt : undefined;
+    return alt !== undefined
+      ? { kind: 'image', src: o.src.trim(), alt }
+      : { kind: 'image', src: o.src.trim() };
+  }
+  if (kind === 'image-row') {
+    if (!Array.isArray(o.images)) return undefined;
+    const images: QuestImageRef[] = [];
+    for (const item of o.images) {
+      const ref = normalizeQuestImageRef(item);
+      if (ref) images.push(ref);
+    }
+    if (images.length === 0) return undefined;
+    return { kind: 'image-row', images };
+  }
+  return undefined;
+};
+
 const normalizeDialogueLog = (entries: unknown): DialogueLogEntry[] => {
   if (!Array.isArray(entries)) return [];
   const now = Date.now();
@@ -51,7 +86,8 @@ const normalizeDialogueLog = (entries: unknown): DialogueLogEntry[] => {
       const parsed = parseTimestampFromDialogueId(id);
       atMs = parsed ?? now + index;
     }
-    return { id, speaker, text, atMs };
+    const visualBeat = normalizeVisualBeat(o.visualBeat);
+    return visualBeat !== undefined ? { id, speaker, text, atMs, visualBeat } : { id, speaker, text, atMs };
   });
 };
 
@@ -92,6 +128,24 @@ const normalizeWorldEventLog = (raw: unknown): WorldEventLogEntry[] => {
   return [];
 };
 
+const normalizeJournalLog = (entries: unknown): JournalLogEntry[] => {
+  if (!Array.isArray(entries)) return [];
+  const now = Date.now();
+  const out: JournalLogEntry[] = [];
+  entries.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') return;
+    const o = entry as Record<string, unknown>;
+    const id = typeof o.id === 'string' ? o.id : `journal-${now}-${index}`;
+    const questId = typeof o.questId === 'string' ? o.questId.trim() : '';
+    const text = typeof o.text === 'string' ? o.text : '';
+    const atMs =
+      typeof o.atMs === 'number' && Number.isFinite(o.atMs) ? o.atMs : now + index;
+    if (!questId || text.trim().length === 0) return;
+    out.push({ id, questId, text, atMs });
+  });
+  return out;
+};
+
 export const createInitialSkills = (): QuestState['skills'] => ({
   explorationXp: 0,
   foragingXp: 0,
@@ -110,6 +164,7 @@ export const createInitialQuestState = (): QuestState => ({
   lastDailyXpDay: 1,
   dialogueLog: [],
   worldEventLog: [],
+  journalLog: [],
   questItems: [],
   assignedRaceSlug: null,
   lockedClassSlug: null,
@@ -136,6 +191,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       : 0;
   const dialogueLog = normalizeDialogueLog(state.dialogueLog);
   const worldEventLog = normalizeWorldEventLog(state.worldEventLog ?? []);
+  const journalLog = normalizeJournalLog((state as { journalLog?: unknown }).journalLog);
   const questItemsRaw = state.questItems;
   const questItems = Array.isArray(questItemsRaw)
     ? questItemsRaw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
@@ -235,6 +291,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     ),
     dialogueLog,
     worldEventLog,
+    journalLog,
     questItems,
     unveiledQuestIds,
     health,

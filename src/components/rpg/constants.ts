@@ -4,8 +4,6 @@ declare const __APP_VERSION__: string;
 /** Same as `UI_VERSION_LABEL` without prefix/suffix — use when storing semver in save data. */
 export const APP_VERSION = __APP_VERSION__;
 
-export const INTRO_DEV_MESSAGE = 'Welcome to No Stranger Game!';
-
 export const SILVER_LAKE_FLAG = 'silver-lake-unlocked';
 export const AIRSHIP_FLAG = 'airship-discovered';
 export const WOLF_ATTACK_DAILY_FLAG = 'wolf-attack-daily-active';
@@ -118,6 +116,8 @@ export const SKILL_MODIFIER_CATEGORY_ORDER: string[] = [
   'general',
 ];
 export const PLAY_DIALOGUE_RECENT_MAX = 120;
+/** Play tab: cap journal recap entries merged into the feed (Chronicle ignores journal). */
+export const PLAY_JOURNAL_RECENT_MAX = 80;
 export const PLAY_WORLD_RECENT_MAX = 40;
 export const DIALOGUE_SCROLL_PIN_EPS = 80;
 /** Shown in the game header; always reflects `package.json` `version` (no second source of truth). */

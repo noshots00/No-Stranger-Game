@@ -1,7 +1,51 @@
-import type { DialogueLogEntry } from './quests/types';
+import type { DialogueLogEntry, QuestVisualBeat } from './quests/types';
+import { publicAsset } from '@/lib/publicAsset';
 import { getQuestImageSrcForTitle } from './rpgArtAssignments';
 import type { DialogueVoice } from './dialogueFormat';
 import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
+
+function resolveQuestAssetUrl(src: string): string {
+  const t = src.trim();
+  if (/^https?:\/\//i.test(t) || t.startsWith('data:')) return t;
+  if (t.startsWith('/')) return publicAsset(t.replace(/^\/+/, ''));
+  const normalized = t.replace(/^\/+/, '');
+  const encoded = normalized
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return publicAsset(encoded);
+}
+
+const QUEST_IMG_ROW_SLOT =
+  'min-h-0 max-h-[11rem] min-w-[28%] max-w-[34%] flex-1 rounded-md border border-[var(--candle-rule)] object-cover';
+
+function QuestVisualBeatView({ beat }: { beat: QuestVisualBeat }) {
+  if (beat.kind === 'image') {
+    return (
+      <div className="flex justify-center py-0.5">
+        <img
+          src={resolveQuestAssetUrl(beat.src)}
+          alt={beat.alt ?? ''}
+          className="mx-auto aspect-[3/4] w-full max-w-[200px] rounded-md border border-[var(--candle-rule)] object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-row flex-wrap justify-center gap-2 py-1">
+      {beat.images.map((img, idx) => (
+        <img
+          key={`${img.src}-${idx}`}
+          src={resolveQuestAssetUrl(img.src)}
+          alt={img.alt ?? ''}
+          className={QUEST_IMG_ROW_SLOT}
+          loading="lazy"
+        />
+      ))}
+    </div>
+  );
+}
 
 const DIALOGUE_NARRATOR_CLASSES =
   'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
@@ -102,6 +146,16 @@ export function DialogueVoiceBlock({
     );
   }
 
+  if (role === 'quest_visual') {
+    return (
+      <div className="space-y-3 py-0.5">
+        {lines.map((line) =>
+          line.visualBeat ? <QuestVisualBeatView key={line.id} beat={line.visualBeat} /> : null
+        )}
+      </div>
+    );
+  }
+
   if (role === 'quest_image') {
     const questTitle = lines[0]?.text ?? '';
     const imageSrc = getQuestImageSrcForTitle(questTitle);
@@ -114,6 +168,32 @@ export function DialogueVoiceBlock({
           className="mx-auto mb-2 aspect-[3/4] w-full max-w-[200px] rounded-md border border-[var(--candle-rule)] object-cover"
           loading="lazy"
         />
+      </div>
+    );
+  }
+
+  if (role === 'journal_recap') {
+    const shell =
+      presentation === 'play'
+        ? 'rounded-md border border-[var(--candle-rule)]/70 bg-black/25 px-3 py-2 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.06)]'
+        : 'rounded-md border border-[var(--candle-rule)]/70 bg-[rgba(0,0,0,0.22)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.06)]';
+    return (
+      <div className="py-0.5">
+        <div className={shell}>
+          <p className="mb-1 font-cormorant text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-[var(--candle-ember)]/90">
+            Journal
+          </p>
+          <div className="space-y-1">
+            {lines.map((line) => (
+              <p
+                key={line.id}
+                className="font-serif text-[0.9375rem] leading-relaxed text-[var(--candle-ink-soft)]"
+              >
+                {line.text}
+              </p>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

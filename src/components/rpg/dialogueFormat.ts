@@ -1,8 +1,17 @@
-import type { DialogueLogEntry, WorldEventLogEntry } from './quests/types';
+import type {
+  DialogueLogEntry,
+  JournalLogEntry,
+  QuestDefinition,
+  QuestVisualBeat,
+  WorldEventLogEntry,
+} from './quests/types';
 
 export const PLAYER_ACTION_SPEAKER = 'PlayerAction';
 export const QUEST_DIVIDER_SPEAKER = 'QuestDivider';
 export const QUEST_IMAGE_SPEAKER = 'QuestImage';
+export const QUEST_VISUAL_SPEAKER = 'QuestVisual';
+/** Play-only recap lines (quest path summaries); omitted from Chronicle merge. */
+export const JOURNAL_RECAP_SPEAKER = 'Journal recap';
 /** Speaker id for end-of-day summary blocks (grouped as `report` voice). */
 export const DAY_REPORT_SPEAKER = 'Day Report';
 
@@ -10,20 +19,20 @@ export const DAY_REPORT_SPEAKER = 'Day Report';
 export const CLASS_LOCK_REPORT_TITLE = 'Path secured';
 export const RACE_LOCK_REPORT_TITLE = 'The lake answers';
 
-/** True when the log already ends with the standard quest opening (image + first narrator line). */
+/** True when the log already ends with the standard quest opening (legacy/portrait or structured visuals + first narrator line). */
 export function dialogueHasQuestOpeningAtEnd(
   log: DialogueLogEntry[],
   questTitle: string,
   openingNarratorText: string
 ): boolean {
   if (log.length < 2) return false;
-  const imageEntry = log[log.length - 2];
   const narratorEntry = log[log.length - 1];
+  if (narratorEntry.speaker !== 'Narrator' || narratorEntry.text !== openingNarratorText) return false;
+  const prev = log[log.length - 2];
+  if (!prev) return false;
   return (
-    imageEntry.speaker === QUEST_IMAGE_SPEAKER &&
-    imageEntry.text === questTitle &&
-    narratorEntry.speaker === 'Narrator' &&
-    narratorEntry.text === openingNarratorText
+    (prev.speaker === QUEST_IMAGE_SPEAKER && prev.text === questTitle) ||
+    (prev.speaker === QUEST_VISUAL_SPEAKER && Boolean(prev.visualBeat))
   );
 }
 
@@ -36,6 +45,29 @@ export const appendDialogue = (speaker: string, text: string): DialogueLogEntry 
     atMs,
   };
 };
+
+export function appendQuestVisualBeat(beat: QuestVisualBeat): DialogueLogEntry {
+  const atMs = Date.now();
+  return {
+    id: `${QUEST_VISUAL_SPEAKER}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
+    speaker: QUEST_VISUAL_SPEAKER,
+    text: '',
+    atMs,
+    visualBeat: beat,
+  };
+}
+
+/** Dialogue lines for art when entering `stepId` (explicit beats, else legacy shuffle portrait on start step only). */
+export function visualDialogueEntriesForQuestStep(quest: QuestDefinition, stepId: string): DialogueLogEntry[] {
+  const beats = quest.stepVisuals?.[stepId];
+  if (beats !== undefined) {
+    return beats.map((beat) => appendQuestVisualBeat(beat));
+  }
+  if (stepId === quest.startStepId) {
+    return [appendDialogue(QUEST_IMAGE_SPEAKER, quest.title)];
+  }
+  return [];
+}
 
 /** Multi-line class lock block (matches daily report grouping). */
 export function buildClassLockDialogueLines(displayClass: string): DialogueLogEntry[] {
@@ -64,7 +96,15 @@ export function buildRaceLockDialogueLines(
   ];
 }
 
-export type DialogueVoice = 'narrator' | 'dev' | 'player' | 'divider' | 'report' | 'quest_image';
+export type DialogueVoice =
+  | 'narrator'
+  | 'dev'
+  | 'player'
+  | 'divider'
+  | 'report'
+  | 'quest_image'
+  | 'quest_visual'
+  | 'journal_recap';
 
 export type DialogueVoiceBlockModel = {
   role: DialogueVoice;
@@ -72,7 +112,14 @@ export type DialogueVoiceBlockModel = {
 };
 
 export type ChronicleMergedRow =
-  | { kind: 'dialogue'; atMs: number; id: string; speaker: string; text: string }
+  | {
+      kind: 'dialogue';
+      atMs: number;
+      id: string;
+      speaker: string;
+      text: string;
+      visualBeat?: QuestVisualBeat;
+    }
   | { kind: 'world'; atMs: number; text: string };
 
 /** Merge dialogue + world rows by `atMs` (chronicle / play feed); tie-break: dialogue before world. */
@@ -86,6 +133,7 @@ export function mergeDialogueAndWorldRows(
     id: line.id,
     speaker: line.speaker,
     text: line.text,
+    visualBeat: line.visualBeat,
   }));
   const worldRows: ChronicleMergedRow[] = worldEntries.map((entry) => ({
     kind: 'world' as const,
@@ -99,6 +147,45 @@ export function mergeDialogueAndWorldRows(
   });
 }
 
+/** Play tab only: full dialogue + world + path recap lines (Chronicle uses `mergeDialogueAndWorldRows` without journal). */
+export function mergePlayFeedRows(
+  dialogueLines: readonly DialogueLogEntry[],
+  worldEntries: readonly WorldEventLogEntry[],
+  journalEntries: readonly JournalLogEntry[]
+): ChronicleMergedRow[] {
+  const dialogueRows: ChronicleMergedRow[] = dialogueLines.map((line) => ({
+    kind: 'dialogue' as const,
+    atMs: line.atMs,
+    id: line.id,
+    speaker: line.speaker,
+    text: line.text,
+    visualBeat: line.visualBeat,
+  }));
+  const journalRows: ChronicleMergedRow[] = journalEntries.map((j) => ({
+    kind: 'dialogue' as const,
+    atMs: j.atMs,
+    id: j.id,
+    speaker: JOURNAL_RECAP_SPEAKER,
+    text: j.text,
+  }));
+  const worldRows: ChronicleMergedRow[] = worldEntries.map((entry) => ({
+    kind: 'world' as const,
+    atMs: entry.atMs,
+    text: entry.text,
+  }));
+
+  const rank = (row: ChronicleMergedRow): number => {
+    if (row.kind === 'world') return 2;
+    if (row.kind === 'dialogue' && row.speaker === JOURNAL_RECAP_SPEAKER) return 1;
+    return 0;
+  };
+
+  return [...dialogueRows, ...journalRows, ...worldRows].sort((a, b) => {
+    if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+    return rank(a) - rank(b);
+  });
+}
+
 export type ChronicleSegment =
   | { type: 'world'; row: Extract<ChronicleMergedRow, { kind: 'world' }> }
   | { type: 'dialogueBlock'; role: DialogueVoice; lines: DialogueLogEntry[] };
@@ -108,6 +195,8 @@ export const dialogueVoiceRole = (speaker: string): DialogueVoice => {
   if (speaker === 'Dev Message') return 'dev';
   if (speaker === QUEST_DIVIDER_SPEAKER) return 'divider';
   if (speaker === QUEST_IMAGE_SPEAKER) return 'quest_image';
+  if (speaker === QUEST_VISUAL_SPEAKER) return 'quest_visual';
+  if (speaker === JOURNAL_RECAP_SPEAKER) return 'journal_recap';
   if (speaker === DAY_REPORT_SPEAKER) return 'report';
   return 'player';
 };
@@ -161,6 +250,7 @@ export const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleS
         speaker: d.speaker,
         text: d.text,
         atMs: d.atMs,
+        visualBeat: d.visualBeat,
       });
       i += 1;
     }

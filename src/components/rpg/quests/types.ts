@@ -1,5 +1,16 @@
 export type ModifierMap = Record<string, number>;
 
+/** Single asset under `public/` (no leading slash), `https` URL, `data:` URL, or `/` root-relative. */
+export type QuestImageRef = {
+  src: string;
+  alt?: string;
+};
+
+/** Structured layout beats appended to the dialogue log before step narration. */
+export type QuestVisualBeat =
+  | { kind: 'image'; src: string; alt?: string }
+  | { kind: 'image-row'; images: QuestImageRef[] };
+
 export type ChoiceEffect = {
   modifiersDelta?: ModifierMap;
   flagsSet?: string[];
@@ -73,6 +84,20 @@ export type QuestDefinition = {
   isAvailable: (context: QuestContext) => boolean;
   /** When set, the quest completes once all listed flags are present after a choice (union with `completeQuest`). */
   completionRequiresAllFlags?: string[];
+  /**
+   * Visual beats when entering a step (before that step’s narrator line).
+   * Omitted step ids: no extra art (except `startStepId`, which keeps legacy shuffle portrait when omitted).
+   * Set `startStepId` to `[]` to suppress the legacy portrait on quest open.
+   */
+  stepVisuals?: Partial<Record<string, QuestVisualBeat[]>>;
+  /**
+   * Play-tab recap lines when this quest completes (Chronicle still shows full `dialogueLog`).
+   * Keys: choice ids joined with `|` in order (see `QUEST_JOURNAL_PATH_SEP` in `journalSummary.ts`).
+   * Optional key `*` matches any path after exact keys fail. `{playerName}` supported.
+   */
+  journalSummariesByChoicePath?: Record<string, string>;
+  /** When no path key matches (and no `*` entry), use this recap if set. */
+  journalSummaryFallback?: string;
 };
 
 export type QuestContext = {
@@ -105,9 +130,18 @@ export type DialogueLogEntry = {
   text: string;
   /** Wall-clock time when the line was created (for chronicle merge / sort). */
   atMs: number;
+  visualBeat?: QuestVisualBeat;
 };
 
 export type WorldEventLogEntry = {
+  text: string;
+  atMs: number;
+};
+
+/** Short recap on quest completion; shown on Play only (not Chronicle). */
+export type JournalLogEntry = {
+  id: string;
+  questId: string;
   text: string;
   atMs: number;
 };
@@ -130,6 +164,8 @@ export type QuestState = {
   dialogueLog: DialogueLogEntry[];
   /** World chronicle lines; persisted with quest checkpoints. */
   worldEventLog: WorldEventLogEntry[];
+  /** Play-tab story recap only (path summaries); Chronicle uses `dialogueLog` for full scenes. */
+  journalLog: JournalLogEntry[];
   /** Quest reward item labels for the character sheet. */
   questItems: string[];
   /** Canonical race slug after reflection quest (permanent); null until assigned. */
