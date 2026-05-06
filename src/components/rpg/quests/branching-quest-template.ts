@@ -114,6 +114,7 @@ export function createBranchingQuest(options: BranchingQuestOptions): QuestDefin
     createdAt: options.createdAt,
     startStepId: options.startStepId,
     isAvailable: makeQuestAvailability(options.availability),
+    journalSummaryFallback: options.title,
     steps,
     ...(options.completionRequiresAllFlags ? { completionRequiresAllFlags: options.completionRequiresAllFlags } : {}),
   };

@@ -10,6 +10,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
   isAvailable: (context) =>
     (context.completedQuestIds.includes('quest-001-origin') || context.flags.includes('quest001-complete')) &&
     context.currentDay >= 3,
+  journalSummaryFallback: 'Abandoned Shelter',
   steps: {
     'shelter-intro': {
       id: 'shelter-intro',

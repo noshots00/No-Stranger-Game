@@ -7,10 +7,7 @@ export const quest001Origin: QuestDefinition = {
   createdAt: 1,
   startStepId: 'start',
   isAvailable: () => true,
-  journalSummariesByChoicePath: {
-    'q1-click-here-to-continue|q2-i-dont-know|q3-my-name-is-':
-      'You found yourself in a forest with no memory of how you got there. You remembered your name is {playerName}.',
-  },
+  journalSummaryFallback: 'The Forest',
   stepVisuals: {
     start: [
       {

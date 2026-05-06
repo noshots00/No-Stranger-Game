@@ -7,6 +7,7 @@ export const quest002BoarAmbush: QuestDefinition = {
   createdAt: 2,
   startStepId: 'boar-attack',
   isAvailable: (context) => context.explorationLevel >= 2 && context.currentDay >= 2,
+  journalSummaryFallback: 'Boar in the Brush',
   steps: {
     'boar-attack': {
       id: 'boar-attack',
