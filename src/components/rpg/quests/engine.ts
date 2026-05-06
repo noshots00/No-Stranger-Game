@@ -68,27 +68,38 @@ const normalizeVisualBeat = (raw: unknown): QuestVisualBeat | undefined => {
   return undefined;
 };
 
+/** Removed from UI; older checkpoints still carry this as `Dev Message` after origin quest name submit. */
+const LEGACY_ORIGIN_COMPLETION_DEV_WELCOME = 'Welcome to No Stranger Game!';
+
 const normalizeDialogueLog = (entries: unknown): DialogueLogEntry[] => {
   if (!Array.isArray(entries)) return [];
   const now = Date.now();
-  return entries.map((entry, index) => {
-    if (!entry || typeof entry !== 'object') {
-      return { id: `unknown-${now}-${index}`, speaker: 'Narrator', text: '', atMs: now + index };
-    }
-    const o = entry as Record<string, unknown>;
-    const id = typeof o.id === 'string' ? o.id : `line-${now}-${index}`;
-    const speaker = typeof o.speaker === 'string' ? o.speaker : 'Narrator';
-    const text = typeof o.text === 'string' ? o.text : '';
-    let atMs: number;
-    if (typeof o.atMs === 'number' && Number.isFinite(o.atMs)) {
-      atMs = o.atMs;
-    } else {
-      const parsed = parseTimestampFromDialogueId(id);
-      atMs = parsed ?? now + index;
-    }
-    const visualBeat = normalizeVisualBeat(o.visualBeat);
-    return visualBeat !== undefined ? { id, speaker, text, atMs, visualBeat } : { id, speaker, text, atMs };
-  });
+  return entries
+    .map((entry, index) => {
+      if (!entry || typeof entry !== 'object') {
+        return { id: `unknown-${now}-${index}`, speaker: 'Narrator', text: '', atMs: now + index };
+      }
+      const o = entry as Record<string, unknown>;
+      const id = typeof o.id === 'string' ? o.id : `line-${now}-${index}`;
+      const speaker = typeof o.speaker === 'string' ? o.speaker : 'Narrator';
+      const text = typeof o.text === 'string' ? o.text : '';
+      let atMs: number;
+      if (typeof o.atMs === 'number' && Number.isFinite(o.atMs)) {
+        atMs = o.atMs;
+      } else {
+        const parsed = parseTimestampFromDialogueId(id);
+        atMs = parsed ?? now + index;
+      }
+      const visualBeat = normalizeVisualBeat(o.visualBeat);
+      return visualBeat !== undefined ? { id, speaker, text, atMs, visualBeat } : { id, speaker, text, atMs };
+    })
+    .filter(
+      (line) =>
+        !(
+          line.speaker === 'Dev Message' &&
+          line.text.trim() === LEGACY_ORIGIN_COMPLETION_DEV_WELCOME
+        )
+    );
 };
 
 const normalizeWorldEventLog = (raw: unknown): WorldEventLogEntry[] => {
