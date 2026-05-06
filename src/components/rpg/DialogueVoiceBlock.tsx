@@ -173,27 +173,17 @@ export function DialogueVoiceBlock({
   }
 
   if (role === 'journal_recap') {
-    const shell =
+    const bodyClass =
       presentation === 'play'
-        ? 'rounded-md border border-[var(--candle-rule)]/70 bg-black/25 px-3 py-2 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.06)]'
-        : 'rounded-md border border-[var(--candle-rule)]/70 bg-[rgba(0,0,0,0.22)] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.06)]';
+        ? 'font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]'
+        : 'font-serif text-[0.9375rem] leading-relaxed text-[var(--candle-ink-soft)]';
     return (
-      <div className="py-0.5">
-        <div className={shell}>
-          <p className="mb-1 font-cormorant text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-[var(--candle-ember)]/90">
-            Journal
+      <div className="space-y-1 py-0.5">
+        {lines.map((line) => (
+          <p key={line.id} className={bodyClass}>
+            {line.text}
           </p>
-          <div className="space-y-1">
-            {lines.map((line) => (
-              <p
-                key={line.id}
-                className="font-serif text-[0.9375rem] leading-relaxed text-[var(--candle-ink-soft)]"
-              >
-                {line.text}
-              </p>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
     );
   }

@@ -1,27 +1,33 @@
-import type { QuestDefinition } from '../quests/types';
+import type { JournalLogEntry, QuestDefinition } from '../quests/types';
+import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
+
+function latestJournalEntry(questId: string, journalLog: readonly JournalLogEntry[]): JournalLogEntry | undefined {
+  let best: JournalLogEntry | undefined;
+  for (const e of journalLog) {
+    if (e.questId !== questId) continue;
+    if (!best || e.atMs >= best.atMs) best = e;
+  }
+  return best;
+}
 
 type QuestsTabProps = {
   visibleQuests: QuestDefinition[];
   completedQuestIds: string[];
-  /** Quest currently running on Play — hides Start / Track for that row. */
+  /** Latest recap/rewards come from full journal (may extend beyond Play timeline slice). */
+  journalLog: readonly JournalLogEntry[];
+  /** Hide Start while this quest is the active Play scene. */
   activeQuestId?: string | null;
-  expandedQuestId: string | null;
-  onExpandQuest: (id: string | null) => void;
   onTrackQuest: (questId: string) => void;
-  /** Primary nav uses “Track quest”; journal / Chronicle may prefer “Start quest”. */
   trackButtonLabel?: string;
-  /** When false, omit the “Quests” kicker (Play embed is headerless). */
   showSectionKicker?: boolean;
-  /** When false, omit the completed-quests block (Quest nav tab only). */
   showCompletedSection?: boolean;
 };
 
 export function QuestsTab({
   visibleQuests,
   completedQuestIds,
+  journalLog,
   activeQuestId = null,
-  expandedQuestId,
-  onExpandQuest,
   onTrackQuest,
   trackButtonLabel = 'Track quest',
   showSectionKicker = true,
@@ -30,63 +36,53 @@ export function QuestsTab({
   const activeQuests = visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id));
   const completedQuests = visibleQuests.filter((quest) => completedQuestIds.includes(quest.id));
 
-  const renderQuestRow = (quest: QuestDefinition, compact = false) => {
-    const isExpanded = expandedQuestId === quest.id;
-    const isCompleted = completedQuestIds.includes(quest.id);
+  const renderActiveQuestRow = (quest: QuestDefinition) => {
     const isActiveHere = activeQuestId !== null && activeQuestId === quest.id;
-
     return (
-      <li
-        key={quest.id}
-        className={compact ? 'py-0.5 text-right' : 'py-1'}
-      >
-        <button
-          type="button"
-          onClick={() => onExpandQuest(isExpanded ? null : quest.id)}
-          className={
-            compact
-              ? `choice-line !py-1 !text-xs !leading-snug !text-right ${isCompleted ? 'line-through opacity-65' : ''}`
-              : `choice-line ${isCompleted ? 'line-through opacity-70' : ''}`
-          }
+      <li key={quest.id}>
+        <PlayLedgerDisclosure
+          summary={<PlayLedgerKicker label="Quest" title={quest.title} />}
         >
-          {quest.title}
-        </button>
-        {isExpanded ? (
-          <div
-            className={`space-y-2 pb-3 pt-1 ${compact ? 'pl-0 text-right' : 'pl-0'}`}
-          >
-            <p
-              className={`font-serif leading-snug text-[var(--candle-ink-soft)] ${compact ? 'text-[0.6875rem]' : 'text-sm leading-relaxed'}`}
+          <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
+          {!isActiveHere ? (
+            <button
+              type="button"
+              onClick={() => onTrackQuest(quest.id)}
+              className="choice-line inline-block py-2 text-[var(--candle-wax)]"
             >
-              {quest.briefing}
-            </p>
-            {isCompleted ? (
-              <button
-                type="button"
-                disabled
-                className={
-                  compact
-                    ? 'choice-line !inline-block !w-auto !py-1 !text-xs text-[var(--candle-wax)] disabled:opacity-50'
-                    : 'choice-line inline-block py-2 text-[var(--candle-wax)] disabled:opacity-50'
-                }
-              >
-                Completed
-              </button>
-            ) : isActiveHere ? null : (
-              <button
-                type="button"
-                onClick={() => onTrackQuest(quest.id)}
-                className={
-                  compact
-                    ? 'choice-line !inline-block !w-auto !py-1 !text-xs text-[var(--candle-wax)] disabled:opacity-50'
-                    : 'choice-line inline-block py-2 text-[var(--candle-wax)] disabled:opacity-50'
-                }
-              >
-                {trackButtonLabel}
-              </button>
-            )}
-          </div>
-        ) : null}
+              {trackButtonLabel}
+            </button>
+          ) : null}
+        </PlayLedgerDisclosure>
+      </li>
+    );
+  };
+
+  const renderCompletedQuestRow = (quest: QuestDefinition) => {
+    const journalEntry = latestJournalEntry(quest.id, journalLog);
+    return (
+      <li key={quest.id}>
+        <PlayLedgerDisclosure
+          summary={<PlayLedgerKicker label="Completed" title={quest.title} mutedTitle />}
+        >
+          {journalEntry ? (
+            <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{journalEntry.text}</p>
+          ) : (
+            <p className="font-serif text-sm italic text-[var(--candle-ink-faint)]">No journal summary recorded.</p>
+          )}
+          {journalEntry?.completionRewards && journalEntry.completionRewards.length > 0 ? (
+            <>
+              <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+                Rewards
+              </p>
+              <ul className="list-disc space-y-1 pl-4 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+                {journalEntry.completionRewards.map((line, i) => (
+                  <li key={`${journalEntry.id}-rw-${i}`}>{line}</li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </PlayLedgerDisclosure>
       </li>
     );
   };
@@ -94,15 +90,13 @@ export function QuestsTab({
   return (
     <section className={showSectionKicker ? 'space-y-6 pb-4' : 'space-y-3 pb-0'}>
       {showSectionKicker ? <p className="facsimile-kicker">Quests</p> : null}
-      <ul className="space-y-0 divide-y divide-[var(--candle-rule)]">{activeQuests.map((quest) => renderQuestRow(quest))}</ul>
+      <ul className="space-y-0">{activeQuests.map((quest) => renderActiveQuestRow(quest))}</ul>
       {showCompletedSection && completedQuests.length > 0 ? (
-        <div className="ml-auto max-w-[min(100%,20rem)] space-y-1 border-t border-[var(--candle-rule)]/80 pt-2">
-          <p className="text-right font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+        <div className="space-y-1 border-t border-[var(--candle-rule)]/80 pt-2">
+          <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
             Completed quests
           </p>
-          <ul className="space-y-0 divide-y divide-[var(--candle-rule)]/70 text-right">
-            {completedQuests.map((quest) => renderQuestRow(quest, true))}
-          </ul>
+          <ul className="space-y-0">{completedQuests.map((quest) => renderCompletedQuestRow(quest))}</ul>
         </div>
       ) : null}
     </section>

@@ -115,7 +115,6 @@ export function RPGInterface() {
   const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries();
 
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
-  const [expandedQuestId, setExpandedQuestId] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
@@ -189,12 +188,6 @@ export function RPGInterface() {
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
   );
-  const newestPendingQuestId = useMemo(() => {
-    const pending = visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id));
-    if (pending.length === 0) return null;
-    return [...pending].sort((a, b) => b.createdAt - a.createdAt)[0].id;
-  }, [visibleQuests, completedQuestIds]);
-
   const chronicleDateTimeFmt = useMemo(
     () => new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }),
     []
@@ -215,9 +208,17 @@ export function RPGInterface() {
     [questState.journalLog]
   );
   const playFeedSegments = useMemo(
-    () => groupChronicleRows(mergePlayFeedRows(playDialogueLines, playWorldLines, playJournalLines)),
-    [playDialogueLines, playWorldLines, playJournalLines]
+    () => groupChronicleRows(mergePlayFeedRows(playDialogueLines, playWorldLines, [])),
+    [playDialogueLines, playWorldLines]
   );
+
+  const questTitleById = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const q of allQuests) {
+      m[q.id] = q.title;
+    }
+    return m;
+  }, []);
 
   /** Drives bottom-stick retries after journal/composer layout shifts (expand quest, new lines). */
   const playScrollStickRevision = useMemo(
@@ -226,19 +227,19 @@ export function RPGInterface() {
         playDialogueLines.length,
         questState.worldEventLog.length,
         questState.journalLog.length,
-        expandedQuestId ?? '',
         visibleQuests.length,
         activeQuest?.id ?? '',
         playFeedSegments.length,
+        playJournalLines.length,
       ].join('|'),
     [
       playDialogueLines.length,
       questState.worldEventLog.length,
       questState.journalLog.length,
-      expandedQuestId,
       visibleQuests.length,
       activeQuest?.id,
       playFeedSegments.length,
+      playJournalLines.length,
     ]
   );
   const characterNameLabel = useMemo(() => {
@@ -512,10 +513,6 @@ export function RPGInterface() {
     setQuestState,
     showEarlyDevResetGate,
   ]);
-
-  useEffect(() => {
-    setExpandedQuestId(newestPendingQuestId);
-  }, [newestPendingQuestId]);
 
   useEffect(() => {
     if (!canShowGame) return;
@@ -827,10 +824,11 @@ export function RPGInterface() {
         return (
           <PlayTab
             playFeedSegments={playFeedSegments}
+            playJournalLines={playJournalLines}
+            journalLog={questState.journalLog}
+            questTitleById={questTitleById}
             visibleQuests={visibleQuests}
             completedQuestIds={completedQuestIds}
-            expandedQuestId={expandedQuestId}
-            onExpandQuest={setExpandedQuestId}
             onTrackQuest={handleTrackQuest}
             activeQuest={activeQuest ?? null}
             activeStep={activeStep ?? null}

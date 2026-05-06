@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   DialogueVoiceBlock,
   DIALOGUE_DEV_MESSAGE_CLASSES,
@@ -6,15 +6,21 @@ import {
   PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
 } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
-import type { QuestDefinition, QuestStep } from '../quests/types';
+import type { JournalLogEntry, QuestDefinition, QuestStep } from '../quests/types';
+import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
 import { QuestsTab } from './QuestsTab';
+
+type PlayLedgerTimelineRow =
+  | { kind: 'story'; segment: ChronicleSegment; sortMs: number }
+  | { kind: 'journal'; entry: JournalLogEntry; sortMs: number };
 
 type PlayTabProps = {
   playFeedSegments: ChronicleSegment[];
+  playJournalLines: readonly JournalLogEntry[];
+  journalLog: readonly JournalLogEntry[];
+  questTitleById: Record<string, string>;
   visibleQuests: QuestDefinition[];
   completedQuestIds: string[];
-  expandedQuestId: string | null;
-  onExpandQuest: (id: string | null) => void;
   onTrackQuest: (questId: string) => void;
   activeQuest: QuestDefinition | null;
   activeStep: QuestStep | null;
@@ -36,10 +42,11 @@ const CHOICE_FADE_MS = 1200;
 
 export function PlayTab({
   playFeedSegments,
+  playJournalLines,
+  journalLog,
+  questTitleById,
   visibleQuests,
   completedQuestIds,
-  expandedQuestId,
-  onExpandQuest,
   onTrackQuest,
   activeQuest,
   activeStep,
@@ -58,6 +65,20 @@ export function PlayTab({
   const playerFlagSet = new Set(playerFlags);
   const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
   const choiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
+    const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
+    let seq = 0;
+    for (const segment of playFeedSegments) {
+      const sortMs = segment.type === 'world' ? segment.row.atMs : segment.lines[0]?.atMs ?? 0;
+      rows.push({ kind: 'story', segment, sortMs, seq: seq++ });
+    }
+    for (const entry of playJournalLines) {
+      rows.push({ kind: 'journal', entry, sortMs: entry.atMs, seq: seq++ });
+    }
+    rows.sort((a, b) => (a.sortMs !== b.sortMs ? a.sortMs - b.sortMs : a.seq - b.seq));
+    return rows.map(({ seq: _seq, ...row }) => row);
+  }, [playFeedSegments, playJournalLines]);
 
   useEffect(() => {
     return () => {
@@ -92,25 +113,50 @@ export function PlayTab({
         className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0"
       >
         <div className="facsimile-scroll-dialogue-inner space-y-2">
-          {playFeedSegments.map((segment, segIndex) => {
-            if (segment.type === 'world') {
-              const row = segment.row;
+          {playLedgerRows.map((row, idx) => {
+            if (row.kind === 'story') {
+              const segment = row.segment;
+              if (segment.type === 'world') {
+                const wr = segment.row;
+                return (
+                  <p
+                    key={`world-${wr.atMs}-${idx}-${wr.text.slice(0, 24)}`}
+                    className="dialogue-line-reveal py-0.5 font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
+                  >
+                    {wr.text}
+                  </p>
+                );
+              }
+              const first = segment.lines[0];
               return (
-                <p
-                  key={`world-${row.atMs}-${segIndex}-${row.text.slice(0, 24)}`}
-                  className="dialogue-line-reveal py-0.5 font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
+                <div
+                  key={`${segment.role}-${first?.id ?? `b-${idx}`}`}
+                  className="dialogue-line-reveal py-0.5"
                 >
-                  {row.text}
-                </p>
+                  <DialogueVoiceBlock presentation="play" role={segment.role} lines={segment.lines} />
+                </div>
               );
             }
-            const first = segment.lines[0];
+
+            const je = row.entry;
+            const title = questTitleById[je.questId] ?? 'Quest';
             return (
-              <div
-                key={`${segment.role}-${first?.id ?? `b-${segIndex}`}`}
-                className="dialogue-line-reveal py-0.5"
-              >
-                <DialogueVoiceBlock presentation="play" role={segment.role} lines={segment.lines} />
+              <div key={je.id} className="dialogue-line-reveal py-0.5">
+                <PlayLedgerDisclosure summary={<PlayLedgerKicker label="Journal" title={title} />}>
+                  <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{je.text}</p>
+                  {je.completionRewards && je.completionRewards.length > 0 ? (
+                    <>
+                      <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+                        Rewards
+                      </p>
+                      <ul className="list-disc space-y-1 pl-4 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+                        {je.completionRewards.map((line, i) => (
+                          <li key={`${je.id}-rw-${i}`}>{line}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </PlayLedgerDisclosure>
               </div>
             );
           })}
@@ -118,9 +164,8 @@ export function PlayTab({
             <QuestsTab
               visibleQuests={visibleQuests}
               completedQuestIds={completedQuestIds}
+              journalLog={journalLog}
               activeQuestId={activeQuest?.id ?? null}
-              expandedQuestId={expandedQuestId}
-              onExpandQuest={onExpandQuest}
               onTrackQuest={onTrackQuest}
               trackButtonLabel="Start quest"
               showSectionKicker={false}
