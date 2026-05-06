@@ -1,7 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { QuestState, DialogueLogEntry } from './quests/types';
-import { getPlayerVisibleQuests, getQuestContext, getSkillLevelUpLines } from './quests/engine';
-import { allQuests } from './quests/registry';
+import { getSkillLevelUpLines } from './quests/engine';
 import { appendDialogue, DAY_REPORT_SPEAKER } from './dialogueFormat';
 import { parseQuestCheckpointPayload } from './gameProfile';
 import {
@@ -351,8 +350,7 @@ export const getLevelUpLines = (prevState: QuestState, nextState: QuestState): s
 export function buildDayReportDialogueLines(
   prevDayNumber: number,
   prevState: QuestState,
-  nextState: QuestState,
-  currentDay: number
+  nextState: QuestState
 ): DialogueLogEntry[] {
   const lines: DialogueLogEntry[] = [
     appendDialogue(DAY_REPORT_SPEAKER, `Day ${prevDayNumber} Report`),
@@ -369,22 +367,6 @@ export function buildDayReportDialogueLines(
 
   for (const text of getLevelUpLines(prevState, nextState)) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
-  }
-
-  const prevVisibleIds = new Set(
-    getPlayerVisibleQuests(
-      allQuests,
-      getQuestContext(prevState, prevDayNumber),
-      prevState.unveiledQuestIds
-    ).map((q) => q.id)
-  );
-  const newlyVisible = getPlayerVisibleQuests(
-    allQuests,
-    getQuestContext(nextState, currentDay),
-    nextState.unveiledQuestIds
-  ).filter((q) => !prevVisibleIds.has(q.id));
-  for (const quest of newlyVisible) {
-    lines.push(appendDialogue(DAY_REPORT_SPEAKER, `A new quest awaits: ${quest.title}.`));
   }
 
   return lines;

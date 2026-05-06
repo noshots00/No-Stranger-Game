@@ -502,7 +502,7 @@ export function RPGInterface() {
     const dayLine = `Day ${dayCounter} began.`;
     updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
 
-    const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState, dayCounter);
+    const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState);
     updatedState.dialogueLog = [...updatedState.dialogueLog, ...reportLines];
 
     setQuestState(updatedState);
