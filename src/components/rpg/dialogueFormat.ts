@@ -36,17 +36,27 @@ export function dialogueHasQuestOpeningAtEnd(
   );
 }
 
-export const appendDialogue = (speaker: string, text: string): DialogueLogEntry => {
+export type AppendDialogueOpts = {
+  /** Set while advancing `activeQuestId` so Play can hide this block once the quest completes. */
+  sourceQuestId?: string;
+};
+
+export const appendDialogue = (
+  speaker: string,
+  text: string,
+  opts?: AppendDialogueOpts
+): DialogueLogEntry => {
   const atMs = Date.now();
   return {
     id: `${speaker}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
     speaker,
     text,
     atMs,
+    ...(opts?.sourceQuestId !== undefined ? { sourceQuestId: opts.sourceQuestId } : {}),
   };
 };
 
-export function appendQuestVisualBeat(beat: QuestVisualBeat): DialogueLogEntry {
+export function appendQuestVisualBeat(beat: QuestVisualBeat, opts?: AppendDialogueOpts): DialogueLogEntry {
   const atMs = Date.now();
   return {
     id: `${QUEST_VISUAL_SPEAKER}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
@@ -54,17 +64,27 @@ export function appendQuestVisualBeat(beat: QuestVisualBeat): DialogueLogEntry {
     text: '',
     atMs,
     visualBeat: beat,
+    ...(opts?.sourceQuestId !== undefined ? { sourceQuestId: opts.sourceQuestId } : {}),
   };
+}
+
+/** Attach `sourceQuestId` to lines authored elsewhere (e.g. class-lock templates). */
+export function tagDialogueSourceQuest(
+  entries: readonly DialogueLogEntry[],
+  sourceQuestId: string
+): DialogueLogEntry[] {
+  return entries.map((e) => ({ ...e, sourceQuestId }));
 }
 
 /** Dialogue lines for art when entering `stepId` (explicit beats, else legacy shuffle portrait on start step only). */
 export function visualDialogueEntriesForQuestStep(quest: QuestDefinition, stepId: string): DialogueLogEntry[] {
+  const qOpts = { sourceQuestId: quest.id };
   const beats = quest.stepVisuals?.[stepId];
   if (beats !== undefined) {
-    return beats.map((beat) => appendQuestVisualBeat(beat));
+    return beats.map((beat) => appendQuestVisualBeat(beat, qOpts));
   }
   if (stepId === quest.startStepId) {
-    return [appendDialogue(QUEST_IMAGE_SPEAKER, quest.title)];
+    return [appendDialogue(QUEST_IMAGE_SPEAKER, quest.title, qOpts)];
   }
   return [];
 }
@@ -119,6 +139,7 @@ export type ChronicleMergedRow =
       speaker: string;
       text: string;
       visualBeat?: QuestVisualBeat;
+      sourceQuestId?: string;
     }
   | { kind: 'world'; atMs: number; text: string };
 
@@ -134,6 +155,7 @@ export function mergeDialogueAndWorldRows(
     speaker: line.speaker,
     text: line.text,
     visualBeat: line.visualBeat,
+    ...(line.sourceQuestId !== undefined ? { sourceQuestId: line.sourceQuestId } : {}),
   }));
   const worldRows: ChronicleMergedRow[] = worldEntries.map((entry) => ({
     kind: 'world' as const,
@@ -160,6 +182,7 @@ export function mergePlayFeedRows(
     speaker: line.speaker,
     text: line.text,
     visualBeat: line.visualBeat,
+    ...(line.sourceQuestId !== undefined ? { sourceQuestId: line.sourceQuestId } : {}),
   }));
   const journalRows: ChronicleMergedRow[] = journalEntries.map((j) => ({
     kind: 'dialogue' as const,
@@ -251,6 +274,7 @@ export const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleS
         text: d.text,
         atMs: d.atMs,
         visualBeat: d.visualBeat,
+        ...(d.sourceQuestId !== undefined ? { sourceQuestId: d.sourceQuestId } : {}),
       });
       i += 1;
     }

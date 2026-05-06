@@ -204,10 +204,13 @@ export function RPGInterface() {
     () => new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }),
     []
   );
-  const playDialogueLines = useMemo(
-    () => questState.dialogueLog.slice(-PLAY_DIALOGUE_RECENT_MAX),
-    [questState.dialogueLog]
-  );
+  const playDialogueLines = useMemo(() => {
+    const completed = new Set(completedQuestIds);
+    const filtered = questState.dialogueLog.filter(
+      (line) => !(line.sourceQuestId && completed.has(line.sourceQuestId))
+    );
+    return filtered.slice(-PLAY_DIALOGUE_RECENT_MAX);
+  }, [questState.dialogueLog, completedQuestIds]);
   const playWorldLines = useMemo(
     () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
     [questState.worldEventLog]
@@ -225,7 +228,7 @@ export function RPGInterface() {
   const playScrollStickRevision = useMemo(
     () =>
       [
-        questState.dialogueLog.length,
+        playDialogueLines.length,
         questState.worldEventLog.length,
         questState.journalLog.length,
         expandedQuestId ?? '',
@@ -234,7 +237,7 @@ export function RPGInterface() {
         playFeedSegments.length,
       ].join('|'),
     [
-      questState.dialogueLog.length,
+      playDialogueLines.length,
       questState.worldEventLog.length,
       questState.journalLog.length,
       expandedQuestId,
@@ -536,7 +539,7 @@ export function RPGInterface() {
         ...started,
         dialogueLog: [
           ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
-          appendDialogue('Narrator', openingText),
+          appendDialogue('Narrator', openingText, { sourceQuestId: quest.id }),
         ],
       };
     });
@@ -583,7 +586,7 @@ export function RPGInterface() {
         dialogueLog: [
           ...started.dialogueLog,
           ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
-          appendDialogue('Narrator', openingText),
+          appendDialogue('Narrator', openingText, { sourceQuestId: quest.id }),
         ],
       };
     });
@@ -601,27 +604,34 @@ export function RPGInterface() {
 
       const nextState = applyChoice(prev, activeQuest, choiceId);
       const nextStep = getCurrentStep(nextState, activeQuest);
+      const qid = activeQuest.id;
+      const qOpts = { sourceQuestId: qid };
       const nextLog = [
         ...nextState.dialogueLog,
         appendDialogue(
           PLAYER_ACTION_SPEAKER,
-          formatPlayerChoiceDialogueLine(prev.playerName, selectedChoice.label)
+          formatPlayerChoiceDialogueLine(prev.playerName, selectedChoice.label),
+          qOpts
         ),
         ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
       ];
 
       if (nextStep.type === 'message') {
-        nextLog.push(appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)));
+        nextLog.push(
+          appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName), qOpts)
+        );
       } else if (
         nextStep.type !== 'input' &&
         !nextState.progressByQuestId[activeQuest.id]?.isCompleted
       ) {
-        nextLog.push(appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName)));
+        nextLog.push(
+          appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName), qOpts)
+        );
       }
       const wasCompleted = Boolean(prev.progressByQuestId[activeQuest.id]?.isCompleted);
       const isCompleted = Boolean(nextState.progressByQuestId[activeQuest.id]?.isCompleted);
       if (!wasCompleted && isCompleted) {
-        nextLog.push(appendDialogue(QUEST_DIVIDER_SPEAKER, ''));
+        nextLog.push(appendDialogue(QUEST_DIVIDER_SPEAKER, '', qOpts));
       }
 
       const rewardLines = getRewardLines(prev.modifiers, nextState.modifiers);
@@ -674,7 +684,9 @@ export function RPGInterface() {
         dialogueLog: [
           ...nextState.dialogueLog,
           ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
-          appendDialogue('You', interpolateStepText(nextStep.text, nextState.playerName)),
+          appendDialogue('You', interpolateStepText(nextStep.text, nextState.playerName), {
+            sourceQuestId: activeQuest.id,
+          }),
         ],
       };
       const withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
@@ -713,7 +725,9 @@ export function RPGInterface() {
       dialogueLog: [
         ...nextState.dialogueLog,
         ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
-        appendDialogue('You', interpolateStepText(nextStep.text, nextState.playerName)),
+        appendDialogue('You', interpolateStepText(nextStep.text, nextState.playerName), {
+          sourceQuestId: activeQuest.id,
+        }),
       ],
     };
     const withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
@@ -749,7 +763,7 @@ export function RPGInterface() {
         dialogueLog: [
           ...started.dialogueLog,
           ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
-          appendDialogue('Narrator', openingText),
+          appendDialogue('Narrator', openingText, { sourceQuestId: quest.id }),
         ],
       };
     });

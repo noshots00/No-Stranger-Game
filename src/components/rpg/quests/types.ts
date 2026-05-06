@@ -131,6 +131,11 @@ export type DialogueLogEntry = {
   /** Wall-clock time when the line was created (for chronicle merge / sort). */
   atMs: number;
   visualBeat?: QuestVisualBeat;
+  /**
+   * Quest whose UI produced this line. Play omits completed `sourceQuestId` dialogue so path summaries stay tidy;
+   * Chronicle still uses full `dialogueLog`.
+   */
+  sourceQuestId?: string;
 };
 
 export type WorldEventLogEntry = {

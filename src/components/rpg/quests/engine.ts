@@ -25,7 +25,11 @@ import {
   pickDominantLockedSlug,
   stripNonLockedClassModifiers,
 } from '../classArchetype';
-import { buildClassLockDialogueLines, buildRaceLockDialogueLines } from '../dialogueFormat';
+import {
+  buildClassLockDialogueLines,
+  buildRaceLockDialogueLines,
+  tagDialogueSourceQuest,
+} from '../dialogueFormat';
 import { CLASS_ARCHETYPE_SLUGS } from '../constants';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
@@ -90,8 +94,13 @@ const normalizeDialogueLog = (entries: unknown): DialogueLogEntry[] => {
         const parsed = parseTimestampFromDialogueId(id);
         atMs = parsed ?? now + index;
       }
+      const rawSq = o.sourceQuestId;
+      const sourceQuestId =
+        typeof rawSq === 'string' && rawSq.trim().length > 0 ? rawSq.trim() : undefined;
       const visualBeat = normalizeVisualBeat(o.visualBeat);
-      return visualBeat !== undefined ? { id, speaker, text, atMs, visualBeat } : { id, speaker, text, atMs };
+      const base =
+        visualBeat !== undefined ? { id, speaker, text, atMs, visualBeat } : { id, speaker, text, atMs };
+      return sourceQuestId !== undefined ? { ...base, sourceQuestId } : base;
     })
     .filter(
       (line) =>
@@ -588,7 +597,7 @@ const moveToStep = (
       lockedClassSlug = candidate;
       modifiers = stripNonLockedClassModifiers(modifiers, candidate);
       const displayClass = displayLabelForClassSlug(candidate);
-      classLockDialogue.push(...buildClassLockDialogueLines(displayClass));
+      classLockDialogue.push(...tagDialogueSourceQuest(buildClassLockDialogueLines(displayClass), quest.id));
       const nm = state.playerName.trim() || 'Stranger';
       worldExtra.push(`${nm} is a ${displayClass}!`);
     }
@@ -625,7 +634,7 @@ const moveToStep = (
     if (slug) {
       const race = getRaceDefinition(slug);
       if (race) {
-        nextState = applyRaceLockEffects(nextState, race);
+        nextState = applyRaceLockEffects(nextState, race, quest.id);
       } else {
         nextState = { ...nextState, assignedRaceSlug: slug };
       }
@@ -642,7 +651,11 @@ const moveToStep = (
  * authoring keys and run through `canonicalizeModifierMap` for normalization.
  * Appends a single neutral world-log line.
  */
-const applyRaceLockEffects = (state: QuestState, race: RaceDefinition): QuestState => {
+const applyRaceLockEffects = (
+  state: QuestState,
+  race: RaceDefinition,
+  sourceQuestId: string
+): QuestState => {
   const statDeltas: ModifierMap = {
     [`stat:${race.bonusPlus2}`]: 2,
     [`stat:${race.bonusPlus1}`]: 1,
@@ -674,7 +687,10 @@ const applyRaceLockEffects = (state: QuestState, race: RaceDefinition): QuestSta
   const name = state.playerName.trim() || 'Stranger';
   const returnLine = `${name} has returned from the lake… a Level ${level} ${race.displayName} ${classDisplay}.`;
   const worldEventLog = appendUniqueWorldEntries(state.worldEventLog, [returnLine]);
-  const raceDialogue = buildRaceLockDialogueLines(name, race.displayName, level, classDisplay);
+  const raceDialogue = tagDialogueSourceQuest(
+    buildRaceLockDialogueLines(name, race.displayName, level, classDisplay),
+    sourceQuestId
+  );
 
   return {
     ...state,

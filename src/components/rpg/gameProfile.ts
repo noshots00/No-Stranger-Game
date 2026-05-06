@@ -69,7 +69,8 @@ function isDialogueLogRow(value: unknown): boolean {
     typeof row.id === 'string' &&
     typeof row.speaker === 'string' &&
     typeof row.text === 'string' &&
-    (row.atMs === undefined || typeof row.atMs === 'number')
+    (row.atMs === undefined || typeof row.atMs === 'number') &&
+    (row.sourceQuestId === undefined || typeof row.sourceQuestId === 'string')
   );
 }
 
