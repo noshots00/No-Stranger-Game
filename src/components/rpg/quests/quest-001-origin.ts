@@ -80,16 +80,17 @@ export const quest001Origin: QuestDefinition = {
     'four': {
       id: 'four',
       type: 'input',
-      text: 'What is your name?',
+      /** Narrator omits input-step copy; use `placeholder` for the prompt. */
+      text: '',
       field: 'playerName',
-      placeholder: 'Enter your name',
+      placeholder: 'Please enter your name.',
       submitLabel: 'Confirm Name',
       nextStepId: 'five',
     },
     'five': {
       id: 'five',
       type: 'message',
-      text: 'Your name is... {playerName}!',
+      text: 'My name is... {playerName}!',
       completeQuest: true,
     },
   },
