@@ -77,11 +77,16 @@ function isDialogueLogRow(value: unknown): boolean {
 function isJournalLogRow(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const row = value as Record<string, unknown>;
+  const rewardsOk =
+    row.completionRewards === undefined ||
+    (Array.isArray(row.completionRewards) &&
+      row.completionRewards.every((x) => typeof x === 'string'));
   return (
     typeof row.id === 'string' &&
     typeof row.questId === 'string' &&
     typeof row.text === 'string' &&
-    typeof row.atMs === 'number'
+    typeof row.atMs === 'number' &&
+    rewardsOk
   );
 }
 

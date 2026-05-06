@@ -3,6 +3,7 @@ import { publicAsset } from '@/lib/publicAsset';
 import { getQuestImageSrcForTitle } from './rpgArtAssignments';
 import type { DialogueVoice } from './dialogueFormat';
 import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
+import { isReportInfographicTitle } from './dialogueFormat';
 
 function resolveQuestAssetUrl(src: string): string {
   const t = src.trim();
@@ -122,6 +123,8 @@ export function DialogueVoiceBlock({
 
   if (role === 'report') {
     const [titleLine, ...bodyLines] = lines;
+    const hasStyledTitle = Boolean(titleLine && isReportInfographicTitle(titleLine.text));
+    const reportBodyLines = hasStyledTitle ? bodyLines : lines;
     const shellPlay =
       'rounded-lg border border-[var(--candle-rule)] bg-black/30 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
     const shellChronicle =
@@ -129,14 +132,14 @@ export function DialogueVoiceBlock({
     return (
       <div className="py-0.5">
         <div className={presentation === 'play' ? shellPlay : shellChronicle}>
-          {titleLine ? (
+          {hasStyledTitle && titleLine ? (
             <p className="font-cormorant text-base font-medium tracking-[0.04em] text-[var(--candle-wax)]">
               {titleLine.text}
             </p>
           ) : null}
-          {bodyLines.length > 0 ? (
+          {reportBodyLines.length > 0 ? (
             <ul className="mt-2 list-disc space-y-1 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-              {bodyLines.map((line) => (
+              {reportBodyLines.map((line) => (
                 <li key={line.id}>{line.text}</li>
               ))}
             </ul>

@@ -1,5 +1,6 @@
-import { useMemo, useState, type ReactNode, type RefObject } from 'react';
+import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useStickScrollBottom } from '@/hooks/useStickScrollBottom';
 import { genUserName } from '@/lib/genUserName';
 import { normalizePubkeyHex, pubkeysEqual } from '@/lib/nostrPubkey';
 import type { WorldEventLogEntry } from '@/components/rpg/quests/types';
@@ -69,6 +70,16 @@ export function ChatPanel({
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [bioDialog, setBioDialog] = useState<{ pubkeyHex: string; displayName: string } | null>(null);
+  const listScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const chatScrollRevision =
+    `${status}-${events.length}-${events.at(-1)?.created_at ?? ''}-${events.at(-1)?.id ?? ''}`;
+  useStickScrollBottom(
+    listScrollContainerRef,
+    Boolean(fillAvailableHeight && user && hasCharacter),
+    chatScrollRevision
+  );
+
   const titleLine =
     title.trim().length > 0 ? (
       <p className="font-serif text-[0.625rem] uppercase tracking-[0.18em] text-[var(--candle-ink-faint)]">{title}</p>
@@ -126,7 +137,13 @@ export function ChatPanel({
       }
     >
       {titleLine}
-      <div ref={listScrollRef} className={listScrollClasses}>
+      <div
+        ref={(node) => {
+          listScrollContainerRef.current = node;
+          if (listScrollRef) listScrollRef.current = node;
+        }}
+        className={listScrollClasses}
+      >
         <div className="facsimile-scroll-dialogue-inner min-w-0">
         {showWorldBlock ? (
           worldEventLines.length > 0 ? (
@@ -183,6 +200,7 @@ export function ChatPanel({
             })}
           </ul>
         )}
+        <div data-stick-scroll-bottom-sentinel="" aria-hidden className="h-px w-full shrink-0" />
         </div>
       </div>
       {error ? (

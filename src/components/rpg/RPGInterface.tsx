@@ -73,7 +73,6 @@ import { GameHeader } from './GameHeader';
 import { CharacterTab } from './tabs/CharacterTab';
 import { ChronicleTab } from './tabs/ChronicleTab';
 import { PlayTab } from './tabs/PlayTab';
-import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
 import { useGameMusic } from './audio/useGameMusic';
 import { publishCharacterCreation, publishMergedProfileDisplayName } from './gameProfile';
@@ -117,6 +116,7 @@ export function RPGInterface() {
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
+  const [dismissedNewQuestIds, setDismissedNewQuestIds] = useState<string[]>([]);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
 
@@ -137,6 +137,10 @@ export function RPGInterface() {
   useEffect(() => {
     localStorage.setItem(DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY, devUnlockAllQuests ? '1' : '0');
   }, [devUnlockAllQuests]);
+
+  useEffect(() => {
+    setDismissedNewQuestIds([]);
+  }, [dayCounter]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
   const dialoguePinnedRef = useRef(true);
@@ -182,6 +186,13 @@ export function RPGInterface() {
   const visibleQuests = useMemo(
     () => getQuestListForUi(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
     [questContext, questState.unveiledQuestIds, devUnlockAllQuests]
+  );
+  const newQuestIds = useMemo(
+    () =>
+      visibleQuests
+        .filter((quest) => quest.createdAt === dayCounter && !dismissedNewQuestIds.includes(quest.id))
+        .map((quest) => quest.id),
+    [visibleQuests, dayCounter, dismissedNewQuestIds]
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
@@ -728,9 +739,14 @@ export function RPGInterface() {
   };
 
   const handleTrackQuest = (questId: string) => {
+    setDismissedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
     dialogueInstantScrollRef.current = true;
     handleStartQuest(questId);
     setActiveTab('play');
+  };
+
+  const handleAcknowledgeQuest = (questId: string) => {
+    setDismissedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
   };
 
   const handleLocationSceneAction = (actionLabel: string) => {
@@ -765,7 +781,6 @@ export function RPGInterface() {
   const navItems: Array<{ key: MobileTab; label: string; icon: string; isPrimary?: boolean }> = [
     { key: 'character', label: 'Character', icon: '◉' },
     { key: 'play', label: 'Play', icon: '✦', isPrimary: true },
-    { key: 'map', label: 'Map', icon: '◈' },
     { key: 'social', label: 'Social', icon: '◎' },
   ];
   const navHighlightTab: MobileTab = activeTab === 'chronicle' ? 'character' : activeTab;
@@ -797,16 +812,6 @@ export function RPGInterface() {
         return (
           <ChronicleTab chronicleSegments={chronicleSegments} chronicleDateTimeFmt={chronicleDateTimeFmt} />
         );
-      case 'map':
-        return (
-          <MapTab
-            currentLocation={questState.currentLocation}
-            flags={questState.flags}
-            onLocationChange={(location) =>
-              setQuestState((prev) => ({ ...prev, currentLocation: location }))
-            }
-          />
-        );
       case 'social':
         return (
           <SocialTab
@@ -826,10 +831,12 @@ export function RPGInterface() {
             playFeedSegments={playFeedSegments}
             playJournalLines={playJournalLines}
             journalLog={questState.journalLog}
+            newQuestIds={newQuestIds}
             questTitleById={questTitleById}
             visibleQuests={visibleQuests}
             completedQuestIds={completedQuestIds}
             onTrackQuest={handleTrackQuest}
+            onAcknowledgeQuest={handleAcknowledgeQuest}
             activeQuest={activeQuest ?? null}
             activeStep={activeStep ?? null}
             nameInput={nameInput}
@@ -892,7 +899,11 @@ export function RPGInterface() {
         )}
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
-        <nav className="candlelit-bottom-nav pointer-events-auto w-full" aria-label="Primary game navigation">
+        <nav
+          className="candlelit-bottom-nav pointer-events-auto w-full"
+          style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+          aria-label="Primary game navigation"
+        >
           {canShowGame
             ? navItems.map((item) => {
                 const isActive = navHighlightTab === item.key;

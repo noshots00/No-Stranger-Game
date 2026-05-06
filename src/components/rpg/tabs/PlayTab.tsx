@@ -9,6 +9,7 @@ import type { ChronicleSegment } from '../dialogueFormat';
 import type { JournalLogEntry, QuestDefinition, QuestStep } from '../quests/types';
 import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
 import { QuestsTab } from './QuestsTab';
+import { getQuestImageSrcForTitle } from '../rpgArtAssignments';
 
 type PlayLedgerTimelineRow =
   | { kind: 'story'; segment: ChronicleSegment; sortMs: number }
@@ -18,10 +19,12 @@ type PlayTabProps = {
   playFeedSegments: ChronicleSegment[];
   playJournalLines: readonly JournalLogEntry[];
   journalLog: readonly JournalLogEntry[];
+  newQuestIds: readonly string[];
   questTitleById: Record<string, string>;
   visibleQuests: QuestDefinition[];
   completedQuestIds: string[];
   onTrackQuest: (questId: string) => void;
+  onAcknowledgeQuest: (questId: string) => void;
   activeQuest: QuestDefinition | null;
   activeStep: QuestStep | null;
   nameInput: string;
@@ -44,10 +47,12 @@ export function PlayTab({
   playFeedSegments,
   playJournalLines,
   journalLog,
+  newQuestIds,
   questTitleById,
   visibleQuests,
   completedQuestIds,
   onTrackQuest,
+  onAcknowledgeQuest,
   activeQuest,
   activeStep,
   nameInput,
@@ -106,7 +111,7 @@ export function PlayTab({
   };
 
   return (
-    <section className="flex h-full flex-col justify-end gap-1.5">
+    <section className="flex h-full flex-col gap-1.5">
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
@@ -142,7 +147,13 @@ export function PlayTab({
             const title = questTitleById[je.questId] ?? 'Quest';
             return (
               <div key={je.id} className="dialogue-line-reveal py-0.5">
-                <PlayLedgerDisclosure summary={<PlayLedgerKicker label="Journal" title={title} />}>
+                <PlayLedgerDisclosure summary={<PlayLedgerKicker title={title} />}>
+                  <img
+                    src={getQuestImageSrcForTitle(title)}
+                    alt={`${title} illustration`}
+                    className="mx-auto mb-1 aspect-[3/4] w-full max-w-[150px] rounded-md border border-[var(--candle-rule)] object-cover opacity-90"
+                    loading="lazy"
+                  />
                   <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{je.text}</p>
                   {je.completionRewards && je.completionRewards.length > 0 ? (
                     <>
@@ -160,18 +171,6 @@ export function PlayTab({
               </div>
             );
           })}
-          <div className="dialogue-line-reveal border-t border-[var(--candle-rule)]/80 pt-3 mt-1">
-            <QuestsTab
-              visibleQuests={visibleQuests}
-              completedQuestIds={completedQuestIds}
-              journalLog={journalLog}
-              activeQuestId={activeQuest?.id ?? null}
-              onTrackQuest={onTrackQuest}
-              trackButtonLabel="Start quest"
-              showSectionKicker={false}
-              showCompletedSection
-            />
-          </div>
           {activeQuest && activeStep ? (
             <div className="dialogue-line-reveal py-0.5">
               {activeStep.type === 'choice' ? (
@@ -239,6 +238,20 @@ export function PlayTab({
               ) : null}
             </div>
           ) : null}
+          <div className="dialogue-line-reveal border-t border-[var(--candle-rule)]/80 pt-3 mt-1">
+            <QuestsTab
+              visibleQuests={visibleQuests}
+              completedQuestIds={completedQuestIds}
+              newQuestIds={newQuestIds}
+              journalLog={journalLog}
+              activeQuestId={activeQuest?.id ?? null}
+              onTrackQuest={onTrackQuest}
+              onAcknowledgeQuest={onAcknowledgeQuest}
+              trackButtonLabel="Start quest"
+              showSectionKicker={false}
+              showCompletedSection
+            />
+          </div>
           <div data-stick-scroll-bottom-sentinel="" aria-hidden className="h-px w-full shrink-0" />
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { getLevelUpLines, getRewardLines } from '../helpers';
 import { interpolateStepText } from './engine';
 import type { JournalLogEntry, QuestDefinition, QuestState } from './types';
 
@@ -24,17 +25,30 @@ export function resolveJournalSummaryText(
   return interpolateStepText(raw.trim(), playerName);
 }
 
+/** Reward/item/stat lines gained between quest-open snapshot (`prev`) and completion snapshot (`next`). */
+export function collectCompletionRewardLines(prev: QuestState, next: QuestState): string[] {
+  const modifierRewards = getRewardLines(prev.modifiers, next.modifiers);
+  const levelUps = getLevelUpLines(prev, next);
+  const prevItems = new Set(prev.questItems);
+  const newItems = next.questItems.filter((label) => !prevItems.has(label));
+  const itemLines = newItems.map((label) => `Quest item: ${label}`);
+  return [...modifierRewards, ...levelUps, ...itemLines];
+}
+
 export function appendJournalRecapEntry(
   state: QuestState,
   questId: string,
   text: string,
-  atMs = Date.now()
+  options?: { atMs?: number; completionRewards?: string[] }
 ): QuestState {
+  const atMs = options?.atMs ?? Date.now();
+  const completionRewards = options?.completionRewards?.filter((s) => s.trim().length > 0);
   const entry: JournalLogEntry = {
     id: `journal-${questId}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
     questId,
     text,
     atMs,
+    ...(completionRewards && completionRewards.length > 0 ? { completionRewards } : {}),
   };
   return { ...state, journalLog: [...state.journalLog, entry] };
 }
@@ -51,5 +65,8 @@ export function mergeJournalRecapOnQuestComplete(
   const history = nextState.progressByQuestId[quest.id]?.choiceHistory ?? [];
   const text = resolveJournalSummaryText(quest, history, nextState.playerName);
   if (!text) return nextState;
-  return appendJournalRecapEntry(nextState, quest.id, text);
+  const completionRewards = collectCompletionRewardLines(prevState, nextState);
+  return appendJournalRecapEntry(nextState, quest.id, text, {
+    completionRewards: completionRewards.length > 0 ? completionRewards : undefined,
+  });
 }

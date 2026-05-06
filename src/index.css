@@ -431,6 +431,8 @@
   .facsimile-scroll {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
+    /* Avoid browser scroll anchoring fighting programmatic snap-to-latest on refresh. */
+    overflow-anchor: none;
   }
 
   .facsimile-scroll:hover {

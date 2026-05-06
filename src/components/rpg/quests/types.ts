@@ -149,6 +149,8 @@ export type JournalLogEntry = {
   questId: string;
   text: string;
   atMs: number;
+  /** Modifier/item/skill gains attributed to this completion (may be empty). */
+  completionRewards?: string[];
 };
 
 export type QuestState = {

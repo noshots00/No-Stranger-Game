@@ -161,7 +161,15 @@ const normalizeJournalLog = (entries: unknown): JournalLogEntry[] => {
     const atMs =
       typeof o.atMs === 'number' && Number.isFinite(o.atMs) ? o.atMs : now + index;
     if (!questId || text.trim().length === 0) return;
-    out.push({ id, questId, text, atMs });
+    const rawRewards = o.completionRewards;
+    let completionRewards: string[] | undefined;
+    if (Array.isArray(rawRewards)) {
+      const lines = rawRewards.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+      if (lines.length > 0) completionRewards = lines;
+    }
+    out.push(
+      completionRewards !== undefined ? { id, questId, text, atMs, completionRewards } : { id, questId, text, atMs }
+    );
   });
   return out;
 };
