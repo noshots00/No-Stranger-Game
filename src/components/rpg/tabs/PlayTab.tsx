@@ -169,7 +169,7 @@ export function PlayTab({
               onTrackQuest={onTrackQuest}
               trackButtonLabel="Start quest"
               showSectionKicker={false}
-              showCompletedSection={false}
+              showCompletedSection
             />
           </div>
           {activeQuest && activeStep ? (
