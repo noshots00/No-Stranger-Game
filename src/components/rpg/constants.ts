@@ -149,4 +149,4 @@ export const characterStats = [
   ['Charisma', '1'],
 ];
 
-export type MobileTab = 'character' | 'chronicle' | 'quests' | 'play' | 'map' | 'social';
+export type MobileTab = 'character' | 'chronicle' | 'play' | 'map' | 'social';

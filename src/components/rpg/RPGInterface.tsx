@@ -72,7 +72,6 @@ import { useSocialQueries } from './hooks/useSocialQueries';
 import { GameHeader } from './GameHeader';
 import { CharacterTab } from './tabs/CharacterTab';
 import { ChronicleTab } from './tabs/ChronicleTab';
-import { QuestsTab } from './tabs/QuestsTab';
 import { PlayTab } from './tabs/PlayTab';
 import { MapTab } from './tabs/MapTab';
 import { SocialTab } from './tabs/SocialTab';
@@ -187,10 +186,6 @@ export function RPGInterface() {
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
-  const pendingQuestCount = useMemo(
-    () => visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id)).length,
-    [visibleQuests, completedQuestIds]
-  );
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
   );
@@ -772,7 +767,6 @@ export function RPGInterface() {
 
   const navItems: Array<{ key: MobileTab; label: string; icon: string; isPrimary?: boolean }> = [
     { key: 'character', label: 'Character', icon: '◉' },
-    { key: 'quests', label: 'Quests', icon: '☰' },
     { key: 'play', label: 'Play', icon: '✦', isPrimary: true },
     { key: 'map', label: 'Map', icon: '◈' },
     { key: 'social', label: 'Social', icon: '◎' },
@@ -805,16 +799,6 @@ export function RPGInterface() {
       case 'chronicle':
         return (
           <ChronicleTab chronicleSegments={chronicleSegments} chronicleDateTimeFmt={chronicleDateTimeFmt} />
-        );
-      case 'quests':
-        return (
-          <QuestsTab
-            visibleQuests={visibleQuests}
-            completedQuestIds={completedQuestIds}
-            expandedQuestId={expandedQuestId}
-            onExpandQuest={setExpandedQuestId}
-            onTrackQuest={handleTrackQuest}
-          />
         );
       case 'map':
         return (
@@ -922,11 +906,6 @@ export function RPGInterface() {
                     className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
                     aria-label={item.label}
                   >
-                    {item.key === 'quests' && pendingQuestCount > 0 ? (
-                      <span className="absolute right-2 top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full border border-[var(--candle-flame-soft)] bg-black/70 px-1 text-[0.5625rem] font-medium leading-none text-[var(--candle-ink)]">
-                        {pendingQuestCount}
-                      </span>
-                    ) : null}
                     <span className="text-base leading-none" aria-hidden>
                       {item.icon}
                     </span>
