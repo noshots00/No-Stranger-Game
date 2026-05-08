@@ -30,6 +30,8 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
   { pending: SWEET_DREAM_PENDING_FLAG, unlocked: SWEET_DREAM_UNLOCKED_FLAG },
 ];
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
+/** Set when the player submits their name on origin (distinct from `quest001-complete`). */
+export const QUEST001_NAMED_FLAG = 'quest001-named';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 /** @deprecated legacy numeric ms; prefer CHARACTER_CREATION_DATE_STORAGE_KEY */
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';

@@ -771,6 +771,36 @@ const applyRaceLockEffects = (
   };
 };
 
+/**
+ * Advance past a mid-quest `message` step that has `nextStepId` (Continue-style narration bridges).
+ * Marks completion when landing on a terminal `message` step with `completeQuest`.
+ */
+export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): QuestState | null => {
+  const withProgress = ensureQuestProgress(state, quest);
+  const progress = withProgress.progressByQuestId[quest.id];
+  if (!progress || progress.isCompleted) return null;
+  const step = quest.steps[progress.currentStepId];
+  if (!step || step.type !== 'message') return null;
+  if (step.completeQuest) return null;
+  const nextId = step.nextStepId;
+  if (!nextId || !quest.steps[nextId]) return null;
+  const nextStep = quest.steps[nextId];
+  const completesHere = nextStep.type === 'message' && Boolean(nextStep.completeQuest);
+  return {
+    ...withProgress,
+    activeQuestId: completesHere ? null : withProgress.activeQuestId,
+    progressByQuestId: {
+      ...withProgress.progressByQuestId,
+      [quest.id]: {
+        ...progress,
+        currentStepId: nextId,
+        isCompleted: completesHere,
+        choiceHistory: progress.choiceHistory,
+      },
+    },
+  };
+};
+
 export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId: string): QuestState => {
   const withProgress = ensureQuestProgress(state, quest);
   const currentStep = getCurrentStep(withProgress, quest);

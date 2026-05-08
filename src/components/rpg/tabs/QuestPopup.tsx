@@ -20,6 +20,8 @@ type QuestPopupProps = {
   nameInputError: string | null;
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
+  /** Continue past narrator `message` steps that chain via `nextStepId`. */
+  onAdvanceQuestMessage?: () => void;
   onClose: () => void;
   presentation?: 'modal' | 'inline';
 };
@@ -34,6 +36,7 @@ export function QuestPopup({
   nameInputError,
   onStepChoice,
   onNameSubmit,
+  onAdvanceQuestMessage,
   onClose,
   presentation = 'modal',
 }: QuestPopupProps) {
@@ -129,6 +132,21 @@ export function QuestPopup({
               <p className="whitespace-pre-line font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
                 {narrativeText}
               </p>
+            ) : null}
+
+            {step.type === 'message' &&
+            Boolean(step.nextStepId) &&
+            !step.completeQuest &&
+            typeof onAdvanceQuestMessage === 'function' ? (
+              <div className="space-y-2 border-t border-[var(--candle-rule)] pt-3">
+                <button
+                  type="button"
+                  onClick={() => onAdvanceQuestMessage()}
+                  className="choice-line w-auto border-b border-transparent py-2 text-emerald-300 hover:text-emerald-200"
+                >
+                  Continue
+                </button>
+              </div>
             ) : null}
 
             {step.type === 'choice' ? (

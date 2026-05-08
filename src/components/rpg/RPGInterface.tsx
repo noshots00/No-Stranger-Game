@@ -6,6 +6,7 @@ import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import {
+  advanceQuestMessage,
   applyChoice,
   getCompletedQuestIds,
   getCurrentStep,
@@ -21,7 +22,7 @@ import {
 import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
-import type { QuestState } from '@/components/rpg/quests/types';
+import type { QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
   APP_VERSION,
   BRACELET_DAILY_FLAG,
@@ -49,6 +50,8 @@ import {
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
   locationActions,
+  QUEST001_NAMED_FLAG,
+  QUEST_ORIGIN_ID,
   ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
@@ -78,7 +81,7 @@ import { PlayTab } from './tabs/PlayTab';
 import { SocialTab } from './tabs/SocialTab';
 import { useGameMusic } from './audio/useGameMusic';
 import { publishCharacterCreation, publishMergedProfileDisplayName } from './gameProfile';
-import { computeGameDayCounterFromCreationYmd, EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
+import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 import { publicAsset } from '@/lib/publicAsset';
 import { needsMandatoryCharacterReset } from './characterSaveVersion';
 import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
@@ -89,6 +92,34 @@ import { GamePortraitViewport } from './GamePortraitViewport';
  * Keeps "Loading your ledger…" from reappearing on transient remounts.
  */
 let hasShownGameOnceInSession = false;
+
+/** Credits daily XP when the extended origin quest first completes; gates side content via `quest001-complete`. */
+function applyOriginMainDailyCompletionIfNeeded(
+  prev: QuestState,
+  merged: QuestState,
+  quest: QuestDefinition,
+  calendarDay: number
+): QuestState {
+  if (quest.id !== QUEST_ORIGIN_ID || !quest.mainDailyQuest) return merged;
+  const wasCompleted = Boolean(prev.progressByQuestId[QUEST_ORIGIN_ID]?.isCompleted);
+  const nowCompleted = Boolean(merged.progressByQuestId[QUEST_ORIGIN_ID]?.isCompleted);
+  if (wasCompleted || !nowCompleted) return merged;
+  const flags = Array.from(new Set([...merged.flags, 'quest001-complete']));
+  const daysToGrant = Math.max(1, calendarDay - prev.lastDailyXpDay);
+  const xpToGrant = daysToGrant * DAILY_XP;
+  const skillGrants = distributeDailySkillXp(xpToGrant, 'exploring');
+  const nextSkills = { ...merged.skills };
+  for (const key of SKILL_XP_KEYS) {
+    nextSkills[key] = merged.skills[key] + (skillGrants[key] ?? 0);
+  }
+  return {
+    ...merged,
+    flags,
+    experience: merged.experience + xpToGrant,
+    skills: nextSkills,
+    lastDailyXpDay: calendarDay,
+  };
+}
 
 export function RPGInterface() {
   const { nostr } = useNostr();
@@ -109,7 +140,6 @@ export function RPGInterface() {
     rapidDaySimulation,
     setRapidDaySimulation,
     isPacingResolved,
-    useFiveMinuteTestPeriods,
   } = useDayCounter({ questCreationDateEastern: questState.characterCreationDateEastern });
 
   const showEarlyDevResetGate = isQuestStateHydrated && needsMandatoryCharacterReset(questState);
@@ -445,6 +475,9 @@ export function RPGInterface() {
       creationDateEastern === null ? qc === null : qc === creationDateEastern;
     if (!pacingAligned) return;
 
+    /** Until extended origin is finished once, skip calendar catch-up (main quest gates daily XP). */
+    if (!questState.flags.includes('quest001-complete')) return;
+
     if (dayCounter <= questState.lastDailyXpDay) return;
 
     const daysToGrant = dayCounter - questState.lastDailyXpDay;
@@ -679,6 +712,50 @@ export function RPGInterface() {
         worldEventLog: nextState.worldEventLog,
       };
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
+      merged = applyOriginMainDailyCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
+      return merged;
+    });
+  };
+
+  const handleAdvanceQuestMessage = () => {
+    if (!activeQuest) return;
+    setQuestState((prev) => {
+      const currentStep = getCurrentStep(prev, activeQuest);
+      if (currentStep.type !== 'message') return prev;
+      const advanced = advanceQuestMessage(prev, activeQuest);
+      if (!advanced) return prev;
+      const nextStep = getCurrentStep(advanced, activeQuest);
+      const qOpts = { sourceQuestId: activeQuest.id };
+      const nextLog = [
+        ...advanced.dialogueLog,
+        ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
+      ];
+
+      if (nextStep.type === 'message') {
+        nextLog.push(
+          appendDialogue('Narrator', interpolateStepText(nextStep.text, advanced.playerName), qOpts)
+        );
+      } else if (
+        nextStep.type !== 'input' &&
+        !advanced.progressByQuestId[activeQuest.id]?.isCompleted
+      ) {
+        nextLog.push(
+          appendDialogue('Narrator', interpolateStepText(nextStep.text, advanced.playerName), qOpts)
+        );
+      }
+      const wasCompleted = Boolean(prev.progressByQuestId[activeQuest.id]?.isCompleted);
+      const isCompleted = Boolean(advanced.progressByQuestId[activeQuest.id]?.isCompleted);
+      if (!wasCompleted && isCompleted) {
+        nextLog.push(appendDialogue(QUEST_DIVIDER_SPEAKER, '', qOpts));
+      }
+
+      let merged: QuestState = {
+        ...advanced,
+        dialogueLog: nextLog,
+        worldEventLog: advanced.worldEventLog,
+      };
+      merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
+      merged = applyOriginMainDailyCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
       return merged;
     });
   };
@@ -694,28 +771,14 @@ export function RPGInterface() {
     const nextStep = getCurrentStep(nextState, activeQuest);
     const submittedName = nameInput.trim();
 
-    if (activeQuest.id === 'quest-001-origin') {
+    if (activeQuest.id === QUEST_ORIGIN_ID) {
       const creationYmd = formatInTimeZone(Date.now(), EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
       const characterCreationDateEastern = nextState.characterCreationDateEastern ?? creationYmd;
-      const lastDailyXpDay = computeGameDayCounterFromCreationYmd(
-        characterCreationDateEastern,
-        Date.now(),
-        useFiveMinuteTestPeriods
-      );
       const updatedState = {
         ...nextState,
         characterCreationDateEastern,
         characterCreatedAtAppVersion: APP_VERSION,
-        lastDailyXpDay,
-        activeQuestId: null,
-        flags: Array.from(new Set([...nextState.flags, 'quest001-complete'])),
-        progressByQuestId: {
-          ...nextState.progressByQuestId,
-          [activeQuest.id]: {
-            ...nextState.progressByQuestId[activeQuest.id],
-            isCompleted: true,
-          },
-        },
+        flags: Array.from(new Set([...nextState.flags, QUEST001_NAMED_FLAG])),
         dialogueLog: [
           ...nextState.dialogueLog,
           ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
@@ -895,6 +958,7 @@ export function RPGInterface() {
             nameInputError={nameInputError}
             onStepChoice={handleStepChoice}
             onNameSubmit={handleNameSubmit}
+            onAdvanceQuestMessage={handleAdvanceQuestMessage}
             dialogueScrollRef={dialogueScrollRef}
             onDialogueScroll={handleDialogueScroll}
             visibleLocationActions={visibleLocationActions}

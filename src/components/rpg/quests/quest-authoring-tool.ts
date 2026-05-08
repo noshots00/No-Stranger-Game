@@ -12,6 +12,8 @@ type QuestAuthoringOptions = {
   startStepId: string;
   steps: AuthoredQuestStep[];
   isAvailable?: (context: QuestContext) => boolean;
+  /** Marks this quest as the calendar-main arc for daily XP credit when completed. */
+  mainDailyQuest?: boolean;
   stepVisuals?: Partial<Record<string, QuestVisualBeat[]>>;
   completionRequiresAllFlags?: string[];
   journalSummariesByChoicePath?: Record<string, string>;
@@ -43,6 +45,7 @@ export function createQuestDefinition(options: QuestAuthoringOptions): QuestDefi
     startStepId: options.startStepId,
     steps,
     isAvailable: options.isAvailable ?? (() => true),
+    ...(options.mainDailyQuest ? { mainDailyQuest: true } : {}),
     ...(hasStepVisuals ? { stepVisuals: mergedStepVisuals } : {}),
     ...(options.completionRequiresAllFlags
       ? { completionRequiresAllFlags: options.completionRequiresAllFlags }

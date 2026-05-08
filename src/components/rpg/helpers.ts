@@ -10,6 +10,7 @@ import {
   GOLD_MODIFIER_KEYS,
   HIDDEN_CLASS_MODIFIER_KEYS,
   PRIMARY_STAT_MODIFIER_LABEL,
+  QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
   SKILL_MODIFIER_CATEGORY_LABEL,
   SKILL_MODIFIER_CATEGORY_ORDER,
@@ -164,6 +165,7 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
 export function questStateHasRememberedName(state: QuestState): boolean {
   const name = state.playerName?.trim();
   if (!name) return false;
+  if (state.flags.includes(QUEST001_NAMED_FLAG)) return true;
   if (state.flags.includes('quest001-complete')) return true;
   return Boolean(state.progressByQuestId[QUEST_ORIGIN_ID]?.isCompleted);
 }

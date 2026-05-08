@@ -29,6 +29,8 @@ type PlayTabProps = {
   nameInputError: string | null;
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
+  /** Advance chained `message` steps with `nextStepId` (Continue). */
+  onAdvanceQuestMessage?: () => void;
   dialogueScrollRef: RefObject<HTMLDivElement | null>;
   onDialogueScroll: () => void;
   visibleLocationActions: string[];
@@ -50,7 +52,7 @@ export function PlayTab({
   onOpenQuestPopup,
   onCloseQuestPopup,
   questPopupQuestId,
-  onAcknowledgeQuest,
+  onAcknowledgeQuest: _onAcknowledgeQuest,
   activeQuest,
   activeStep,
   nameInput,
@@ -58,6 +60,7 @@ export function PlayTab({
   nameInputError,
   onStepChoice,
   onNameSubmit,
+  onAdvanceQuestMessage,
   dialogueScrollRef,
   onDialogueScroll,
   visibleLocationActions,
@@ -298,6 +301,7 @@ export function PlayTab({
                       nameInputError={nameInputError}
                       onStepChoice={onStepChoice}
                       onNameSubmit={onNameSubmit}
+                      onAdvanceQuestMessage={onAdvanceQuestMessage}
                       onClose={onCloseQuestPopup}
                       presentation="inline"
                     />
@@ -336,6 +340,7 @@ export function PlayTab({
           nameInputError={nameInputError}
           onStepChoice={onStepChoice}
           onNameSubmit={onNameSubmit}
+          onAdvanceQuestMessage={onAdvanceQuestMessage}
           onClose={onCloseQuestPopup}
           presentation="modal"
         />

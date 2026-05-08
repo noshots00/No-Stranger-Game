@@ -86,6 +86,8 @@ export type QuestDefinition = {
   startStepId: string;
   steps: Record<string, QuestStep>;
   isAvailable: (context: QuestContext) => boolean;
+  /** When true, completing this quest credits daily pacing / XP for the current game-day slice (main storyline). */
+  mainDailyQuest?: boolean;
   /** When set, the quest completes once all listed flags are present after a choice (union with `completeQuest`). */
   completionRequiresAllFlags?: string[];
   /**
