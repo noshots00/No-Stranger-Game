@@ -45,16 +45,18 @@ import {
   DAILY_XP,
   DIALOGUE_SCROLL_PIN_EPS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
+  DEV_USE_QUEST_POPUP_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
   locationActions,
+  ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
   PLAY_JOURNAL_RECENT_MAX,
   PLAY_WORLD_RECENT_MAX,
 } from './constants';
 import type { MobileTab } from './constants';
-import { appendDialogue, appendUniqueWorldEntries, buildDayReportDialogueLines, getLevelUpLines, getRewardLines } from './helpers';
+import { appendDialogue, appendUniqueWorldEntries, buildDayReportDialogueLines } from './helpers';
 import {
   dialogueHasQuestOpeningAtEnd,
   formatPlayerChoiceDialogueLine,
@@ -81,6 +83,12 @@ import { publicAsset } from '@/lib/publicAsset';
 import { needsMandatoryCharacterReset } from './characterSaveVersion';
 import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 import { GamePortraitViewport } from './GamePortraitViewport';
+
+/**
+ * Session guard for ledger loading overlay.
+ * Keeps "Loading your ledger…" from reappearing on transient remounts.
+ */
+let hasShownGameOnceInSession = false;
 
 export function RPGInterface() {
   const { nostr } = useNostr();
@@ -116,9 +124,12 @@ export function RPGInterface() {
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
+  const [questPopupQuestId, setQuestPopupQuestId] = useState<string | null>(null);
   const [dismissedNewQuestIds, setDismissedNewQuestIds] = useState<string[]>([]);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
+  const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
+  const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY);
@@ -139,8 +150,30 @@ export function RPGInterface() {
   }, [devUnlockAllQuests]);
 
   useEffect(() => {
+    const raw = localStorage.getItem(DEV_USE_QUEST_POPUP_STORAGE_KEY);
+    if (raw === '1') setUseQuestPopupFallback(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_USE_QUEST_POPUP_STORAGE_KEY, useQuestPopupFallback ? '1' : '0');
+  }, [useQuestPopupFallback]);
+
+  useEffect(() => {
     setDismissedNewQuestIds([]);
   }, [dayCounter]);
+
+  useEffect(() => {
+    if (!questPopupQuestId) return;
+    const completed = getCompletedQuestIds(questState);
+    if (completed.includes(questPopupQuestId)) setQuestPopupQuestId(null);
+  }, [questPopupQuestId, questState]);
+
+  useEffect(() => {
+    if (canShowGame && !hasShownGameOnce) {
+      hasShownGameOnceInSession = true;
+      setHasShownGameOnce(true);
+    }
+  }, [canShowGame, hasShownGameOnce]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
   const dialoguePinnedRef = useRef(true);
@@ -190,9 +223,14 @@ export function RPGInterface() {
   const newQuestIds = useMemo(
     () =>
       visibleQuests
-        .filter((quest) => quest.createdAt === dayCounter && !dismissedNewQuestIds.includes(quest.id))
+        .filter(
+          (quest) =>
+            quest.createdAt === dayCounter &&
+            !completedQuestIds.includes(quest.id) &&
+            !dismissedNewQuestIds.includes(quest.id)
+        )
         .map((quest) => quest.id),
-    [visibleQuests, dayCounter, dismissedNewQuestIds]
+    [visibleQuests, dayCounter, completedQuestIds, dismissedNewQuestIds]
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
@@ -204,12 +242,9 @@ export function RPGInterface() {
     []
   );
   const playDialogueLines = useMemo(() => {
-    const completed = new Set(completedQuestIds);
-    const filtered = questState.dialogueLog.filter(
-      (line) => !(line.sourceQuestId && completed.has(line.sourceQuestId))
-    );
+    const filtered = questState.dialogueLog.filter((line) => !line.sourceQuestId);
     return filtered.slice(-PLAY_DIALOGUE_RECENT_MAX);
-  }, [questState.dialogueLog, completedQuestIds]);
+  }, [questState.dialogueLog]);
   const playWorldLines = useMemo(
     () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
     [questState.worldEventLog]
@@ -506,11 +541,11 @@ export function RPGInterface() {
       updatedState.unveiledQuestIds = [...updatedState.unveiledQuestIds, ...newToUnveil];
     }
 
-    const dayLine = `Day ${dayCounter} began.`;
-    updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [dayLine]);
-
     const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState);
     updatedState.dialogueLog = [...updatedState.dialogueLog, ...reportLines];
+    updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, [
+      `Day ${dayCounter} began.`,
+    ]);
 
     setQuestState(updatedState);
     void persistQuestCheckpoint(updatedState);
@@ -540,13 +575,14 @@ export function RPGInterface() {
       }
       return {
         ...started,
+        worldEventLog: appendUniqueWorldEntries(started.worldEventLog, [`Day ${dayCounter} began.`]),
         dialogueLog: [
           ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
           appendDialogue('Narrator', openingText, { sourceQuestId: quest.id }),
         ],
       };
     });
-  }, [canShowGame, questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
+  }, [canShowGame, dayCounter, questState.activeQuestId, questState.dialogueLog.length, setQuestState]);
 
   const handleResetStory = async () => {
     localStorage.setItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY, '1');
@@ -637,14 +673,10 @@ export function RPGInterface() {
         nextLog.push(appendDialogue(QUEST_DIVIDER_SPEAKER, '', qOpts));
       }
 
-      const rewardLines = getRewardLines(prev.modifiers, nextState.modifiers);
-      const levelUpLines = getLevelUpLines(prev, nextState);
-      const worldEventLog = appendUniqueWorldEntries(nextState.worldEventLog, [...rewardLines, ...levelUpLines]);
-
       let merged: QuestState = {
         ...nextState,
         dialogueLog: nextLog,
-        worldEventLog,
+        worldEventLog: nextState.worldEventLog,
       };
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
       return merged;
@@ -739,15 +771,32 @@ export function RPGInterface() {
   };
 
   const handleTrackQuest = (questId: string) => {
-    setDismissedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
     dialogueInstantScrollRef.current = true;
     handleStartQuest(questId);
     setActiveTab('play');
   };
 
-  const handleAcknowledgeQuest = (questId: string) => {
+  const handleOpenQuestPopup = (questId: string) => {
     setDismissedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
+    if (questId === 'quest-001-origin' && !questState.flags.includes(ORIGIN_QUEST_OPENED_FLAG)) {
+      const nextFlags = [...questState.flags, ORIGIN_QUEST_OPENED_FLAG];
+      const nextState = { ...questState, flags: nextFlags };
+      setQuestState(nextState);
+      void persistQuestCheckpoint(nextState);
+    }
+    if (questState.activeQuestId !== questId) {
+      handleTrackQuest(questId);
+    } else {
+      setActiveTab('play');
+    }
+    setQuestPopupQuestId(questId);
   };
+
+  const handleCloseQuestPopup = () => {
+    setQuestPopupQuestId(null);
+  };
+
+  const handleAcknowledgeQuest = (_questId: string) => {};
 
   const handleLocationSceneAction = (actionLabel: string) => {
     const questId = SILVER_LAKE_SCENE_ACTION_QUEST[actionLabel];
@@ -830,12 +879,14 @@ export function RPGInterface() {
           <PlayTab
             playFeedSegments={playFeedSegments}
             playJournalLines={playJournalLines}
-            journalLog={questState.journalLog}
             newQuestIds={newQuestIds}
             questTitleById={questTitleById}
+            questById={questById}
             visibleQuests={visibleQuests}
             completedQuestIds={completedQuestIds}
-            onTrackQuest={handleTrackQuest}
+            onOpenQuestPopup={handleOpenQuestPopup}
+            onCloseQuestPopup={handleCloseQuestPopup}
+            questPopupQuestId={questPopupQuestId}
             onAcknowledgeQuest={handleAcknowledgeQuest}
             activeQuest={activeQuest ?? null}
             activeStep={activeStep ?? null}
@@ -850,6 +901,7 @@ export function RPGInterface() {
             showOriginStartHint={showOriginStartHint}
             onLocationAction={handleLocationSceneAction}
             playerFlags={questState.flags}
+            useQuestPopupFallback={useQuestPopupFallback}
           />
         );
     }
@@ -861,7 +913,7 @@ export function RPGInterface() {
     <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
       <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-1.5 px-0 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)]">
-        {!isQuestStateHydrated ? (
+        {!hasShownGameOnce && !isQuestStateHydrated ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
             <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">
@@ -870,7 +922,7 @@ export function RPGInterface() {
           </div>
         ) : showEarlyDevResetGate ? (
           <EarlyDevCharacterResetGate onOkay={handleMandatoryEarlyDevReset} />
-        ) : !isPacingResolved ? (
+        ) : !isPacingResolved && !hasShownGameOnce ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
             <p className="max-w-xs font-serif text-sm text-[var(--candle-ink-faint)]">

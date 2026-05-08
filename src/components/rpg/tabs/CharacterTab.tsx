@@ -379,7 +379,7 @@ export function CharacterTab({
                   ) : null}
                   Level {characterLevel} {raceMiddle} {characterClass}
                 </p>
-                <p className={`${bt} block text-[var(--candle-ink-soft)]`}>Coal Miner</p>
+                <p className={`${bt} block text-[var(--candle-ink-soft)]`}>Unemployed</p>
                 <p className={`${bt} block`}>
                   <span className="text-[var(--candle-ink-soft)]">Coin: </span>
                   <span

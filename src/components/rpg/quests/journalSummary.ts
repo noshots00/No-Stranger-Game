@@ -43,6 +43,26 @@ export function appendJournalRecapEntry(
 ): QuestState {
   const atMs = options?.atMs ?? Date.now();
   const completionRewards = options?.completionRewards?.filter((s) => s.trim().length > 0);
+  const existingIndex = state.journalLog.findIndex((entry) => entry.questId === questId);
+  if (existingIndex >= 0) {
+    const existing = state.journalLog[existingIndex];
+    const normalizedText = text.trim();
+    const mergedText =
+      normalizedText.length > 0 && !existing.text.includes(normalizedText)
+        ? `${existing.text.trim()} ${normalizedText}`.trim()
+        : existing.text;
+    const mergedRewards = Array.from(
+      new Set([...(existing.completionRewards ?? []), ...(completionRewards ?? [])])
+    );
+    const next = [...state.journalLog];
+    next[existingIndex] = {
+      ...existing,
+      text: mergedText,
+      atMs,
+      ...(mergedRewards.length > 0 ? { completionRewards: mergedRewards } : {}),
+    };
+    return { ...state, journalLog: next };
+  }
   const entry: JournalLogEntry = {
     id: `journal-${questId}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
     questId,
@@ -62,6 +82,14 @@ export function mergeJournalRecapOnQuestComplete(
   const wasCompleted = Boolean(prevState.progressByQuestId[quest.id]?.isCompleted);
   const isCompleted = Boolean(nextState.progressByQuestId[quest.id]?.isCompleted);
   if (wasCompleted || !isCompleted) return nextState;
+  const existingQuestEntry = nextState.journalLog.find((row) => row.questId === quest.id);
+  if (existingQuestEntry) {
+    const completionRewards = collectCompletionRewardLines(prevState, nextState);
+    if (completionRewards.length === 0) return nextState;
+    return appendJournalRecapEntry(nextState, quest.id, '', {
+      completionRewards,
+    });
+  }
   const history = nextState.progressByQuestId[quest.id]?.choiceHistory ?? [];
   const text = resolveJournalSummaryText(quest, history, nextState.playerName);
   if (!text) return nextState;

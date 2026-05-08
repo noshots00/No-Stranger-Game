@@ -6,6 +6,7 @@
 import { publicAsset } from '@/lib/publicAsset';
 import { allQuests } from '@/components/rpg/quests/registry';
 import { LEGACY_RACE_SLUG_REWRITES, RACES } from '@/components/rpg/races';
+import type { QuestDefinition } from '@/components/rpg/quests/types';
 
 /** Folder under `public/art/converted/` (no spaces — reliable on static hosts). */
 const BATCH_SEGMENT = 'batch-2026-05-02_21-10-35';
@@ -119,10 +120,63 @@ const QUEST_TITLE_TO_SRC = buildQuestTitleMap();
 const RACE_SLUG_TO_SRC = buildRaceSlugMap();
 
 const fallbackBatchPortraitSrc = batchAsset(`${BATCH_PREFIX}/${fileAt(0)}`);
+const QUEST_TITLE_OVERRIDES: Record<string, string> = {
+  'You find yourself in the forest.': batchAsset('art/To be converted/NSWoods.jpg'),
+};
+const genericQuestPlaceholderSrc = fallbackBatchPortraitSrc;
+
+function firstAuthoredVisualImageSrc(quest: QuestDefinition): string | null {
+  const beats = quest.stepVisuals?.[quest.startStepId];
+  if (!beats || beats.length === 0) return null;
+  for (const beat of beats) {
+    if (beat.kind === 'image') {
+      const src = beat.src.trim();
+      if (src.length > 0) return batchAsset(src);
+      continue;
+    }
+    if (beat.kind === 'image-row') {
+      const first = beat.images.find((img) => img.src.trim().length > 0);
+      if (first) return batchAsset(first.src);
+    }
+  }
+  return null;
+}
+
+function firstAuthoredVisualImageSrcForStep(quest: QuestDefinition, stepId: string): string | null {
+  const beats = quest.stepVisuals?.[stepId];
+  if (!beats || beats.length === 0) return null;
+  for (const beat of beats) {
+    if (beat.kind === 'image') {
+      const src = beat.src.trim();
+      if (src.length > 0) return batchAsset(src);
+      continue;
+    }
+    if (beat.kind === 'image-row') {
+      const first = beat.images.find((img) => img.src.trim().length > 0);
+      if (first) return batchAsset(first.src);
+    }
+  }
+  return null;
+}
 
 /** Resolved URL for a quest illustration keyed by quest title (dialogue log lines use titles). */
 export function getQuestImageSrcForTitle(title: string): string {
+  if (QUEST_TITLE_OVERRIDES[title]) return QUEST_TITLE_OVERRIDES[title];
   return QUEST_TITLE_TO_SRC[title] ?? fallbackBatchPortraitSrc;
+}
+
+/** Card/Popup image source from quest-authored visuals with generic placeholder fallback. */
+export function getQuestCardImageSrc(quest: QuestDefinition): string {
+  return firstAuthoredVisualImageSrc(quest) ?? genericQuestPlaceholderSrc;
+}
+
+export function getGenericQuestPlaceholderSrc(): string {
+  return genericQuestPlaceholderSrc;
+}
+
+/** Popup/inline image source from the current step visuals only; returns null if step has no image. */
+export function getQuestStepImageSrc(quest: QuestDefinition, stepId: string): string | null {
+  return firstAuthoredVisualImageSrcForStep(quest, stepId);
 }
 
 /** Portrait URL for the character sheet from canonical race slug; falls back when unknown / no race. */

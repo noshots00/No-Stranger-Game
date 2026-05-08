@@ -333,12 +333,14 @@
     border-bottom: none;
     background: transparent;
     cursor: pointer;
-    transition: color 420ms ease, opacity 900ms ease, filter 900ms ease;
+    transition: color 220ms ease, opacity 900ms ease, filter 900ms ease, transform 220ms ease, text-shadow 220ms ease;
   }
 
   .choice-line.play-quest-choice:hover,
   .choice-line.play-quest-choice:focus-visible {
     color: color-mix(in srgb, var(--candle-flame-soft) 88%, var(--candle-wax));
+    text-shadow: 0 0 8px color-mix(in srgb, var(--candle-flame-soft) 36%, transparent);
+    transform: translateX(-2px);
     border-bottom: none;
     border-bottom-color: transparent;
     outline: none;
@@ -357,9 +359,105 @@
     transition: opacity 1.2s ease, filter 1.2s ease;
   }
 
+  .choice-selected-flash {
+    animation: choiceSelectedFlash 1.2s ease forwards;
+    pointer-events: none;
+  }
+
+  .quest-step-enter {
+    animation: questStepEnter 280ms ease;
+  }
+
+  .quest-body-transition {
+    animation: questStepEnter 280ms ease;
+  }
+
+  .quest-body-layer {
+    position: relative;
+  }
+
+  .quest-body-depart {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: questBodyDepart 320ms ease forwards;
+  }
+
+  .quest-body-arrive {
+    animation: questBodyArrive 320ms ease both;
+  }
+
+  @keyframes choiceSelectedFlash {
+    0% {
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+    35% {
+      opacity: 1;
+      filter: brightness(1.2);
+      transform: translateX(-2px);
+    }
+    100% {
+      opacity: 0.25;
+      filter: brightness(0.9);
+      transform: translateX(-1px);
+    }
+  }
+
+  @keyframes questStepEnter {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes questBodyDepart {
+    0% {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      filter: blur(3px);
+      transform: translateY(-2px);
+    }
+  }
+
+  @keyframes questBodyArrive {
+    0% {
+      opacity: 0;
+      filter: blur(2px);
+      transform: translateY(2px);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .choice-fade-out {
       transition-duration: 0.01ms;
+    }
+    .choice-selected-flash {
+      animation-duration: 0.01ms;
+    }
+    .quest-step-enter {
+      animation-duration: 0.01ms;
+    }
+    .quest-body-transition {
+      animation-duration: 0.01ms;
+    }
+    .quest-body-depart,
+    .quest-body-arrive {
+      animation-duration: 0.01ms;
     }
   }
 

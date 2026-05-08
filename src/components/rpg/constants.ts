@@ -51,6 +51,10 @@ export const DEV_RAPID_DAY_SIM_STORAGE_KEY = 'nsg:dev-rapid-day-simulation';
 export const DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY = 'nsg:dev-show-modifier-details';
 /** When enabled, Quests tab lists every quest for testing (dev only). */
 export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';
+/** When enabled, Play quest interactions use the legacy modal popup instead of inline expansion. */
+export const DEV_USE_QUEST_POPUP_STORAGE_KEY = 'nsg:dev-use-quest-popup';
+/** Set once the player opens quest 1 at least once this run/save. */
+export const ORIGIN_QUEST_OPENED_FLAG = 'quest001-opened';
 export const DEV_RAPID_DAY_SIM_INTERVAL_MS = 2000;
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 export const DAILY_XP = 1440;

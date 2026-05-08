@@ -1,0 +1,55 @@
+import type { QuestContext, QuestDefinition, QuestStep, QuestVisualBeat } from './types';
+
+type AuthoredQuestStep = QuestStep & {
+  visuals?: QuestVisualBeat[];
+};
+
+type QuestAuthoringOptions = {
+  id: string;
+  title: string;
+  briefing: string;
+  createdAt: number;
+  startStepId: string;
+  steps: AuthoredQuestStep[];
+  isAvailable?: (context: QuestContext) => boolean;
+  stepVisuals?: Partial<Record<string, QuestVisualBeat[]>>;
+  completionRequiresAllFlags?: string[];
+  journalSummariesByChoicePath?: Record<string, string>;
+  journalSummaryFallback?: string;
+};
+
+/** Small quest-authoring helper: write steps as an ordered array, emit typed quest definition. */
+export function createQuestDefinition(options: QuestAuthoringOptions): QuestDefinition {
+  const inlineStepVisuals: Partial<Record<string, QuestVisualBeat[]>> = {};
+  const steps = options.steps.reduce<Record<string, QuestStep>>((acc, authoredStep) => {
+    const { visuals, ...step } = authoredStep;
+    acc[step.id] = step;
+    if (visuals && visuals.length > 0) {
+      inlineStepVisuals[step.id] = visuals;
+    }
+    return acc;
+  }, {});
+  const mergedStepVisuals = {
+    ...inlineStepVisuals,
+    ...(options.stepVisuals ?? {}),
+  };
+  const hasStepVisuals = Object.keys(mergedStepVisuals).length > 0;
+
+  return {
+    id: options.id,
+    title: options.title,
+    briefing: options.briefing,
+    createdAt: options.createdAt,
+    startStepId: options.startStepId,
+    steps,
+    isAvailable: options.isAvailable ?? (() => true),
+    ...(hasStepVisuals ? { stepVisuals: mergedStepVisuals } : {}),
+    ...(options.completionRequiresAllFlags
+      ? { completionRequiresAllFlags: options.completionRequiresAllFlags }
+      : {}),
+    ...(options.journalSummariesByChoicePath
+      ? { journalSummariesByChoicePath: options.journalSummariesByChoicePath }
+      : {}),
+    ...(options.journalSummaryFallback ? { journalSummaryFallback: options.journalSummaryFallback } : {}),
+  };
+}

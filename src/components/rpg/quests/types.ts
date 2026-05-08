@@ -33,6 +33,8 @@ export type QuestChoice = {
   effects?: ChoiceEffect;
   /** World chronicle lines (`{playerName}` supported). */
   worldEventLogAdd?: string[];
+  /** Play recap line appended immediately after this choice (`{playerName}` supported). */
+  journalSummaryLineAdd?: string;
   /**
    * Render this choice as visible-but-disabled when ANY of these flags are set
    * on the player. Useful for one-shot branches the player has already explored.
@@ -70,6 +72,8 @@ export type InputQuestStep = QuestStepBase & {
   maxLength?: number;
   /** World chronicle lines after a successful name submit (`{playerName}` supported). */
   worldEventLogAfterSubmit?: string[];
+  /** Play recap line after successful submit (`{playerName}` supported). */
+  journalSummaryLineAfterSubmit?: string;
 };
 
 export type QuestStep = MessageQuestStep | ChoiceQuestStep | InputQuestStep;

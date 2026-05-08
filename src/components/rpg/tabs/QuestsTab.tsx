@@ -1,6 +1,6 @@
 import type { JournalLogEntry, QuestDefinition } from '../quests/types';
 import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
-import { getQuestImageSrcForTitle } from '../rpgArtAssignments';
+import { getQuestCardImageSrc } from '../rpgArtAssignments';
 
 function latestJournalEntry(questId: string, journalLog: readonly JournalLogEntry[]): JournalLogEntry | undefined {
   let best: JournalLogEntry | undefined;
@@ -9,6 +9,15 @@ function latestJournalEntry(questId: string, journalLog: readonly JournalLogEntr
     if (!best || e.atMs >= best.atMs) best = e;
   }
   return best;
+}
+
+function summaryToNumberedLines(text: string): string[] {
+  const normalized = text.trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 type QuestsTabProps = {
@@ -66,7 +75,7 @@ export function QuestsTab({
           }
         >
           <img
-            src={getQuestImageSrcForTitle(quest.title)}
+            src={getQuestCardImageSrc(quest)}
             alt={`${quest.title} illustration`}
             className="mx-auto mb-1 aspect-[3/4] w-full max-w-[170px] rounded-md border border-[var(--candle-rule)] object-cover"
             loading="lazy"
@@ -88,6 +97,7 @@ export function QuestsTab({
 
   const renderCompletedQuestRow = (quest: QuestDefinition) => {
     const journalEntry = latestJournalEntry(quest.id, journalLog);
+    const summaryLines = journalEntry ? summaryToNumberedLines(journalEntry.text) : [];
     return (
       <li key={quest.id}>
         <PlayLedgerDisclosure
@@ -99,29 +109,28 @@ export function QuestsTab({
             />
           }
         >
-          <img
-            src={getQuestImageSrcForTitle(quest.title)}
-            alt={`${quest.title} illustration`}
-            className="mx-auto mb-1 aspect-[3/4] w-full max-w-[150px] rounded-md border border-[var(--candle-rule)] object-cover opacity-90"
-            loading="lazy"
-          />
+          <div className="mb-2 flex items-center gap-3">
+            <img
+              src={getQuestCardImageSrc(quest)}
+              alt={`${quest.title} illustration`}
+              className="h-[200px] w-[266px] rounded-md border border-[var(--candle-rule)] object-cover opacity-90"
+              loading="lazy"
+            />
+            <p className="font-serif text-base text-[var(--candle-flame-soft)]">{quest.title}</p>
+          </div>
           {journalEntry ? (
-            <p className="font-serif text-[0.8125rem] leading-relaxed text-[var(--candle-ink-soft)]">{journalEntry.text}</p>
+            summaryLines.length > 0 ? (
+              <ol className="list-decimal space-y-1 pl-5 font-serif text-[0.8125rem] leading-relaxed text-[var(--candle-ink-soft)]">
+                {summaryLines.map((line, i) => (
+                  <li key={`${journalEntry.id}-line-${i}`}>{line}</li>
+                ))}
+              </ol>
+            ) : (
+              <p className="font-serif text-[0.8125rem] italic text-[var(--candle-ink-faint)]">No journal summary recorded.</p>
+            )
           ) : (
             <p className="font-serif text-[0.8125rem] italic text-[var(--candle-ink-faint)]">No journal summary recorded.</p>
           )}
-          {journalEntry?.completionRewards && journalEntry.completionRewards.length > 0 ? (
-            <>
-              <p className="font-serif text-[0.625rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
-                Rewards
-              </p>
-              <ul className="list-disc space-y-1 pl-4 font-serif text-[0.8125rem] leading-relaxed text-[var(--candle-ink-soft)]">
-                {journalEntry.completionRewards.map((line, i) => (
-                  <li key={`${journalEntry.id}-rw-${i}`}>{line}</li>
-                ))}
-              </ul>
-            </>
-          ) : null}
         </PlayLedgerDisclosure>
       </li>
     );
