@@ -35,6 +35,8 @@ type PlayTabProps = {
   onDialogueScroll: () => void;
   visibleLocationActions: string[];
   showOriginStartHint: boolean;
+  /** Persisted name from quest state (popup interpolates `{playerName}`). */
+  committedPlayerName: string;
   onLocationAction?: (actionLabel: string) => void;
   /** Player flag set; used by `disabledIfAnyFlags` on QuestChoice. */
   playerFlags: string[];
@@ -65,6 +67,7 @@ export function PlayTab({
   onDialogueScroll,
   visibleLocationActions,
   showOriginStartHint,
+  committedPlayerName,
   onLocationAction,
   playerFlags,
   useQuestPopupFallback,
@@ -296,6 +299,7 @@ export function PlayTab({
                       step={activeStep}
                       playerFlags={playerFlags}
                       showOriginStartHint={showOriginStartHint}
+                      committedPlayerName={committedPlayerName}
                       nameInput={nameInput}
                       onNameInputChange={onNameInputChange}
                       nameInputError={nameInputError}
@@ -335,6 +339,7 @@ export function PlayTab({
           step={popupStep}
           playerFlags={playerFlags}
           showOriginStartHint={showOriginStartHint}
+          committedPlayerName={committedPlayerName}
           nameInput={nameInput}
           onNameInputChange={onNameInputChange}
           nameInputError={nameInputError}

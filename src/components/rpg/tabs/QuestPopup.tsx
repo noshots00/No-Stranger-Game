@@ -4,6 +4,7 @@ import {
   PLAY_TAB_PLAYER_LINE_SHELL,
   PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
 } from '../DialogueVoiceBlock';
+import { interpolateStepText } from '../quests/engine';
 import type { QuestDefinition, QuestStep } from '../quests/types';
 import { getQuestStepImageSrc } from '../rpgArtAssignments';
 
@@ -15,6 +16,8 @@ type QuestPopupProps = {
   step: QuestStep;
   playerFlags: string[];
   showOriginStartHint: boolean;
+  /** Saved character name (used with `nameInput` fallback for `{playerName}` in step copy). */
+  committedPlayerName: string;
   nameInput: string;
   onNameInputChange: (value: string) => void;
   nameInputError: string | null;
@@ -31,6 +34,7 @@ export function QuestPopup({
   step,
   playerFlags,
   showOriginStartHint,
+  committedPlayerName,
   nameInput,
   onNameInputChange,
   nameInputError,
@@ -43,7 +47,9 @@ export function QuestPopup({
   const playerFlagSet = new Set(playerFlags);
   const isOriginStartCard = quest.id === 'quest-001-origin' && step.id === 'start';
   const stepImageSrc = getQuestStepImageSrc(quest, step.id);
-  const narrativeText = step.text.trim();
+  const nameForTemplates = committedPlayerName.trim() || nameInput.trim();
+  const narrativeText =
+    step.text.trim().length > 0 ? interpolateStepText(step.text.trim(), nameForTemplates) : '';
   const trimmedNameInput = nameInput.trim();
   const isValidInputStepName =
     step.type === 'input'

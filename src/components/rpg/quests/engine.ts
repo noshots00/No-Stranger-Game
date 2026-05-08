@@ -877,4 +877,4 @@ export const submitPlayerName = (
 };
 
 export const interpolateStepText = (text: string, playerName: string): string =>
-  text.replace('{playerName}', playerName || 'Stranger');
+  text.replaceAll('{playerName}', playerName.trim() || 'Stranger');

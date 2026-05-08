@@ -963,6 +963,7 @@ export function RPGInterface() {
             onDialogueScroll={handleDialogueScroll}
             visibleLocationActions={visibleLocationActions}
             showOriginStartHint={showOriginStartHint}
+            committedPlayerName={questState.playerName}
             onLocationAction={handleLocationSceneAction}
             playerFlags={questState.flags}
             useQuestPopupFallback={useQuestPopupFallback}
