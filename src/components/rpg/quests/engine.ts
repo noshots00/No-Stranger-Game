@@ -171,7 +171,27 @@ const normalizeJournalLog = (entries: unknown): JournalLogEntry[] => {
       completionRewards !== undefined ? { id, questId, text, atMs, completionRewards } : { id, questId, text, atMs }
     );
   });
-  return out;
+  const byQuestId = new Map<string, JournalLogEntry>();
+  for (const row of out.sort((a, b) => a.atMs - b.atMs)) {
+    const existing = byQuestId.get(row.questId);
+    if (!existing) {
+      byQuestId.set(row.questId, row);
+      continue;
+    }
+    const mergedParts = [existing.text.trim(), row.text.trim()].filter((s) => s.length > 0);
+    const mergedText = Array.from(new Set(mergedParts)).join(' ').trim();
+    const mergedRewards = Array.from(
+      new Set([...(existing.completionRewards ?? []), ...(row.completionRewards ?? [])])
+    );
+    byQuestId.set(row.questId, {
+      ...existing,
+      id: row.id,
+      atMs: Math.max(existing.atMs, row.atMs),
+      text: mergedText.length > 0 ? mergedText : existing.text,
+      ...(mergedRewards.length > 0 ? { completionRewards: mergedRewards } : {}),
+    });
+  }
+  return Array.from(byQuestId.values()).sort((a, b) => a.atMs - b.atMs);
 };
 
 export const createInitialSkills = (): QuestState['skills'] => ({
@@ -415,8 +435,18 @@ export const getQuestContext = (state: QuestState, currentDay: number): QuestCon
   currentDay: Math.max(1, Math.floor(currentDay)),
 });
 
+/**
+ * Temporary authoring mode: keep the visible quest pool focused on the linear
+ * main arc while new story content is being written.
+ */
+const MAIN_QUEST_ONLY_MODE = true;
+
+const isMainQuestIdForCurrentArc = (questId: string): boolean =>
+  questId === 'quest-001-origin' || /^quest-002(?:-|$)/.test(questId);
+
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>
   quests
+    .filter((quest) => !MAIN_QUEST_ONLY_MODE || isMainQuestIdForCurrentArc(quest.id))
     .filter((quest) => quest.isAvailable(context) || context.completedQuestIds.includes(quest.id))
     .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -445,7 +475,8 @@ export const getQuestListForUi = (
   if (devUnlockAllQuests) {
     return [...quests].sort((a, b) => b.createdAt - a.createdAt);
   }
-  return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
+  void unveiledQuestIds;
+  return getVisibleQuests(quests, context);
 };
 
 export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => {
@@ -564,6 +595,37 @@ const mergeQuestItems = (current: string[], effect: ChoiceEffect | undefined): s
     next.push(label);
   }
   return next;
+};
+
+const appendJournalSummaryLine = (
+  state: QuestState,
+  questId: string,
+  rawLine: string | undefined,
+  playerName: string
+): QuestState => {
+  if (!rawLine || rawLine.trim().length === 0) return state;
+  const text = interpolateStepText(rawLine.trim(), playerName);
+  const existingIndex = state.journalLog.findIndex((entry) => entry.questId === questId);
+  if (existingIndex >= 0) {
+    const existing = state.journalLog[existingIndex];
+    if (existing.text.includes(text)) return state;
+    const mergedText = `${existing.text.trim()} ${text}`.trim();
+    const nextJournalLog = [...state.journalLog];
+    nextJournalLog[existingIndex] = {
+      ...existing,
+      text: mergedText,
+      atMs: Date.now(),
+    };
+    return { ...state, journalLog: nextJournalLog };
+  }
+  const atMs = Date.now();
+  const entry: JournalLogEntry = {
+    id: `journal-${questId}-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
+    questId,
+    text,
+    atMs,
+  };
+  return { ...state, journalLog: [...state.journalLog, entry] };
 };
 
 const moveToStep = (
@@ -726,6 +788,12 @@ export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId:
       worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, worldLines),
     };
   }
+  nextState = appendJournalSummaryLine(
+    nextState,
+    quest.id,
+    selectedChoice.journalSummaryLineAdd,
+    nextState.playerName
+  );
   return nextState;
 };
 
@@ -768,6 +836,12 @@ export const submitPlayerName = (
       worldEventLog: appendUniqueWorldEntries(nextState.worldEventLog, lines),
     };
   }
+  nextState = appendJournalSummaryLine(
+    nextState,
+    quest.id,
+    currentStep.journalSummaryLineAfterSubmit,
+    trimmed
+  );
 
   return { nextState };
 };

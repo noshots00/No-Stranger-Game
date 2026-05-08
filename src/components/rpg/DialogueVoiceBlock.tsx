@@ -49,11 +49,11 @@ function QuestVisualBeatView({ beat }: { beat: QuestVisualBeat }) {
 }
 
 const DIALOGUE_NARRATOR_CLASSES =
-  'font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
+  'whitespace-pre-line font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
 /** Play tab: narration reads as steady body text (choices mirror player-line chrome below). */
 const DIALOGUE_NARRATOR_PLAY_CLASSES =
-  'font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]';
+  'whitespace-pre-line font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';
@@ -126,19 +126,19 @@ export function DialogueVoiceBlock({
     const hasStyledTitle = Boolean(titleLine && isReportInfographicTitle(titleLine.text));
     const reportBodyLines = hasStyledTitle ? bodyLines : lines;
     const shellPlay =
-      'rounded-lg border border-[var(--candle-rule)] bg-black/30 px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
+      'rounded-lg border border-[var(--candle-rule)] bg-black/30 px-4 py-[5px] shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
     const shellChronicle =
-      'rounded-lg border border-[var(--candle-rule)] bg-[rgba(0,0,0,0.28)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
+      'rounded-lg border border-[var(--candle-rule)] bg-[rgba(0,0,0,0.28)] px-4 py-[5px] shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
     return (
-      <div className="py-0.5">
+      <div className="py-0">
         <div className={presentation === 'play' ? shellPlay : shellChronicle}>
           {hasStyledTitle && titleLine ? (
-            <p className="font-cormorant text-base font-medium tracking-[0.04em] text-[var(--candle-wax)]">
+            <p className="font-cormorant text-base font-medium leading-none tracking-[0.04em] text-[var(--candle-wax)]">
               {titleLine.text}
             </p>
           ) : null}
           {reportBodyLines.length > 0 ? (
-            <ul className="mt-2 list-disc space-y-1 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+            <ul className="mt-[2px] list-disc space-y-0 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
               {reportBodyLines.map((line) => (
                 <li key={line.id}>{line.text}</li>
               ))}
@@ -178,8 +178,8 @@ export function DialogueVoiceBlock({
   if (role === 'journal_recap') {
     const bodyClass =
       presentation === 'play'
-        ? 'font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]'
-        : 'font-serif text-[0.9375rem] leading-relaxed text-[var(--candle-ink-soft)]';
+        ? 'whitespace-pre-line font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]'
+        : 'whitespace-pre-line font-serif text-[0.9375rem] leading-relaxed text-[var(--candle-ink-soft)]';
     return (
       <div className="space-y-1 py-0.5">
         {lines.map((line) => (

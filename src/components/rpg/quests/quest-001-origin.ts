@@ -1,71 +1,85 @@
-import type { QuestDefinition } from './types';
+import { createQuestDefinition } from './quest-authoring-tool';
 
-export const quest001Origin: QuestDefinition = {
+export const quest001Origin = createQuestDefinition({
   id: 'quest-001-origin',
-  title: 'The Forest',
-  briefing: 'You find yourself in the forest.',
+  title: 'The Beginning',
+  briefing: 'Click here to continue.',
   createdAt: 1,
   startStepId: 'start',
-  isAvailable: () => true,
-  journalSummaryFallback: 'The Forest',
-  stepVisuals: {
-    start: [
-      {
-        kind: 'image-row',
-        images: [
-          {
-            src: 'art/converted/batch-2026-05-02_21-10-35/pleasant-forest.webp',
-            alt: 'Forest',
-          },
-          {
-            src: 'art/converted/batch-2026-05-02_21-10-35/door-in-the-forest.webp',
-            alt: 'Door in the forest',
-          },
-          {
-            src: 'art/converted/batch-2026-05-02_21-10-35/dream-of-fae.webp',
-            alt: 'Dream of fae',
-          },
-        ],
-      },
-    ],
-    two: [
-      {
-        kind: 'image',
-        src: 'art/converted/batch-2026-05-02_21-10-35/forest-gnomes.webp',
-        alt: 'Forest gnomes',
-      },
-    ],
-  },
-  steps: {
-    start: {
+  steps: [
+    {
       id: 'start',
       type: 'choice',
-      text: 'You find yourself in a forest.',
+      text: 'You will have many choices to make in this game.  Pick a choice to continue.',
+      visuals: [
+        {
+          kind: 'image',
+          src: 'art/To be converted/NSWoods.jpg',
+          alt: 'Forest',
+        },
+      ],
       choices: [
         {
-          id: 'q1-click-here-to-continue',
-          label: 'Click here to continue...',
-          nextStepId: 'two',
+          id: 'q1-a-continue',
+          label: 'A) Please make a choice to continue...',
+          nextStepId: 'two-a',
+          
+        },
+        {
+          id: 'q1-b-continue',
+          label: 'B) Please make a choice to continue...',
+          nextStepId: 'two-b',
+        },
+        {
+          id: 'q1-c-continue',
+          label: 'C) Please make a choice to continue...',
+          nextStepId: 'two-c',
         },
       ],
     },
-    'two': {
-      id: 'two',
+    {
+      id: 'two-a',
       type: 'choice',
-      text: "How did I get here?",
+      text: 'You chose A.\n\nHow did I get here?',
+      
       choices: [
         {
           id: 'q2-i-dont-know',
-          label: 'It\'s like I just woke up... only I don\'t remember a thing.',
+          label: 'It\'s like I just woke up... only I can\'t remember a thing.',
           nextStepId: 'three',
-         
         },
       ],
     },
-    'three': {
+    {
+      id: 'two-b',
+      type: 'choice',
+      text: 'You chose B.\n\nHow did I get here?',
+      
+      choices: [
+        {
+          id: 'q2-i-dont-know',
+          label: 'It\'s like I just woke up... only I can\'t remember a thing.',
+          nextStepId: 'three',
+        },
+      ],
+    },
+    {
+      id: 'two-c',
+      type: 'choice',
+      text: 'You chose C.\n\nHow did I get here?',
+      
+      choices: [
+        {
+          id: 'q2-i-dont-know',
+          label: 'It\'s like I just woke up... only I can\'t remember a thing.',
+          nextStepId: 'three',
+        },
+      ],
+    },
+    {
       id: 'three',
       type: 'choice',
-      text: 'I don\'t even remember my name...',
+      text: 'What am I doing here? Why can\'t I remember anything?',
       choices: [
         {
           id: 'q3-my-name-is-',
@@ -74,21 +88,22 @@ export const quest001Origin: QuestDefinition = {
         },
       ],
     },
-    'four': {
+    {
       id: 'four',
       type: 'input',
       /** Narrator omits input-step copy; use `placeholder` for the prompt. */
       text: '',
       field: 'playerName',
-      placeholder: 'Please enter your name.',
+      placeholder: 'Please type your name here.',
       submitLabel: 'Confirm Name',
       nextStepId: 'five',
+      journalSummaryLineAfterSubmit: 'You find yourself in a forest.  You can\'t remember anything, except...\n\n...your name is {playerName}.',
     },
-    'five': {
+    {
       id: 'five',
       type: 'message',
       text: 'My name is... {playerName}!',
       completeQuest: true,
     },
-  },
-};
+  ],
+});
