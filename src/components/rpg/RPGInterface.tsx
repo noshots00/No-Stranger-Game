@@ -13,8 +13,6 @@ import {
   getCurrentStep,
   getQuestContext,
   getQuestListForUi,
-  getVisibleQuests,
-  questNumberFromId,
   interpolateStepText,
   restartQuestProgress,
   startQuest,
@@ -22,6 +20,11 @@ import {
 } from '@/components/rpg/quests/engine';
 import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
+import {
+  catchUpSagaUnveilIds,
+  computeNextUnveilIdsAfterCompletion,
+  pickNextSideQuestToUnveilOnDayRoll,
+} from '@/components/rpg/quests/quest-saga';
 import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
 import type { DialogueLogEntry, ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
@@ -61,6 +64,8 @@ import {
   PLAY_DIALOGUE_RECENT_MAX,
   PLAY_JOURNAL_RECENT_MAX,
   PLAY_WORLD_RECENT_MAX,
+  LOCATION_LABEL_DISPLAY,
+  VILLAGE_PHASE_FLAG,
 } from './constants';
 import type { MobileTab } from './constants';
 import {
@@ -98,6 +103,7 @@ import { GameHeader } from './GameHeader';
 import { CharacterTab } from './tabs/CharacterTab';
 import { ChronicleTab } from './tabs/ChronicleTab';
 import { PlayTab } from './tabs/PlayTab';
+import { VillagePlaySurface } from './village/VillagePlaySurface';
 import { SocialTab } from './tabs/SocialTab';
 import { useGameMusic } from './audio/useGameMusic';
 import { publishCharacterCreation, publishMergedProfileDisplayName } from './gameProfile';
@@ -119,16 +125,16 @@ let hasShownGameOnceInSession = false;
 /** localStorage `nsg:dev-header-tools=1` enables header dev tools in production builds. */
 const DEV_HEADER_TOOLS_STORAGE_KEY = 'nsg:dev-header-tools';
 
-/** Credits daily XP when the extended origin quest first completes; gates side content via `quest001-complete`. */
-function applyOriginMainDailyCompletionIfNeeded(
+/** Credits daily XP when the main `mainDailyQuest` arc first completes; sets `quest001-complete`. */
+function applyMainDailyQuestCompletionIfNeeded(
   prev: QuestState,
   merged: QuestState,
   quest: QuestDefinition,
   calendarDay: number
 ): QuestState {
-  if (quest.id !== QUEST_ORIGIN_ID || !quest.mainDailyQuest) return merged;
-  const wasCompleted = Boolean(prev.progressByQuestId[QUEST_ORIGIN_ID]?.isCompleted);
-  const nowCompleted = Boolean(merged.progressByQuestId[QUEST_ORIGIN_ID]?.isCompleted);
+  if (!quest.mainDailyQuest) return merged;
+  const wasCompleted = Boolean(prev.progressByQuestId[quest.id]?.isCompleted);
+  const nowCompleted = Boolean(merged.progressByQuestId[quest.id]?.isCompleted);
   if (wasCompleted || !nowCompleted) return merged;
   const flags = Array.from(new Set([...merged.flags, 'quest001-complete']));
   const daysToGrant = Math.max(1, calendarDay - prev.lastDailyXpDay);
@@ -144,6 +150,26 @@ function applyOriginMainDailyCompletionIfNeeded(
     experience: merged.experience + xpToGrant,
     skills: nextSkills,
     lastDailyXpDay: calendarDay,
+  };
+}
+
+function mergeDiscoveryUnveils(
+  merged: QuestState,
+  completedQuestId: string,
+  calendarDay: number
+): QuestState {
+  const ctx = getQuestContext(merged, calendarDay);
+  const completed = getCompletedQuestIds(merged);
+  const add = computeNextUnveilIdsAfterCompletion(
+    completedQuestId,
+    merged.unveiledQuestIds,
+    completed,
+    ctx
+  );
+  if (add.length === 0) return merged;
+  return {
+    ...merged,
+    unveiledQuestIds: Array.from(new Set([...merged.unveiledQuestIds, ...add])),
   };
 }
 
@@ -232,6 +258,8 @@ export function RPGInterface() {
   }, [canShowGame, hasShownGameOnce]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
+  /** When true, play-feed snap uses smooth scroll instead of instant scrollTop (quest choice visual transition). */
+  const questChoiceVisualActiveRef = useRef(false);
   const dialoguePinnedRef = useRef(true);
   const dialogueInstantScrollRef = useRef(false);
   /** False until first bottom snap on Play; avoids scrollTop=0 on mount marking the feed "unpinned". */
@@ -246,13 +274,31 @@ export function RPGInterface() {
   const snapPlayDialogueBottom = useCallback(() => {
     const el = dialogueScrollRef.current;
     if (!el) return;
-    el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
-    el.querySelector<HTMLElement>('[data-stick-scroll-bottom-sentinel]')?.scrollIntoView({
-      block: 'end',
-      behavior: 'auto',
-    });
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (questChoiceVisualActiveRef.current) {
+      el.scrollTo({ top: maxScroll, behavior: 'smooth' });
+    } else {
+      el.scrollTop = maxScroll;
+      el.querySelector<HTMLElement>('[data-stick-scroll-bottom-sentinel]')?.scrollIntoView({
+        block: 'end',
+        behavior: 'auto',
+      });
+    }
     dialoguePinnedRef.current = true;
     dialogueScrollReadyRef.current = true;
+  }, []);
+
+  const handleQuestChoiceVisualPhase = useCallback((phase: 'start' | 'end') => {
+    if (phase === 'start') {
+      questChoiceVisualActiveRef.current = true;
+      return;
+    }
+    questChoiceVisualActiveRef.current = false;
+    if (activeTabRef.current !== 'play') return;
+    if (!dialoguePinnedRef.current) return;
+    const el = dialogueScrollRef.current;
+    if (!el) return;
+    el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
   }, []);
 
   const handleDialogueScroll = () => {
@@ -272,7 +318,14 @@ export function RPGInterface() {
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
   const merchantTravelUnlocked = completedQuestIds.includes(QUEST_003B_MEET_MERCHANT_ID);
+  const formatLocationLabel = useCallback((loc: string) => LOCATION_LABEL_DISPLAY[loc] ?? loc, []);
   const travelLocations = useMemo(() => {
+    const villageEndgame =
+      questState.flags.includes(VILLAGE_PHASE_FLAG) || questState.currentLocation === 'Village';
+    // Endgame hub: header travel is Village-only (reset story to return to forest progression).
+    if (villageEndgame) {
+      return ['Village'];
+    }
     const out: string[] = [];
     const add = (s: string) => {
       if (!out.includes(s)) out.push(s);
@@ -282,7 +335,7 @@ export function RPGInterface() {
     const cur = questState.currentLocation;
     if (cur && !out.includes(cur)) add(cur);
     return out;
-  }, [merchantTravelUnlocked, questState.currentLocation]);
+  }, [merchantTravelUnlocked, questState.currentLocation, questState.flags]);
   const handleTravelLocationSelect = useCallback(
     (nextLocation: string) => {
       setQuestState((prev) => {
@@ -348,11 +401,12 @@ export function RPGInterface() {
   const handleDevCompleteQuest = useCallback(() => {
     if (!devCompleteQuestSelection) return;
     setQuestState((prev) => {
-      const next = devCompleteQuestById(prev, devCompleteQuestSelection, questById);
+      let next = devCompleteQuestById(prev, devCompleteQuestSelection, questById);
+      next = mergeDiscoveryUnveils(next, devCompleteQuestSelection, dayCounter);
       void persistQuestCheckpoint(next);
       return next;
     });
-  }, [devCompleteQuestSelection, setQuestState, persistQuestCheckpoint]);
+  }, [devCompleteQuestSelection, dayCounter, setQuestState, persistQuestCheckpoint]);
 
   const headerDevPanel = useMemo(() => {
     if (!showHeaderDevTools) return null;
@@ -511,7 +565,9 @@ export function RPGInterface() {
         ? 'location-indicator-silver-lake'
         : questState.currentLocation === 'Merchant'
           ? 'location-indicator-merchant'
-          : 'candle-ink-muted';
+          : questState.currentLocation === 'Village'
+            ? 'location-indicator-village'
+            : 'candle-ink-muted';
   /** Origin quest “click a choice” hint — off until copy/UI is finalized. */
   const showOriginStartHint = false;
 
@@ -621,9 +677,7 @@ export function RPGInterface() {
     return x - Math.floor(x);
   };
 
-  // One-time legacy backfill: if a returning player has quest progress but no unveil
-  // tracking for currently-eligible quests, mark all currently-eligible quests as unveiled
-  // so they aren't retroactively hidden by the new 2/day cap.
+  // One-shot catch-up: unveils the next main-saga step when an older save already completed the prior step.
   const unveilBackfillDoneRef = useRef(false);
   useEffect(() => {
     if (!isQuestStateHydrated || !isPacingResolved || unveilBackfillDoneRef.current || showEarlyDevResetGate) return;
@@ -632,14 +686,15 @@ export function RPGInterface() {
       unveilBackfillDoneRef.current = true;
       return;
     }
-    const eligibleIds = getVisibleQuests(allQuests, questContext).map((q) => q.id);
-    const merged = Array.from(new Set([...questState.unveiledQuestIds, ...eligibleIds]));
-    if (merged.length !== questState.unveiledQuestIds.length) {
-      const next = { ...questState, unveiledQuestIds: merged };
-      setQuestState(next);
-      void persistQuestCheckpoint(next);
-    }
+    const completed = getCompletedQuestIds(questState);
+    const catchUp = catchUpSagaUnveilIds(questState.unveiledQuestIds, completed, questContext);
     unveilBackfillDoneRef.current = true;
+    if (catchUp.length === 0) return;
+    const merged = Array.from(new Set([...questState.unveiledQuestIds, ...catchUp]));
+    if (merged.length === questState.unveiledQuestIds.length) return;
+    const next = { ...questState, unveiledQuestIds: merged };
+    setQuestState(next);
+    void persistQuestCheckpoint(next);
   }, [
     isQuestStateHydrated,
     isPacingResolved,
@@ -650,7 +705,7 @@ export function RPGInterface() {
     showEarlyDevResetGate,
   ]);
 
-  // Catch-up on login/session: when the in-game day advances vs last grant, apply XP, report, unveil.
+  // Catch-up on login/session: when the in-game day advances vs last grant, apply XP/report/flags.
   useEffect(() => {
     if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
 
@@ -659,7 +714,7 @@ export function RPGInterface() {
       creationDateEastern === null ? qc === null : qc === creationDateEastern;
     if (!pacingAligned) return;
 
-    /** Until extended origin is finished once, skip calendar catch-up (main quest gates daily XP). */
+    /** Until first night (main daily quest) finishes once, skip calendar catch-up. */
     if (!questState.flags.includes('quest001-complete')) return;
 
     if (dayCounter <= questState.lastDailyXpDay) return;
@@ -746,16 +801,17 @@ export function RPGInterface() {
     }
     updatedState.flags = promotedFlags;
 
-    const ctxAfterFlags = getQuestContext({ ...updatedState }, dayCounter);
-    const eligibleIds = getVisibleQuests(allQuests, ctxAfterFlags).map((q) => q.id);
-    const alreadyUnveiled = new Set(updatedState.unveiledQuestIds);
-    const queue = eligibleIds.filter(
-      (id) => !alreadyUnveiled.has(id) && !completedQuestIdSet.has(id)
+    const ctxAfterDay = getQuestContext({ ...updatedState }, dayCounter);
+    const completedIdsAfter = getCompletedQuestIds(updatedState);
+    const sideUnveilCatchup = pickNextSideQuestToUnveilOnDayRoll(
+      updatedState.unveiledQuestIds,
+      completedIdsAfter,
+      ctxAfterDay
     );
-    queue.sort((a, b) => questNumberFromId(b) - questNumberFromId(a));
-    const newToUnveil = queue.slice(0, 2);
-    if (newToUnveil.length > 0) {
-      updatedState.unveiledQuestIds = [...updatedState.unveiledQuestIds, ...newToUnveil];
+    if (sideUnveilCatchup) {
+      updatedState.unveiledQuestIds = Array.from(
+        new Set([...updatedState.unveiledQuestIds, sideUnveilCatchup])
+      );
     }
 
     const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState);
@@ -898,7 +954,10 @@ export function RPGInterface() {
         worldEventLog: nextState.worldEventLog,
       };
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
-      merged = applyOriginMainDailyCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
+      merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
+      if (!wasCompleted && isCompleted) {
+        merged = mergeDiscoveryUnveils(merged, activeQuest.id, dayCounter);
+      }
       return merged;
     });
   };
@@ -943,7 +1002,10 @@ export function RPGInterface() {
         worldEventLog: advanced.worldEventLog,
       };
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
-      merged = applyOriginMainDailyCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
+      merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
+      if (!wasCompleted && isCompleted) {
+        merged = mergeDiscoveryUnveils(merged, activeQuest.id, dayCounter);
+      }
       return merged;
     });
   };
@@ -962,20 +1024,45 @@ export function RPGInterface() {
     if (activeQuest.id === QUEST_ORIGIN_ID) {
       const creationYmd = formatInTimeZone(Date.now(), EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
       const characterCreationDateEastern = nextState.characterCreationDateEastern ?? creationYmd;
-      const updatedState = {
+      const priorOriginProg = nextState.progressByQuestId[QUEST_ORIGIN_ID];
+      const originProgress = priorOriginProg ?? {
+        currentStepId: 'four',
+        isCompleted: false,
+        choiceHistory: [] as string[],
+      };
+      const nameRecap =
+        "You find yourself in a forest.  You can't remember anything, except...\n\n...your name is {playerName}.";
+      const narrated = interpolateStepText(
+        `${nameRecap}\n\nYou steady your breathing. Whatever comes next, you will meet it as yourself.`,
+        nextState.playerName
+      );
+
+      const updatedState: QuestState = {
         ...nextState,
         characterCreationDateEastern,
         characterCreatedAtAppVersion: APP_VERSION,
         flags: Array.from(new Set([...nextState.flags, QUEST001_NAMED_FLAG])),
+        activeQuestId: null,
+        unveiledQuestIds: nextState.unveiledQuestIds,
+        progressByQuestId: {
+          ...nextState.progressByQuestId,
+          [QUEST_ORIGIN_ID]: {
+            ...originProgress,
+            isCompleted: true,
+            currentStepId: activeQuest.startStepId,
+            choiceHistory: originProgress.choiceHistory ?? [],
+          },
+        },
         dialogueLog: [
           ...nextState.dialogueLog,
-          ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
-          appendDialogue('You', interpolateStepText(nextStep.text, nextState.playerName), {
+          ...visualDialogueEntriesForQuestStep(activeQuest, 'four'),
+          appendDialogue(NARRATOR_RESPONSE_SPEAKER, narrated, {
             sourceQuestId: activeQuest.id,
           }),
         ],
       };
-      const withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
+      let withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
+      withJournal = mergeDiscoveryUnveils(withJournal, QUEST_ORIGIN_ID, dayCounter);
       setQuestState(withJournal);
       void persistQuestCheckpoint(withJournal);
       if (updatedState.characterCreationDateEastern) {
@@ -1126,6 +1213,9 @@ export function RPGInterface() {
           />
         );
       default:
+        if (questState.currentLocation === 'Village') {
+          return <VillagePlaySurface dayCounter={dayCounter} characterNameLabel={characterNameLabel} />;
+        }
         return (
           <PlayTab
             playFeedSegments={playFeedSegments}
@@ -1154,8 +1244,10 @@ export function RPGInterface() {
             committedPlayerName={questState.playerName}
             onLocationAction={handleLocationSceneAction}
             playerFlags={questState.flags}
+            playerModifiers={questState.modifiers}
             activeQuestTranscript={activeQuestTranscript}
             useQuestPopupFallback={useQuestPopupFallback}
+            onQuestChoiceVisualPhase={handleQuestChoiceVisualPhase}
           />
         );
     }
@@ -1188,6 +1280,7 @@ export function RPGInterface() {
         <GameHeader
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
+          formatLocationLabel={formatLocationLabel}
           locationIndicatorClass={locationIndicatorClass}
           travelLocations={travelLocations}
           onTravelLocationSelect={handleTravelLocationSelect}

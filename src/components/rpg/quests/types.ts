@@ -23,6 +23,8 @@ export type ChoiceEffect = {
    * so the quest stays available for re-entry without being marked complete.
    */
   clearActiveQuest?: boolean;
+  /** When set (and valid in `VALID_SAVE_LOCATIONS`), updates `QuestState.currentLocation` after this choice. */
+  setCurrentLocation?: string;
 };
 
 export type QuestChoice = {
@@ -40,6 +42,11 @@ export type QuestChoice = {
    * on the player. Useful for one-shot branches the player has already explored.
    */
   disabledIfAnyFlags?: string[];
+  /**
+   * Render disabled when the player lacks the minimum count for any listed modifier key
+   * (stackable `item:*` counts, etc.). All keys must satisfy `(modifiers[key] ?? 0) >= value`.
+   */
+  disabledUnlessModifiersAtLeast?: ModifierMap;
   /** Optional suffix appended to `label` when the choice is disabled (e.g. "(already explored)"). */
   disabledLabel?: string;
 };
@@ -67,7 +74,8 @@ export type InputQuestStep = QuestStepBase & {
   field: 'playerName';
   placeholder: string;
   submitLabel: string;
-  nextStepId: string;
+  /** When omitted, name submit does not advance `currentStepId` (e.g. origin ends at naming). */
+  nextStepId?: string;
   minLength?: number;
   maxLength?: number;
   /** World chronicle lines after a successful name submit (`{playerName}` supported). */

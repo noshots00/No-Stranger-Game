@@ -4,7 +4,7 @@
  */
 
 import { formatInTimeZone } from 'date-fns-tz';
-import { QUEST001_NAMED_FLAG } from '@/components/rpg/constants';
+import { QUEST001_NAMED_FLAG, QUEST_FIRST_NIGHT_ID } from '@/components/rpg/constants';
 import type { QuestDefinition, QuestProgress, QuestState } from '@/components/rpg/quests/types';
 import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 
@@ -13,6 +13,7 @@ const QUEST001_COMPLETE_FLAG = 'quest001-complete';
 /** Main arc B-chain order (must match gating elsewhere). */
 export const MAIN_B_ARC_QUEST_IDS = [
   'quest-001-origin',
+  QUEST_FIRST_NIGHT_ID,
   'quest-002-b-will-i-starve',
   'quest-003-b-meet-merchant',
   'quest-004-b-the-door',
@@ -45,9 +46,7 @@ function mergeUnveiled(state: QuestState, ids: readonly string[]): string[] {
 /** Ensures name + creation date exist for downstream gates. */
 function ensureNamedDevBasics(state: QuestState): QuestState {
   const name = state.playerName.trim().length > 0 ? state.playerName : 'Developer';
-  const flags = Array.from(
-    new Set([...state.flags, QUEST001_NAMED_FLAG, QUEST001_COMPLETE_FLAG])
-  );
+  const flags = Array.from(new Set([...state.flags, QUEST001_NAMED_FLAG]));
   return {
     ...state,
     playerName: name,
@@ -86,6 +85,13 @@ function applyCompletionsForPrefix(
     next = ensureNamedDevBasics(next);
   }
 
+  if (upToIncludingIndex >= 1) {
+    next = {
+      ...next,
+      flags: Array.from(new Set([...next.flags, QUEST001_COMPLETE_FLAG])),
+    };
+  }
+
   return next;
 }
 
@@ -102,13 +108,13 @@ export function applyStoryCheckpoint(
       case 'after-origin':
         return 0;
       case 'after-2b':
-        return 1;
-      case 'after-3b':
         return 2;
-      case 'after-4b':
+      case 'after-3b':
         return 3;
-      case 'after-5b':
+      case 'after-4b':
         return 4;
+      case 'after-5b':
+        return 5;
       default:
         return 0;
     }
@@ -142,11 +148,18 @@ export function devCompleteQuestById(
     next = ensureNamedDevBasics(next);
   }
 
+  if (questId === QUEST_FIRST_NIGHT_ID) {
+    next = {
+      ...next,
+      flags: Array.from(new Set([...next.flags, QUEST001_COMPLETE_FLAG])),
+    };
+  }
+
   return next;
 }
 
 export const STORY_CHECKPOINT_LABELS: Record<StoryCheckpointId, string> = {
-  'after-origin': 'After origin (1 done)',
+  'after-origin': 'After origin (name)',
   'after-2b': 'After Will I Starve? (2b)',
   'after-3b': 'After Meet merchant (3b)',
   'after-4b': 'After The Door (4b)',

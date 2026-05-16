@@ -285,6 +285,10 @@
     color: rgba(168, 176, 186, 0.72);
   }
 
+  .location-indicator-village {
+    color: rgba(182, 168, 202, 0.82);
+  }
+
   .location-indicator-merchant {
     color: rgba(200, 165, 120, 0.78);
   }
@@ -360,20 +364,20 @@
     opacity: 0.08;
     filter: blur(4px);
     pointer-events: none;
-    transition: opacity 1.2s ease, filter 1.2s ease;
+    transition: opacity 320ms ease, filter 320ms ease;
   }
 
   .choice-selected-flash {
-    animation: choiceSelectedFlash 1.2s ease forwards;
+    animation: choiceSelectedFlash 320ms ease forwards;
     pointer-events: none;
   }
 
   .quest-step-enter {
-    animation: questStepEnter 280ms ease;
+    animation: questStepEnter 320ms ease;
   }
 
   .quest-body-transition {
-    animation: questStepEnter 280ms ease;
+    animation: questStepEnter 320ms ease;
   }
 
   .quest-body-layer {
@@ -525,7 +529,7 @@
   }
 
   .quest-transcript-burn-in {
-    animation: questTranscriptBurnIn 720ms cubic-bezier(0.2, 0.9, 0.35, 1) both;
+    animation: questTranscriptBurnIn 320ms cubic-bezier(0.2, 0.9, 0.35, 1) both;
   }
 
   @media (prefers-reduced-motion: reduce) {

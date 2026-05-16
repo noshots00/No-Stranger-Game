@@ -30,6 +30,8 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
   { pending: SWEET_DREAM_PENDING_FLAG, unlocked: SWEET_DREAM_UNLOCKED_FLAG },
 ];
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
+/** Mainline forest / first night (`flavor-five` → endings); grants `quest001-complete` when done. */
+export const QUEST_FIRST_NIGHT_ID = 'quest-002-first-night';
 /** Story beat: after 2b, unlocks merchant travel (`quest-003-b-meet-merchant`). */
 export const QUEST_003B_MEET_MERCHANT_ID = 'quest-003-b-meet-merchant';
 /** Quest 4b — Carl at the door (NPC dialog template). */
@@ -37,6 +39,8 @@ export const QUEST_004_B_THE_DOOR_ID = 'quest-004-b-the-door';
 export const QUEST_004_B_CARL_HUB_STEP_ID = 'carl-hub';
 /** Set when the player submits their name on origin (distinct from `quest001-complete`). */
 export const QUEST001_NAMED_FLAG = 'quest001-named';
+/** Matches quest choice / transcript CSS in `index.css` (`.choice-fade-out`, `.quest-body-*`, `.quest-transcript-burn-in`). */
+export const QUEST_TRANSITION_MS = 320;
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
 /** @deprecated legacy numeric ms; prefer CHARACTER_CREATION_DATE_STORAGE_KEY */
 export const CHARACTER_START_TS_STORAGE_KEY = 'nsg:character-start-timestamp';
@@ -135,7 +139,24 @@ export const DIALOGUE_SCROLL_PIN_EPS = 80;
 export const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-dev' : ''}`;
 
 /** Persisted `QuestState.currentLocation` must be one of these; others normalize to Forest on load. */
-export const VALID_SAVE_LOCATIONS = new Set<string>(['Forest', 'Merchant', 'Silver Lake', 'Airship', 'Town']);
+export const VALID_SAVE_LOCATIONS = new Set<string>([
+  'Forest',
+  'Merchant',
+  'Silver Lake',
+  'Airship',
+  'Town',
+  'Village',
+]);
+
+/** Header/role display only — persisted `currentLocation` stays title-case. */
+export const LOCATION_LABEL_DISPLAY: Readonly<Record<string, string>> = {
+  Village: 'VILLAGE',
+};
+
+export const QUEST_018_SILVER_LAKE_REFLECTION_ID = 'quest-018-silver-lake-reflection';
+export const QUEST_VILLAGE_ARRIVAL_ID = 'quest-036-the-village';
+/** Set when the player finishes the village arrival quest; enables endgame hub UI. */
+export const VILLAGE_PHASE_FLAG = 'village-phase';
 
 export const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
@@ -143,6 +164,8 @@ export const locationActions: Record<string, string[]> = {
   'Silver Lake': ['Still waters', 'Light in the water'],
   Merchant: [],
   Airship: [],
+  /** Placeholders for future building scenes / mechanics. */
+  Village: ['North hall', 'Market square', 'Forge lane'],
 };
 
 /** Play-tab location button label → quest id (Silver Lake repeatable scenes). */

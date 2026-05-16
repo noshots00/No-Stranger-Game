@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 type GameHeaderProps = {
   dayCounter: number;
   currentLocation: string;
+  /** Maps persisted location id to header/travel menu label (storage stays canonical). */
+  formatLocationLabel?: (location: string) => string;
   locationIndicatorClass: string;
   /** Ordered travel destinations (Forest, optional Merchant when unlocked, …). */
   travelLocations: readonly string[];
@@ -24,6 +26,7 @@ type GameHeaderProps = {
 export function GameHeader({
   dayCounter,
   currentLocation,
+  formatLocationLabel = (loc) => loc,
   locationIndicatorClass,
   travelLocations,
   onTravelLocationSelect,
@@ -71,7 +74,7 @@ export function GameHeader({
             )}
             aria-label="Choose location"
           >
-            <span className="truncate">{currentLocation}</span>
+            <span className="truncate">{formatLocationLabel(currentLocation)}</span>
             <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -87,7 +90,7 @@ export function GameHeader({
                   loc === currentLocation ? 'text-[var(--candle-wax)]' : 'text-[var(--candle-ink-soft)]'
                 )}
               >
-                {loc}
+                {formatLocationLabel(loc)}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

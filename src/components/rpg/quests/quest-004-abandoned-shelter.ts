@@ -7,9 +7,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
     'A collapsed lean-to in the brush. Something—or someone—left supplies behind. Explore carefully; your approach shapes what you find.',
   createdAt: 7,
   startStepId: 'shelter-intro',
-  isAvailable: (context) =>
-    (context.completedQuestIds.includes('quest-001-origin') || context.flags.includes('quest001-complete')) &&
-    context.currentDay >= 3,
+  isAvailable: (context) => context.flags.includes('quest001-complete') && context.currentDay >= 3,
   journalSummaryFallback: 'Abandoned Shelter',
   steps: {
     'shelter-intro': {

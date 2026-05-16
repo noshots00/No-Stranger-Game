@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
-import type { DialogueLogEntry, JournalLogEntry, QuestDefinition, QuestStep } from '../quests/types';
+import type { DialogueLogEntry, JournalLogEntry, ModifierMap, QuestDefinition, QuestStep } from '../quests/types';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
 import { ORIGIN_QUEST_OPENED_FLAG, QUEST_004_B_CARL_HUB_STEP_ID, QUEST_004_B_THE_DOOR_ID } from '../constants';
 import { QuestPopup } from './QuestPopup';
@@ -42,9 +42,13 @@ type PlayTabProps = {
   onLocationAction?: (actionLabel: string) => void;
   /** Player flag set; used by `disabledIfAnyFlags` on QuestChoice. */
   playerFlags: string[];
+  /** Stackable item/stat tallies; used by `disabledUnlessModifiersAtLeast` on QuestChoice. */
+  playerModifiers: ModifierMap;
   /** Narrative lines for the active quest popup (sourced from `dialogueLog`). */
   activeQuestTranscript: DialogueLogEntry[];
   useQuestPopupFallback: boolean;
+  /** Brackets inline quest choice visual transition for play-feed scroll choreography. */
+  onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
 };
 
 export function PlayTab({
@@ -74,8 +78,10 @@ export function PlayTab({
   committedPlayerName,
   onLocationAction,
   playerFlags,
+  playerModifiers,
   activeQuestTranscript,
   useQuestPopupFallback,
+  onQuestChoiceVisualPhase,
 }: PlayTabProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
     const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
@@ -261,7 +267,7 @@ export function PlayTab({
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
-        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0"
+        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0 [scroll-padding-bottom:min(42dvh,320px)]"
       >
         <div className="facsimile-scroll-dialogue-inner !pl-[16px] !pr-[16px] space-y-2">
           {renderedLedgerRows.map((row, idx) => {
@@ -356,6 +362,7 @@ export function PlayTab({
                       quest={activeQuest}
                       step={activeStep}
                       playerFlags={playerFlags}
+                      playerModifiers={playerModifiers}
                       showOriginStartHint={showOriginStartHint}
                       committedPlayerName={committedPlayerName}
                       nameInput={nameInput}
@@ -367,6 +374,7 @@ export function PlayTab({
                       onClose={onCloseQuestPopup}
                       presentation="inline"
                       questTranscript={activeQuestTranscript}
+                      onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
                     />
                   ) : null}
                 </div>
@@ -400,6 +408,7 @@ export function PlayTab({
           quest={popupQuest}
           step={popupStep}
           playerFlags={playerFlags}
+          playerModifiers={playerModifiers}
           showOriginStartHint={showOriginStartHint}
           committedPlayerName={committedPlayerName}
           nameInput={nameInput}
@@ -411,6 +420,7 @@ export function PlayTab({
           onClose={onCloseQuestPopup}
           presentation="modal"
           questTranscript={activeQuestTranscript}
+          onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
         />
       ) : null}
     </section>

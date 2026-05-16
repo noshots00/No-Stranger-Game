@@ -8,7 +8,7 @@ export const quest002BWillIStarve = createQuestDefinition({
   createdAt: 2,
   startStepId: 'starve-intro',
   isAvailable: makeQuestAvailability({
-    requiresAnyCompletedQuestIds: ['quest-001-origin'],
+    requiresAnyCompletedQuestIds: ['quest-002-first-night'],
   }),
   journalSummaryFallback: 'Will I Starve?',
   steps: [

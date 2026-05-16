@@ -1,4 +1,5 @@
 import { quest001Origin } from './quest-001-origin';
+import { quest002FirstNight } from './quest-002-first-night';
 import { quest002BWillIStarve } from './quest-002-b-will-i-starve';
 import { quest002BoarAmbush } from './quest-002-boar-ambush';
 import { quest003BMeetMerchant } from './quest-003-b-meet-merchant';
@@ -7,6 +8,7 @@ import { quest004AbandonedShelter } from './quest-004-abandoned-shelter';
 import { quest004BTheDoor } from './quest-004-b-the-door';
 import { quest005Airship } from './quest-005-airship';
 import { quest005BHome } from './quest-005-b-home';
+import { quest005CWolfPeltTribute } from './quest-005-c-wolf-pelt-tribute';
 import { quest006WanderingSkeleton } from './quest-006-wandering-skeleton';
 import { quest007GreenHand } from './quest-007-green-hand';
 import { quest008WolfAttack } from './quest-008-wolf-attack';
@@ -37,10 +39,12 @@ import { quest032DistantSmoke } from './quest-032-distant-smoke';
 import { quest033TwinMounds } from './quest-033-twin-mounds';
 import { quest034CarvedAcorns } from './quest-034-carved-acorns';
 import { quest035BuriedLantern } from './quest-035-buried-lantern';
+import { quest036TheVillage } from './quest-036-the-village';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
   quest001Origin,
+  quest002FirstNight,
   quest002BWillIStarve,
   quest002BoarAmbush,
   quest003BMeetMerchant,
@@ -49,6 +53,7 @@ export const allQuests: QuestDefinition[] = [
   quest004BTheDoor,
   quest005Airship,
   quest005BHome,
+  quest005CWolfPeltTribute,
   quest006WanderingSkeleton,
   quest007GreenHand,
   quest008WolfAttack,
@@ -79,6 +84,7 @@ export const allQuests: QuestDefinition[] = [
   quest033TwinMounds,
   quest034CarvedAcorns,
   quest035BuriedLantern,
+  quest036TheVillage,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(

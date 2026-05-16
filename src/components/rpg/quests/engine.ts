@@ -30,7 +30,7 @@ import {
   buildRaceLockDialogueLines,
   tagDialogueSourceQuest,
 } from '../dialogueFormat';
-import { CLASS_ARCHETYPE_SLUGS, VALID_SAVE_LOCATIONS } from '../constants';
+import { CLASS_ARCHETYPE_SLUGS, QUEST_FIRST_NIGHT_ID, QUEST_ORIGIN_ID, VALID_SAVE_LOCATIONS } from '../constants';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
 
@@ -194,6 +194,71 @@ const normalizeJournalLog = (entries: unknown): JournalLogEntry[] => {
   return Array.from(byQuestId.values()).sort((a, b) => a.atMs - b.atMs);
 };
 
+/** Old saves: forest branch lived on origin after the name step — now `quest-002-first-night`. */
+const LEGACY_ORIGIN_FOREST_STEP_IDS = new Set([
+  'flavor-five',
+  'flavor-call-help',
+  'flavor-pockets',
+  'flavor-tree',
+  'flavor-stream',
+  'flavor-still',
+  'compass-four',
+  'boar-encounter',
+  'boar-aftermath',
+  'dusk-choice',
+  'shelter-lean-end',
+  'dark-pitch',
+  'dark-branch',
+  'yell-help-end',
+  'creep-moonlit',
+  'creep-sleep-end',
+  'stay-blue-bugs',
+  'bugs-fork',
+  'bugs-shelter-end',
+  'follow-ravine',
+  'follow-outcrop-end',
+]);
+
+const migrateLegacyOriginForestProgress = (args: {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+}): {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+} => {
+  const { activeQuestId, unveiledQuestIds } = args;
+  const progressByQuestId = { ...args.progressByQuestId };
+  const originProg = progressByQuestId[QUEST_ORIGIN_ID];
+  if (!originProg || originProg.isCompleted) {
+    return { progressByQuestId, activeQuestId, unveiledQuestIds };
+  }
+  if (!LEGACY_ORIGIN_FOREST_STEP_IDS.has(originProg.currentStepId)) {
+    return { progressByQuestId, activeQuestId, unveiledQuestIds };
+  }
+
+  progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+    currentStepId: originProg.currentStepId,
+    isCompleted: false,
+    choiceHistory: Array.isArray(originProg.choiceHistory) ? [...originProg.choiceHistory] : [],
+  };
+  progressByQuestId[QUEST_ORIGIN_ID] = {
+    currentStepId: 'start',
+    isCompleted: true,
+    choiceHistory: [],
+  };
+
+  let nextActive = activeQuestId;
+  if (nextActive === QUEST_ORIGIN_ID) nextActive = QUEST_FIRST_NIGHT_ID;
+
+  return {
+    progressByQuestId,
+    activeQuestId: nextActive,
+    unveiledQuestIds: Array.from(new Set([...unveiledQuestIds, QUEST_FIRST_NIGHT_ID])),
+  };
+};
+
 export const createInitialSkills = (): QuestState['skills'] => ({
   explorationXp: 0,
   foragingXp: 0,
@@ -315,6 +380,24 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     normalizedModifiers = stripNonLockedClassModifiers(normalizedModifiers, lockedClassSlug);
   }
 
+  const rawProgress = state.progressByQuestId;
+  const baseProgress: Record<string, QuestProgress> =
+    rawProgress && typeof rawProgress === 'object'
+      ? { ...(rawProgress as Record<string, QuestProgress>) }
+      : {};
+
+  const rawActiveQuestId = state.activeQuestId;
+  const resolvedActiveQuestId =
+    typeof rawActiveQuestId === 'string' && rawActiveQuestId.length > 0
+      ? rawActiveQuestId
+      : initial.activeQuestId;
+
+  const migrated = migrateLegacyOriginForestProgress({
+    progressByQuestId: baseProgress,
+    activeQuestId: resolvedActiveQuestId,
+    unveiledQuestIds,
+  });
+
   return {
     ...initial,
     ...state,
@@ -342,7 +425,9 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     worldEventLog,
     journalLog,
     questItems,
-    unveiledQuestIds,
+    unveiledQuestIds: migrated.unveiledQuestIds,
+    progressByQuestId: migrated.progressByQuestId,
+    activeQuestId: migrated.activeQuestId,
     health,
     characterCreationDateEastern,
     characterCreatedAtAppVersion,
@@ -436,27 +521,14 @@ export const getQuestContext = (state: QuestState, currentDay: number): QuestCon
   currentDay: Math.max(1, Math.floor(currentDay)),
 });
 
-/**
- * Temporary authoring mode: keep the visible quest pool focused on the linear
- * main arc while new story content is being written.
- */
-const MAIN_QUEST_ONLY_MODE = true;
-
-const isMainQuestIdForCurrentArc = (questId: string): boolean =>
-  questId === 'quest-001-origin' ||
-  questId === 'quest-003-b-meet-merchant' ||
-  /^quest-00[45]-b-/.test(questId) ||
-  /^quest-002(?:-|$)/.test(questId);
-
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>
   quests
-    .filter((quest) => !MAIN_QUEST_ONLY_MODE || isMainQuestIdForCurrentArc(quest.id))
     .filter((quest) => quest.isAvailable(context) || context.completedQuestIds.includes(quest.id))
     .sort((a, b) => b.createdAt - a.createdAt);
 
 /**
  * Player-visible quest list: eligible AND already unveiled (or completed).
- * Pending-but-not-yet-unveiled quests are hidden until day-rollover unveils them.
+ * New eligible quests stay hidden until completion-driven discovery unveils them.
  */
 export const getPlayerVisibleQuests = (
   quests: QuestDefinition[],
@@ -469,7 +541,7 @@ export const getPlayerVisibleQuests = (
   );
 };
 
-/** Quest list for the Quests tab: either normal unveil/eligibility rules or all quests (dev testing). */
+/** Quest list for Play/Quests tabs: unveiled + eligible, or every quest when dev unlock-all. */
 export const getQuestListForUi = (
   quests: QuestDefinition[],
   context: QuestContext,
@@ -479,8 +551,7 @@ export const getQuestListForUi = (
   if (devUnlockAllQuests) {
     return [...quests].sort((a, b) => b.createdAt - a.createdAt);
   }
-  void unveiledQuestIds;
-  return getVisibleQuests(quests, context);
+  return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
 };
 
 export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => {
@@ -722,6 +793,11 @@ const moveToStep = (
     }
   }
 
+  const travelTo = choice.effects?.setCurrentLocation?.trim();
+  if (travelTo && VALID_SAVE_LOCATIONS.has(travelTo)) {
+    nextState = { ...nextState, currentLocation: travelTo };
+  }
+
   return nextState;
 };
 
@@ -865,7 +941,7 @@ export const submitPlayerName = (
       ...withProgress.progressByQuestId,
       [quest.id]: {
         ...withProgress.progressByQuestId[quest.id],
-        currentStepId: currentStep.nextStepId,
+        currentStepId: currentStep.nextStepId ?? currentStep.id,
       },
     },
   };

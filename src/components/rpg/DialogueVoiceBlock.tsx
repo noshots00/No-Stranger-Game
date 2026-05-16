@@ -56,10 +56,10 @@ const DIALOGUE_NARRATOR_PLAY_CLASSES =
   'whitespace-pre-line font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]';
 
 const DIALOGUE_NARRATOR_PROMPT_PLAY_CLASSES =
-  'whitespace-pre-line rounded-r-md border-l-[3px] border-[var(--candle-flame-soft)] bg-black/40 py-2.5 pl-3 pr-2 font-cormorant text-lg font-semibold leading-snug tracking-wide text-[var(--candle-wax)] shadow-[inset_1px_0_0_rgba(230,161,87,0.2),0_1px_12px_rgba(0,0,0,0.3)] sm:text-xl';
+  'whitespace-pre-line rounded-r-md border-l-[3px] border-[var(--candle-flame)]/55 bg-black/40 py-2.5 pl-3 pr-2 font-cormorant text-lg font-semibold leading-snug tracking-wide text-[var(--candle-ink)] shadow-[inset_1px_0_0_rgba(230,161,87,0.2),0_1px_12px_rgba(0,0,0,0.3)] sm:text-xl';
 
 const DIALOGUE_NARRATOR_PROMPT_CHRONICLE_CLASSES =
-  'whitespace-pre-line rounded-r-md border-l-[3px] border-[var(--candle-flame-soft)] bg-black/38 py-2.5 pl-3 pr-2 font-cormorant text-[1.0625rem] font-semibold leading-snug tracking-wide text-[var(--candle-wax)] shadow-[inset_1px_0_0_rgba(230,161,87,0.18),0_1px_10px_rgba(0,0,0,0.35)]';
+  'whitespace-pre-line rounded-r-md border-l-[3px] border-[var(--candle-flame)]/55 bg-black/38 py-2.5 pl-3 pr-2 font-cormorant text-[1.0625rem] font-semibold leading-snug tracking-wide text-[var(--candle-ink)] shadow-[inset_1px_0_0_rgba(230,161,87,0.18),0_1px_10px_rgba(0,0,0,0.35)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';

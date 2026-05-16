@@ -8,6 +8,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { TranscriptEntry } from '@/components/rpg/merchant/merchantDialogueTree';
 import { NpcTalkScrollPanes } from '@/components/rpg/npc/NpcTalkScrollPanes';
+import { NPC_DIALOG_CONTENT_MOTION } from '@/components/rpg/npc/npcDialogMotion';
 
 type NpcTalkDialogProps = {
   open: boolean;
@@ -46,7 +47,7 @@ export function NpcTalkDialog({
         className={cn(
           'z-[55] flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
           'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg',
-          'data-[state=open]:slide-in-from-bottom-2'
+          NPC_DIALOG_CONTENT_MOTION
         )}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
