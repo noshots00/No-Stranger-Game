@@ -66,6 +66,22 @@ export function QuestsTab({
         {trackButtonLabel}
       </button>
     ) : null;
+    const overlayImageCard =
+      quest.questCardLayout === 'title-overlay' ? (
+        <div className="relative mx-auto mb-2 w-full max-w-[170px] overflow-hidden rounded-md border border-[var(--candle-rule)]">
+          <img
+            src={getQuestCardImageSrc(quest)}
+            alt={`${quest.title} illustration`}
+            className="aspect-[3/4] w-full object-cover"
+            loading="lazy"
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 via-black/30 to-transparent px-2 pb-8 pt-2">
+            <p className="text-center font-serif text-sm font-semibold text-[var(--candle-wax)] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {quest.title}
+            </p>
+          </div>
+        </div>
+      ) : null;
     const questImage = (
       <img
         src={getQuestCardImageSrc(quest)}
@@ -100,8 +116,14 @@ export function QuestsTab({
                 <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
                 {trackButton}
               </div>
-              {questImage}
+              {overlayImageCard ?? questImage}
             </div>
+          ) : quest.questCardLayout === 'title-overlay' ? (
+            <>
+              {overlayImageCard}
+              <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
+              {trackButton}
+            </>
           ) : (
             <>
               {questImage}

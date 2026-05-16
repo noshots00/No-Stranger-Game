@@ -445,6 +445,7 @@ const MAIN_QUEST_ONLY_MODE = true;
 const isMainQuestIdForCurrentArc = (questId: string): boolean =>
   questId === 'quest-001-origin' ||
   questId === 'quest-003-b-meet-merchant' ||
+  /^quest-00[45]-b-/.test(questId) ||
   /^quest-002(?:-|$)/.test(questId);
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>

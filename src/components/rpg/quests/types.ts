@@ -104,6 +104,8 @@ export type QuestDefinition = {
   journalSummariesByChoicePath?: Record<string, string>;
   /** When no path key matches (and no `*` entry), use this recap if set. */
   journalSummaryFallback?: string;
+  /** Play-tab quest list card: title beside image (default) or overlaid on the card art. */
+  questCardLayout?: 'default' | 'title-overlay';
 };
 
 export type QuestContext = {

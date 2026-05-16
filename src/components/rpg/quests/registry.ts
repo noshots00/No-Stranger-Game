@@ -4,7 +4,9 @@ import { quest002BoarAmbush } from './quest-002-boar-ambush';
 import { quest003BMeetMerchant } from './quest-003-b-meet-merchant';
 import { quest003SilverLake } from './quest-003-silver-lake';
 import { quest004AbandonedShelter } from './quest-004-abandoned-shelter';
+import { quest004BTheDoor } from './quest-004-b-the-door';
 import { quest005Airship } from './quest-005-airship';
+import { quest005BHome } from './quest-005-b-home';
 import { quest006WanderingSkeleton } from './quest-006-wandering-skeleton';
 import { quest007GreenHand } from './quest-007-green-hand';
 import { quest008WolfAttack } from './quest-008-wolf-attack';
@@ -44,7 +46,9 @@ export const allQuests: QuestDefinition[] = [
   quest003BMeetMerchant,
   quest003SilverLake,
   quest004AbandonedShelter,
+  quest004BTheDoor,
   quest005Airship,
+  quest005BHome,
   quest006WanderingSkeleton,
   quest007GreenHand,
   quest008WolfAttack,

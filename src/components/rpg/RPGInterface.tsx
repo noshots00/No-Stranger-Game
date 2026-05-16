@@ -94,7 +94,7 @@ import { needsMandatoryCharacterReset } from './characterSaveVersion';
 import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 import { GamePortraitViewport } from './GamePortraitViewport';
 import { MerchantPanel } from './merchant/MerchantPanel';
-import { WOLF_PELT_ITEM_KEY } from './merchant/merchantEconomy';
+import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
 
 /**
  * Session guard for ledger loading overlay.
@@ -293,7 +293,13 @@ export function RPGInterface() {
     [handleTravelLocationSelect]
   );
   const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
-  const wolfPeltsHeld = questState.modifiers[WOLF_PELT_ITEM_KEY] ?? 0;
+  const merchantItemCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const g of MERCHANT_TRADE_GOODS) {
+      m[g.itemKey] = questState.modifiers[g.itemKey] ?? 0;
+    }
+    return m;
+  }, [questState.modifiers]);
   const questContext = useMemo(() => getQuestContext(questState, dayCounter), [questState, dayCounter]);
   const visibleQuests = useMemo(
     () => getQuestListForUi(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
@@ -1101,7 +1107,7 @@ export function RPGInterface() {
         open={questState.currentLocation === 'Merchant'}
         onOpenChange={handleMerchantDialogOpenChange}
         walletCopper={walletCopper}
-        wolfPelts={wolfPeltsHeld}
+        itemCounts={merchantItemCounts}
         onApplyModifiers={handleMerchantApplyModifiers}
       />
     ) : null}

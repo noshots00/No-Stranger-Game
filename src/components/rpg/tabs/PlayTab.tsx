@@ -178,9 +178,34 @@ export function PlayTab({
     interactive: boolean;
     onOpen?: () => void;
   }) => {
+    const cardSrc = getQuestCardImageSrc(quest);
+    const titleOverlayBlock = (
+      <div className="mx-auto w-full max-w-[260px]">
+        <div className="relative overflow-hidden rounded border border-[var(--candle-rule)] shadow-[0_10px_32px_rgba(0,0,0,0.35)]">
+          <img
+            src={cardSrc}
+            alt={`${title} illustration`}
+            className="aspect-[3/4] w-full object-cover"
+            loading="lazy"
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 via-black/30 to-transparent px-3 pb-10 pt-3">
+            <p className="text-center font-serif text-base font-semibold tracking-wide text-[var(--candle-wax)] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {title}
+            </p>
+          </div>
+          {isNew ? (
+            <span className="absolute right-2 top-2 rounded border border-[var(--candle-flame-soft)]/55 bg-[var(--candle-flame-soft)]/15 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
+              New
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-2 text-center font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">{briefingText}</p>
+      </div>
+    );
+
     const image = (
       <img
-        src={getQuestCardImageSrc(quest)}
+        src={cardSrc}
         alt={`${title} illustration`}
         className="aspect-[3/4] w-[150px] shrink-0 rounded border border-[var(--candle-rule)] object-cover"
         loading="lazy"
@@ -198,21 +223,24 @@ export function PlayTab({
       </div>
     );
     const imageOnRight = quest.id === QUEST_2B_WILL_I_STARVE_ID;
-    const content = (
-      <div className="flex items-start justify-center gap-3">
-        {imageOnRight ? (
-          <>
-            {titleAndBriefing}
-            {image}
-          </>
-        ) : (
-          <>
-            {image}
-            {titleAndBriefing}
-          </>
-        )}
-      </div>
-    );
+    const content =
+      quest.questCardLayout === 'title-overlay' ? (
+        titleOverlayBlock
+      ) : (
+        <div className="flex items-start justify-center gap-3">
+          {imageOnRight ? (
+            <>
+              {titleAndBriefing}
+              {image}
+            </>
+          ) : (
+            <>
+              {image}
+              {titleAndBriefing}
+            </>
+          )}
+        </div>
+      );
 
     if (!interactive) {
       return <div className="w-full py-2 text-left font-serif">{content}</div>;
