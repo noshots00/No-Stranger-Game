@@ -1,12 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import {
   DIALOGUE_DEV_MESSAGE_CLASSES,
   PLAY_TAB_PLAYER_LINE_SHELL,
   PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
 } from '../DialogueVoiceBlock';
 import { interpolateStepText } from '../quests/engine';
-import type { QuestDefinition, QuestStep } from '../quests/types';
+import type { DialogueLogEntry, QuestDefinition, QuestStep } from '../quests/types';
 import { getQuestStepImageSrc } from '../rpgArtAssignments';
+import {
+  NARRATOR_RESPONSE_SPEAKER,
+  PLAYER_ACTION_SPEAKER,
+  QUEST_NARRATOR_PROMPT_SPEAKER,
+} from '../dialogueFormat';
 
 const CHOICE_FADE_MS = 160;
 const BODY_CROSSFADE_MS = 320;
@@ -23,11 +30,42 @@ type QuestPopupProps = {
   nameInputError: string | null;
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
-  /** Continue past narrator `message` steps that chain via `nextStepId`. */
+  /** Advance chained `message` steps with `nextStepId` (Continue). */
   onAdvanceQuestMessage?: () => void;
   onClose: () => void;
   presentation?: 'modal' | 'inline';
+  /** Quest-attributed dialogue lines for this session (mirrors merchant-style transcript). */
+  questTranscript: DialogueLogEntry[];
 };
+
+function normalizePromptText(s: string): string {
+  return s.trim().replace(/\s+/g, ' ');
+}
+
+function transcriptDisplayRole(
+  entry: { speaker: string; text: string },
+  openingPromptNormalized: string
+): 'narrator' | 'narrator_prompt' | 'player' | 'neutral' {
+  const openingNorm = openingPromptNormalized.trim().length > 0 ? normalizePromptText(openingPromptNormalized) : '';
+  if (entry.speaker === QUEST_NARRATOR_PROMPT_SPEAKER) return 'narrator_prompt';
+  if (
+    entry.speaker === NARRATOR_RESPONSE_SPEAKER &&
+    openingNorm.length > 0 &&
+    normalizePromptText(entry.text) === openingNorm
+  ) {
+    return 'narrator_prompt';
+  }
+  if (entry.speaker === NARRATOR_RESPONSE_SPEAKER) return 'narrator';
+  if (entry.speaker === PLAYER_ACTION_SPEAKER || entry.speaker === 'You') return 'player';
+  return 'neutral';
+}
+
+/** Quest popup: main story beat — larger than choices, high contrast (not body-grey). */
+const QUEST_POPUP_PROMPT_LINE_CLASSES =
+  'rounded-r-md border-l-[3px] border-[var(--candle-flame-soft)] bg-black/45 py-2.5 pl-3 pr-2 font-cormorant text-lg font-semibold leading-snug tracking-wide text-[var(--candle-wax)] shadow-[inset_1px_0_0_rgba(230,161,87,0.2),0_1px_12px_rgba(0,0,0,0.35)] sm:text-xl';
+
+const QUEST_POPUP_RESPONSE_LINE_CLASSES =
+  'font-serif text-sm italic leading-relaxed text-[var(--candle-ink-soft)]';
 
 export function QuestPopup({
   quest,
@@ -43,11 +81,16 @@ export function QuestPopup({
   onAdvanceQuestMessage,
   onClose,
   presentation = 'modal',
+  questTranscript,
 }: QuestPopupProps) {
   const playerFlagSet = new Set(playerFlags);
   const isOriginStartCard = quest.id === 'quest-001-origin' && step.id === 'start';
   const stepImageSrc = getQuestStepImageSrc(quest, step.id);
   const nameForTemplates = committedPlayerName.trim() || nameInput.trim();
+  const startStep = quest.steps[quest.startStepId];
+  const openingPromptNormalized = startStep
+    ? normalizePromptText(interpolateStepText(startStep.text.trim(), nameForTemplates))
+    : '';
   const narrativeText =
     step.text.trim().length > 0 ? interpolateStepText(step.text.trim(), nameForTemplates) : '';
   const trimmedNameInput = nameInput.trim();
@@ -59,6 +102,22 @@ export function QuestPopup({
   const [departingStep, setDepartingStep] = useState<QuestStep | null>(null);
   const choiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bodyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logEndRef = useRef<HTMLDivElement | null>(null);
+  const advanceMessageRef = useRef(onAdvanceQuestMessage);
+  advanceMessageRef.current = onAdvanceQuestMessage;
+  const prevTranscriptLenRef = useRef(0);
+
+  const burnInEntryIdSet = (() => {
+    const curr = questTranscript.length;
+    const prev = prevTranscriptLenRef.current;
+    if (curr > prev) {
+      return new Set(questTranscript.slice(prev).map((e) => e.id));
+    }
+    if (curr < prev) {
+      return new Set(questTranscript.map((e) => e.id));
+    }
+    return new Set<string>();
+  })();
 
   useEffect(() => {
     return () => {
@@ -73,6 +132,22 @@ export function QuestPopup({
     };
   }, []);
 
+  const stepNextStepId = 'nextStepId' in step ? step.nextStepId : undefined;
+
+  /** Bridge `message` steps: narration is already in `questTranscript`; advance without an extra Continue tap when motion is default. */
+  useEffect(() => {
+    if (step.type !== 'message') return;
+    if (step.completeQuest) return;
+    if (!stepNextStepId) return;
+    const advance = advanceMessageRef.current;
+    if (typeof advance !== 'function') return;
+    const reducedMotion =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) return;
+    const id = window.setTimeout(() => advance(), 0);
+    return () => window.clearTimeout(id);
+  }, [step.id, step.type, step.completeQuest, stepNextStepId]);
+
   useEffect(() => {
     if (!departingStep || departingStep.id === step.id) return;
     if (bodyTimeoutRef.current) clearTimeout(bodyTimeoutRef.current);
@@ -81,6 +156,14 @@ export function QuestPopup({
       bodyTimeoutRef.current = null;
     }, BODY_CROSSFADE_MS);
   }, [departingStep, step.id]);
+
+  useLayoutEffect(() => {
+    prevTranscriptLenRef.current = questTranscript.length;
+  }, [questTranscript]);
+
+  useLayoutEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  }, [questTranscript]);
 
   const handleChoiceClick = (choiceId: string) => {
     if (pendingChoiceId) return;
@@ -99,22 +182,37 @@ export function QuestPopup({
     }, CHOICE_FADE_MS);
   };
 
+  const showMessageContinue =
+    step.type === 'message' &&
+    Boolean(step.nextStepId) &&
+    !step.completeQuest &&
+    typeof onAdvanceQuestMessage === 'function' &&
+    (typeof window === 'undefined' ? false : window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  const choicePaneVisible =
+    step.type === 'choice' || step.type === 'input' || showMessageContinue;
+
   const shellClass =
     presentation === 'modal'
-      ? 'flex h-[98%] w-[98%] flex-col rounded-xl border border-[var(--candle-rule)] bg-[rgba(8,7,6,0.96)] p-3 shadow-2xl'
-      : 'flex w-full flex-col p-0';
+      ? 'flex h-[98%] max-h-[98dvh] min-h-0 w-[98%] flex-col rounded-xl border border-[var(--candle-rule)] bg-[rgba(8,7,6,0.96)] p-3 shadow-2xl'
+      : 'flex w-full max-w-full min-w-0 flex-col p-0';
+
+  const transcriptShellClass =
+    presentation === 'modal'
+      ? 'min-h-0 flex-[1.35]'
+      : 'max-h-[min(55vh,420px)] min-h-[180px] shrink-0';
 
   return (
     <div
       className={
         presentation === 'modal'
           ? 'absolute inset-0 z-30 flex items-center justify-center bg-black/45 p-0.5'
-          : 'relative'
+          : 'relative min-w-0'
       }
     >
       <section className={shellClass}>
         {presentation === 'modal' && !isOriginStartCard ? (
-          <div className="mb-2 flex items-start justify-end gap-2">
+          <div className="mb-2 flex shrink-0 items-start justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
@@ -124,119 +222,167 @@ export function QuestPopup({
             </button>
           </div>
         ) : null}
-        <div className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0">
-          <div key={step.id} className="facsimile-scroll-dialogue-inner quest-step-enter space-y-3">
-            {!isOriginStartCard && stepImageSrc ? (
-              <img
-                src={stepImageSrc}
-                alt={`${quest.title} illustration`}
-                className="mx-auto aspect-[3/4] w-full max-w-[210px] rounded-md border border-[var(--candle-rule)] object-cover"
-                loading="lazy"
-              />
-            ) : null}
-            {narrativeText.length > 0 ? (
-              <p className="whitespace-pre-line font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-                {narrativeText}
-              </p>
-            ) : null}
 
-            {step.type === 'message' &&
-            Boolean(step.nextStepId) &&
-            !step.completeQuest &&
-            typeof onAdvanceQuestMessage === 'function' ? (
-              <div className="space-y-2 border-t border-[var(--candle-rule)] pt-3">
-                <button
-                  type="button"
-                  onClick={() => onAdvanceQuestMessage()}
-                  className="choice-line w-auto border-b border-transparent py-2 text-emerald-300 hover:text-emerald-200"
+        <div
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden',
+            presentation === 'inline' && 'pt-1'
+          )}
+        >
+          {!isOriginStartCard && stepImageSrc ? (
+            <img
+              src={stepImageSrc}
+              alt={`${quest.title} illustration`}
+              className="mx-auto aspect-[3/4] w-full max-w-[210px] shrink-0 rounded-md border border-[var(--candle-rule)] object-cover"
+              loading="lazy"
+            />
+          ) : null}
+
+          <ScrollArea className={cn(transcriptShellClass, 'rounded-md border border-[var(--candle-rule)] bg-black/25 px-1')}>
+            <div
+              className="space-y-3 px-3 py-2 pr-4 font-serif leading-normal"
+              role="log"
+              aria-label={`${quest.title} dialogue`}
+            >
+              {questTranscript.length > 0 ? (
+                questTranscript.map((entry) => {
+                  const role = transcriptDisplayRole(entry, openingPromptNormalized);
+                  return (
+                    <p
+                      key={entry.id}
+                      className={cn(
+                        'whitespace-pre-line',
+                        burnInEntryIdSet.has(entry.id) && 'quest-transcript-burn-in',
+                        role === 'narrator' && QUEST_POPUP_RESPONSE_LINE_CLASSES,
+                        role === 'narrator_prompt' && QUEST_POPUP_PROMPT_LINE_CLASSES,
+                        role === 'player' && 'text-[0.9375rem] font-medium text-[var(--candle-wax)]',
+                        role === 'neutral' && 'text-sm text-[var(--candle-ink-soft)]'
+                      )}
+                    >
+                      {role === 'player' ? (
+                        <>
+                          <span className="font-semibold text-[var(--candle-ink)]">You: </span>
+                          {entry.text}
+                        </>
+                      ) : (
+                        entry.text
+                      )}
+                    </p>
+                  );
+                })
+              ) : narrativeText.length > 0 ? (
+                <p
+                  className={cn(
+                    'whitespace-pre-line',
+                    step.type === 'choice' ? QUEST_POPUP_PROMPT_LINE_CLASSES : QUEST_POPUP_RESPONSE_LINE_CLASSES
+                  )}
                 >
-                  Continue
-                </button>
-              </div>
-            ) : null}
+                  {narrativeText}
+                </p>
+              ) : null}
+              <div ref={logEndRef} className="h-px" aria-hidden />
+            </div>
+          </ScrollArea>
 
-            {step.type === 'choice' ? (
-              <div className="quest-body-layer space-y-2">
-                {departingStep && departingStep.id !== step.id && departingStep.type === 'choice' ? (
-                  <div className="quest-body-depart space-y-2">
-                    <ul className="space-y-0 border-t border-[var(--candle-rule)]/80 pt-2">
-                      {departingStep.choices.map((choice) => (
-                        <li key={`depart-${choice.id}`} className="py-0.5">
+          {choicePaneVisible ? (
+            <ScrollArea className="min-h-0 min-w-0 flex-1 rounded-md border border-[var(--candle-rule)] bg-black/20 px-1">
+              <div className="flex flex-col gap-0.5 py-1 pr-4">
+              {showMessageContinue ? (
+                <div className="space-y-2 border-b border-[var(--candle-rule)]/80 px-1 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => onAdvanceQuestMessage()}
+                    className="choice-line w-auto border-b border-transparent py-2 text-emerald-300 hover:text-emerald-200"
+                  >
+                    Continue
+                  </button>
+                </div>
+              ) : null}
+
+              {step.type === 'choice' ? (
+                <div className="quest-body-layer space-y-2">
+                  {departingStep && departingStep.id !== step.id && departingStep.type === 'choice' ? (
+                    <div className="quest-body-depart space-y-2">
+                      <ul className="space-y-0">
+                        {departingStep.choices.map((choice) => (
+                          <li key={`depart-${choice.id}`} className="py-0.5">
+                            <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
+                              <span
+                                className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} !text-[0.8125rem] sm:!text-[0.875rem]`}
+                              >
+                                {choice.label}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {showOriginStartHint ? (
+                    <p className={cn(DIALOGUE_DEV_MESSAGE_CLASSES, 'px-1')}>Select a line below to continue.</p>
+                  ) : null}
+                  <ul className="quest-body-arrive space-y-0">
+                    {step.choices.map((choice) => {
+                      const isPending = pendingChoiceId !== null;
+                      const isChosen = pendingChoiceId === choice.id;
+                      const isFading = isPending && !isChosen;
+                      const isLocked = Boolean(
+                        choice.disabledIfAnyFlags?.some((flag) => playerFlagSet.has(flag))
+                      );
+                      const renderedLabel = isLocked
+                        ? `${choice.label}${choice.disabledLabel ?? ' (already explored)'}`
+                        : choice.label;
+                      return (
+                        <li key={choice.id} className="py-0.5">
                           <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
-                            <span className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE}`}>
-                              {choice.label}
-                            </span>
+                            <button
+                              type="button"
+                              disabled={isPending || isLocked}
+                              aria-disabled={isLocked || undefined}
+                              className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} !text-[0.8125rem] sm:!text-[0.875rem] ${isFading ? 'choice-fade-out' : ''} ${
+                                isChosen ? 'choice-selected-flash' : ''
+                              } ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                              onClick={() => {
+                                if (isLocked) return;
+                                handleChoiceClick(choice.id);
+                              }}
+                            >
+                              {renderedLabel}
+                            </button>
                           </div>
                         </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {showOriginStartHint ? (
-                  <p className={DIALOGUE_DEV_MESSAGE_CLASSES}>Select a line below to continue.</p>
-                ) : null}
-                <ul className="quest-body-arrive space-y-0 border-t border-[var(--candle-rule)]/80 pt-2">
-                  {step.choices.map((choice) => {
-                    const isPending = pendingChoiceId !== null;
-                    const isChosen = pendingChoiceId === choice.id;
-                    const isFading = isPending && !isChosen;
-                    const isLocked = Boolean(
-                      choice.disabledIfAnyFlags?.some((flag) => playerFlagSet.has(flag))
-                    );
-                    const renderedLabel = isLocked
-                      ? `${choice.label}${choice.disabledLabel ?? ' (already explored)'}`
-                      : choice.label;
-                    return (
-                      <li key={choice.id} className="py-0.5">
-                        <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
-                          <button
-                            type="button"
-                            disabled={isPending || isLocked}
-                            aria-disabled={isLocked || undefined}
-                            className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} ${isFading ? 'choice-fade-out' : ''} ${
-                              isChosen ? 'choice-selected-flash' : ''
-                            } ${
-                              isLocked ? 'cursor-not-allowed opacity-50' : ''
-                            }`}
-                            onClick={() => {
-                              if (isLocked) return;
-                              handleChoiceClick(choice.id);
-                            }}
-                          >
-                            {renderedLabel}
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
 
-            {step.type === 'input' ? (
-              <div className="space-y-3 border-t border-[var(--candle-rule)] pt-3">
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(event) => onNameInputChange(event.target.value)}
-                  placeholder={step.placeholder}
-                  className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-sky-300/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
-                />
-                {nameInputError ? (
-                  <p className="font-serif text-xs text-rose-300/90">{nameInputError}</p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={onNameSubmit}
-                  className={`choice-line w-auto border-b border-transparent py-2 ${
-                    isValidInputStepName ? 'text-emerald-300 hover:text-emerald-200' : 'text-red-300 hover:text-red-200'
-                  }`}
-                >
-                  {step.submitLabel}
-                </button>
+              {step.type === 'input' ? (
+                <div className="space-y-3 px-1">
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(event) => onNameInputChange(event.target.value)}
+                    placeholder={step.placeholder}
+                    className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-sky-300/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
+                  />
+                  {nameInputError ? (
+                    <p className="font-serif text-xs text-rose-300/90">{nameInputError}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={onNameSubmit}
+                    className={`choice-line w-auto border-b border-transparent py-2 ${
+                      isValidInputStepName ? 'text-emerald-300 hover:text-emerald-200' : 'text-red-300 hover:text-red-200'
+                    }`}
+                  >
+                    {step.submitLabel}
+                  </button>
+                </div>
+              ) : null}
               </div>
-            ) : null}
-          </div>
+            </ScrollArea>
+          ) : null}
         </div>
       </section>
     </div>

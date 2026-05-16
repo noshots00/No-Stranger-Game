@@ -524,9 +524,16 @@
     animation: dialogueLineReveal 520ms ease-out both;
   }
 
+  .quest-transcript-burn-in {
+    animation: questTranscriptBurnIn 720ms cubic-bezier(0.2, 0.9, 0.35, 1) both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .dialogue-line-reveal {
       animation: dialogueLineRevealReduced 180ms ease-out both;
+    }
+    .quest-transcript-burn-in {
+      animation: questTranscriptBurnInReduced 220ms ease-out both;
     }
   }
 
@@ -830,6 +837,35 @@
 }
 
 @keyframes dialogueLineRevealReduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes questTranscriptBurnIn {
+  0% {
+    opacity: 0;
+    filter: blur(5px) brightness(1.4);
+    text-shadow: 0 0 22px rgba(230, 161, 87, 0.7), 0 0 38px rgba(194, 90, 42, 0.45), 0 0 4px rgba(245, 209, 155, 0.9);
+    transform: translateY(4px) scale(0.992);
+  }
+  40% {
+    opacity: 0.82;
+    filter: blur(1.5px) brightness(1.12);
+    text-shadow: 0 0 14px rgba(230, 161, 87, 0.45), 0 0 2px rgba(245, 209, 155, 0.65);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0) brightness(1);
+    text-shadow: none;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes questTranscriptBurnInReduced {
   from {
     opacity: 0;
   }

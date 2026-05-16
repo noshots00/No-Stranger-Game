@@ -134,6 +134,7 @@ export type QuestProgress = {
 
 export type DialogueLogEntry = {
   id: string;
+  /** Story voices include `Narrator` (reply / outcome) and `NarratorPrompt` (choice framing). */
   speaker: string;
   text: string;
   /** Wall-clock time when the line was created (for chronicle merge / sort). */

@@ -10,6 +10,12 @@ export const PLAYER_ACTION_SPEAKER = 'PlayerAction';
 export const QUEST_DIVIDER_SPEAKER = 'QuestDivider';
 export const QUEST_IMAGE_SPEAKER = 'QuestImage';
 export const QUEST_VISUAL_SPEAKER = 'QuestVisual';
+/**
+ * Quest choice-step framing copy — distinct from NARRATOR_RESPONSE_SPEAKER (post-choice replies).
+ */
+export const QUEST_NARRATOR_PROMPT_SPEAKER = 'NarratorPrompt';
+/** In-world / post-choice narration and message-step replies (default quest story voice). */
+export const NARRATOR_RESPONSE_SPEAKER = 'Narrator';
 /** Play-only recap lines (quest path summaries); omitted from Chronicle merge. */
 export const JOURNAL_RECAP_SPEAKER = 'Journal recap';
 /** Speaker id for end-of-day summary blocks (grouped as `report` voice). */
@@ -27,7 +33,10 @@ export function dialogueHasQuestOpeningAtEnd(
 ): boolean {
   if (log.length < 2) return false;
   const narratorEntry = log[log.length - 1];
-  if (narratorEntry.speaker !== 'Narrator' || narratorEntry.text !== openingNarratorText) return false;
+  const openingOkSpeaker =
+    narratorEntry.speaker === NARRATOR_RESPONSE_SPEAKER ||
+    narratorEntry.speaker === QUEST_NARRATOR_PROMPT_SPEAKER;
+  if (!openingOkSpeaker || narratorEntry.text !== openingNarratorText) return false;
   const prev = log[log.length - 2];
   if (!prev) return false;
   return (
@@ -118,6 +127,7 @@ export function buildRaceLockDialogueLines(
 
 export type DialogueVoice =
   | 'narrator'
+  | 'narrator_prompt'
   | 'dev'
   | 'player'
   | 'divider'
@@ -214,7 +224,8 @@ export type ChronicleSegment =
   | { type: 'dialogueBlock'; role: DialogueVoice; lines: DialogueLogEntry[] };
 
 export const dialogueVoiceRole = (speaker: string): DialogueVoice => {
-  if (speaker === 'Narrator') return 'narrator';
+  if (speaker === NARRATOR_RESPONSE_SPEAKER) return 'narrator';
+  if (speaker === QUEST_NARRATOR_PROMPT_SPEAKER) return 'narrator_prompt';
   if (speaker === 'Dev Message') return 'dev';
   if (speaker === QUEST_DIVIDER_SPEAKER) return 'divider';
   if (speaker === QUEST_IMAGE_SPEAKER) return 'quest_image';

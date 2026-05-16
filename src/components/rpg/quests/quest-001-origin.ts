@@ -27,7 +27,7 @@ export const quest001Origin = createQuestDefinition({
       choices: [
         {
           id: 'q1-origin-ask-how-first',
-          label: 'How did I get here',
+          label: 'How did I get here?',
           nextStepId: 'how-did-i-get-here-first',
           effects: {
             flagsSet: [ORIGIN_ASKED_HOW_FLAG],
@@ -52,13 +52,13 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'where-am-i-first',
       type: 'message',
-      text: 'You are in a dense forest with uneven terrain... all you see in every direction are trees.',
+      text: 'You see trees in every direction.',
       nextStepId: 'opening-after-where',
     },
     {
       id: 'opening-after-how',
       type: 'choice',
-      text: 'You find yourself in a forest.  Please choose from the options below to continue.',
+      text: '',
       choices: [
         {
           id: 'q1-origin-ask-how-disabled',
@@ -80,7 +80,7 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'opening-after-where',
       type: 'choice',
-      text: 'You find yourself in a forest.  Please choose from the options below to continue.',
+      text: '',
       choices: [
         {
           id: 'q1-origin-ask-how-second',

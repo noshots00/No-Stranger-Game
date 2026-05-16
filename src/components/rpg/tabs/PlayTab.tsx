@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
-import type { JournalLogEntry, QuestDefinition, QuestStep } from '../quests/types';
+import type { DialogueLogEntry, JournalLogEntry, QuestDefinition, QuestStep } from '../quests/types';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
 import { ORIGIN_QUEST_OPENED_FLAG, QUEST_004_B_CARL_HUB_STEP_ID, QUEST_004_B_THE_DOOR_ID } from '../constants';
 import { QuestPopup } from './QuestPopup';
@@ -42,6 +42,8 @@ type PlayTabProps = {
   onLocationAction?: (actionLabel: string) => void;
   /** Player flag set; used by `disabledIfAnyFlags` on QuestChoice. */
   playerFlags: string[];
+  /** Narrative lines for the active quest popup (sourced from `dialogueLog`). */
+  activeQuestTranscript: DialogueLogEntry[];
   useQuestPopupFallback: boolean;
 };
 
@@ -72,6 +74,7 @@ export function PlayTab({
   committedPlayerName,
   onLocationAction,
   playerFlags,
+  activeQuestTranscript,
   useQuestPopupFallback,
 }: PlayTabProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
@@ -363,6 +366,7 @@ export function PlayTab({
                       onAdvanceQuestMessage={onAdvanceQuestMessage}
                       onClose={onCloseQuestPopup}
                       presentation="inline"
+                      questTranscript={activeQuestTranscript}
                     />
                   ) : null}
                 </div>
@@ -406,6 +410,7 @@ export function PlayTab({
           onAdvanceQuestMessage={onAdvanceQuestMessage}
           onClose={onCloseQuestPopup}
           presentation="modal"
+          questTranscript={activeQuestTranscript}
         />
       ) : null}
     </section>
