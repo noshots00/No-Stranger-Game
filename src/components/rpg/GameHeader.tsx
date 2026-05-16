@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { UI_VERSION_LABEL } from './constants';
 import {
@@ -15,6 +16,9 @@ type GameHeaderProps = {
   /** Ordered travel destinations (Forest, optional Merchant when unlocked, …). */
   travelLocations: readonly string[];
   onTravelLocationSelect: (location: string) => void;
+  /** When set, version label opens a scrollable dev panel (`devToolsPanel`). */
+  showHeaderDevTools?: boolean;
+  devToolsPanel?: ReactNode;
 };
 
 export function GameHeader({
@@ -23,16 +27,41 @@ export function GameHeader({
   locationIndicatorClass,
   travelLocations,
   onTravelLocationSelect,
+  showHeaderDevTools = false,
+  devToolsPanel,
 }: GameHeaderProps) {
+  const versionCell =
+    showHeaderDevTools && devToolsPanel ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="min-w-0 w-full truncate text-center font-serif text-[0.5rem] uppercase leading-none tracking-[0.14em] text-[var(--candle-ink-faint)]"
+            aria-label="Open developer tools"
+          >
+            {UI_VERSION_LABEL}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="center"
+          className="z-[60] max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-2 text-[var(--candle-ink)]"
+        >
+          {devToolsPanel}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : (
+      <p className="min-w-0 truncate text-center font-serif text-[0.5rem] uppercase leading-none tracking-[0.14em] text-[var(--candle-ink-faint)]">
+        {UI_VERSION_LABEL}
+      </p>
+    );
+
   return (
     <header className="sticky top-0 z-20 w-full select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
       <div className="grid min-w-0 grid-cols-3 items-center gap-1 rounded-md border border-[var(--candle-rule)] bg-black/40 px-1.5 py-px font-serif text-[var(--candle-ink)] backdrop-blur-sm">
         <p className="min-w-0 truncate text-left font-serif text-[0.5625rem] font-medium leading-none tracking-[0.02em] text-[var(--candle-ink)]">
           Day {dayCounter}
         </p>
-        <p className="min-w-0 truncate text-center font-serif text-[0.5rem] uppercase leading-none tracking-[0.14em] text-[var(--candle-ink-faint)]">
-          {UI_VERSION_LABEL}
-        </p>
+        {versionCell}
         <DropdownMenu>
           <DropdownMenuTrigger
             type="button"

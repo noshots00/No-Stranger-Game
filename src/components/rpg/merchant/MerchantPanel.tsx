@@ -12,6 +12,7 @@ import type { ModifierMap } from '@/components/rpg/quests/types';
 import { formatCoinShort, splitCopperIntoCoins } from '@/components/rpg/helpers';
 import { publicAsset } from '@/lib/publicAsset';
 import { cn } from '@/lib/utils';
+import { NpcTalkScrollPanes } from '@/components/rpg/npc/NpcTalkScrollPanes';
 import {
   MERCHANT_GOLD_STIPEND_DELTA,
   MERCHANT_TRADE_GOODS,
@@ -170,76 +171,39 @@ export function MerchantPanel({
                 value="talk"
                 className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden outline-none data-[state=inactive]:hidden"
               >
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-                  <ScrollArea className="min-h-0 min-w-0 flex-[1.35] rounded-md border border-[var(--candle-rule)] bg-black/25 px-1">
-                  <div
-                    className="space-y-3 px-3 py-2 pr-4 font-serif text-sm leading-snug"
-                    role="log"
-                    aria-label="Conversation with the merchant"
-                  >
-                    {transcript.map((entry) => (
-                      <p
-                        key={entry.id}
-                        className={
-                          entry.role === 'narrator'
-                            ? 'italic text-[var(--candle-ink-faint)]'
-                            : entry.role === 'player'
-                              ? 'text-[var(--candle-wax)]'
-                              : 'text-[var(--candle-ink-soft)]'
-                        }
-                      >
-                        {entry.role === 'player' ? (
-                          <>
-                            <span className="font-semibold text-[var(--candle-ink)]">You: </span>
-                            {entry.text}
-                          </>
-                        ) : entry.role === 'merchant' ? (
-                          <>
-                            <span className="font-semibold text-[var(--candle-flame-soft)]">
-                              Merchant:{' '}
-                            </span>
-                            {entry.text}
-                          </>
-                        ) : (
-                          entry.text
-                        )}
-                      </p>
-                    ))}
-                    <div ref={logEndRef} className="h-px" aria-hidden />
-                  </div>
-                </ScrollArea>
-
-                <ScrollArea className="min-h-0 min-w-0 flex-1 rounded-md border border-[var(--candle-rule)] bg-black/20 px-1">
-                  <div className="flex flex-col gap-0.5 py-1 pr-4">
-                    {topicChoices.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleChoice(c)}
-                        className="choice-line text-left text-[0.9rem]"
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                    {activeTopic !== 'main' ? (
-                      <button
-                        type="button"
-                        onClick={handleExitToMain}
-                        className="choice-line border-t border-[var(--candle-rule)]/60 pt-2 text-left text-[0.88rem] text-[var(--candle-ink-faint)]"
-                      >
-                        {EXIT_TO_MAIN_LABEL}
-                      </button>
-                    ) : null}
+                <NpcTalkScrollPanes
+                  transcript={transcript}
+                  logEndRef={logEndRef}
+                  npcSpeakerLabel="Merchant"
+                  logAriaLabel="Conversation with the merchant"
+                >
+                  {topicChoices.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => handleChoice(c)}
+                      className="choice-line text-left text-[0.9rem]"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                  {activeTopic !== 'main' ? (
                     <button
                       type="button"
-                      onClick={handleStipend}
-                      className="choice-line text-left text-[0.95rem] font-medium text-[var(--candle-wax)]"
+                      onClick={handleExitToMain}
+                      className="choice-line border-t border-[var(--candle-rule)]/60 pt-2 text-left text-[0.88rem] text-[var(--candle-ink-faint)]"
                     >
-                      {STIPEND_PLAYER_LINE}
+                      {EXIT_TO_MAIN_LABEL}
                     </button>
-                  </div>
-                </ScrollArea>
-                </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleStipend}
+                    className="choice-line text-left text-[0.95rem] font-medium text-[var(--candle-wax)]"
+                  >
+                    {STIPEND_PLAYER_LINE}
+                  </button>
+                </NpcTalkScrollPanes>
               </TabsContent>
 
               <TabsContent

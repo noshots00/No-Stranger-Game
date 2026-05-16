@@ -54,6 +54,8 @@ import {
   QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
   QUEST_003B_MEET_MERCHANT_ID,
+  QUEST_004_B_CARL_HUB_STEP_ID,
+  QUEST_004_B_THE_DOOR_ID,
   ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
@@ -81,6 +83,13 @@ import type { ChronicleMergedRow } from './dialogueFormat';
 import { useQuestState } from './hooks/useQuestState';
 import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
+import {
+  applyStoryCheckpoint,
+  devCompleteQuestById,
+  STORY_CHECKPOINT_LABELS,
+  STORY_CHECKPOINT_ORDER,
+  type StoryCheckpointId,
+} from './dev/devStoryCheckpoints';
 import { GameHeader } from './GameHeader';
 import { CharacterTab } from './tabs/CharacterTab';
 import { ChronicleTab } from './tabs/ChronicleTab';
@@ -95,12 +104,16 @@ import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 import { GamePortraitViewport } from './GamePortraitViewport';
 import { MerchantPanel } from './merchant/MerchantPanel';
 import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
+import { CarlDoorNpcPanel } from './quests/CarlDoorNpcPanel';
 
 /**
  * Session guard for ledger loading overlay.
  * Keeps "Loading your ledger…" from reappearing on transient remounts.
  */
 let hasShownGameOnceInSession = false;
+
+/** localStorage `nsg:dev-header-tools=1` enables header dev tools in production builds. */
+const DEV_HEADER_TOOLS_STORAGE_KEY = 'nsg:dev-header-tools';
 
 /** Credits daily XP when the extended origin quest first completes; gates side content via `quest001-complete`. */
 function applyOriginMainDailyCompletionIfNeeded(
@@ -292,6 +305,106 @@ export function RPGInterface() {
     },
     [handleTravelLocationSelect]
   );
+
+  const [devHeaderToolsFromStorage, setDevHeaderToolsFromStorage] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(DEV_HEADER_TOOLS_STORAGE_KEY) === '1') setDevHeaderToolsFromStorage(true);
+    } catch {
+      /* private / blocked storage */
+    }
+  }, []);
+  const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
+
+  const sortedQuestsForDev = useMemo(
+    () => [...allQuests].sort((a, b) => a.title.localeCompare(b.title)),
+    []
+  );
+  const [devCompleteQuestSelection, setDevCompleteQuestSelection] = useState(
+    () => sortedQuestsForDev[0]?.id ?? ''
+  );
+  useEffect(() => {
+    if (sortedQuestsForDev.length === 0) return;
+    setDevCompleteQuestSelection((cur) =>
+      cur && sortedQuestsForDev.some((q) => q.id === cur) ? cur : sortedQuestsForDev[0]!.id
+    );
+  }, [sortedQuestsForDev]);
+
+  const handleDevCheckpoint = useCallback(
+    (checkpoint: StoryCheckpointId) => {
+      setQuestState((prev) => {
+        const next = applyStoryCheckpoint(prev, checkpoint, questById);
+        void persistQuestCheckpoint(next);
+        return next;
+      });
+    },
+    [setQuestState, persistQuestCheckpoint]
+  );
+
+  const handleDevCompleteQuest = useCallback(() => {
+    if (!devCompleteQuestSelection) return;
+    setQuestState((prev) => {
+      const next = devCompleteQuestById(prev, devCompleteQuestSelection, questById);
+      void persistQuestCheckpoint(next);
+      return next;
+    });
+  }, [devCompleteQuestSelection, setQuestState, persistQuestCheckpoint]);
+
+  const headerDevPanel = useMemo(() => {
+    if (!showHeaderDevTools) return null;
+    return (
+      <div className="flex flex-col gap-2 font-serif text-xs text-[var(--candle-ink)]">
+        <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">Story checkpoints</p>
+        <div className="flex flex-col gap-1">
+          {STORY_CHECKPOINT_ORDER.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="rounded border border-[var(--candle-rule)] bg-black/20 px-2 py-1.5 text-left text-[0.7rem] text-[var(--candle-ink-soft)] hover:bg-[var(--candle-flame)]/15"
+              onClick={() => handleDevCheckpoint(id)}
+            >
+              {STORY_CHECKPOINT_LABELS[id]}
+            </button>
+          ))}
+        </div>
+        <div className="mt-1 border-t border-[var(--candle-rule)] pt-2">
+          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">
+            Mark quest complete
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <select
+              className="max-w-full rounded border border-[var(--candle-rule)] bg-black/30 px-2 py-1 text-[0.7rem] text-[var(--candle-ink)]"
+              value={devCompleteQuestSelection}
+              onChange={(e) => setDevCompleteQuestSelection(e.target.value)}
+            >
+              {sortedQuestsForDev.map((q) => (
+                <option key={q.id} value={q.id}>
+                  {q.title} ({q.id})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="rounded border border-[var(--candle-wax)]/40 bg-[var(--candle-flame)]/20 px-2 py-1 text-[0.7rem] text-[var(--candle-ink)] hover:bg-[var(--candle-flame)]/30"
+              onClick={handleDevCompleteQuest}
+            >
+              Mark selected complete
+            </button>
+          </div>
+        </div>
+        <p className="mt-1 text-[0.6rem] leading-snug text-[var(--candle-ink-faint)]">
+          Day pacing & unlock-all: Character tab …
+        </p>
+      </div>
+    );
+  }, [
+    showHeaderDevTools,
+    handleDevCheckpoint,
+    handleDevCompleteQuest,
+    sortedQuestsForDev,
+    devCompleteQuestSelection,
+  ]);
+
   const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
   const merchantItemCounts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -746,16 +859,18 @@ export function RPGInterface() {
       ];
 
       if (nextStep.type === 'message') {
-        nextLog.push(
-          appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName), qOpts)
-        );
+        const narr = interpolateStepText(nextStep.text, nextState.playerName);
+        if (narr.trim().length > 0) {
+          nextLog.push(appendDialogue('Narrator', narr, qOpts));
+        }
       } else if (
         nextStep.type !== 'input' &&
         !nextState.progressByQuestId[activeQuest.id]?.isCompleted
       ) {
-        nextLog.push(
-          appendDialogue('Narrator', interpolateStepText(nextStep.text, nextState.playerName), qOpts)
-        );
+        const narr = interpolateStepText(nextStep.text, nextState.playerName);
+        if (narr.trim().length > 0) {
+          nextLog.push(appendDialogue('Narrator', narr, qOpts));
+        }
       }
       const wasCompleted = Boolean(prev.progressByQuestId[activeQuest.id]?.isCompleted);
       const isCompleted = Boolean(nextState.progressByQuestId[activeQuest.id]?.isCompleted);
@@ -789,16 +904,18 @@ export function RPGInterface() {
       ];
 
       if (nextStep.type === 'message') {
-        nextLog.push(
-          appendDialogue('Narrator', interpolateStepText(nextStep.text, advanced.playerName), qOpts)
-        );
+        const narr = interpolateStepText(nextStep.text, advanced.playerName);
+        if (narr.trim().length > 0) {
+          nextLog.push(appendDialogue('Narrator', narr, qOpts));
+        }
       } else if (
         nextStep.type !== 'input' &&
         !advanced.progressByQuestId[activeQuest.id]?.isCompleted
       ) {
-        nextLog.push(
-          appendDialogue('Narrator', interpolateStepText(nextStep.text, advanced.playerName), qOpts)
-        );
+        const narr = interpolateStepText(nextStep.text, advanced.playerName);
+        if (narr.trim().length > 0) {
+          nextLog.push(appendDialogue('Narrator', narr, qOpts));
+        }
       }
       const wasCompleted = Boolean(prev.progressByQuestId[activeQuest.id]?.isCompleted);
       const isCompleted = Boolean(advanced.progressByQuestId[activeQuest.id]?.isCompleted);
@@ -1059,6 +1176,8 @@ export function RPGInterface() {
           locationIndicatorClass={locationIndicatorClass}
           travelLocations={travelLocations}
           onTravelLocationSelect={handleTravelLocationSelect}
+          showHeaderDevTools={showHeaderDevTools}
+          devToolsPanel={headerDevPanel}
         />
         <div
           className={`min-h-0 flex-1 ${
@@ -1103,13 +1222,25 @@ export function RPGInterface() {
     </main>
     </GamePortraitViewport>
     {canShowGame ? (
-      <MerchantPanel
-        open={questState.currentLocation === 'Merchant'}
-        onOpenChange={handleMerchantDialogOpenChange}
-        walletCopper={walletCopper}
-        itemCounts={merchantItemCounts}
-        onApplyModifiers={handleMerchantApplyModifiers}
-      />
+      <>
+        <CarlDoorNpcPanel
+          open={
+            questPopupQuestId === QUEST_004_B_THE_DOOR_ID &&
+            activeStep?.id === QUEST_004_B_CARL_HUB_STEP_ID
+          }
+          onOpenChange={(next) => {
+            if (!next) handleCloseQuestPopup();
+          }}
+          onFarewell={() => handleStepChoice('carl-farewell')}
+        />
+        <MerchantPanel
+          open={questState.currentLocation === 'Merchant'}
+          onOpenChange={handleMerchantDialogOpenChange}
+          walletCopper={walletCopper}
+          itemCounts={merchantItemCounts}
+          onApplyModifiers={handleMerchantApplyModifiers}
+        />
+      </>
     ) : null}
     </>
   );

@@ -3,7 +3,7 @@ import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
 import type { JournalLogEntry, QuestDefinition, QuestStep } from '../quests/types';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
-import { ORIGIN_QUEST_OPENED_FLAG } from '../constants';
+import { ORIGIN_QUEST_OPENED_FLAG, QUEST_004_B_CARL_HUB_STEP_ID, QUEST_004_B_THE_DOOR_ID } from '../constants';
 import { QuestPopup } from './QuestPopup';
 
 const QUEST_2B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
@@ -328,6 +328,10 @@ export function PlayTab({
               questPopupQuestId === quest.id &&
               activeQuest?.id === quest.id &&
               Boolean(activeStep);
+            const suppressQuestPopupForCarlNpc =
+              quest.id === QUEST_004_B_THE_DOOR_ID &&
+              activeQuest?.id === quest.id &&
+              activeStep?.id === QUEST_004_B_CARL_HUB_STEP_ID;
             return (
               <div key={`active-journal-${quest.id}`} className="py-0.5">
                 <div className="space-y-2">
@@ -339,7 +343,12 @@ export function PlayTab({
                     interactive: !showInlineQuest,
                     onOpen: () => onOpenQuestPopup(quest.id),
                   })}
-                  {showInlineQuest && activeQuest && activeStep ? (
+                  {suppressQuestPopupForCarlNpc && showInlineQuest ? (
+                    <p className="px-0.5 font-serif text-sm italic text-[var(--candle-ink-faint)]">
+                      Conversation continues in the scene above.
+                    </p>
+                  ) : null}
+                  {showInlineQuest && activeQuest && activeStep && !suppressQuestPopupForCarlNpc ? (
                     <QuestPopup
                       quest={activeQuest}
                       step={activeStep}
@@ -379,7 +388,10 @@ export function PlayTab({
           </div>
         </div>
       ) : null}
-      {useQuestPopupFallback && popupQuest && popupStep ? (
+      {useQuestPopupFallback && popupQuest && popupStep && !(
+        popupQuest.id === QUEST_004_B_THE_DOOR_ID &&
+        popupStep.id === QUEST_004_B_CARL_HUB_STEP_ID
+      ) ? (
         <QuestPopup
           quest={popupQuest}
           step={popupStep}

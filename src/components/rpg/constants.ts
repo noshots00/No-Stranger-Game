@@ -32,6 +32,9 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
 /** Story beat: after 2b, unlocks merchant travel (`quest-003-b-meet-merchant`). */
 export const QUEST_003B_MEET_MERCHANT_ID = 'quest-003-b-meet-merchant';
+/** Quest 4b — Carl at the door (NPC dialog template). */
+export const QUEST_004_B_THE_DOOR_ID = 'quest-004-b-the-door';
+export const QUEST_004_B_CARL_HUB_STEP_ID = 'carl-hub';
 /** Set when the player submits their name on origin (distinct from `quest001-complete`). */
 export const QUEST001_NAMED_FLAG = 'quest001-named';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
