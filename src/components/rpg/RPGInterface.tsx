@@ -8,6 +8,7 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import {
   advanceQuestMessage,
   applyChoice,
+  applyDirectModifiersDelta,
   getCompletedQuestIds,
   getCurrentStep,
   getQuestContext,
@@ -22,7 +23,7 @@ import {
 import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/skills-config';
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
-import type { QuestDefinition, QuestState } from '@/components/rpg/quests/types';
+import type { ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
   APP_VERSION,
   BRACELET_DAILY_FLAG,
@@ -52,6 +53,7 @@ import {
   locationActions,
   QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
+  QUEST_003B_MEET_MERCHANT_ID,
   ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
@@ -59,7 +61,12 @@ import {
   PLAY_WORLD_RECENT_MAX,
 } from './constants';
 import type { MobileTab } from './constants';
-import { appendDialogue, appendUniqueWorldEntries, buildDayReportDialogueLines } from './helpers';
+import {
+  appendDialogue,
+  appendUniqueWorldEntries,
+  buildDayReportDialogueLines,
+  getCopperFromModifiers,
+} from './helpers';
 import {
   dialogueHasQuestOpeningAtEnd,
   formatPlayerChoiceDialogueLine,
@@ -86,6 +93,8 @@ import { publicAsset } from '@/lib/publicAsset';
 import { needsMandatoryCharacterReset } from './characterSaveVersion';
 import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 import { GamePortraitViewport } from './GamePortraitViewport';
+import { MerchantPanel } from './merchant/MerchantPanel';
+import { WOLF_PELT_ITEM_KEY } from './merchant/merchantEconomy';
 
 /**
  * Session guard for ledger loading overlay.
@@ -245,6 +254,46 @@ export function RPGInterface() {
   };
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
+  const merchantTravelUnlocked = completedQuestIds.includes(QUEST_003B_MEET_MERCHANT_ID);
+  const travelLocations = useMemo(() => {
+    const out: string[] = [];
+    const add = (s: string) => {
+      if (!out.includes(s)) out.push(s);
+    };
+    add('Forest');
+    if (merchantTravelUnlocked) add('Merchant');
+    const cur = questState.currentLocation;
+    if (cur && !out.includes(cur)) add(cur);
+    return out;
+  }, [merchantTravelUnlocked, questState.currentLocation]);
+  const handleTravelLocationSelect = useCallback(
+    (nextLocation: string) => {
+      setQuestState((prev) => {
+        const next = { ...prev, currentLocation: nextLocation };
+        void persistQuestCheckpoint(next);
+        return next;
+      });
+    },
+    [setQuestState, persistQuestCheckpoint]
+  );
+  const handleMerchantApplyModifiers = useCallback(
+    (delta: ModifierMap) => {
+      setQuestState((prev) => {
+        const next = applyDirectModifiersDelta(prev, delta);
+        void persistQuestCheckpoint(next);
+        return next;
+      });
+    },
+    [setQuestState, persistQuestCheckpoint]
+  );
+  const handleMerchantDialogOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) handleTravelLocationSelect('Forest');
+    },
+    [handleTravelLocationSelect]
+  );
+  const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
+  const wolfPeltsHeld = questState.modifiers[WOLF_PELT_ITEM_KEY] ?? 0;
   const questContext = useMemo(() => getQuestContext(questState, dayCounter), [questState, dayCounter]);
   const visibleQuests = useMemo(
     () => getQuestListForUi(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
@@ -327,7 +376,9 @@ export function RPGInterface() {
       ? 'location-indicator-forest'
       : questState.currentLocation === 'Silver Lake'
         ? 'location-indicator-silver-lake'
-        : 'candle-ink-muted';
+        : questState.currentLocation === 'Merchant'
+          ? 'location-indicator-merchant'
+          : 'candle-ink-muted';
   /** Origin quest “click a choice” hint — off until copy/UI is finalized. */
   const showOriginStartHint = false;
 
@@ -1000,6 +1051,8 @@ export function RPGInterface() {
           dayCounter={dayCounter}
           currentLocation={questState.currentLocation}
           locationIndicatorClass={locationIndicatorClass}
+          travelLocations={travelLocations}
+          onTravelLocationSelect={handleTravelLocationSelect}
         />
         <div
           className={`min-h-0 flex-1 ${
@@ -1043,6 +1096,15 @@ export function RPGInterface() {
       </div>
     </main>
     </GamePortraitViewport>
+    {canShowGame ? (
+      <MerchantPanel
+        open={questState.currentLocation === 'Merchant'}
+        onOpenChange={handleMerchantDialogOpenChange}
+        walletCopper={walletCopper}
+        wolfPelts={wolfPeltsHeld}
+        onApplyModifiers={handleMerchantApplyModifiers}
+      />
+    ) : null}
     </>
   );
 }

@@ -1,9 +1,12 @@
 import { createQuestDefinition } from './quest-authoring-tool';
 
+const ORIGIN_ASKED_HOW_FLAG = 'quest-001-origin-asked-how';
+const ORIGIN_ASKED_WHERE_FLAG = 'quest-001-origin-asked-where';
+
 export const quest001Origin = createQuestDefinition({
   id: 'quest-001-origin',
   title: 'The Beginning',
-  briefing: '(Quest 1 briefing placeholder — author fills after wilderness beat is tuned.)',
+  briefing: 'Click here to continue...',
   createdAt: 1,
   mainDailyQuest: true,
   startStepId: 'start',
@@ -13,7 +16,7 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'start',
       type: 'choice',
-      text: 'You will have many choices to make in this game.  Pick a choice to continue.',
+      text: 'You find yourself in a forest.  Please choose from the options below to continue.',
       visuals: [
         {
           kind: 'image',
@@ -23,57 +26,90 @@ export const quest001Origin = createQuestDefinition({
       ],
       choices: [
         {
-          id: 'q1-a-continue',
-          label: 'A) Please make a choice to continue...',
-          nextStepId: 'two-a',
+          id: 'q1-origin-ask-how-first',
+          label: 'How did I get here',
+          nextStepId: 'how-did-i-get-here-first',
+          effects: {
+            flagsSet: [ORIGIN_ASKED_HOW_FLAG],
+          },
         },
         {
-          id: 'q1-b-continue',
-          label: 'B) Please make a choice to continue...',
-          nextStepId: 'two-b',
-        },
-        {
-          id: 'q1-c-continue',
-          label: 'C) Please make a choice to continue...',
-          nextStepId: 'two-c',
+          id: 'q1-origin-ask-where-first',
+          label: 'Where am I?',
+          nextStepId: 'where-am-i-first',
+          effects: {
+            flagsSet: [ORIGIN_ASKED_WHERE_FLAG],
+          },
         },
       ],
     },
     {
-      id: 'two-a',
+      id: 'how-did-i-get-here-first',
+      type: 'message',
+      text: "It's like I just woke up... only I can't remember a thing",
+      nextStepId: 'opening-after-how',
+    },
+    {
+      id: 'where-am-i-first',
+      type: 'message',
+      text: 'You are in a dense forest with uneven terrain... all you see in every direction are trees.',
+      nextStepId: 'opening-after-where',
+    },
+    {
+      id: 'opening-after-how',
       type: 'choice',
-      text: 'You chose A.\n\nHow did I get here?',
+      text: 'You find yourself in a forest.  Please choose from the options below to continue.',
       choices: [
         {
-          id: 'q2-i-dont-know',
-          label: "It's like I just woke up... only I can't remember a thing.",
-          nextStepId: 'three',
+          id: 'q1-origin-ask-how-disabled',
+          label: 'How did I get here',
+          disabledIfAnyFlags: [ORIGIN_ASKED_HOW_FLAG],
+          disabledLabel: '',
+          nextStepId: 'opening-after-how',
+        },
+        {
+          id: 'q1-origin-ask-where-second',
+          label: 'Where am I?',
+          nextStepId: 'where-am-i-second',
+          effects: {
+            flagsSet: [ORIGIN_ASKED_WHERE_FLAG],
+          },
         },
       ],
     },
     {
-      id: 'two-b',
+      id: 'opening-after-where',
       type: 'choice',
-      text: 'You chose B.\n\nHow did I get here?',
+      text: 'You find yourself in a forest.  Please choose from the options below to continue.',
       choices: [
         {
-          id: 'q2-i-dont-know',
-          label: "It's like I just woke up... only I can't remember a thing.",
-          nextStepId: 'three',
+          id: 'q1-origin-ask-how-second',
+          label: 'How did I get here',
+          nextStepId: 'how-did-i-get-here-second',
+          effects: {
+            flagsSet: [ORIGIN_ASKED_HOW_FLAG],
+          },
+        },
+        {
+          id: 'q1-origin-ask-where-disabled',
+          label: 'Where am I?',
+          disabledIfAnyFlags: [ORIGIN_ASKED_WHERE_FLAG],
+          disabledLabel: '',
+          nextStepId: 'opening-after-where',
         },
       ],
     },
     {
-      id: 'two-c',
-      type: 'choice',
-      text: 'You chose C.\n\nHow did I get here?',
-      choices: [
-        {
-          id: 'q2-i-dont-know',
-          label: "It's like I just woke up... only I can't remember a thing.",
-          nextStepId: 'three',
-        },
-      ],
+      id: 'how-did-i-get-here-second',
+      type: 'message',
+      text: "It's like I just woke up... only I can't remember a thing",
+      nextStepId: 'three',
+    },
+    {
+      id: 'where-am-i-second',
+      type: 'message',
+      text: 'You are in a dense forest with uneven terrain... all you see in every direction are trees.',
+      nextStepId: 'three',
     },
     {
       id: 'three',
@@ -94,31 +130,77 @@ export const quest001Origin = createQuestDefinition({
       field: 'playerName',
       placeholder: 'Please type your name here.',
       submitLabel: 'Confirm Name',
-      nextStepId: 'five',
+      nextStepId: 'flavor-five',
       journalSummaryLineAfterSubmit:
         "You find yourself in a forest.  You can't remember anything, except...\n\n...your name is {playerName}.",
     },
     {
-      id: 'five',
-      type: 'message',
-      text: 'My name is... {playerName}!',
-      nextStepId: 'flavor-five',
-    },
-    {
       id: 'flavor-five',
       type: 'choice',
-      text: 'What do you do?\n\n(Flavor only for now — no mechanical effect yet.)\n\n(Quest 1 — opening beat placeholder — tighten prose.)',
+      text:
+        "You find yourself in a forest.  You can't remember anything, except...\n\n...your name is {playerName}.\n\nWhat do you do now?",
       choices: [
-        { id: 'q1-flavor-call-help', label: 'Call out for help', nextStepId: 'compass-four' },
-        { id: 'q1-flavor-pockets', label: 'Check your pockets', nextStepId: 'compass-four' },
-        { id: 'q1-flavor-tree', label: 'Climb a tree to look around', nextStepId: 'compass-four' },
+        {
+          id: 'q1-flavor-call-help',
+          label: 'Call out for help',
+          nextStepId: 'flavor-call-help',
+          journalSummaryLineAdd: 'You tried to call for help.',
+        },
+        {
+          id: 'q1-flavor-pockets',
+          label: 'Check your pockets',
+          nextStepId: 'flavor-pockets',
+          journalSummaryLineAdd: 'You checked your pockets.',
+        },
+        {
+          id: 'q1-flavor-tree',
+          label: 'Climb a tree to look around',
+          nextStepId: 'flavor-tree',
+          journalSummaryLineAdd: 'You climbed a tree to look around.',
+        },
         {
           id: 'q1-flavor-stream',
           label: 'Follow a stream if you hear one',
-          nextStepId: 'compass-four',
+          nextStepId: 'flavor-stream',
+          journalSummaryLineAdd: 'You listened for a stream and tried to follow it.',
         },
-        { id: 'q1-flavor-still', label: 'Stay still and listen', nextStepId: 'compass-four' },
+        {
+          id: 'q1-flavor-still',
+          label: 'Stay still and listen',
+          nextStepId: 'flavor-still',
+          journalSummaryLineAdd: 'You stay in one place and listen.',
+        },
       ],
+    },
+    {
+      id: 'flavor-call-help',
+      type: 'message',
+      text: 'You try to call for help.',
+      nextStepId: 'compass-four',
+    },
+    {
+      id: 'flavor-pockets',
+      type: 'message',
+      text: 'You check your pockets.',
+      nextStepId: 'compass-four',
+    },
+    {
+      id: 'flavor-tree',
+      type: 'message',
+      text: 'You climb a tree to look around.',
+      nextStepId: 'compass-four',
+    },
+    {
+      id: 'flavor-stream',
+      type: 'message',
+      text: 'You listen for running water and try to follow it.',
+      nextStepId: 'compass-four',
+    },
+    {
+      id: 'flavor-still',
+      type: 'message',
+      text: 'You stay in one place and listen.',
+      nextStepId: 'compass-four',
     },
     {
       id: 'compass-four',
@@ -151,12 +233,12 @@ export const quest001Origin = createQuestDefinition({
       id: 'boar-encounter',
       type: 'choice',
       text: 'A wild boar rushes you. Instinct takes over.\n\n(Quest 1 — boar encounter sensory placeholder.)',
-      worldEventLogAfterChoice: ['You fended off a wild boar!'],
       choices: [
         {
           id: 'q1-origin-boar-strike',
           label: 'Attack',
           nextStepId: 'boar-aftermath',
+          journalSummaryLineAdd: 'You fended off a boar by attacking it.',
           effects: {
             modifiersDelta: {
               WarriorClass: 1,
@@ -171,6 +253,7 @@ export const quest001Origin = createQuestDefinition({
           id: 'q1-origin-boar-spark',
           label: 'Cast a spell (you produce a small spark—surprising even you)',
           nextStepId: 'boar-aftermath',
+          journalSummaryLineAdd: 'You fended off a boar by using magic.',
           effects: {
             modifiersDelta: {
               MageClass: 1,
@@ -185,6 +268,7 @@ export const quest001Origin = createQuestDefinition({
           id: 'q1-origin-boar-dodge',
           label: 'Dodge',
           nextStepId: 'boar-aftermath',
+          journalSummaryLineAdd: 'You fended off a boar by dodging it.',
           effects: {
             modifiersDelta: {
               RogueClass: 1,
@@ -201,6 +285,7 @@ export const quest001Origin = createQuestDefinition({
           id: 'q1-origin-boar-run',
           label: 'Run',
           nextStepId: 'boar-aftermath',
+          journalSummaryLineAdd: 'You fended off a boar by running from it.',
           effects: {
             modifiersDelta: {
               Coward: 1,
@@ -230,11 +315,14 @@ export const quest001Origin = createQuestDefinition({
           id: 'q1-dusk-keep-going',
           label: 'Keep going',
           nextStepId: 'dark-pitch',
+          journalSummaryLineAdd:
+            'You had a strange night in the forest before eventually falling asleep.',
         },
         {
           id: 'q1-dusk-build-shelter',
           label: 'Build a shelter',
           nextStepId: 'shelter-lean-end',
+          journalSummaryLineAdd: 'You built a primitive lean-to and slept for the night.',
         },
       ],
     },

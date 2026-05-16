@@ -285,6 +285,10 @@
     color: rgba(168, 176, 186, 0.72);
   }
 
+  .location-indicator-merchant {
+    color: rgba(200, 165, 120, 0.78);
+  }
+
   .candle-ink-muted {
     color: var(--candle-ink-soft);
   }

@@ -4,9 +4,11 @@ type MapTabProps = {
   currentLocation: string;
   flags: string[];
   onLocationChange: (location: string) => void;
+  /** After “You meet a merchant” quest, enables travel UI to the forest merchant. */
+  merchantTravelUnlocked?: boolean;
 };
 
-export function MapTab({ currentLocation, flags, onLocationChange }: MapTabProps) {
+export function MapTab({ currentLocation, flags, onLocationChange, merchantTravelUnlocked }: MapTabProps) {
   return (
     <section className="space-y-8 pb-4">
       <div className="rounded-lg border border-dashed border-[var(--candle-rule)] bg-black/25 px-4 py-6 text-center">
@@ -30,6 +32,21 @@ export function MapTab({ currentLocation, flags, onLocationChange }: MapTabProps
           The Forest
         </button>
       </div>
+      {merchantTravelUnlocked ? (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => onLocationChange('Merchant')}
+            className={`font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
+              currentLocation === 'Merchant'
+                ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+                : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
+            }`}
+          >
+            Merchant camp
+          </button>
+        </div>
+      ) : null}
       {flags.includes(SILVER_LAKE_FLAG) || flags.includes(AIRSHIP_FLAG) ? (
         <ul className="space-y-4 border-t border-[var(--candle-rule)] pt-6">
           {flags.includes(SILVER_LAKE_FLAG) ? (

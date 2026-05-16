@@ -6,6 +6,8 @@ import { getQuestCardImageSrc } from '../rpgArtAssignments';
 import { ORIGIN_QUEST_OPENED_FLAG } from '../constants';
 import { QuestPopup } from './QuestPopup';
 
+const QUEST_2B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
+
 type PlayLedgerTimelineRow =
   | { kind: 'story'; segment: ChronicleSegment; sortMs: number }
   | { kind: 'journal_group'; entries: JournalLogEntry[]; sortMs: number; groupKey: string };
@@ -176,23 +178,39 @@ export function PlayTab({
     interactive: boolean;
     onOpen?: () => void;
   }) => {
+    const image = (
+      <img
+        src={getQuestCardImageSrc(quest)}
+        alt={`${title} illustration`}
+        className="aspect-[3/4] w-[150px] shrink-0 rounded border border-[var(--candle-rule)] object-cover"
+        loading="lazy"
+      />
+    );
+    const titleAndBriefing = (
+      <div className="relative flex min-h-[200px] w-[260px] min-w-0 flex-col items-center justify-center text-center">
+        {isNew ? (
+          <span className="absolute top-0 rounded border border-[var(--candle-flame-soft)]/45 bg-[var(--candle-flame-soft)]/10 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
+            New
+          </span>
+        ) : null}
+        <p className="font-serif text-base text-[var(--candle-flame-soft)]">{title}</p>
+        <p className="font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">{briefingText}</p>
+      </div>
+    );
+    const imageOnRight = quest.id === QUEST_2B_WILL_I_STARVE_ID;
     const content = (
       <div className="flex items-start justify-center gap-3">
-        <img
-          src={getQuestCardImageSrc(quest)}
-          alt={`${title} illustration`}
-          className="aspect-[3/4] w-[150px] shrink-0 rounded border border-[var(--candle-rule)] object-cover"
-          loading="lazy"
-        />
-        <div className="relative flex min-h-[200px] w-[260px] min-w-0 flex-col items-center justify-center text-center">
-          {isNew ? (
-            <span className="absolute top-0 rounded border border-[var(--candle-flame-soft)]/45 bg-[var(--candle-flame-soft)]/10 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
-              New
-            </span>
-          ) : null}
-          <p className="font-serif text-base text-[var(--candle-flame-soft)]">{title}</p>
-          <p className="font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">{briefingText}</p>
-        </div>
+        {imageOnRight ? (
+          <>
+            {titleAndBriefing}
+            {image}
+          </>
+        ) : (
+          <>
+            {image}
+            {titleAndBriefing}
+          </>
+        )}
       </div>
     );
 

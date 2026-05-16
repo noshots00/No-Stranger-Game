@@ -30,7 +30,7 @@ import {
   buildRaceLockDialogueLines,
   tagDialogueSourceQuest,
 } from '../dialogueFormat';
-import { CLASS_ARCHETYPE_SLUGS } from '../constants';
+import { CLASS_ARCHETYPE_SLUGS, VALID_SAVE_LOCATIONS } from '../constants';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
 
@@ -244,10 +244,11 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const questItems = Array.isArray(questItemsRaw)
     ? questItemsRaw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
     : [];
-  const currentLocation =
+  const rawLocation =
     typeof state.currentLocation === 'string' && state.currentLocation.trim().length > 0
-      ? state.currentLocation
+      ? state.currentLocation.trim()
       : initial.currentLocation;
+  const currentLocation = VALID_SAVE_LOCATIONS.has(rawLocation) ? rawLocation : initial.currentLocation;
 
   const rawUnveiled = (state as { unveiledQuestIds?: unknown }).unveiledQuestIds;
   let unveiledQuestIds: string[];
@@ -442,7 +443,9 @@ export const getQuestContext = (state: QuestState, currentDay: number): QuestCon
 const MAIN_QUEST_ONLY_MODE = true;
 
 const isMainQuestIdForCurrentArc = (questId: string): boolean =>
-  questId === 'quest-001-origin' || /^quest-002(?:-|$)/.test(questId);
+  questId === 'quest-001-origin' ||
+  questId === 'quest-003-b-meet-merchant' ||
+  /^quest-002(?:-|$)/.test(questId);
 
 export const getVisibleQuests = (quests: QuestDefinition[], context: QuestContext): QuestDefinition[] =>
   quests
@@ -576,6 +579,13 @@ const mergeModifiers = (
     next[modifier] = (next[modifier] ?? 0) + delta;
   });
   return next;
+};
+
+/** Apply modifier deltas outside a quest choice (e.g. merchant buy/sell). Respects race/class merge rules. */
+export const applyDirectModifiersDelta = (state: QuestState, modifiersDelta: ModifierMap): QuestState => {
+  const raceLocked = state.assignedRaceSlug !== null;
+  const modifiers = mergeModifiers(state.modifiers, modifiersDelta, raceLocked, state.lockedClassSlug);
+  return { ...state, modifiers };
 };
 
 const mergeFlags = (current: string[], effect: ChoiceEffect | undefined): string[] => {

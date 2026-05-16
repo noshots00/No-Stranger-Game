@@ -30,6 +30,8 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
   { pending: SWEET_DREAM_PENDING_FLAG, unlocked: SWEET_DREAM_UNLOCKED_FLAG },
 ];
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
+/** Story beat: after 2b, unlocks merchant travel (`quest-003-b-meet-merchant`). */
+export const QUEST_003B_MEET_MERCHANT_ID = 'quest-003-b-meet-merchant';
 /** Set when the player submits their name on origin (distinct from `quest001-complete`). */
 export const QUEST001_NAMED_FLAG = 'quest001-named';
 export const QUEST_STATE_STORAGE_KEY = 'nsg:facsimile-quest-state';
@@ -129,10 +131,14 @@ export const DIALOGUE_SCROLL_PIN_EPS = 80;
 /** Shown in the game header; always reflects `package.json` `version` (no second source of truth). */
 export const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-dev' : ''}`;
 
+/** Persisted `QuestState.currentLocation` must be one of these; others normalize to Forest on load. */
+export const VALID_SAVE_LOCATIONS = new Set<string>(['Forest', 'Merchant', 'Silver Lake', 'Airship', 'Town']);
+
 export const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
   Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
   'Silver Lake': ['Still waters', 'Light in the water'],
+  Merchant: [],
   Airship: [],
 };
 

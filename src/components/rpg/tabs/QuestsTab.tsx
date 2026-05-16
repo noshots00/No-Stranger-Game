@@ -2,6 +2,8 @@ import type { JournalLogEntry, QuestDefinition } from '../quests/types';
 import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
 
+const QUEST_2B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
+
 function latestJournalEntry(questId: string, journalLog: readonly JournalLogEntry[]): JournalLogEntry | undefined {
   let best: JournalLogEntry | undefined;
   for (const e of journalLog) {
@@ -55,6 +57,24 @@ export function QuestsTab({
   const renderActiveQuestRow = (quest: QuestDefinition) => {
     const isActiveHere = activeQuestId !== null && activeQuestId === quest.id;
     const isNewQuest = newQuestIdSet.has(quest.id);
+    const trackButton = !isActiveHere ? (
+      <button
+        type="button"
+        onClick={() => onTrackQuest(quest.id)}
+        className="choice-line ml-3 inline-block py-2 text-sky-300 hover:text-sky-200"
+      >
+        {trackButtonLabel}
+      </button>
+    ) : null;
+    const questImage = (
+      <img
+        src={getQuestCardImageSrc(quest)}
+        alt={`${quest.title} illustration`}
+        className="mx-auto mb-1 aspect-[3/4] w-full max-w-[170px] rounded-md border border-[var(--candle-rule)] object-cover"
+        loading="lazy"
+      />
+    );
+    const imageOnRight = quest.id === QUEST_2B_WILL_I_STARVE_ID;
     return (
       <li key={quest.id}>
         <PlayLedgerDisclosure
@@ -74,22 +94,21 @@ export function QuestsTab({
             </div>
           }
         >
-          <img
-            src={getQuestCardImageSrc(quest)}
-            alt={`${quest.title} illustration`}
-            className="mx-auto mb-1 aspect-[3/4] w-full max-w-[170px] rounded-md border border-[var(--candle-rule)] object-cover"
-            loading="lazy"
-          />
-          <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
-          {!isActiveHere ? (
-            <button
-              type="button"
-              onClick={() => onTrackQuest(quest.id)}
-              className="choice-line ml-3 inline-block py-2 text-sky-300 hover:text-sky-200"
-            >
-              {trackButtonLabel}
-            </button>
-          ) : null}
+          {imageOnRight ? (
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
+                {trackButton}
+              </div>
+              {questImage}
+            </div>
+          ) : (
+            <>
+              {questImage}
+              <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>
+              {trackButton}
+            </>
+          )}
         </PlayLedgerDisclosure>
       </li>
     );
