@@ -115,6 +115,20 @@ import { GamePortraitViewport } from './GamePortraitViewport';
 import { MerchantPanel } from './merchant/MerchantPanel';
 import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
 import { CarlDoorNpcPanel } from './quests/CarlDoorNpcPanel';
+import { ArenaPanel } from './arena/ArenaPanel';
+import { useArenaTournament } from './arena/useArenaTournament';
+import { useArenaSyncPersonalRecord } from './arena/useArenaSyncPersonalRecord';
+import { GuildAlleyPanel } from './guild/GuildAlleyPanel';
+import { useGuildAlley } from './guild/useGuildAlley';
+import { TavernPanel } from './tavern/TavernPanel';
+import { useTavern } from './tavern/useTavern';
+import { MarketPanel } from './market/MarketPanel';
+import { useMarket } from './market/useMarket';
+import { MayorsHutPanel } from './mayorsHut/MayorsHutPanel';
+import { useMayorsHut } from './mayorsHut/useMayorsHut';
+import { CraftersCornerPanel } from './crafter/CraftersCornerPanel';
+import { applyWolfHideDailyGrants } from './tavern/wolfHidesDaily';
+import { getDeterministicDailyRoll } from '@/lib/deterministicDailyRoll';
 
 /**
  * Session guard for ledger loading overlay.
@@ -211,7 +225,27 @@ export function RPGInterface() {
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
+  const [arenaOpen, setArenaOpen] = useState(false);
+  const [guildAlleyOpen, setGuildAlleyOpen] = useState(false);
+  const [tavernOpen, setTavernOpen] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [mayorsHutOpen, setMayorsHutOpen] = useState(false);
+  const [craftersCornerOpen, setCraftersCornerOpen] = useState(false);
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
+
+  const arenaTournament = useArenaTournament({
+    enabled: arenaOpen && canShowGame,
+    questState,
+    myPubkey: user?.pubkey,
+  });
+
+  useArenaSyncPersonalRecord({
+    enabled: canShowGame && Boolean(user?.pubkey),
+    matches: arenaTournament.feed.matches,
+    myPubkey: user?.pubkey,
+    setQuestState,
+    persistQuestCheckpoint,
+  });
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY);
@@ -356,6 +390,37 @@ export function RPGInterface() {
     },
     [setQuestState, persistQuestCheckpoint]
   );
+
+  const guildAlley = useGuildAlley({
+    enabled: guildAlleyOpen && canShowGame,
+    questState,
+    myPubkey: user?.pubkey,
+    setQuestState,
+    persistQuestCheckpoint,
+    onApplyModifiers: handleMerchantApplyModifiers,
+  });
+
+  const tavern = useTavern({
+    enabled: tavernOpen && canShowGame,
+    questState,
+    myPubkey: user?.pubkey,
+    setQuestState,
+    persistQuestCheckpoint,
+  });
+
+  const market = useMarket({
+    enabled: marketOpen && canShowGame,
+    questState,
+    myPubkey: user?.pubkey,
+    setQuestState,
+    persistQuestCheckpoint,
+  });
+
+  const mayorsHut = useMayorsHut({
+    enabled: mayorsHutOpen && canShowGame,
+    questState,
+    myPubkey: user?.pubkey,
+  });
   const handleMerchantDialogOpenChange = useCallback(
     (open: boolean) => {
       if (!open) handleTravelLocationSelect('Forest');
@@ -672,11 +737,6 @@ export function RPGInterface() {
     completedQuestCountRef.current = completedQuestIds.length;
   }, [completedQuestIds, isQuestStateHydrated, questState, persistQuestCheckpoint, showEarlyDevResetGate]);
 
-  const getDeterministicDailyRoll = (day: number, seedOffset = 0): number => {
-    const x = Math.sin(day * 12.9898 + 78.233 + seedOffset * 17.719) * 43758.5453;
-    return x - Math.floor(x);
-  };
-
   // One-shot catch-up: unveils the next main-saga step when an older save already completed the prior step.
   const unveilBackfillDoneRef = useRef(false);
   useEffect(() => {
@@ -726,7 +786,7 @@ export function RPGInterface() {
     for (const key of SKILL_XP_KEYS) {
       nextSkills[key] = questState.skills[key] + (skillGrants[key] ?? 0);
     }
-    const updatedState = {
+    let updatedState = {
       ...questState,
       experience: questState.experience + xpToGrant,
       skills: nextSkills,
@@ -812,6 +872,12 @@ export function RPGInterface() {
       updatedState.unveiledQuestIds = Array.from(
         new Set([...updatedState.unveiledQuestIds, sideUnveilCatchup])
       );
+    }
+
+    const wolfGrant = applyWolfHideDailyGrants(updatedState, dayCounter);
+    updatedState = wolfGrant.state;
+    if (wolfGrant.lines.length > 0) {
+      updatedState.worldEventLog = appendUniqueWorldEntries(updatedState.worldEventLog, wolfGrant.lines);
     }
 
     const reportLines = buildDayReportDialogueLines(dayCounter - 1, questState, updatedState);
@@ -1214,7 +1280,18 @@ export function RPGInterface() {
         );
       default:
         if (questState.currentLocation === 'Village') {
-          return <VillagePlaySurface dayCounter={dayCounter} characterNameLabel={characterNameLabel} />;
+          return (
+            <VillagePlaySurface
+              dayCounter={dayCounter}
+              characterNameLabel={characterNameLabel}
+              onOpenArena={() => setArenaOpen(true)}
+              onOpenGuildAlley={() => setGuildAlleyOpen(true)}
+              onOpenTavern={() => setTavernOpen(true)}
+              onOpenMarket={() => setMarketOpen(true)}
+              onOpenMayorsHut={() => setMayorsHutOpen(true)}
+              onOpenCraftersCorner={() => setCraftersCornerOpen(true)}
+            />
+          );
         }
         return (
           <PlayTab
@@ -1347,6 +1424,46 @@ export function RPGInterface() {
           walletCopper={walletCopper}
           itemCounts={merchantItemCounts}
           onApplyModifiers={handleMerchantApplyModifiers}
+        />
+        <ArenaPanel
+          open={arenaOpen}
+          onOpenChange={setArenaOpen}
+          questState={questState}
+          myPubkey={user?.pubkey}
+          tournament={arenaTournament}
+        />
+        <GuildAlleyPanel
+          open={guildAlleyOpen}
+          onOpenChange={setGuildAlleyOpen}
+          myPubkey={user?.pubkey}
+          guildAlley={guildAlley}
+        />
+        <TavernPanel
+          open={tavernOpen}
+          onOpenChange={setTavernOpen}
+          questState={questState}
+          myPubkey={user?.pubkey}
+          tavern={tavern}
+        />
+        <MarketPanel
+          open={marketOpen}
+          onOpenChange={setMarketOpen}
+          questState={questState}
+          myPubkey={user?.pubkey}
+          market={market}
+          onApplyModifiers={handleMerchantApplyModifiers}
+        />
+        <CraftersCornerPanel
+          open={craftersCornerOpen}
+          onOpenChange={setCraftersCornerOpen}
+          questState={questState}
+          onApplyModifiers={handleMerchantApplyModifiers}
+        />
+        <MayorsHutPanel
+          open={mayorsHutOpen}
+          onOpenChange={setMayorsHutOpen}
+          myPubkey={user?.pubkey}
+          mayorsHut={mayorsHut}
         />
       </>
     ) : null}

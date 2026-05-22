@@ -1,15 +1,83 @@
 import { useCallback } from 'react';
 import { locationActions } from '../constants';
 import { useToast } from '@/hooks/useToast';
+import { cn } from '@/lib/utils';
 
 type VillagePlaySurfaceProps = {
   dayCounter: number;
   characterNameLabel: string;
+  onOpenArena: () => void;
+  onOpenGuildAlley: () => void;
+  onOpenTavern: () => void;
+  onOpenMarket: () => void;
+  onOpenMayorsHut: () => void;
+  onOpenCraftersCorner: () => void;
 };
 
-const PLACEHOLDER_BUILDINGS = ['Hall', 'Market', 'Forge'] as const;
+const PLACEHOLDER_BUILDINGS = [
+  'Mayors Hut',
+  'Market',
+  "Crafter's Corner",
+  'Tavern',
+  'Guild Alley',
+  'Arena',
+] as const;
 
-export function VillagePlaySurface({ dayCounter, characterNameLabel }: VillagePlaySurfaceProps) {
+type VillageBuilding = (typeof PLACEHOLDER_BUILDINGS)[number];
+
+/** Dark translucent tints — one mood per plot, candlelit palette. */
+const VILLAGE_BUILDING_STYLES: Record<
+  VillageBuilding,
+  { bg: string; border: string; hoverBg: string; hoverBorder: string }
+> = {
+  'Mayors Hut': {
+    bg: 'bg-[rgba(58,48,72,0.58)]',
+    border: 'border-[rgba(130,108,158,0.28)]',
+    hoverBg: 'hover:bg-[rgba(68,56,84,0.68)]',
+    hoverBorder: 'hover:border-[rgba(150,128,178,0.42)]',
+  },
+  Market: {
+    bg: 'bg-[rgba(72,52,28,0.55)]',
+    border: 'border-[rgba(180,130,60,0.26)]',
+    hoverBg: 'hover:bg-[rgba(82,60,32,0.65)]',
+    hoverBorder: 'hover:border-[rgba(200,150,72,0.4)]',
+  },
+  "Crafter's Corner": {
+    bg: 'bg-[rgba(48,42,32,0.58)]',
+    border: 'border-[rgba(140,108,72,0.26)]',
+    hoverBg: 'hover:bg-[rgba(58,50,38,0.68)]',
+    hoverBorder: 'hover:border-[rgba(168,128,88,0.4)]',
+  },
+  Tavern: {
+    bg: 'bg-[rgba(62,32,36,0.58)]',
+    border: 'border-[rgba(150,72,82,0.28)]',
+    hoverBg: 'hover:bg-[rgba(72,38,44,0.68)]',
+    hoverBorder: 'hover:border-[rgba(178,88,98,0.42)]',
+  },
+  'Guild Alley': {
+    bg: 'bg-[rgba(32,44,58,0.58)]',
+    border: 'border-[rgba(72,108,140,0.28)]',
+    hoverBg: 'hover:bg-[rgba(38,52,68,0.68)]',
+    hoverBorder: 'hover:border-[rgba(92,132,168,0.42)]',
+  },
+  Arena: {
+    bg: 'bg-[rgba(58,28,28,0.58)]',
+    border: 'border-[rgba(140,68,58,0.28)]',
+    hoverBg: 'hover:bg-[rgba(68,34,34,0.68)]',
+    hoverBorder: 'hover:border-[rgba(168,82,68,0.42)]',
+  },
+};
+
+export function VillagePlaySurface({
+  dayCounter,
+  characterNameLabel,
+  onOpenArena,
+  onOpenGuildAlley,
+  onOpenTavern,
+  onOpenMarket,
+  onOpenMayorsHut,
+  onOpenCraftersCorner,
+}: VillagePlaySurfaceProps) {
   const { toast } = useToast();
   const villageActions = locationActions.Village ?? [];
 
@@ -63,20 +131,37 @@ export function VillagePlaySurface({ dayCounter, characterNameLabel }: VillagePl
         </svg>
 
         <div className="relative z-[1] flex h-full min-h-[200px] flex-col justify-end gap-2 p-2">
-          <div className="grid grid-cols-3 gap-2">
-            {PLACEHOLDER_BUILDINGS.map((label, i) => (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {PLACEHOLDER_BUILDINGS.map((label, i) => {
+              const plot = VILLAGE_BUILDING_STYLES[label];
+              return (
               <button
                 key={label}
                 type="button"
-                onClick={() => onBuildingStub(label)}
-                className="min-h-[44px] rounded-md border border-[var(--candle-rule)] bg-black/50 px-1 py-2 font-serif text-[0.65rem] uppercase leading-tight tracking-[0.12em] text-[var(--candle-ink-soft)] transition-colors hover:border-[var(--candle-flame-soft)] hover:text-[var(--candle-wax)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--candle-flame-soft)]"
+                onClick={() => {
+                  if (label === 'Arena') onOpenArena();
+                  else if (label === 'Guild Alley') onOpenGuildAlley();
+                  else if (label === 'Tavern') onOpenTavern();
+                  else if (label === 'Market') onOpenMarket();
+                  else if (label === 'Mayors Hut') onOpenMayorsHut();
+                  else if (label === "Crafter's Corner") onOpenCraftersCorner();
+                  else onBuildingStub(label);
+                }}
+                className={cn(
+                  'min-h-[44px] rounded-md border px-1 py-2 font-serif text-[0.65rem] uppercase leading-tight tracking-[0.12em] text-[var(--candle-ink-soft)] backdrop-blur-[2px] transition-colors hover:text-[var(--candle-wax)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--candle-flame-soft)]',
+                  plot.bg,
+                  plot.border,
+                  plot.hoverBg,
+                  plot.hoverBorder
+                )}
               >
                 {label}
                 <span className="mt-0.5 block text-[0.55rem] font-normal normal-case tracking-normal text-[var(--candle-ink-faint)]">
                   Plot {i + 1}
                 </span>
               </button>
-            ))}
+            );
+            })}
           </div>
         </div>
       </div>

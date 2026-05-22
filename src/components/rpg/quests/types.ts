@@ -214,4 +214,55 @@ export type QuestState = {
    * Used for occasional mandatory resets during early development.
    */
   characterCreatedAtAppVersion: string | null;
+  /** Village arena W/L and personal fight history (synced from relay match events). */
+  arenaRecord?: ArenaRecord;
+  /** Active or last-left village guild membership (tab routing + checkpoint). */
+  guildMembership?: GuildMembership | null;
+  /** Last in-game day wolf-hide daily grants were applied (tavern repeatable). */
+  lastWolfHideGrantDay?: number;
+  /** Escrowed rewards for open player quests this client posted (keyed by quest `d` id). */
+  tavernEscrowByQuestId?: Record<string, TavernEscrowEntry>;
+  /** Escrowed goods for open market listings this client posted (keyed by listing `d` id). */
+  marketEscrowByListingId?: Record<string, MarketEscrowEntry>;
+};
+
+export type TavernEscrowEntry = {
+  questId: string;
+  rewards: Array<
+    | { kind: 'gold'; amount: number }
+    | { kind: 'modifierItem'; key: string; quantity: number }
+    | { kind: 'questItem'; label: string }
+  >;
+};
+
+export type MarketEscrowEntry = {
+  listingId: string;
+  priceCopper: number;
+  goods:
+    | { kind: 'modifierItem'; key: string; quantity: number }
+    | { kind: 'questItem'; label: string };
+};
+
+export type GuildMembership = {
+  guildSlug: string;
+  guildName: string;
+  joinedAtMs: number;
+  leftAtMs?: number;
+};
+
+export type ArenaFightRecord = {
+  matchEventId: string;
+  opponentName: string;
+  opponentPubkey: string;
+  won: boolean;
+  myCombatRating: number;
+  opponentCombatRating: number;
+  atMs: number;
+};
+
+export type ArenaRecord = {
+  wins: number;
+  losses: number;
+  /** Newest-first. */
+  fights: ArenaFightRecord[];
 };

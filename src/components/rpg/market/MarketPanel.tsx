@@ -1,0 +1,254 @@
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/useToast';
+import { formatCoinShort, getCopperFromModifiers, splitCopperIntoCoins } from '../helpers';
+import { formatListingItem, formatListingPrice } from './listingEscrow';
+import { PostListingDialog } from './PostListingDialog';
+import { VILLAGE_MARKET_SUPPLIES, villageSupplyBuyDelta } from './villageSupplies';
+import type { MarketListingView } from './marketListingNostr';
+import type { useMarket } from './useMarket';
+import type { ModifierMap, QuestState } from '../quests/types';
+
+type MarketPanelProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  questState: QuestState;
+  myPubkey: string | undefined;
+  market: ReturnType<typeof useMarket>;
+  onApplyModifiers: (delta: ModifierMap) => void;
+};
+
+function formatPostedDate(createdAt: number): string {
+  return new Date(createdAt * 1000).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function ListingRow({
+  listing,
+  myPubkey,
+  walletCopper,
+  onBuy,
+  onCancel,
+  isBuyPending,
+  isCancelPending,
+}: {
+  listing: MarketListingView;
+  myPubkey: string | undefined;
+  walletCopper: number;
+  onBuy: () => void;
+  onCancel: () => void;
+  isBuyPending: boolean;
+  isCancelPending: boolean;
+}) {
+  const isSeller = myPubkey === listing.pubkey;
+  const canAfford = walletCopper >= listing.priceCopper;
+
+  return (
+    <li className="border-b border-[var(--candle-rule)]/50 py-2 font-serif text-xs leading-relaxed text-[var(--candle-ink-soft)] last:border-b-0">
+      <p className="text-[var(--candle-wax)]">
+        <span className="text-[var(--candle-ink-faint)]">{formatPostedDate(listing.createdAt)}</span>
+        {' · '}
+        <span className="text-[var(--candle-ink-faint)]">{listing.sellerName}</span>
+        {' · '}
+        {formatListingItem(listing)}
+        {' · '}
+        <span className="text-[var(--candle-wax)]">{formatListingPrice(listing)}</span>
+      </p>
+      {isSeller ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="mt-1.5 h-7 font-serif text-[0.65rem]"
+          disabled={isCancelPending}
+          onClick={onCancel}
+        >
+          {isCancelPending ? 'Cancelling…' : 'Cancel listing'}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          className={cn('mt-1.5 h-7 font-serif text-[0.65rem]', !canAfford && 'line-through opacity-50')}
+          disabled={!canAfford || isBuyPending || !myPubkey}
+          onClick={onBuy}
+        >
+          {isBuyPending ? 'Buying…' : 'Buy'}
+        </Button>
+      )}
+    </li>
+  );
+}
+
+export function MarketPanel({
+  open,
+  onOpenChange,
+  questState,
+  myPubkey,
+  market,
+  onApplyModifiers,
+}: MarketPanelProps) {
+  const { toast } = useToast();
+  const [postOpen, setPostOpen] = useState(false);
+  const { feed, feedQuery, postListing, cancelListing, buyListing } = market;
+  const walletCopper = getCopperFromModifiers(questState.modifiers);
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className={cn(
+            'flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
+            'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg'
+          )}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
+            <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
+              Market
+            </DialogTitle>
+            <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
+              Listings newest first · you have{' '}
+              {formatCoinShort(splitCopperIntoCoins(walletCopper))}
+            </p>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1">
+            <section className="shrink-0 space-y-2">
+              <p className="px-1 font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+                Village supplies (always in stock)
+              </p>
+              <ul className="list-none space-y-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/25 px-2 py-2">
+                {VILLAGE_MARKET_SUPPLIES.map((good) => {
+                  const canAfford = walletCopper >= good.priceCopper;
+                  return (
+                    <li
+                      key={good.itemKey}
+                      className="flex items-center justify-between gap-2 border-b border-[var(--candle-rule)]/30 py-1.5 font-serif text-xs last:border-b-0"
+                    >
+                      <span className="text-[var(--candle-ink-soft)]">
+                        {good.label} · {formatCoinShort(splitCopperIntoCoins(good.priceCopper))}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 font-serif text-[0.65rem]"
+                        disabled={!myPubkey || !canAfford}
+                        onClick={() => {
+                          if (!canAfford) {
+                            toast({
+                              title: 'Not enough coin',
+                              description: formatCoinShort(splitCopperIntoCoins(good.priceCopper)),
+                            });
+                            return;
+                          }
+                          onApplyModifiers(villageSupplyBuyDelta(good));
+                          toast({ title: 'Purchased', description: good.label });
+                        }}
+                      >
+                        Buy
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+
+            <p className="shrink-0 px-1 font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+              Player listings
+            </p>
+
+            <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+              {feedQuery.isPending ? (
+                <p className="py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">Loading…</p>
+              ) : feed.openListings.length === 0 ? (
+                <p className="py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
+                  No player listings yet.
+                </p>
+              ) : (
+                <ul className="list-none px-3 py-2">
+                  {feed.openListings.map((listing) => (
+                    <ListingRow
+                      key={listing.listingId}
+                      listing={listing}
+                      myPubkey={myPubkey}
+                      walletCopper={walletCopper}
+                      isBuyPending={buyListing.isPending}
+                      isCancelPending={cancelListing.isPending}
+                      onBuy={() =>
+                        buyListing.mutate(listing, {
+                          onSuccess: () =>
+                            toast({
+                              title: 'Purchased',
+                              description: formatListingItem(listing),
+                            }),
+                          onError: (err) =>
+                            toast({
+                              title: 'Purchase failed',
+                              description: err instanceof Error ? err.message : 'Try again.',
+                            }),
+                        })
+                      }
+                      onCancel={() =>
+                        cancelListing.mutate(listing, {
+                          onSuccess: () =>
+                            toast({ title: 'Listing cancelled', description: 'Item returned from escrow.' }),
+                          onError: (err) =>
+                            toast({
+                              title: 'Cancel failed',
+                              description: err instanceof Error ? err.message : 'Try again.',
+                            }),
+                        })
+                      }
+                    />
+                  ))}
+                </ul>
+              )}
+            </ScrollArea>
+
+            <Button
+              type="button"
+              className="shrink-0 font-serif uppercase tracking-[0.1em]"
+              disabled={!myPubkey}
+              onClick={() => setPostOpen(true)}
+            >
+              List item for sale
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PostListingDialog
+        open={postOpen}
+        onOpenChange={setPostOpen}
+        questState={questState}
+        isPending={postListing.isPending}
+        onSubmit={(payload) =>
+          postListing.mutate(payload, {
+            onSuccess: () => {
+              setPostOpen(false);
+              toast({ title: 'Listed', description: 'Item held in escrow until sold or cancelled.' });
+            },
+            onError: (err) =>
+              toast({
+                title: 'Could not list',
+                description: err instanceof Error ? err.message : 'Try again.',
+              }),
+          })
+        }
+      />
+    </>
+  );
+}

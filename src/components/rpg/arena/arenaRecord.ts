@@ -1,0 +1,103 @@
+import type { ArenaFightRecord, ArenaRecord, QuestState } from '../quests/types';
+import type { ArenaMatchResult } from './arenaNostr';
+import { ARENA_FIGHT_HISTORY_CAP } from './constants';
+import { getWinProbability } from './combatRating';
+
+export const createEmptyArenaRecord = (): ArenaRecord => ({
+  wins: 0,
+  losses: 0,
+  fights: [],
+});
+
+export function formatArenaFightLine(
+  won: boolean,
+  opponentName: string,
+  myCombatRating: number,
+  opponentCombatRating: number
+): string {
+  const verb = won ? 'defeated' : 'lost to';
+  return `You ${verb} ${opponentName} (CR ${myCombatRating} vs ${opponentCombatRating})`;
+}
+
+function fightRowFromMatch(match: ArenaMatchResult, myPubkey: string): ArenaFightRecord | null {
+  const iAmA = match.fighterA.pubkey === myPubkey;
+  const iAmB = match.fighterB.pubkey === myPubkey;
+  if (!iAmA && !iAmB) return null;
+
+  const me = iAmA ? match.fighterA : match.fighterB;
+  const them = iAmA ? match.fighterB : match.fighterA;
+  const won = match.winnerPubkey === myPubkey;
+
+  return {
+    matchEventId: match.eventId,
+    opponentName: them.name,
+    opponentPubkey: them.pubkey,
+    won,
+    myCombatRating: me.combatRating,
+    opponentCombatRating: them.combatRating,
+    atMs: match.atMs,
+  };
+}
+
+/** Idempotent merge of relay match results into persisted arena stats. */
+export function mergeArenaMatchesIntoRecord(
+  record: ArenaRecord,
+  matches: readonly ArenaMatchResult[],
+  myPubkey: string
+): ArenaRecord {
+  const known = new Set(record.fights.map((f) => f.matchEventId));
+  let wins = record.wins;
+  let losses = record.losses;
+  const newFights: ArenaFightRecord[] = [];
+
+  for (const match of matches) {
+    if (known.has(match.eventId)) continue;
+    const row = fightRowFromMatch(match, myPubkey);
+    if (!row) continue;
+    known.add(match.eventId);
+    if (row.won) wins += 1;
+    else losses += 1;
+    newFights.push(row);
+  }
+
+  if (newFights.length === 0) return record;
+
+  const fights = [...newFights, ...record.fights]
+    .sort((a, b) => b.atMs - a.atMs)
+    .slice(0, ARENA_FIGHT_HISTORY_CAP);
+
+  return { wins, losses, fights };
+}
+
+export function mergeArenaMatchesIntoQuestState(
+  state: QuestState,
+  matches: readonly ArenaMatchResult[],
+  myPubkey: string
+): QuestState {
+  const base = state.arenaRecord ?? createEmptyArenaRecord();
+  const arenaRecord = mergeArenaMatchesIntoRecord(base, matches, myPubkey);
+  if (arenaRecord === base) return state;
+  return { ...state, arenaRecord };
+}
+
+export function buildMatchSummaryContent(
+  winnerName: string,
+  loserName: string,
+  winnerCr: number,
+  loserCr: number,
+  winProbabilityForWinner: number
+): string {
+  const pct = Math.round(winProbabilityForWinner * 100);
+  return `${winnerName} defeated ${loserName} (CR ${winnerCr} vs ${loserCr}, ~${pct}% favorite)`;
+}
+
+export function winProbabilityForWinner(
+  winnerPubkey: string,
+  fighterA: { pubkey: string; combatRating: number },
+  fighterB: { pubkey: string; combatRating: number }
+): number {
+  if (winnerPubkey === fighterA.pubkey) {
+    return getWinProbability(fighterA.combatRating, fighterB.combatRating);
+  }
+  return getWinProbability(fighterB.combatRating, fighterA.combatRating);
+}

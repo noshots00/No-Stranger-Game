@@ -33,6 +33,14 @@ import {
 import { CLASS_ARCHETYPE_SLUGS, QUEST_FIRST_NIGHT_ID, QUEST_ORIGIN_ID, VALID_SAVE_LOCATIONS } from '../constants';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
+import { createEmptyArenaRecord } from '../arena/arenaRecord';
+import type {
+  ArenaFightRecord,
+  ArenaRecord,
+  GuildMembership,
+  MarketEscrowEntry,
+  TavernEscrowEntry,
+} from './types';
 
 const parseTimestampFromDialogueId = (id: string): number | null => {
   const m = id.match(/-(\d{10,16})-[a-z0-9]+$/i);
@@ -285,6 +293,11 @@ export const createInitialQuestState = (): QuestState => ({
   health: 75,
   characterCreationDateEastern: null,
   characterCreatedAtAppVersion: null,
+  arenaRecord: { wins: 0, losses: 0, fights: [] },
+  guildMembership: null,
+  lastWolfHideGrantDay: 0,
+  tavernEscrowByQuestId: {},
+  marketEscrowByListingId: {},
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -398,6 +411,134 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     unveiledQuestIds,
   });
 
+  const rawArena = (state as { arenaRecord?: unknown }).arenaRecord;
+  let arenaRecord: ArenaRecord = createEmptyArenaRecord();
+  if (rawArena && typeof rawArena === 'object') {
+    const ar = rawArena as Record<string, unknown>;
+    const wins = typeof ar.wins === 'number' && Number.isFinite(ar.wins) ? Math.max(0, Math.floor(ar.wins)) : 0;
+    const losses =
+      typeof ar.losses === 'number' && Number.isFinite(ar.losses) ? Math.max(0, Math.floor(ar.losses)) : 0;
+    const fightsRaw = ar.fights;
+    const fights: ArenaFightRecord[] = Array.isArray(fightsRaw)
+      ? fightsRaw
+          .filter((f): f is Record<string, unknown> => f && typeof f === 'object')
+          .map((f) => ({
+            matchEventId: typeof f.matchEventId === 'string' ? f.matchEventId : '',
+            opponentName: typeof f.opponentName === 'string' ? f.opponentName : 'Unknown',
+            opponentPubkey: typeof f.opponentPubkey === 'string' ? f.opponentPubkey : '',
+            won: Boolean(f.won),
+            myCombatRating:
+              typeof f.myCombatRating === 'number' && Number.isFinite(f.myCombatRating)
+                ? Math.floor(f.myCombatRating)
+                : 1,
+            opponentCombatRating:
+              typeof f.opponentCombatRating === 'number' && Number.isFinite(f.opponentCombatRating)
+                ? Math.floor(f.opponentCombatRating)
+                : 1,
+            atMs: typeof f.atMs === 'number' && Number.isFinite(f.atMs) ? Math.floor(f.atMs) : 0,
+          }))
+          .filter((f) => f.matchEventId.length > 0)
+          .sort((a, b) => b.atMs - a.atMs)
+          .slice(0, 50)
+      : [];
+    arenaRecord = { wins, losses, fights };
+  }
+
+  const rawGuild = (state as { guildMembership?: unknown }).guildMembership;
+  let guildMembership: GuildMembership | null = null;
+  if (rawGuild && typeof rawGuild === 'object') {
+    const g = rawGuild as Record<string, unknown>;
+    const guildSlug = typeof g.guildSlug === 'string' ? g.guildSlug.trim() : '';
+    const guildName = typeof g.guildName === 'string' ? g.guildName.trim() : '';
+    const joinedAtMs =
+      typeof g.joinedAtMs === 'number' && Number.isFinite(g.joinedAtMs) ? Math.floor(g.joinedAtMs) : 0;
+    const leftAtMs =
+      typeof g.leftAtMs === 'number' && Number.isFinite(g.leftAtMs) ? Math.floor(g.leftAtMs) : undefined;
+    if (guildSlug.length > 0 && guildName.length > 0 && joinedAtMs > 0) {
+      guildMembership = { guildSlug, guildName, joinedAtMs, leftAtMs };
+    }
+  }
+
+  const rawLastWolf = (state as { lastWolfHideGrantDay?: unknown }).lastWolfHideGrantDay;
+  const lastWolfHideGrantDay =
+    typeof rawLastWolf === 'number' && Number.isFinite(rawLastWolf)
+      ? Math.max(0, Math.floor(rawLastWolf))
+      : initial.lastWolfHideGrantDay ?? 0;
+
+  const rawEscrow = (state as { tavernEscrowByQuestId?: unknown }).tavernEscrowByQuestId;
+  const tavernEscrowByQuestId: Record<string, TavernEscrowEntry> = {};
+  if (rawEscrow && typeof rawEscrow === 'object') {
+    for (const [key, val] of Object.entries(rawEscrow as Record<string, unknown>)) {
+      if (!val || typeof val !== 'object') continue;
+      const row = val as Record<string, unknown>;
+      const questId = typeof row.questId === 'string' ? row.questId : key;
+      const rewardsRaw = row.rewards;
+      if (!Array.isArray(rewardsRaw)) continue;
+      const rewards: TavernEscrowEntry['rewards'] = [];
+      for (const r of rewardsRaw) {
+        if (!r || typeof r !== 'object') continue;
+        const kind = (r as { kind?: string }).kind;
+        if (kind === 'gold' && typeof (r as { amount?: number }).amount === 'number') {
+          rewards.push({ kind: 'gold', amount: Math.max(0, Math.floor((r as { amount: number }).amount)) });
+        }
+        if (
+          kind === 'modifierItem' &&
+          typeof (r as { key?: string }).key === 'string' &&
+          typeof (r as { quantity?: number }).quantity === 'number'
+        ) {
+          rewards.push({
+            kind: 'modifierItem',
+            key: (r as { key: string }).key,
+            quantity: Math.max(1, Math.floor((r as { quantity: number }).quantity)),
+          });
+        }
+        if (kind === 'questItem' && typeof (r as { label?: string }).label === 'string') {
+          rewards.push({ kind: 'questItem', label: (r as { label: string }).label });
+        }
+      }
+      if (rewards.length > 0) tavernEscrowByQuestId[questId] = { questId, rewards };
+    }
+  }
+
+  const rawMarketEscrow = (state as { marketEscrowByListingId?: unknown }).marketEscrowByListingId;
+  const marketEscrowByListingId: Record<string, MarketEscrowEntry> = {};
+  if (rawMarketEscrow && typeof rawMarketEscrow === 'object') {
+    for (const [key, val] of Object.entries(rawMarketEscrow as Record<string, unknown>)) {
+      if (!val || typeof val !== 'object') continue;
+      const row = val as Record<string, unknown>;
+      const listingId = typeof row.listingId === 'string' ? row.listingId : key;
+      const priceCopper =
+        typeof row.priceCopper === 'number' && Number.isFinite(row.priceCopper)
+          ? Math.max(0, Math.floor(row.priceCopper))
+          : 0;
+      const goodsRaw = row.goods;
+      if (!goodsRaw || typeof goodsRaw !== 'object') continue;
+      const kind = (goodsRaw as { kind?: string }).kind;
+      if (
+        kind === 'modifierItem' &&
+        typeof (goodsRaw as { key?: string }).key === 'string' &&
+        typeof (goodsRaw as { quantity?: number }).quantity === 'number'
+      ) {
+        marketEscrowByListingId[listingId] = {
+          listingId,
+          priceCopper,
+          goods: {
+            kind: 'modifierItem',
+            key: (goodsRaw as { key: string }).key,
+            quantity: Math.max(1, Math.floor((goodsRaw as { quantity: number }).quantity)),
+          },
+        };
+      }
+      if (kind === 'questItem' && typeof (goodsRaw as { label?: string }).label === 'string') {
+        marketEscrowByListingId[listingId] = {
+          listingId,
+          priceCopper,
+          goods: { kind: 'questItem', label: (goodsRaw as { label: string }).label },
+        };
+      }
+    }
+  }
+
   return {
     ...initial,
     ...state,
@@ -431,6 +572,11 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     health,
     characterCreationDateEastern,
     characterCreatedAtAppVersion,
+    arenaRecord,
+    guildMembership,
+    lastWolfHideGrantDay,
+    tavernEscrowByQuestId,
+    marketEscrowByListingId,
   };
 };
 

@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
+import { getCombatRating } from '../arena/combatRating';
 import { SKILL_SHEET_LABEL, SKILL_XP_KEYS } from '../quests/skills-config';
 import {
   CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE,
@@ -123,6 +124,7 @@ export function CharacterTab({
   onResetStory,
 }: CharacterTabProps) {
   const characterLevel = getCharacterLevel(questState);
+  const combatRating = getCombatRating(questState);
   const characterClass = getCharacterClass(questState.modifiers);
   const race = getRaceDefinition(questState.assignedRaceSlug);
   const profileNpub = userPubkey ? nip19.npubEncode(userPubkey) : null;
@@ -391,6 +393,9 @@ export function CharacterTab({
                     </span>
                   ) : null}
                   Level {characterLevel} {raceMiddle} {characterClass}
+                </p>
+                <p className="block max-w-[min(16rem,55vw)] font-serif text-[0.5rem] text-[var(--candle-ink-soft)]">
+                  Combat rating {combatRating}
                 </p>
                 <p className={`${bt} block text-[var(--candle-ink-soft)]`}>Unemployed</p>
                 <p className={`${bt} block`}>
