@@ -16,6 +16,7 @@ import { VILLAGE_MARKET_SUPPLIES, villageSupplyBuyDelta } from './villageSupplie
 import type { MarketListingView } from './marketListingNostr';
 import type { useMarket } from './useMarket';
 import type { ModifierMap, QuestState } from '../quests/types';
+import { VillageFeedRefreshButton } from '../village/VillageFeedRefreshButton';
 
 type MarketPanelProps = {
   open: boolean;
@@ -102,7 +103,7 @@ export function MarketPanel({
 }: MarketPanelProps) {
   const { toast } = useToast();
   const [postOpen, setPostOpen] = useState(false);
-  const { feed, feedQuery, postListing, cancelListing, buyListing } = market;
+  const { feed, feedQuery, postListing, cancelListing, buyListing, invalidateFeed } = market;
   const walletCopper = getCopperFromModifiers(questState.modifiers);
 
   return (
@@ -116,6 +117,12 @@ export function MarketPanel({
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
+            <div className="flex justify-end">
+              <VillageFeedRefreshButton
+                isFetching={feedQuery.isFetching}
+                onRefresh={() => void invalidateFeed()}
+              />
+            </div>
             <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
               Market
             </DialogTitle>

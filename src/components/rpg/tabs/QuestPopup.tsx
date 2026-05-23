@@ -37,6 +37,8 @@ type QuestPopupProps = {
   questTranscript: DialogueLogEntry[];
   /** Bracket visual choice transition — parent can defer instant play-feed snap (see `QUEST_TRANSITION_MS`). */
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
+  /** Inline play feed: keep dialogue + options scrolled into view after layout changes. */
+  onSnapPlayFeedBottom?: () => void;
 };
 
 function normalizePromptText(s: string): string {
@@ -91,6 +93,7 @@ export function QuestPopup({
   presentation = 'modal',
   questTranscript,
   onQuestChoiceVisualPhase,
+  onSnapPlayFeedBottom,
 }: QuestPopupProps) {
   const playerFlagSet = new Set(playerFlags);
   const isOriginStartCard = quest.id === 'quest-001-origin' && step.id === 'start';
@@ -112,8 +115,11 @@ export function QuestPopup({
   const choiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bodyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
+  const inlineBlockRef = useRef<HTMLDivElement | null>(null);
+  const snapPlayFeedRef = useRef(onSnapPlayFeedBottom);
   const advanceMessageRef = useRef(onAdvanceQuestMessage);
   advanceMessageRef.current = onAdvanceQuestMessage;
+  snapPlayFeedRef.current = onSnapPlayFeedBottom;
   const prevTranscriptLenRef = useRef(0);
 
   const burnInEntryIdSet = (() => {
@@ -205,8 +211,20 @@ export function QuestPopup({
   const choicePaneVisible =
     step.type === 'choice' || step.type === 'input' || showMessageContinue;
 
-  const inlineChoiceDock =
-    'sticky bottom-0 z-[5] -mx-0.5 border-t border-[var(--candle-rule)] bg-[rgba(8,7,6,0.97)] px-0.5 pb-1 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.45)]';
+  useLayoutEffect(() => {
+    if (presentation !== 'inline') return;
+    snapPlayFeedRef.current?.();
+    requestAnimationFrame(() => snapPlayFeedRef.current?.());
+  }, [presentation, questTranscript.length, step.id, step.type, choicePaneVisible]);
+
+  useEffect(() => {
+    if (presentation !== 'inline') return;
+    const node = inlineBlockRef.current;
+    if (!node) return;
+    const ro = new ResizeObserver(() => snapPlayFeedRef.current?.());
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [presentation, step.id, choicePaneVisible]);
 
   const shellClass =
     presentation === 'modal'
@@ -414,19 +432,18 @@ export function QuestPopup({
           ) : (
             <>
               {stepImageEl}
-              <div className="rounded-md border border-[var(--candle-rule)] bg-black/25 px-1">
-                {dialogueLogEl}
+              <div
+                ref={inlineBlockRef}
+                className="flex min-w-0 flex-col overflow-hidden rounded-md border border-[var(--candle-rule)] bg-black/25"
+              >
+                <div className="min-w-0 shrink-0 px-1">{dialogueLogEl}</div>
+                {choicePaneVisible ? (
+                  <div className="min-w-0 shrink-0 border-t border-[var(--candle-rule)] bg-black/30 px-1">
+                    {choiceBodyEl}
+                  </div>
+                ) : null}
+                <div data-stick-scroll-bottom-sentinel="" aria-hidden className="h-px w-full shrink-0" />
               </div>
-              {choicePaneVisible ? (
-                <div
-                  className={cn(
-                    'min-w-0 shrink-0 rounded-md border border-[var(--candle-rule)] bg-black/20 px-1',
-                    inlineChoiceDock
-                  )}
-                >
-                  {choiceBodyEl}
-                </div>
-              ) : null}
             </>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
+import { cn } from '@/lib/utils';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
 import type { DialogueLogEntry, JournalLogEntry, ModifierMap, QuestDefinition, QuestStep } from '../quests/types';
@@ -49,6 +50,8 @@ type PlayTabProps = {
   useQuestPopupFallback: boolean;
   /** Brackets inline quest choice visual transition for play-feed scroll choreography. */
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
+  /** Scroll play feed so the latest dialogue + quest options are fully visible. */
+  onSnapPlayFeedBottom?: () => void;
 };
 
 export function PlayTab({
@@ -82,6 +85,7 @@ export function PlayTab({
   activeQuestTranscript,
   useQuestPopupFallback,
   onQuestChoiceVisualPhase,
+  onSnapPlayFeedBottom,
 }: PlayTabProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
     const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
@@ -267,7 +271,12 @@ export function PlayTab({
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
-        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0 [scroll-padding-bottom:min(42dvh,320px)]"
+        className={cn(
+          'facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0',
+          activeStep?.type === 'choice' || activeStep?.type === 'input'
+            ? '[scroll-padding-bottom:min(52dvh,420px)]'
+            : '[scroll-padding-bottom:min(42dvh,320px)]'
+        )}
       >
         <div className="facsimile-scroll-dialogue-inner !pl-[16px] !pr-[16px] space-y-2">
           {renderedLedgerRows.map((row, idx) => {
@@ -375,6 +384,7 @@ export function PlayTab({
                       presentation="inline"
                       questTranscript={activeQuestTranscript}
                       onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
+                      onSnapPlayFeedBottom={onSnapPlayFeedBottom}
                     />
                   ) : null}
                 </div>
@@ -421,6 +431,7 @@ export function PlayTab({
           presentation="modal"
           questTranscript={activeQuestTranscript}
           onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
+          onSnapPlayFeedBottom={onSnapPlayFeedBottom}
         />
       ) : null}
     </section>

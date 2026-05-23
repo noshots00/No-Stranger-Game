@@ -221,7 +221,6 @@ export function RPGInterface() {
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
   const [questPopupQuestId, setQuestPopupQuestId] = useState<string | null>(null);
-  const [dismissedNewQuestIds, setDismissedNewQuestIds] = useState<string[]>([]);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
@@ -275,10 +274,6 @@ export function RPGInterface() {
   }, [useQuestPopupFallback]);
 
   useEffect(() => {
-    setDismissedNewQuestIds([]);
-  }, [dayCounter]);
-
-  useEffect(() => {
     if (!questPopupQuestId) return;
     const completed = getCompletedQuestIds(questState);
     if (completed.includes(questPopupQuestId)) setQuestPopupQuestId(null);
@@ -313,10 +308,9 @@ export function RPGInterface() {
       el.scrollTo({ top: maxScroll, behavior: 'smooth' });
     } else {
       el.scrollTop = maxScroll;
-      el.querySelector<HTMLElement>('[data-stick-scroll-bottom-sentinel]')?.scrollIntoView({
-        block: 'end',
-        behavior: 'auto',
-      });
+      const sentinels = el.querySelectorAll<HTMLElement>('[data-stick-scroll-bottom-sentinel]');
+      const sentinel = sentinels.length > 0 ? sentinels[sentinels.length - 1] : null;
+      sentinel?.scrollIntoView({ block: 'end', behavior: 'auto' });
     }
     dialoguePinnedRef.current = true;
     dialogueScrollReadyRef.current = true;
@@ -329,11 +323,10 @@ export function RPGInterface() {
     }
     questChoiceVisualActiveRef.current = false;
     if (activeTabRef.current !== 'play') return;
-    if (!dialoguePinnedRef.current) return;
-    const el = dialogueScrollRef.current;
-    if (!el) return;
-    el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
-  }, []);
+    dialoguePinnedRef.current = true;
+    playDialogueSnapInitialRef.current = true;
+    snapPlayDialogueBottom();
+  }, [snapPlayDialogueBottom]);
 
   const handleDialogueScroll = () => {
     if (!dialogueScrollReadyRef.current) return;
@@ -541,17 +534,10 @@ export function RPGInterface() {
     () => getQuestListForUi(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
     [questContext, questState.unveiledQuestIds, devUnlockAllQuests]
   );
+  /** Incomplete visible quests keep the New badge until completed. */
   const newQuestIds = useMemo(
-    () =>
-      visibleQuests
-        .filter(
-          (quest) =>
-            quest.createdAt === dayCounter &&
-            !completedQuestIds.includes(quest.id) &&
-            !dismissedNewQuestIds.includes(quest.id)
-        )
-        .map((quest) => quest.id),
-    [visibleQuests, dayCounter, completedQuestIds, dismissedNewQuestIds]
+    () => visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id)).map((quest) => quest.id),
+    [visibleQuests, completedQuestIds]
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
@@ -606,6 +592,10 @@ export function RPGInterface() {
         questState.journalLog.length,
         visibleQuests.length,
         activeQuest?.id ?? '',
+        activeStep?.id ?? '',
+        activeStep?.type ?? '',
+        activeQuestTranscript.length,
+        questPopupQuestId ?? '',
         playFeedSegments.length,
         playJournalLines.length,
       ].join('|'),
@@ -615,10 +605,35 @@ export function RPGInterface() {
       questState.journalLog.length,
       visibleQuests.length,
       activeQuest?.id,
+      activeStep?.id,
+      activeStep?.type,
+      activeQuestTranscript.length,
+      questPopupQuestId,
       playFeedSegments.length,
       playJournalLines.length,
     ]
   );
+
+  /** Pin play feed to the latest dialogue + quest options whenever new lines or choices appear. */
+  useLayoutEffect(() => {
+    if (activeTab !== 'play') return;
+    dialoguePinnedRef.current = true;
+    playDialogueSnapInitialRef.current = true;
+    snapPlayDialogueBottom();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (activeTabRef.current !== 'play') return;
+        snapPlayDialogueBottom();
+      });
+    });
+  }, [
+    activeTab,
+    activeQuestTranscript.length,
+    activeStep?.id,
+    activeStep?.type,
+    questPopupQuestId,
+    snapPlayDialogueBottom,
+  ]);
   const characterNameLabel = useMemo(() => {
     const trimmed = questState.playerName.trim();
     return trimmed.length > 0 ? trimmed : 'Stranger';
@@ -1181,7 +1196,6 @@ export function RPGInterface() {
   };
 
   const handleOpenQuestPopup = (questId: string) => {
-    setDismissedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
     if (questId === 'quest-001-origin' && !questState.flags.includes(ORIGIN_QUEST_OPENED_FLAG)) {
       const nextFlags = [...questState.flags, ORIGIN_QUEST_OPENED_FLAG];
       const nextState = { ...questState, flags: nextFlags };
@@ -1325,6 +1339,7 @@ export function RPGInterface() {
             activeQuestTranscript={activeQuestTranscript}
             useQuestPopupFallback={useQuestPopupFallback}
             onQuestChoiceVisualPhase={handleQuestChoiceVisualPhase}
+            onSnapPlayFeedBottom={snapPlayDialogueBottom}
           />
         );
     }

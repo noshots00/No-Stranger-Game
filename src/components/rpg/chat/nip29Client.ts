@@ -1,7 +1,7 @@
 /**
  * Tiny NIP-29 relay-managed group chat helpers.
  *
- * - All chat traffic targets ONE specific group-relay (default: relay.0xchat.com)
+ * - Group chat uses the same game relays as the main pool (ditto.pub + dreamith.to).
  *   so messages do NOT appear on the user's regular nostr profile feed and
  *   total network noise stays low.
  * - Group IDs are stable strings derived from the game's domain ("global" and
@@ -10,8 +10,8 @@
  *   in docs/design/VISION.md > Chat Defaults and the SECURITY_AUDIT.
  */
 
-/** Default group-chat relay. Configurable in the future via AppConfig.chatRelay. */
-export const DEFAULT_CHAT_RELAY = 'wss://relay.0xchat.com';
+/** @deprecated Prefer `GAME_RELAY_URLS` / relay group in `useChatRoom`. */
+export const DEFAULT_CHAT_RELAY = 'wss://relay.ditto.pub';
 
 /** NIP-29 chat message kind. */
 export const NIP29_CHAT_KIND = 9;

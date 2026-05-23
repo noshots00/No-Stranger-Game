@@ -4,7 +4,7 @@ import { createQuestDefinition } from './quest-authoring-tool';
 export const quest002FirstNight = createQuestDefinition({
   id: 'quest-002-first-night',
   title: 'First Night',
-  briefing: 'The forest remembers you — but you do not remember it.',
+  briefing: 'Every choice is permanent.  Choose wisely.',
   createdAt: 2,
   mainDailyQuest: true,
   startStepId: 'flavor-five',
@@ -18,7 +18,7 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-five',
       type: 'choice',
       text:
-        "You find yourself in a forest.  You can't remember anything, except...\n\n...your name is {playerName}.\n\nWhat do you do now?",
+        "What do you do now?",
       choices: [
         {
           id: 'q1-flavor-call-help',

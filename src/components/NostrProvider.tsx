@@ -4,6 +4,7 @@ import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
+import { queryGameRelays } from '@/lib/queryGameRelays';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -110,6 +111,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return [...allRelays];
       },
       eoseTimeout: 200,
+    });
+
+    const inner = pool.current;
+    pool.current = Object.assign(inner, {
+      query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) =>
+        queryGameRelays(inner, filters, opts),
     });
   }
 

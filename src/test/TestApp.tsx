@@ -25,7 +25,8 @@ export function TestApp({ children }: TestAppProps) {
     theme: 'light',
     relayMetadata: {
       relays: [
-        { url: 'wss://relay.primal.net', read: true, write: true },
+        { url: 'wss://relay.ditto.pub', read: true, write: true },
+        { url: 'wss://relay.dreamith.to', read: true, write: true },
       ],
       updatedAt: 0,
     },

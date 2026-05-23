@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { NLogin, type NostrConnectParams, useNostrLogin } from '@nostrify/react/login';
 import { useAppContext } from '@/hooks/useAppContext';
+import { GAME_RELAY_URLS } from '@/lib/gameRelays';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -39,7 +40,7 @@ export function useLoginActions() {
       const relays = config.relayMetadata.relays
         .filter((r) => r.write)
         .map((r) => r.url);
-      return relays.length > 0 ? relays : ['wss://relay.damus.io'];
+      return relays.length > 0 ? relays : [...GAME_RELAY_URLS];
     },
     // Log out the current user
     async logout(): Promise<void> {

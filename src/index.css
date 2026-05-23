@@ -381,17 +381,18 @@
   }
 
   .quest-body-layer {
-    position: relative;
+    display: grid;
+    align-content: start;
   }
 
   .quest-body-depart {
-    position: absolute;
-    inset: 0;
+    grid-area: 1 / 1;
     pointer-events: none;
     animation: questBodyDepart 320ms ease forwards;
   }
 
   .quest-body-arrive {
+    grid-area: 1 / 1;
     animation: questBodyArrive 320ms ease both;
   }
 

@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import type { useMayorsHut } from './useMayorsHut';
+import { VillageFeedRefreshButton } from '../village/VillageFeedRefreshButton';
 
 type MayorsHutPanelProps = {
   open: boolean;
@@ -27,6 +28,7 @@ export function MayorsHutPanel({ open, onOpenChange, myPubkey, mayorsHut }: Mayo
     runForMayor,
     withdrawFromElection,
     castVote,
+    invalidateFeed,
   } = mayorsHut;
 
   const isVotePending = castVote.isPending;
@@ -41,6 +43,12 @@ export function MayorsHutPanel({ open, onOpenChange, myPubkey, mayorsHut }: Mayo
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
+          <div className="flex justify-end">
+            <VillageFeedRefreshButton
+              isFetching={feedQuery.isFetching}
+              onRefresh={() => void invalidateFeed()}
+            />
+          </div>
           <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
             Mayor&apos;s Hut
           </DialogTitle>

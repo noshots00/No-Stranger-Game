@@ -16,6 +16,7 @@ import { formatArenaFightLine, createEmptyArenaRecord } from './arenaRecord';
 import type { ArenaMatchResult, ArenaOpenRegistration } from './arenaNostr';
 import type { useArenaTournament } from './useArenaTournament';
 import type { ArenaRecord, QuestState } from '../quests/types';
+import { VillageFeedRefreshButton } from '../village/VillageFeedRefreshButton';
 
 type ArenaPanelProps = {
   open: boolean;
@@ -96,7 +97,7 @@ function tournamentRows(
 export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournament }: ArenaPanelProps) {
   const combatRating = getCombatRating(questState);
   const arenaRecord: ArenaRecord = questState.arenaRecord ?? createEmptyArenaRecord();
-  const { feed, feedQuery, register } = tournament;
+  const { feed, feedQuery, register, invalidateFeed } = tournament;
   const registerError =
     register.error instanceof Error ? register.error.message : register.isError ? 'Registration failed.' : null;
 
@@ -117,6 +118,12 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="shrink-0 space-y-1 px-6 text-center sm:text-center">
+          <div className="flex justify-end">
+            <VillageFeedRefreshButton
+              isFetching={feedQuery.isFetching}
+              onRefresh={() => void invalidateFeed()}
+            />
+          </div>
           <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
             Arena
           </DialogTitle>
