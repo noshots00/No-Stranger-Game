@@ -30,7 +30,14 @@ import {
   buildRaceLockDialogueLines,
   tagDialogueSourceQuest,
 } from '../dialogueFormat';
-import { CLASS_ARCHETYPE_SLUGS, QUEST_FIRST_NIGHT_ID, QUEST_ORIGIN_ID, VALID_SAVE_LOCATIONS } from '../constants';
+import {
+  CLASS_ARCHETYPE_SLUGS,
+  QUEST_FIRST_NIGHT_ID,
+  QUEST_ORIGIN_ID,
+  QUEST_VILLAGE_ARRIVAL_ID,
+  VALID_SAVE_LOCATIONS,
+  VILLAGE_PHASE_FLAG,
+} from '../constants';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
 import { createEmptyArenaRecord } from '../arena/arenaRecord';
@@ -654,6 +661,70 @@ export const getCompletedQuestIds = (state: QuestState): string[] =>
   Object.entries(state.progressByQuestId)
     .filter(([, progress]) => progress.isCompleted)
     .map(([questId]) => questId);
+
+function mergeQuestProgressMaps(
+  a: Record<string, QuestProgress>,
+  b: Record<string, QuestProgress>
+): Record<string, QuestProgress> {
+  const out = { ...a };
+  for (const [questId, pb] of Object.entries(b)) {
+    const pa = out[questId];
+    if (!pa) {
+      out[questId] = pb;
+      continue;
+    }
+    if (pa.isCompleted || pb.isCompleted) {
+      out[questId] = {
+        currentStepId: pa.isCompleted ? pa.currentStepId : pb.currentStepId,
+        isCompleted: true,
+        choiceHistory: pa.isCompleted ? pa.choiceHistory : pb.choiceHistory,
+      };
+    }
+  }
+  return out;
+}
+
+/** Union flags, unveiled ids, and quest completions from relay + local saves on login. */
+export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): QuestState {
+  const merged = normalizeQuestState({
+    ...relay,
+    flags: Array.from(new Set([...relay.flags, ...local.flags])),
+    unveiledQuestIds: Array.from(new Set([...relay.unveiledQuestIds, ...local.unveiledQuestIds])),
+    progressByQuestId: mergeQuestProgressMaps(relay.progressByQuestId, local.progressByQuestId),
+  });
+  return reconcileVillagePhaseState(merged);
+}
+
+/** Prefer the more advanced save when both relay and localStorage have checkpoints. */
+export function hydrateQuestStateFromSources(
+  relay: QuestState | null,
+  local: QuestState | null
+): QuestState {
+  if (relay && local) return mergeQuestStateOnHydrate(relay, local);
+  if (relay) return reconcileVillagePhaseState(normalizeQuestState(relay));
+  if (local) return reconcileVillagePhaseState(normalizeQuestState(local));
+  return createInitialQuestState();
+}
+
+/**
+ * After village arrival, keep endgame flag and hub location across logins
+ * (relay checkpoint can lag behind localStorage).
+ */
+export function reconcileVillagePhaseState(state: QuestState): QuestState {
+  const completed = new Set(getCompletedQuestIds(state));
+  const hasVillageQuest = completed.has(QUEST_VILLAGE_ARRIVAL_ID);
+  const hasFlag = state.flags.includes(VILLAGE_PHASE_FLAG);
+  if (!hasVillageQuest && !hasFlag) return state;
+
+  const flags = hasFlag
+    ? state.flags
+    : Array.from(new Set([...state.flags, VILLAGE_PHASE_FLAG]));
+  const currentLocation =
+    state.currentLocation === 'Village' ? state.currentLocation : 'Village';
+
+  if (flags === state.flags && currentLocation === state.currentLocation) return state;
+  return { ...state, flags, currentLocation };
+}
 
 export const getQuestContext = (state: QuestState, currentDay: number): QuestContext => ({
   currentLocation: state.currentLocation,

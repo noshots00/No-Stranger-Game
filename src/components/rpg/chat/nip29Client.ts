@@ -13,8 +13,14 @@
 /** @deprecated Prefer `GAME_RELAY_URLS` / relay group in `useChatRoom`. */
 export const DEFAULT_CHAT_RELAY = 'wss://relay.ditto.pub';
 
-/** NIP-29 chat message kind. */
+/**
+ * Group room messages use kind 1 + `t` = room id so standard relays (ditto, dreamith) index them.
+ * Legacy kind 9 + `h` (NIP-29) is still read for older messages.
+ */
+export const GAME_CHAT_MESSAGE_KIND = 1;
+/** @deprecated Read path only — new messages use {@link GAME_CHAT_MESSAGE_KIND}. */
 export const NIP29_CHAT_KIND = 9;
+export const GAME_CHAT_COMMUNITY_T = 'no-stranger-game-chat';
 
 const GLOBAL_GROUP_ID = 'no-stranger-game-global';
 
@@ -38,15 +44,19 @@ export function getLocationGroupId(location: string): string {
   return `no-stranger-game-loc-${slug}`;
 }
 
-/** Build the unsigned NIP-29 message template for a chat send. */
+/** Build the unsigned group-room message template for a chat send. */
 export function buildChatMessageTemplate(
   groupId: string,
   content: string
 ): { kind: number; content: string; tags: string[][]; created_at: number } {
   return {
-    kind: NIP29_CHAT_KIND,
+    kind: GAME_CHAT_MESSAGE_KIND,
     content,
-    tags: [['h', groupId]],
+    tags: [
+      ['t', groupId],
+      ['t', GAME_CHAT_COMMUNITY_T],
+      ['alt', `No Stranger Game chat (${groupId})`],
+    ],
     created_at: Math.floor(Date.now() / 1000),
   };
 }

@@ -40,7 +40,6 @@ export function App() {
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
-              <NostrSync />
               <DMProvider config={dmConfig}>
                 <TooltipProvider>
                   <Toaster />

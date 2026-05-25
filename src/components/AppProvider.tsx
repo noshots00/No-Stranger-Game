@@ -52,7 +52,12 @@ export function AppProvider(props: AppProviderProps) {
     setConfig(updater);
   };
 
-  const config = { ...defaultConfig, ...rawConfig };
+  // Game relays are fixed (ditto + dreamith); never load per-user NIP-65 lists from localStorage.
+  const config: AppConfig = {
+    ...defaultConfig,
+    ...rawConfig,
+    relayMetadata: defaultConfig.relayMetadata,
+  };
 
   const appContextValue: AppContextType = {
     config,

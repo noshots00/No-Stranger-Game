@@ -888,14 +888,9 @@ const defaultConfig: AppConfig = {
 };
 ```
 
-The app uses NIP-65 compatible relay management with automatic sync when users log in. Local storage persists user preferences and relay configurations.
+The app uses a **fixed game relay pair** (`wss://relay.ditto.pub`, `wss://relay.dreamith.to`) for all players. Relay URLs are defined in [`src/lib/gameRelays.ts`](src/lib/gameRelays.ts) and are not overridden from the user's personal NIP-65 relay list (no `NostrSync`).
 
-### Relay Management
-
-- **NostrSync**: Automatically syncs the user's NIP-65 relay list when they log in
-- **Automatic publishing**: Relay preference changes are published as NIP-65 events when the user is logged in
-
-There is no standalone relay list UI component in this repo; add a settings UI that reads/writes `AppContext` relay metadata if you need in-app relay management.
+There is no standalone relay list UI component in this repo; change `gameRelays.ts` (or a future maintainer decree on Nostr) to update game relays.
 
 ## Routing
 

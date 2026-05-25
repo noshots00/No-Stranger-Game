@@ -3,8 +3,9 @@ import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { GAME_RELAY_URLS } from '@/lib/gameRelays';
-import { NIP29_CHAT_KIND, buildChatMessageTemplate } from './nip29Client';
+import { queryGameRelays } from '@/lib/queryGameRelays';
+import { publishGameRelayEvent } from '@/lib/publishGameRelayEvent';
+import { GAME_CHAT_MESSAGE_KIND, NIP29_CHAT_KIND, buildChatMessageTemplate } from './nip29Client';
 
 const CHAT_QUERY_LIMIT = 100;
 /** Poll while Social / chat is open (primary + backup merge via pool `query`). */
@@ -12,8 +13,6 @@ export const CHAT_POLL_MS = 2_000;
 
 type UseChatRoomOptions = {
   groupId: string;
-  /** Override the default group-chat relay (single-relay mode; prefer unset for game relays). */
-  relayUrl?: string;
   /** Disable network access entirely (e.g. when player has no character). */
   enabled?: boolean;
 };
@@ -27,21 +26,23 @@ export type ChatRoomState = {
   refresh: () => Promise<void>;
 };
 
+function mergeChatEvents(primary: readonly NostrEvent[], legacy: readonly NostrEvent[]): NostrEvent[] {
+  const byId = new Map<string, NostrEvent>();
+  for (const event of [...primary, ...legacy]) {
+    byId.set(event.id, event);
+  }
+  return [...byId.values()].sort((a, b) => a.created_at - b.created_at);
+}
+
 /**
- * NIP-29 group room on game relays (primary + backup reads, writes to all game write relays).
+ * Group chat on game relays (kind 1 + room `t` tag; reads legacy kind 9 + `h` too).
  */
-export function useChatRoom({ groupId, relayUrl, enabled = true }: UseChatRoomOptions): ChatRoomState {
+export function useChatRoom({ groupId, enabled = true }: UseChatRoomOptions): ChatRoomState {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const relayUrls = useMemo(() => (relayUrl ? [relayUrl] : [...GAME_RELAY_URLS]), [relayUrl]);
-  const singleRelay = useMemo(
-    () => (relayUrl ? nostr.relay(relayUrl) : null),
-    [nostr, relayUrl]
-  );
-
-  const queryKey = useMemo(() => ['rpg-chat-room', relayUrls.join(','), groupId], [relayUrls, groupId]);
+  const queryKey = useMemo(() => ['rpg-chat-room', groupId], [groupId]);
 
   const query = useQuery({
     queryKey,
@@ -49,11 +50,11 @@ export function useChatRoom({ groupId, relayUrl, enabled = true }: UseChatRoomOp
     staleTime: CHAT_POLL_MS,
     refetchInterval: enabled && Boolean(groupId) ? CHAT_POLL_MS : false,
     queryFn: async () => {
-      const filters = [{ kinds: [NIP29_CHAT_KIND], '#h': [groupId], limit: CHAT_QUERY_LIMIT }];
-      const rows = singleRelay
-        ? await singleRelay.query(filters)
-        : await nostr.query(filters);
-      return rows.sort((a, b) => a.created_at - b.created_at);
+      const [modern, legacy] = await Promise.all([
+        queryGameRelays(nostr, [{ kinds: [GAME_CHAT_MESSAGE_KIND], '#t': [groupId], limit: CHAT_QUERY_LIMIT }]),
+        queryGameRelays(nostr, [{ kinds: [NIP29_CHAT_KIND], '#h': [groupId], limit: CHAT_QUERY_LIMIT }]),
+      ]);
+      return mergeChatEvents(modern, legacy);
     },
   });
 
@@ -66,11 +67,7 @@ export function useChatRoom({ groupId, relayUrl, enabled = true }: UseChatRoomOp
 
       const template = buildChatMessageTemplate(groupId, trimmed);
       const event = await user.signer.signEvent(template);
-      if (singleRelay) {
-        await singleRelay.event(event, { signal: AbortSignal.timeout(5000) });
-      } else {
-        await nostr.event(event, { signal: AbortSignal.timeout(5000) });
-      }
+      await publishGameRelayEvent(nostr, event);
       return event;
     },
     onSuccess: () => {

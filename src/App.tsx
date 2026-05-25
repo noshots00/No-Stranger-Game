@@ -6,7 +6,6 @@ import { createHead, UnheadProvider } from '@unhead/react/client';
 import { InferSeoMetaPlugin } from '@unhead/addons';
 import { Suspense } from 'react';
 import NostrProvider from '@/components/NostrProvider';
-import { NostrSync } from '@/components/NostrSync';
 import { DMProvider } from '@/components/DMProvider';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,7 +44,6 @@ export function App() {
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>
-              <NostrSync />
               <NWCProvider>
                 <DMProvider config={{ enabled: true }}>
                   <TooltipProvider delayDuration={240}>

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { createInitialQuestState, normalizeQuestState } from '../quests/engine';
+import {
+  createInitialQuestState,
+  getCompletedQuestIds,
+  hydrateQuestStateFromSources,
+  normalizeQuestState,
+} from '../quests/engine';
 import { fetchQuestStateSnapshot, publishQuestStateSnapshot } from '../gameProfile';
 import { QUEST_STATE_STORAGE_KEY } from '../constants';
 import type { QuestState } from '../quests/types';
@@ -28,38 +33,45 @@ export function useQuestState() {
     setIsQuestStateHydrated(false);
 
     const loadQuestState = async () => {
+      let relayState: QuestState | null = null;
       if (user) {
         try {
           const snapshot = await fetchQuestStateSnapshot(nostr, user.pubkey);
-          if (!cancelled && snapshot?.state) {
-            setQuestState(normalizeQuestState(snapshot.state));
-            setIsQuestStateHydrated(true);
-            return;
+          if (snapshot?.state) {
+            relayState = normalizeQuestState(snapshot.state);
           }
         } catch (error) {
           console.warn('Failed to load quest checkpoint from Nostr, using local fallback.', error);
         }
       }
 
+      let localState: QuestState | null = null;
       try {
         const raw = localStorage.getItem(questStateStorageKey);
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') {
-            if (!cancelled) {
-              setQuestState(normalizeQuestState(parsed as Partial<QuestState>));
-              setIsQuestStateHydrated(true);
-            }
-            return;
+            localState = normalizeQuestState(parsed as Partial<QuestState>);
           }
         }
       } catch {
-        setQuestState(createInitialQuestState());
+        localState = null;
       }
 
       if (!cancelled) {
-        setQuestState(createInitialQuestState());
+        const merged = hydrateQuestStateFromSources(relayState, localState);
+        setQuestState(merged);
         setIsQuestStateHydrated(true);
+
+        if (user?.signer && relayState && localState) {
+          const relayDone = getCompletedQuestIds(relayState).length;
+          const mergedDone = getCompletedQuestIds(merged).length;
+          if (mergedDone > relayDone) {
+            void publishQuestStateSnapshot(nostr, user.signer, merged).catch((error) => {
+              console.warn('Failed to sync merged quest checkpoint to Nostr.', error);
+            });
+          }
+        }
       }
     };
 

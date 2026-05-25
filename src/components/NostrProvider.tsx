@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { type NostrSigner, NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
-import { useQueryClient } from '@tanstack/react-query';
-import { useAppContext } from '@/hooks/useAppContext';
 import { queryGameRelays } from '@/lib/queryGameRelays';
+import { DEFAULT_GAME_RELAY_METADATA } from '@/lib/gameRelays';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -12,16 +11,12 @@ interface NostrProviderProps {
 
 const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const { children } = props;
-  const { config } = useAppContext();
   const { logins } = useNostrLogin();
-
-  const queryClient = useQueryClient();
 
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
-  // Use refs so the pool always has the latest data
-  const relayMetadata = useRef(config.relayMetadata);
+  const relayMetadata = useRef(DEFAULT_GAME_RELAY_METADATA);
 
   // Stable ref to the current user's signer for NIP-42 AUTH.
   // The `open()` callback reads from this ref when a relay sends an AUTH
@@ -55,12 +50,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
   // Keep the ref in sync so the AUTH callback always sees the latest signer.
   signerRef.current = currentSigner;
-
-  // Invalidate Nostr queries when relay metadata changes
-  useEffect(() => {
-    relayMetadata.current = config.relayMetadata;
-    queryClient.invalidateQueries({ queryKey: ['nostr'] });
-  }, [config.relayMetadata, queryClient]);
 
   // Initialize NPool only once
   if (!pool.current) {

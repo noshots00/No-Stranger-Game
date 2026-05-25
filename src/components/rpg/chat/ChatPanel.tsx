@@ -56,7 +56,10 @@ export function ChatPanel({
   const resolvedEmptyHint =
     emptyHint !== undefined ? emptyHint : 'No one else has spoken here yet.';
   const { user } = useCurrentUser();
-  const { events, status, send, isSending } = useChatRoom({ groupId, enabled: hasCharacter });
+  const { events, status, send, isSending, error: roomError } = useChatRoom({
+    groupId,
+    enabled: hasCharacter,
+  });
   const otherSpeakerPubkeys = useMemo(() => {
     if (!user) return [];
     const next = new Set<string>();
@@ -166,7 +169,10 @@ export function ChatPanel({
         {status === 'pending' ? (
           <p className="text-sm text-[var(--candle-ink-faint)]">Loading messages…</p>
         ) : status === 'error' ? (
-          <p className="text-sm text-rose-300/90">Could not load this room.</p>
+          <p className="text-sm text-rose-300/90">
+            Could not load this room.
+            {roomError instanceof Error && roomError.message ? ` (${roomError.message})` : ''}
+          </p>
         ) : events.length === 0 ? (
           resolvedEmptyHint ? (
             <p className="text-sm italic text-[var(--candle-ink-soft)]">{resolvedEmptyHint}</p>

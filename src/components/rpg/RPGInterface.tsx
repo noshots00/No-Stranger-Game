@@ -22,6 +22,7 @@ import { SKILL_XP_KEYS, distributeDailySkillXp } from '@/components/rpg/quests/s
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   catchUpSagaUnveilIds,
+  catchUpVillageUnveilId,
   computeNextUnveilIdsAfterCompletion,
   pickNextSideQuestToUnveilOnDayRoll,
 } from '@/components/rpg/quests/quest-saga';
@@ -762,7 +763,13 @@ export function RPGInterface() {
       return;
     }
     const completed = getCompletedQuestIds(questState);
-    const catchUp = catchUpSagaUnveilIds(questState.unveiledQuestIds, completed, questContext);
+    const catchUp = [
+      ...catchUpSagaUnveilIds(questState.unveiledQuestIds, completed, questContext),
+      ...(() => {
+        const village = catchUpVillageUnveilId(questState.unveiledQuestIds, completed, questContext);
+        return village ? [village] : [];
+      })(),
+    ];
     unveilBackfillDoneRef.current = true;
     if (catchUp.length === 0) return;
     const merged = Array.from(new Set([...questState.unveiledQuestIds, ...catchUp]));

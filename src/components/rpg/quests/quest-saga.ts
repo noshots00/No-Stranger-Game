@@ -106,6 +106,21 @@ export function pickNextSideQuestToUnveilOnDayRoll(
   return null;
 }
 
+/** On login: surface village arrival when Silver Lake reflection is already complete. */
+export function catchUpVillageUnveilId(
+  unveiledQuestIds: readonly string[],
+  completedQuestIds: readonly string[],
+  context: QuestContext
+): string | null {
+  if (!completedQuestIds.includes(QUEST_018_SILVER_LAKE_REFLECTION_ID)) return null;
+  const villageId = QUEST_VILLAGE_ARRIVAL_ID;
+  if (completedQuestIds.includes(villageId)) return null;
+  if (unveiledQuestIds.includes(villageId)) return null;
+  const q = questById[villageId];
+  if (!q?.isAvailable(context)) return null;
+  return villageId;
+}
+
 /** One-shot migration: unveil the next saga step whenever the previous saga step is already complete. */
 export function catchUpSagaUnveilIds(
   unveiledQuestIds: readonly string[],

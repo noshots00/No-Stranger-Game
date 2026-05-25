@@ -1,6 +1,5 @@
 import { useNostr } from '@nostrify/react';
 import { NLogin, type NostrConnectParams, useNostrLogin } from '@nostrify/react/login';
-import { useAppContext } from '@/hooks/useAppContext';
 import { GAME_RELAY_URLS } from '@/lib/gameRelays';
 
 // NOTE: This file should not be edited except for adding new login methods.
@@ -11,8 +10,6 @@ export { generateNostrConnectParams, generateNostrConnectURI } from '@nostrify/r
 export function useLoginActions() {
   const { nostr } = useNostr();
   const { logins, addLogin, removeLogin } = useNostrLogin();
-  const { config } = useAppContext();
-
   return {
     // Login with a Nostr secret key
     nsec(nsec: string): void {
@@ -37,10 +34,7 @@ export function useLoginActions() {
     },
     // Get the relay URLs for NIP-46 nostrconnect communication
     getRelayUrls(): string[] {
-      const relays = config.relayMetadata.relays
-        .filter((r) => r.write)
-        .map((r) => r.url);
-      return relays.length > 0 ? relays : [...GAME_RELAY_URLS];
+      return [...GAME_RELAY_URLS];
     },
     // Log out the current user
     async logout(): Promise<void> {

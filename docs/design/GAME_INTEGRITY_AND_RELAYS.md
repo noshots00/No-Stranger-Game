@@ -30,7 +30,7 @@ Reference document capturing maintainer discussions (co-test issues, anti-cheat 
 | Display name on profile | — | kind **0** (optional merge on name submit) |
 | Mayor / arena / guild / tavern / market | Escrow bookkeeping only in 10032 | kinds **30333–30339**, **10050** |
 | DMs | — | relays + **IndexedDB** cache |
-| App relays / theme | `nostr:app-config` | kind **10002** via `NostrSync` (overrides defaults) |
+| App relays / theme | `nostr:app-config` (theme only; relays pinned in code) | — |
 | Login | `nostr:login` | — |
 
 **Load order for quest save:** relay 10032 (newest `created_at`) → else localStorage → else new game.
@@ -39,13 +39,10 @@ Reference document capturing maintainer discussions (co-test issues, anti-cheat 
 
 ---
 
-## 3. `NostrSync` (why it fights multiplayer)
+## 3. `NostrSync` (removed)
 
-- On login, fetches **your** kind **10002** and, if newer than stored metadata, **replaces** `relayMetadata` in `nostr:app-config`.
-- Intended for generic Nostr clients (personal relay preferences).
-- **For this game:** shared village state requires **everyone** on the same read/write relays. Personal 10002 works against that.
-
-**Conclusion:** disable or bypass `NostrSync` for game traffic; pin reads/writes to maintainer-defined game relays.
+- **Removed** — the app no longer imports personal kind **10002** relay lists.
+- `AppProvider` always applies `DEFAULT_GAME_RELAY_METADATA`; `NostrProvider` and `publishGameRelayEvent` use the same game relay pair for every account.
 
 ---
 
@@ -85,7 +82,7 @@ Cannot rewrite another user’s kind **10032** without their private key. Econom
 - [ ] Append-only decree log vs single replaceable config event.
 - [ ] Rollback scope: village events only first vs also 10032 field overrides.
 - [ ] Gate dev tools (Character ⋯ menu) to maintainer npub only.
-- [ ] Remove `NostrSync` vs ignore 10002 when `relayMetadata` is game-default.
+- [x] Remove `NostrSync` (done).
 
 ---
 
@@ -160,7 +157,7 @@ If two relays store **different replaceable versions** (same author, different e
 
 | Topic | Conclusion |
 |-------|------------|
-| Co-test desync | Different read relays per account is the primary hypothesis; fix by shared game relays + drop `NostrSync` override. |
+| Co-test desync | Different read relays per account was the primary hypothesis; fixed by shared game relays (no per-user NIP-65 override). |
 | Arena “didn’t look” | 20s poll + no refresh button; secondary to relay split. |
 | Cheating | Client can forge 10032; no server validation; dev menu exposes cheat-like powers to all users. |
 | Maintainer model | Hardcoded maintainer npub + signed integrity events on game relays + client apply/filter/gate. |
@@ -172,7 +169,7 @@ If two relays store **different replaceable versions** (same author, different e
 ## 8. Related files
 
 - [`src/components/NostrProvider.tsx`](../../src/components/NostrProvider.tsx) — pool, read/write routing, `eoseTimeout`
-- [`src/components/NostrSync.tsx`](../../src/components/NostrSync.tsx) — kind 10002 sync
+- [`src/components/AppProvider.tsx`](../../src/components/AppProvider.tsx) — pins `relayMetadata` to game defaults
 - [`src/lib/gameRelays.ts`](../../src/lib/gameRelays.ts) — default URLs
 - [`src/components/rpg/hooks/useQuestState.ts`](../../src/components/rpg/hooks/useQuestState.ts) — save load/persist
 - [`src/components/rpg/gameProfile.ts`](../../src/components/rpg/gameProfile.ts) — kinds 10031, 10032, 0
