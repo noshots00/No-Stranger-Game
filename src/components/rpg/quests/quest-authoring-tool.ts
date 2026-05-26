@@ -19,6 +19,7 @@ type QuestAuthoringOptions = {
   journalSummariesByChoicePath?: Record<string, string>;
   journalSummaryFallback?: string;
   questCardLayout?: 'default' | 'title-overlay';
+  toneTag?: 'vision' | 'echo' | 'mundane';
 };
 
 /** Small quest-authoring helper: write steps as an ordered array, emit typed quest definition. */
@@ -56,5 +57,6 @@ export function createQuestDefinition(options: QuestAuthoringOptions): QuestDefi
       : {}),
     ...(options.journalSummaryFallback ? { journalSummaryFallback: options.journalSummaryFallback } : {}),
     ...(options.questCardLayout ? { questCardLayout: options.questCardLayout } : {}),
+    ...(options.toneTag ? { toneTag: options.toneTag } : {}),
   };
 }

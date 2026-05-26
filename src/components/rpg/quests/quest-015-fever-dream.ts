@@ -6,6 +6,7 @@ export const quest015FeverDream = createBranchingQuest({
   title: 'Fever Dream',
   briefing: 'A restless night after the forest floor offered more than food.',
   createdAt: 16,
+  toneTag: 'vision',
   startStepId: 'fever-dream-intro',
   availability: { requiresAnyFlags: [FEVER_DREAM_UNLOCKED_FLAG] },
   steps: [

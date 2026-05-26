@@ -146,17 +146,54 @@ export const VALID_SAVE_LOCATIONS = new Set<string>([
   'Airship',
   'Town',
   'Village',
+  'Cemetery',
+  'Quarry',
+  'Mine',
 ]);
 
 /** Header/role display only — persisted `currentLocation` stays title-case. */
 export const LOCATION_LABEL_DISPLAY: Readonly<Record<string, string>> = {
   Village: 'VILLAGE',
+  Forest: 'THE FOREST',
+  Cemetery: 'CEMETERY',
+  Quarry: 'QUARRY',
+  Mine: 'MINE',
 };
+
+/** Post-village job slugs (Explorer granted on village arrival). */
+export const JOB_SLUG_EXPLORER = 'explorer';
+export const JOB_SLUG_ADVENTURER = 'adventurer';
+export const JOB_SLUG_STONECUTTER = 'stonecutter';
+export const JOB_SLUG_MINER = 'miner';
+
+export const ALL_JOB_SLUGS = [
+  JOB_SLUG_EXPLORER,
+  JOB_SLUG_ADVENTURER,
+  JOB_SLUG_STONECUTTER,
+  JOB_SLUG_MINER,
+] as const;
+
+export type JobSlug = (typeof ALL_JOB_SLUGS)[number];
+
+/** Forest sub-location discovery flags (set by discovery quests). */
+export const DISCOVERED_CEMETERY_FLAG = 'discovered-cemetery';
+export const DISCOVERED_QUARRY_FLAG = 'discovered-quarry';
+export const DISCOVERED_MINE_FLAG = 'discovered-mine';
+
+export const QUEST_DISCOVER_CEMETERY_ID = 'quest-037-discover-cemetery';
+export const QUEST_DISCOVER_QUARRY_ID = 'quest-038-discover-quarry';
+export const QUEST_DISCOVER_MINE_ID = 'quest-039-discover-mine';
+
+/** Canonical resource keys on `QuestState.resources`. */
+export const RESOURCE_STONE = 'stone';
+export const RESOURCE_IRON = 'iron';
 
 export const QUEST_018_SILVER_LAKE_REFLECTION_ID = 'quest-018-silver-lake-reflection';
 export const QUEST_VILLAGE_ARRIVAL_ID = 'quest-036-the-village';
 /** Set when the player finishes the village arrival quest; enables endgame hub UI. */
 export const VILLAGE_PHASE_FLAG = 'village-phase';
+/** Real-life calendar pacing (minDay, daily XP, day-roll unveil) starts when this is set. */
+export const DAY_PACING_ACTIVE_FLAG = 'day-pacing-active';
 
 export const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
@@ -166,6 +203,9 @@ export const locationActions: Record<string, string[]> = {
   Airship: [],
   /** Placeholders for future building scenes / mechanics. */
   Village: ['North hall', 'Market square', 'Forge lane'],
+  Cemetery: ['Enter the crypt'],
+  Quarry: ['Work the face'],
+  Mine: ['Descend the shaft'],
 };
 
 /** Play-tab location button label → quest id (Silver Lake repeatable scenes). */

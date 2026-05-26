@@ -1,0 +1,135 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { JOB_REGISTRY } from './registry';
+import { canUseJobDailyAction } from './applyJobAction';
+import type { QuestState } from '../quests/types';
+
+type JobsHallPanelProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  questState: QuestState;
+  dayCounter: number;
+  onSwitchJob: (jobSlug: string) => void;
+  onDailyAction: () => void;
+  isDailyActionPending?: boolean;
+};
+
+export function JobsHallPanel({
+  open,
+  onOpenChange,
+  questState,
+  dayCounter,
+  onSwitchJob,
+  onDailyAction,
+  isDailyActionPending = false,
+}: JobsHallPanelProps) {
+  const unlocked = new Set(questState.unlockedJobSlugs ?? []);
+  const activeSlug = questState.activeJobSlug;
+  const activeJob = activeSlug ? JOB_REGISTRY[activeSlug] : undefined;
+  const canAct =
+    activeSlug !== null &&
+    activeSlug !== undefined &&
+    canUseJobDailyAction(questState, activeSlug, dayCounter);
+
+  const resourceEntries = Object.entries(questState.resources ?? {}).filter(([, n]) => n > 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(90vh,640px)] border-[var(--candle-rule)] bg-[var(--candle-hearth)] font-serif text-[var(--candle-ink)]">
+        <DialogHeader>
+          <DialogTitle className="font-cormorant text-xl text-[var(--candle-wax)]">Jobs Hall</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[min(70vh,520px)] pr-3">
+          <div className="space-y-4 text-sm">
+            <p className="text-[var(--candle-ink-soft)]">
+              One profession at a time. Switch here in the village; work your daily shift before the sun turns.
+            </p>
+
+            {activeJob ? (
+              <div className="rounded-md border border-[var(--candle-flame-soft)]/30 bg-black/20 px-3 py-2">
+                <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">Active</p>
+                <p className="font-semibold text-[var(--candle-wax)]">{activeJob.displayName}</p>
+                <p className="mt-1 text-xs text-[var(--candle-ink-soft)]">{activeJob.description}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-2 w-full font-serif"
+                  disabled={!canAct || isDailyActionPending}
+                  onClick={onDailyAction}
+                >
+                  {canAct ? "Today's shift" : 'Shift used today'}
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">
+                Professions
+              </p>
+              {Object.values(JOB_REGISTRY).map((job) => {
+                const isUnlocked = unlocked.has(job.slug);
+                const isActive = activeSlug === job.slug;
+                return (
+                  <div
+                    key={job.slug}
+                    className="rounded-md border border-[var(--candle-rule)]/80 bg-black/25 px-3 py-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-[var(--candle-ink)]">{job.displayName}</p>
+                        <p className="text-[0.65rem] text-[var(--candle-ink-faint)]">{job.hallLabel}</p>
+                      </div>
+                      {isActive ? (
+                        <span className="text-[0.6rem] uppercase tracking-wider text-[var(--candle-flame-soft)]">
+                          Active
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--candle-ink-soft)]">{job.description}</p>
+                    {isUnlocked && !isActive ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 w-full font-serif text-xs"
+                        onClick={() => onSwitchJob(job.slug)}
+                      >
+                        Switch to {job.displayName}
+                      </Button>
+                    ) : null}
+                    {!isUnlocked ? (
+                      <p className="mt-2 text-[0.65rem] italic text-[var(--candle-ink-faint)]">
+                        Explore the forest as an Explorer to unlock.
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {resourceEntries.length > 0 ? (
+              <div className="space-y-1 border-t border-[var(--candle-rule)] pt-3">
+                <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">
+                  Stockpile
+                </p>
+                <ul className="text-xs text-[var(--candle-ink-soft)]">
+                  {resourceEntries.map(([key, amount]) => (
+                    <li key={key}>
+                      {key}: {amount}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -34,10 +34,13 @@ import {
   CLASS_ARCHETYPE_SLUGS,
   QUEST_FIRST_NIGHT_ID,
   QUEST_ORIGIN_ID,
+  DAY_PACING_ACTIVE_FLAG,
+  JOB_SLUG_EXPLORER,
   QUEST_VILLAGE_ARRIVAL_ID,
   VALID_SAVE_LOCATIONS,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
+import { unlockJobSlug } from '../jobs/unlockJob';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
 import { createEmptyArenaRecord } from '../arena/arenaRecord';
@@ -212,11 +215,21 @@ const normalizeJournalLog = (entries: unknown): JournalLogEntry[] => {
 /** Old saves: forest branch lived on origin after the name step — now `quest-002-first-night`. */
 const LEGACY_ORIGIN_FOREST_STEP_IDS = new Set([
   'flavor-five',
+  'flavor-five-hub',
   'flavor-call-help',
   'flavor-pockets',
-  'flavor-tree',
+  'flavor-pockets-pick',
+  'flavor-tree-start',
+  'flavor-tree-continue',
+  'flavor-tree-vista',
+  'flavor-tree-fork',
   'flavor-stream',
   'flavor-still',
+  'flavor-orient',
+  'flavor-explore-north',
+  'flavor-explore-south',
+  'flavor-explore-east',
+  'flavor-explore-west',
   'compass-four',
   'boar-encounter',
   'boar-aftermath',
@@ -305,6 +318,10 @@ export const createInitialQuestState = (): QuestState => ({
   lastWolfHideGrantDay: 0,
   tavernEscrowByQuestId: {},
   marketEscrowByListingId: {},
+  unlockedJobSlugs: [],
+  activeJobSlug: null,
+  jobDailyActionBySlug: {},
+  resources: {},
 });
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
@@ -546,6 +563,57 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     }
   }
 
+  const rawUnlockedJobs = (state as { unlockedJobSlugs?: unknown }).unlockedJobSlugs;
+  const unlockedJobSlugs = Array.isArray(rawUnlockedJobs)
+    ? Array.from(
+        new Set(
+          rawUnlockedJobs.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim())
+        )
+      )
+    : initial.unlockedJobSlugs ?? [];
+
+  const rawActiveJob = (state as { activeJobSlug?: unknown }).activeJobSlug;
+  const activeJobSlug =
+    typeof rawActiveJob === 'string' && rawActiveJob.trim().length > 0 ? rawActiveJob.trim() : null;
+
+  const rawJobDaily = (state as { jobDailyActionBySlug?: unknown }).jobDailyActionBySlug;
+  const jobDailyActionBySlug: Record<string, { lastActionDay: number }> = {};
+  if (rawJobDaily && typeof rawJobDaily === 'object') {
+    for (const [slug, val] of Object.entries(rawJobDaily as Record<string, unknown>)) {
+      if (!val || typeof val !== 'object') continue;
+      const day = (val as { lastActionDay?: number }).lastActionDay;
+      if (typeof day === 'number' && Number.isFinite(day)) {
+        jobDailyActionBySlug[slug] = { lastActionDay: Math.max(0, Math.floor(day)) };
+      }
+    }
+  }
+
+  const rawResources = (state as { resources?: unknown }).resources;
+  const resources: Record<string, number> = {};
+  if (rawResources && typeof rawResources === 'object') {
+    for (const [key, val] of Object.entries(rawResources as Record<string, unknown>)) {
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        resources[key] = Math.max(0, Math.floor(val));
+      }
+    }
+  }
+
+  const flags = Array.isArray(state.flags) ? state.flags.filter((f) => typeof f === 'string') : initial.flags;
+  const pacingActive = flags.includes(DAY_PACING_ACTIVE_FLAG) || flags.includes(VILLAGE_PHASE_FLAG);
+  let lastDailyXpDay = Math.max(
+    1,
+    Math.floor(
+      typeof state.lastDailyXpDay === 'number'
+        ? state.lastDailyXpDay === 0
+          ? 1
+          : state.lastDailyXpDay
+        : initial.lastDailyXpDay
+    )
+  );
+  if (!pacingActive) {
+    lastDailyXpDay = 1;
+  }
+
   return {
     ...initial,
     ...state,
@@ -553,22 +621,14 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     experience: legacyExperience,
     assignedRaceSlug,
     lockedClassSlug,
+    flags,
     modifiers: normalizedModifiers,
     skills: {
       explorationXp,
       foragingXp,
       meleeAttackXp,
     },
-    lastDailyXpDay: Math.max(
-      1,
-      Math.floor(
-        typeof state.lastDailyXpDay === 'number'
-          ? state.lastDailyXpDay === 0
-            ? 1
-            : state.lastDailyXpDay
-          : initial.lastDailyXpDay
-      )
-    ),
+    lastDailyXpDay,
     dialogueLog,
     worldEventLog,
     journalLog,
@@ -584,6 +644,10 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     lastWolfHideGrantDay,
     tavernEscrowByQuestId,
     marketEscrowByListingId,
+    unlockedJobSlugs,
+    activeJobSlug,
+    jobDailyActionBySlug,
+    resources,
   };
 };
 
@@ -710,20 +774,74 @@ export function hydrateQuestStateFromSources(
  * After village arrival, keep endgame flag and hub location across logins
  * (relay checkpoint can lag behind localStorage).
  */
-export function reconcileVillagePhaseState(state: QuestState): QuestState {
+export const isDayPacingActive = (flags: readonly string[]): boolean =>
+  flags.includes(DAY_PACING_ACTIVE_FLAG);
+
+/**
+ * When calendar pacing first activates, anchor daily XP to the current Eastern day
+ * so forest binge time does not grant retroactive catch-up.
+ */
+export const applyDayPacingActivation = (
+  state: QuestState,
+  calendarDay: number,
+  previousFlags?: readonly string[]
+): QuestState => {
+  const hadPacing = previousFlags
+    ? isDayPacingActive(previousFlags)
+    : false;
+  if (hadPacing || !isDayPacingActive(state.flags)) return state;
+  const day = Math.max(1, Math.floor(calendarDay));
+  return { ...state, lastDailyXpDay: day };
+};
+
+export function reconcileVillagePhaseState(state: QuestState, calendarDay?: number): QuestState {
   const completed = new Set(getCompletedQuestIds(state));
   const hasVillageQuest = completed.has(QUEST_VILLAGE_ARRIVAL_ID);
-  const hasFlag = state.flags.includes(VILLAGE_PHASE_FLAG);
-  if (!hasVillageQuest && !hasFlag) return state;
+  const hasVillageFlag = state.flags.includes(VILLAGE_PHASE_FLAG);
+  if (!hasVillageQuest && !hasVillageFlag) return state;
 
-  const flags = hasFlag
-    ? state.flags
+  let flags = hasVillageFlag
+    ? [...state.flags]
     : Array.from(new Set([...state.flags, VILLAGE_PHASE_FLAG]));
-  const currentLocation =
-    state.currentLocation === 'Village' ? state.currentLocation : 'Village';
+  const hadPacing = isDayPacingActive(flags);
+  if (!hadPacing) {
+    flags = Array.from(new Set([...flags, DAY_PACING_ACTIVE_FLAG]));
+  }
+  const currentLocation = VALID_SAVE_LOCATIONS.has(state.currentLocation)
+    ? state.currentLocation
+    : 'Village';
 
-  if (flags === state.flags && currentLocation === state.currentLocation) return state;
-  return { ...state, flags, currentLocation };
+  const unlocked = new Set(state.unlockedJobSlugs ?? []);
+  if (!unlocked.has(JOB_SLUG_EXPLORER)) unlocked.add(JOB_SLUG_EXPLORER);
+  const unlockedJobSlugs = Array.from(unlocked);
+  const activeJobSlug =
+    state.activeJobSlug && unlockedJobSlugs.includes(state.activeJobSlug)
+      ? state.activeJobSlug
+      : JOB_SLUG_EXPLORER;
+
+  let next: QuestState = {
+    ...state,
+    flags,
+    currentLocation,
+    unlockedJobSlugs,
+    activeJobSlug,
+  };
+  if (!hadPacing && calendarDay !== undefined) {
+    next = applyDayPacingActivation(next, calendarDay, state.flags);
+  } else if (!hadPacing) {
+    next = applyDayPacingActivation(next, Math.max(1, state.lastDailyXpDay), state.flags);
+  }
+
+  if (
+    next.flags === state.flags &&
+    next.currentLocation === state.currentLocation &&
+    next.lastDailyXpDay === state.lastDailyXpDay &&
+    next.unlockedJobSlugs === state.unlockedJobSlugs &&
+    next.activeJobSlug === state.activeJobSlug
+  ) {
+    return state;
+  }
+  return next;
 }
 
 export const getQuestContext = (state: QuestState, currentDay: number): QuestContext => ({
@@ -735,6 +853,8 @@ export const getQuestContext = (state: QuestState, currentDay: number): QuestCon
   meleeAttackLevel: getLevelFromXp(state.skills.meleeAttackXp),
   characterLevel: getCharacterLevel(state),
   assignedRaceSlug: state.assignedRaceSlug ?? null,
+  lockedClassSlug: state.lockedClassSlug ?? null,
+  dayPacingActive: isDayPacingActive(state.flags),
   currentDay: Math.max(1, Math.floor(currentDay)),
 });
 
@@ -767,6 +887,9 @@ export const getQuestListForUi = (
 ): QuestDefinition[] => {
   if (devUnlockAllQuests) {
     return [...quests].sort((a, b) => b.createdAt - a.createdAt);
+  }
+  if (!context.dayPacingActive) {
+    return getVisibleQuests(quests, context);
   }
   return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
 };
@@ -1015,7 +1138,28 @@ const moveToStep = (
     nextState = { ...nextState, currentLocation: travelTo };
   }
 
+  const jobsToUnlock = choice.effects?.unlockJobSlugs;
+  if (jobsToUnlock?.length) {
+    for (const slug of jobsToUnlock) {
+      if (typeof slug === 'string' && slug.trim().length > 0) {
+        nextState = unlockJobSlug(nextState, slug.trim());
+      }
+    }
+  }
+
   return nextState;
+};
+
+const finalizeChoiceState = (
+  state: QuestState,
+  previousFlags: readonly string[],
+  calendarDay?: number
+): QuestState => {
+  let next = reconcileVillagePhaseState(state, calendarDay);
+  if (calendarDay !== undefined) {
+    next = applyDayPacingActivation(next, calendarDay, previousFlags);
+  }
+  return next;
 };
 
 /**
@@ -1105,7 +1249,12 @@ export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): 
   };
 };
 
-export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId: string): QuestState => {
+export const applyChoice = (
+  state: QuestState,
+  quest: QuestDefinition,
+  choiceId: string,
+  calendarDay?: number
+): QuestState => {
   const withProgress = ensureQuestProgress(state, quest);
   const currentStep = getCurrentStep(withProgress, quest);
 
@@ -1114,6 +1263,7 @@ export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId:
   const selectedChoice = currentStep.choices.find((choice) => choice.id === choiceId);
   if (!selectedChoice) return withProgress;
 
+  const previousFlags = state.flags;
   let nextState = moveToStep(withProgress, quest, selectedChoice, currentStep.id);
   const worldLines = collectChoiceWorldLogLines(currentStep, selectedChoice, state.playerName);
   if (worldLines.length > 0) {
@@ -1128,7 +1278,7 @@ export const applyChoice = (state: QuestState, quest: QuestDefinition, choiceId:
     selectedChoice.journalSummaryLineAdd,
     nextState.playerName
   );
-  return nextState;
+  return finalizeChoiceState(nextState, previousFlags, calendarDay);
 };
 
 export const submitPlayerName = (

@@ -131,3 +131,36 @@ Replaceable per voter with fixed `d` tag `village-mayor-vote`.
 | `alt` | yes | Human-readable description |
 
 `content` is empty. The player with the most votes among active candidates is mayor; ties or no votes keep the placeholder mayor (Shannon) in the client UI.
+
+## Kind 30340 — Village community project (addressable)
+
+Replaceable per mayor with fixed `d` tag `village-project-active`. Clients query with `authors` set to the current mayor pubkey when enforcing official project state.
+
+| Tag | Required | Description |
+|-----|----------|-------------|
+| `d` | yes | `village-project-active` |
+| `t` | yes | `village`, `village-project` |
+| `project-id` | yes | Catalog slug (e.g. `build-town-hall`) |
+| `title` | yes | Project title |
+| `goal-stone` | no | Stone required (integer string) |
+| `goal-iron` | no | Iron required (integer string) |
+| `desc` | no | Short description |
+| `alt` | yes | Human-readable description |
+
+`content` may duplicate `desc`.
+
+## Kind 30341 — Village project contribution (regular)
+
+Immutable per contribution. Clients sum `amount` by `resource` for a given `p` (project id).
+
+| Tag | Required | Description |
+|-----|----------|-------------|
+| `d` | yes | Unique contribution id (e.g. `contrib-…`) |
+| `t` | yes | `village`, `village-project-contribution` |
+| `p` | yes | `project-id` matching the active project |
+| `resource` | yes | `stone` or `iron` |
+| `amount` | yes | Positive integer string |
+| `contributor-name` | yes | Display name |
+| `alt` | yes | Human-readable description |
+
+`content` is empty.

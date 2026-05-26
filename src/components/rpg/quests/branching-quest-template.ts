@@ -12,6 +12,10 @@ export type QuestAvailability = {
   minCharacterLevel?: number;
   /** When true, only available if no race has been locked yet. */
   requiresAssignedRaceUnset?: boolean;
+  /** When true, only available after `assignedRaceSlug` is set. */
+  requiresLockedRace?: boolean;
+  /** When true, only available after `lockedClassSlug` is set. */
+  requiresLockedClass?: boolean;
   /** Earliest day (1-indexed) the quest may appear; combined with other gates via AND. */
   minDay?: number;
 };
@@ -43,9 +47,14 @@ type BranchingQuestOptions = {
   availability?: QuestAvailability;
   steps: StepBlueprint[];
   completionRequiresAllFlags?: string[];
+  toneTag?: 'vision' | 'echo' | 'mundane';
 };
 
 const includesAny = (haystack: string[], needles: string[]): boolean => needles.some((n) => haystack.includes(n));
+
+/** Respects forest binge: `minDay` is ignored until `dayPacingActive`. */
+export const meetsMinDay = (context: QuestContext, minDay: number): boolean =>
+  !context.dayPacingActive || context.currentDay >= minDay;
 
 export const makeQuestAvailability =
   (availability?: QuestAvailability) =>
@@ -81,7 +90,17 @@ export const makeQuestAvailability =
     if (availability.requiresAssignedRaceUnset && context.assignedRaceSlug !== null) {
       return false;
     }
-    if (typeof availability.minDay === 'number' && context.currentDay < availability.minDay) {
+    if (availability.requiresLockedRace && context.assignedRaceSlug === null) {
+      return false;
+    }
+    if (availability.requiresLockedClass && context.lockedClassSlug === null) {
+      return false;
+    }
+    if (
+      typeof availability.minDay === 'number' &&
+      context.dayPacingActive &&
+      context.currentDay < availability.minDay
+    ) {
       return false;
     }
     if (
@@ -117,5 +136,6 @@ export function createBranchingQuest(options: BranchingQuestOptions): QuestDefin
     journalSummaryFallback: options.title,
     steps,
     ...(options.completionRequiresAllFlags ? { completionRequiresAllFlags: options.completionRequiresAllFlags } : {}),
+    ...(options.toneTag ? { toneTag: options.toneTag } : {}),
   };
 }

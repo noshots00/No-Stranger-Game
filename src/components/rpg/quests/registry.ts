@@ -40,6 +40,9 @@ import { quest033TwinMounds } from './quest-033-twin-mounds';
 import { quest034CarvedAcorns } from './quest-034-carved-acorns';
 import { quest035BuriedLantern } from './quest-035-buried-lantern';
 import { quest036TheVillage } from './quest-036-the-village';
+import { quest037DiscoverCemetery } from './quest-037-discover-cemetery';
+import { quest038DiscoverQuarry } from './quest-038-discover-quarry';
+import { quest039DiscoverMine } from './quest-039-discover-mine';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
@@ -85,6 +88,9 @@ export const allQuests: QuestDefinition[] = [
   quest034CarvedAcorns,
   quest035BuriedLantern,
   quest036TheVillage,
+  quest037DiscoverCemetery,
+  quest038DiscoverQuarry,
+  quest039DiscoverMine,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(

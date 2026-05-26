@@ -1,4 +1,10 @@
-import { QUEST_018_SILVER_LAKE_REFLECTION_ID, QUEST_VILLAGE_ARRIVAL_ID } from '../constants';
+import {
+  QUEST_018_SILVER_LAKE_REFLECTION_ID,
+  QUEST_DISCOVER_CEMETERY_ID,
+  QUEST_DISCOVER_MINE_ID,
+  QUEST_DISCOVER_QUARRY_ID,
+  QUEST_VILLAGE_ARRIVAL_ID,
+} from '../constants';
 import type { QuestContext } from './types';
 import { allQuests, questById } from './registry';
 
@@ -76,6 +82,30 @@ export function computeNextUnveilIdsAfterCompletion(
     if (!completed.has(villageId) && !unveiled.has(villageId)) {
       const q = questById[villageId];
       if (q?.isAvailable(context)) return [villageId];
+    }
+  }
+
+  if (completedQuestId === QUEST_VILLAGE_ARRIVAL_ID) {
+    const firstDiscovery = QUEST_DISCOVER_CEMETERY_ID;
+    if (!completed.has(firstDiscovery) && !unveiled.has(firstDiscovery)) {
+      const q = questById[firstDiscovery];
+      if (q?.isAvailable(context)) return [firstDiscovery];
+    }
+  }
+
+  const discoveryChain = [
+    QUEST_DISCOVER_CEMETERY_ID,
+    QUEST_DISCOVER_QUARRY_ID,
+    QUEST_DISCOVER_MINE_ID,
+  ] as const;
+  const discoveryIdx = discoveryChain.indexOf(
+    completedQuestId as (typeof discoveryChain)[number]
+  );
+  if (discoveryIdx >= 0 && discoveryIdx + 1 < discoveryChain.length) {
+    const nextId = discoveryChain[discoveryIdx + 1];
+    if (!completed.has(nextId) && !unveiled.has(nextId)) {
+      const q = questById[nextId];
+      if (q?.isAvailable(context)) return [nextId];
     }
   }
 

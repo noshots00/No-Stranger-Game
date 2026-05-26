@@ -6,6 +6,7 @@ export const quest016SweetDream = createBranchingQuest({
   title: 'Sweet Dream',
   briefing: 'A gentle night after you walked away.',
   createdAt: 17,
+  toneTag: 'echo',
   startStepId: 'sweet-dream-intro',
   availability: { requiresAnyFlags: [SWEET_DREAM_UNLOCKED_FLAG] },
   steps: [

@@ -1,6 +1,7 @@
 import type { JournalLogEntry, QuestDefinition } from '../quests/types';
 import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
+import { questToneDisplayLabel } from '../quests/questToneLabel';
 
 const QUEST_2B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
 
@@ -57,6 +58,7 @@ export function QuestsTab({
   const renderActiveQuestRow = (quest: QuestDefinition) => {
     const isActiveHere = activeQuestId !== null && activeQuestId === quest.id;
     const isNewQuest = newQuestIdSet.has(quest.id);
+    const toneLabel = questToneDisplayLabel(quest.toneTag);
     const trackButton = !isActiveHere ? (
       <button
         type="button"
@@ -102,11 +104,18 @@ export function QuestsTab({
               }}
             >
               <PlayLedgerKicker label="Quest" title={quest.title} titleClassName="text-[var(--candle-flame-soft)]" />
-              {isNewQuest ? (
-                <span className="mt-0.5 rounded border border-[var(--candle-flame-soft)]/45 bg-[var(--candle-flame-soft)]/10 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
-                  New
-                </span>
-              ) : null}
+              <span className="mt-0.5 flex shrink-0 flex-col items-end gap-1">
+                {toneLabel ? (
+                  <span className="rounded border border-[var(--candle-rule)]/60 bg-black/30 px-1.5 py-0.5 font-sans text-[0.55rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+                    {toneLabel}
+                  </span>
+                ) : null}
+                {isNewQuest ? (
+                  <span className="rounded border border-[var(--candle-flame-soft)]/45 bg-[var(--candle-flame-soft)]/10 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
+                    New
+                  </span>
+                ) : null}
+              </span>
             </div>
           }
         >

@@ -25,6 +25,8 @@ export type ChoiceEffect = {
   clearActiveQuest?: boolean;
   /** When set (and valid in `VALID_SAVE_LOCATIONS`), updates `QuestState.currentLocation` after this choice. */
   setCurrentLocation?: string;
+  /** Post-village jobs unlocked when this choice resolves. */
+  unlockJobSlugs?: string[];
 };
 
 export type QuestChoice = {
@@ -42,6 +44,11 @@ export type QuestChoice = {
    * on the player. Useful for one-shot branches the player has already explored.
    */
   disabledIfAnyFlags?: string[];
+  /**
+   * Omit this choice from the list unless ANY of these flags are set on the player.
+   * Use with `disabledIfAnyFlags` on other choices for hub menus that grow over time.
+   */
+  enabledIfAnyFlags?: string[];
   /**
    * Render disabled when the player lacks the minimum count for any listed modifier key
    * (stackable `item:*` counts, etc.). All keys must satisfy `(modifiers[key] ?? 0) >= value`.
@@ -114,6 +121,8 @@ export type QuestDefinition = {
   journalSummaryFallback?: string;
   /** Play-tab quest list card: title beside image (default) or overlaid on the card art. */
   questCardLayout?: 'default' | 'title-overlay';
+  /** Chronicle / quest card tone label (forest memoryless arc). */
+  toneTag?: 'vision' | 'echo' | 'mundane';
 };
 
 export type QuestContext = {
@@ -130,6 +139,10 @@ export type QuestContext = {
   characterLevel: number;
   /** Canonical race slug once locked; null until assigned. */
   assignedRaceSlug: string | null;
+  /** Class archetype slug once locked; null until assigned. */
+  lockedClassSlug: string | null;
+  /** When false, `minDay` gates are ignored (forest / creation arc binge). */
+  dayPacingActive: boolean;
   /** Day counter (1-indexed) used by `minDay` quest gating. */
   currentDay: number;
 };
@@ -224,6 +237,14 @@ export type QuestState = {
   tavernEscrowByQuestId?: Record<string, TavernEscrowEntry>;
   /** Escrowed goods for open market listings this client posted (keyed by listing `d` id). */
   marketEscrowByListingId?: Record<string, MarketEscrowEntry>;
+  /** Post-village profession slugs the player may switch to at the Jobs Hall. */
+  unlockedJobSlugs?: string[];
+  /** Currently active profession (one at a time). */
+  activeJobSlug?: string | null;
+  /** Last in-game day each job daily action was used (`jobSlug` → day index). */
+  jobDailyActionBySlug?: Record<string, { lastActionDay: number }>;
+  /** Village community project resources (stone, iron, …). */
+  resources?: Record<string, number>;
 };
 
 export type TavernEscrowEntry = {

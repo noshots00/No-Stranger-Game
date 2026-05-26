@@ -14,6 +14,8 @@ import {
   getQuestContext,
   getQuestListForUi,
   interpolateStepText,
+  isDayPacingActive,
+  reconcileVillagePhaseState,
   restartQuestProgress,
   startQuest,
   submitPlayerName,
@@ -66,6 +68,9 @@ import {
   PLAY_JOURNAL_RECENT_MAX,
   PLAY_WORLD_RECENT_MAX,
   LOCATION_LABEL_DISPLAY,
+  DISCOVERED_CEMETERY_FLAG,
+  DISCOVERED_MINE_FLAG,
+  DISCOVERED_QUARRY_FLAG,
   VILLAGE_PHASE_FLAG,
 } from './constants';
 import type { MobileTab } from './constants';
@@ -127,6 +132,10 @@ import { MarketPanel } from './market/MarketPanel';
 import { useMarket } from './market/useMarket';
 import { MayorsHutPanel } from './mayorsHut/MayorsHutPanel';
 import { useMayorsHut } from './mayorsHut/useMayorsHut';
+import { JobsHallPanel } from './jobs/JobsHallPanel';
+import { applyJobDailyAction, switchActiveJob } from './jobs/applyJobAction';
+import { VillageProjectsPanel } from './villageProjects/VillageProjectsPanel';
+import { useVillageProjects } from './villageProjects/useVillageProjects';
 import { CraftersCornerPanel } from './crafter/CraftersCornerPanel';
 import { applyWolfHideDailyGrants } from './tavern/wolfHidesDaily';
 import { getDeterministicDailyRoll } from '@/lib/deterministicDailyRoll';
@@ -152,6 +161,9 @@ function applyMainDailyQuestCompletionIfNeeded(
   const nowCompleted = Boolean(merged.progressByQuestId[quest.id]?.isCompleted);
   if (wasCompleted || !nowCompleted) return merged;
   const flags = Array.from(new Set([...merged.flags, 'quest001-complete']));
+  if (!isDayPacingActive(merged.flags)) {
+    return { ...merged, flags };
+  }
   const daysToGrant = Math.max(1, calendarDay - prev.lastDailyXpDay);
   const xpToGrant = daysToGrant * DAILY_XP;
   const skillGrants = distributeDailySkillXp(xpToGrant, 'exploring');
@@ -231,6 +243,8 @@ export function RPGInterface() {
   const [marketOpen, setMarketOpen] = useState(false);
   const [mayorsHutOpen, setMayorsHutOpen] = useState(false);
   const [craftersCornerOpen, setCraftersCornerOpen] = useState(false);
+  const [jobsHallOpen, setJobsHallOpen] = useState(false);
+  const [villageProjectsOpen, setVillageProjectsOpen] = useState(false);
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
   const arenaTournament = useArenaTournament({
@@ -348,16 +362,21 @@ export function RPGInterface() {
   const merchantTravelUnlocked = completedQuestIds.includes(QUEST_003B_MEET_MERCHANT_ID);
   const formatLocationLabel = useCallback((loc: string) => LOCATION_LABEL_DISPLAY[loc] ?? loc, []);
   const travelLocations = useMemo(() => {
-    const villageEndgame =
-      questState.flags.includes(VILLAGE_PHASE_FLAG) || questState.currentLocation === 'Village';
-    // Endgame hub: header travel is Village-only (reset story to return to forest progression).
-    if (villageEndgame) {
-      return ['Village'];
-    }
+    const villageEndgame = questState.flags.includes(VILLAGE_PHASE_FLAG);
     const out: string[] = [];
     const add = (s: string) => {
       if (!out.includes(s)) out.push(s);
     };
+    if (villageEndgame) {
+      add('Village');
+      add('Forest');
+      if (questState.flags.includes(DISCOVERED_CEMETERY_FLAG)) add('Cemetery');
+      if (questState.flags.includes(DISCOVERED_QUARRY_FLAG)) add('Quarry');
+      if (questState.flags.includes(DISCOVERED_MINE_FLAG)) add('Mine');
+      const cur = questState.currentLocation;
+      if (cur && !out.includes(cur)) add(cur);
+      return out;
+    }
     add('Forest');
     if (merchantTravelUnlocked) add('Merchant');
     const cur = questState.currentLocation;
@@ -411,9 +430,18 @@ export function RPGInterface() {
   });
 
   const mayorsHut = useMayorsHut({
-    enabled: mayorsHutOpen && canShowGame,
+    enabled: (mayorsHutOpen || villageProjectsOpen) && canShowGame,
     questState,
     myPubkey: user?.pubkey,
+  });
+
+  const villageProjects = useVillageProjects({
+    enabled: villageProjectsOpen && canShowGame,
+    questState,
+    myPubkey: user?.pubkey,
+    election: mayorsHut.election,
+    setQuestState,
+    persistQuestCheckpoint,
   });
   const handleMerchantDialogOpenChange = useCallback(
     (open: boolean) => {
@@ -639,6 +667,32 @@ export function RPGInterface() {
     const trimmed = questState.playerName.trim();
     return trimmed.length > 0 ? trimmed : 'Stranger';
   }, [questState.playerName]);
+  const handleJobsSwitch = useCallback(
+    (jobSlug: string) => {
+      setQuestState((prev) => {
+        const next = switchActiveJob(prev, jobSlug);
+        if (!next) return prev;
+        void persistQuestCheckpoint(next);
+        return next;
+      });
+    },
+    [setQuestState, persistQuestCheckpoint]
+  );
+
+  const handleJobDailyAction = useCallback(() => {
+    setQuestState((prev) => {
+      const result = applyJobDailyAction(prev, prev.activeJobSlug ?? '', dayCounter);
+      if (!result) return prev;
+      void persistQuestCheckpoint(result.state);
+      return result.state;
+    });
+  }, [dayCounter, setQuestState, persistQuestCheckpoint]);
+
+  const handleReturnToForest = useCallback(() => {
+    handleTravelLocationSelect('Forest');
+    setActiveTab('play');
+  }, [handleTravelLocationSelect]);
+
   const locationIndicatorClass =
     questState.currentLocation === 'Forest'
       ? 'location-indicator-forest'
@@ -648,7 +702,11 @@ export function RPGInterface() {
           ? 'location-indicator-merchant'
           : questState.currentLocation === 'Village'
             ? 'location-indicator-village'
-            : 'candle-ink-muted';
+            : questState.currentLocation === 'Cemetery' ||
+                questState.currentLocation === 'Quarry' ||
+                questState.currentLocation === 'Mine'
+              ? 'location-indicator-forest'
+              : 'candle-ink-muted';
   /** Origin quest “click a choice” hint — off until copy/UI is finalized. */
   const showOriginStartHint = false;
 
@@ -787,6 +845,30 @@ export function RPGInterface() {
     showEarlyDevResetGate,
   ]);
 
+  // Village saves: ensure day-pacing flag + hub location; anchor daily XP when pacing first activates.
+  useEffect(() => {
+    if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
+    setQuestState((prev) => {
+      const next = reconcileVillagePhaseState(prev, dayCounter);
+      if (
+        next.flags === prev.flags &&
+        next.currentLocation === prev.currentLocation &&
+        next.lastDailyXpDay === prev.lastDailyXpDay
+      ) {
+        return prev;
+      }
+      void persistQuestCheckpoint(next);
+      return next;
+    });
+  }, [
+    isQuestStateHydrated,
+    isPacingResolved,
+    dayCounter,
+    showEarlyDevResetGate,
+    persistQuestCheckpoint,
+    setQuestState,
+  ]);
+
   // Catch-up on login/session: when the in-game day advances vs last grant, apply XP/report/flags.
   useEffect(() => {
     if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
@@ -796,8 +878,7 @@ export function RPGInterface() {
       creationDateEastern === null ? qc === null : qc === creationDateEastern;
     if (!pacingAligned) return;
 
-    /** Until first night (main daily quest) finishes once, skip calendar catch-up. */
-    if (!questState.flags.includes('quest001-complete')) return;
+    if (!isDayPacingActive(questState.flags)) return;
 
     if (dayCounter <= questState.lastDailyXpDay) return;
 
@@ -883,17 +964,19 @@ export function RPGInterface() {
     }
     updatedState.flags = promotedFlags;
 
-    const ctxAfterDay = getQuestContext({ ...updatedState }, dayCounter);
-    const completedIdsAfter = getCompletedQuestIds(updatedState);
-    const sideUnveilCatchup = pickNextSideQuestToUnveilOnDayRoll(
-      updatedState.unveiledQuestIds,
-      completedIdsAfter,
-      ctxAfterDay
-    );
-    if (sideUnveilCatchup) {
-      updatedState.unveiledQuestIds = Array.from(
-        new Set([...updatedState.unveiledQuestIds, sideUnveilCatchup])
+    if (isDayPacingActive(updatedState.flags)) {
+      const ctxAfterDay = getQuestContext({ ...updatedState }, dayCounter);
+      const completedIdsAfter = getCompletedQuestIds(updatedState);
+      const sideUnveilCatchup = pickNextSideQuestToUnveilOnDayRoll(
+        updatedState.unveiledQuestIds,
+        completedIdsAfter,
+        ctxAfterDay
       );
+      if (sideUnveilCatchup) {
+        updatedState.unveiledQuestIds = Array.from(
+          new Set([...updatedState.unveiledQuestIds, sideUnveilCatchup])
+        );
+      }
     }
 
     const wolfGrant = applyWolfHideDailyGrants(updatedState, dayCounter);
@@ -1002,7 +1085,7 @@ export function RPGInterface() {
       const selectedChoice = currentStep.choices.find((choice) => choice.id === choiceId);
       if (!selectedChoice) return prev;
 
-      const nextState = applyChoice(prev, activeQuest, choiceId);
+      const nextState = applyChoice(prev, activeQuest, choiceId, dayCounter);
       const nextStep = getCurrentStep(nextState, activeQuest);
       const qid = activeQuest.id;
       const qOpts = { sourceQuestId: qid };
@@ -1311,6 +1394,9 @@ export function RPGInterface() {
               onOpenMarket={() => setMarketOpen(true)}
               onOpenMayorsHut={() => setMayorsHutOpen(true)}
               onOpenCraftersCorner={() => setCraftersCornerOpen(true)}
+              onOpenJobsHall={() => setJobsHallOpen(true)}
+              onOpenVillageProjects={() => setVillageProjectsOpen(true)}
+              onReturnToForest={handleReturnToForest}
             />
           );
         }
@@ -1378,6 +1464,7 @@ export function RPGInterface() {
           <>
         <GameHeader
           dayCounter={dayCounter}
+          dayPacingActive={questContext.dayPacingActive}
           currentLocation={questState.currentLocation}
           formatLocationLabel={formatLocationLabel}
           locationIndicatorClass={locationIndicatorClass}
@@ -1486,6 +1573,20 @@ export function RPGInterface() {
           onOpenChange={setMayorsHutOpen}
           myPubkey={user?.pubkey}
           mayorsHut={mayorsHut}
+        />
+        <JobsHallPanel
+          open={jobsHallOpen}
+          onOpenChange={setJobsHallOpen}
+          questState={questState}
+          dayCounter={dayCounter}
+          onSwitchJob={handleJobsSwitch}
+          onDailyAction={handleJobDailyAction}
+        />
+        <VillageProjectsPanel
+          open={villageProjectsOpen}
+          onOpenChange={setVillageProjectsOpen}
+          questState={questState}
+          villageProjects={villageProjects}
         />
       </>
     ) : null}

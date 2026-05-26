@@ -12,6 +12,9 @@ type VillagePlaySurfaceProps = {
   onOpenMarket: () => void;
   onOpenMayorsHut: () => void;
   onOpenCraftersCorner: () => void;
+  onOpenJobsHall: () => void;
+  onOpenVillageProjects: () => void;
+  onReturnToForest: () => void;
 };
 
 const PLACEHOLDER_BUILDINGS = [
@@ -77,6 +80,9 @@ export function VillagePlaySurface({
   onOpenMarket,
   onOpenMayorsHut,
   onOpenCraftersCorner,
+  onOpenJobsHall,
+  onOpenVillageProjects,
+  onReturnToForest,
 }: VillagePlaySurfaceProps) {
   const { toast } = useToast();
   const villageActions = locationActions.Village ?? [];
@@ -98,8 +104,31 @@ export function VillagePlaySurface({
         <p className="font-serif text-xs uppercase tracking-[0.2em] text-[var(--candle-ink-faint)]">Endgame hub</p>
         <h2 className="font-cormorant text-xl font-semibold tracking-wide text-[var(--candle-wax)]">{characterNameLabel}</h2>
         <p className="mx-auto max-w-sm font-serif text-sm italic text-[var(--candle-ink-soft)]">
-          Day {dayCounter}. Building interactions and village mechanics are coming next—explore the placeholders below.
+          Day {dayCounter}. The forest still waits beyond the palisade—jobs and shared projects grow the village.
         </p>
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onOpenJobsHall}
+            className="rounded-md border border-[var(--candle-rule)] bg-black/30 px-3 py-1.5 font-serif text-xs uppercase tracking-[0.1em] text-[var(--candle-ink-soft)] hover:text-[var(--candle-wax)]"
+          >
+            Jobs Hall
+          </button>
+          <button
+            type="button"
+            onClick={onOpenVillageProjects}
+            className="rounded-md border border-[var(--candle-rule)] bg-black/30 px-3 py-1.5 font-serif text-xs uppercase tracking-[0.1em] text-[var(--candle-ink-soft)] hover:text-[var(--candle-wax)]"
+          >
+            Projects
+          </button>
+          <button
+            type="button"
+            onClick={onReturnToForest}
+            className="rounded-md border border-[var(--candle-flame-soft)]/35 bg-[var(--candle-flame)]/10 px-3 py-1.5 font-serif text-xs uppercase tracking-[0.1em] text-[var(--candle-wax)] hover:bg-[var(--candle-flame)]/20"
+          >
+            Return to Forest
+          </button>
+        </div>
       </header>
 
       <div className="relative min-h-[200px] flex-1 overflow-hidden rounded-lg border border-[var(--candle-rule)]/80 bg-black/25">

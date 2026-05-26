@@ -11,19 +11,21 @@ A running inventory of every feature in No Stranger Game. One section per featur
 
 ### Quest gating and pacing
 
-- Per-quest `availability` (level, day, flags, completed-quests, race-lock state, location).
-- **Daily unveil cap**: at most 2 **new** quests are revealed per in-game day. Eligible-but-not-yet-shown quests sit in a hidden queue and drain 2/day, **highest quest id number first** (see `questNumberFromId` sort).
-- Visibility: `getPlayerVisibleQuests` in [engine.ts](../../src/components/rpg/quests/engine.ts); day context from [`getQuestContext`](../../src/components/rpg/quests/engine.ts).
-- **Daily rollover bundle** (same tick as daily XP in [RPGInterface.tsx](../../src/components/rpg/RPGInterface.tsx)): probabilistic daily flags, unveil queue drain, world line “Day N began.”, end-of-day **Day Report** dialogue block (`buildDayReportDialogueLines` in [helpers.ts](../../src/components/rpg/helpers.ts)).
+- Per-quest `availability` (level, day, flags, completed-quests, race/class lock, location).
+- **Two phases**: before village, the creation arc is **bingeable** — all eligible quests show on Play (`getQuestListForUi`), and `minDay` is ignored. After village arrival (`day-pacing-active` flag), calendar pacing applies.
+- **Daily unveil cap** (post-village): at most 2 **new** quests per in-game day (hidden queue; highest quest id first). Pre-village, eligible quests are not held behind the unveil list.
+- Visibility: `getPlayerVisibleQuests` / `getQuestListForUi` in [engine.ts](../../src/components/rpg/quests/engine.ts); day context from [`getQuestContext`](../../src/components/rpg/quests/engine.ts) (`dayPacingActive`, `lockedClassSlug`).
+- **Daily rollover bundle** (post-village only, same tick as daily XP in [RPGInterface.tsx](../../src/components/rpg/RPGInterface.tsx)): probabilistic daily flags, unveil queue drain, world line “Day N began.”, end-of-day **Day Report** (`buildDayReportDialogueLines` in [helpers.ts](../../src/components/rpg/helpers.ts)).
+- **Village arrival** (`quest-036-the-village`): requires Silver Lake reflection complete, **race locked**, and **class locked**; sets `village-phase` + `day-pacing-active`.
 
 ## Day cycle and Eastern pacing
 
-- **Canonical anchor**: immutable Eastern calendar date (`yyyy-MM-dd`, `America/New_York`) set when the player submits their name on the origin quest (`characterCreationDateEastern` on [QuestState](../../src/components/rpg/quests/types.ts)).
-- **Day index** (“Day N” in the header): [`computeGameDayCounterFromCreationYmd`](../../src/lib/easternGameTime.ts) — calendar days from creation through “today” in Eastern + 1 (not raw wall-clock ms divided by 24h).
-- **Hook**: [`useDayCounter`](../../src/components/rpg/hooks/useDayCounter.ts) merges quest state, relay (kind **10031** character-start), and **per-pubkey** localStorage (`characterCreationDateStorageKeyForPubkey` in [constants.ts](../../src/components/rpg/constants.ts)) — logged-in users do **not** read the legacy global creation key (cross-account safety).
+- **Creation anchor (metadata)**: immutable Eastern calendar date (`yyyy-MM-dd`, `America/New_York`) set when the player submits their name on the origin quest (`characterCreationDateEastern`, kind **10031**) — used for account-age / future anti-cheat, not for forest gating.
+- **Calendar pacing starts at village**: flag `day-pacing-active` (set with `quest-036-the-village`). Until then, header shows **The Forest** instead of “Day N”; no daily XP catch-up or day-roll side unveil.
+- **Day index** (“Day N” in header, post-village): [`computeGameDayCounterFromCreationYmd`](../../src/lib/easternGameTime.ts) — calendar days from creation through “today” in Eastern + 1.
+- **Hook**: [`useDayCounter`](../../src/components/rpg/hooks/useDayCounter.ts) merges quest state, relay (kind **10031**), and per-pubkey localStorage.
 - **Next reset**: `nextDayResetMs` / Eastern midnight (or dev **5-minute** periods when enabled).
-- **Daily XP catch-up**: runs only after [`isPacingResolved`](../../src/components/rpg/hooks/useDayCounter.ts) and only when hook `creationDateEastern` matches `questState.characterCreationDateEastern` (or both null before naming). Updates `lastDailyXpDay`, skills, flags, unveils, dialogue report lines.
-- **First session**: on origin name submit, `lastDailyXpDay` is set with the same day formula so players do not get a synthetic “yesterday” report immediately after naming.
+- **Daily XP catch-up**: only when `day-pacing-active`, [`isPacingResolved`](../../src/components/rpg/hooks/useDayCounter.ts), and hook `creationDateEastern` matches `questState.characterCreationDateEastern`. On first activation, `lastDailyXpDay` anchors to the current calendar day (no retro forest binge XP).
 - **Hydration gate**: full RPG chrome waits until quest state is hydrated **and** pacing is resolved (“Loading your ledger…” in [RPGInterface.tsx](../../src/components/rpg/RPGInterface.tsx)).
 
 ## Skills and XP
@@ -113,6 +115,20 @@ A running inventory of every feature in No Stranger Game. One section per featur
   - **Rapid day simulation** — auto-advance virtual clock every 2s ([useDayCounter.ts](../../src/components/rpg/hooks/useDayCounter.ts)).
   - **Unlock all quests** — bypass availability for testing ([RPGInterface.tsx](../../src/components/rpg/RPGInterface.tsx)).
   - **Show modifier breakdown** — extra detail on Character tab.
+
+## Jobs (post-village)
+
+- **Explorer** granted on village arrival; **one active job** at a time; switch at **Jobs Hall** in the village hub.
+- Daily shift (1 per in-game day per job): yields resources (`stone`, `iron`) and skill XP; Explorer can unveil forest discovery quests.
+- **Discovery quests** (`quest-037`–`039`): Cemetery → Adventurer, Quarry → Stone Cutter, Mine → Miner; unlock travel to those sub-locations.
+- State: `unlockedJobSlugs`, `activeJobSlug`, `jobDailyActionBySlug`, `resources` on [`QuestState`](../../src/components/rpg/quests/types.ts).
+- Module: [`src/components/rpg/jobs/`](../../src/components/rpg/jobs/).
+
+## Village community projects
+
+- Mayor sets active project (kind **30340**, author-filtered by mayor pubkey); players contribute stone/iron (kind **30341**).
+- **Projects** panel in village hub; catalog in [`villageProjects/constants.ts`](../../src/components/rpg/villageProjects/constants.ts).
+- Documented in [`NIP.md`](../../NIP.md) § kinds 30340–30341.
 
 ## Guilds
 
