@@ -1,5 +1,125 @@
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
+import type { QuestChoice } from './types';
+
+export const FIRST_NIGHT_FLAG_CALL_HELP = 'quest-002-first-night-call-help';
+export const FIRST_NIGHT_FLAG_POCKETS = 'quest-002-first-night-pockets';
+export const FIRST_NIGHT_FLAG_TREE = 'quest-002-first-night-tree';
+export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
+
+const CALL_HELP_MODIFIERS = {
+  BraveTrait: 1,
+  FoolhardyTrait: 1,
+  WarriorClass: 1,
+  OrcRace: 1,
+  LoudMouth: 1,
+  Social: 1,
+  DiplomaticTrait: 1,
+  Charisma: 1,
+  StupidTrait: 1,
+  BoldTrait: 1,
+  CrazyTrait: 1,
+};
+
+const FLASK_MODIFIERS = {
+  Drunk: 1,
+  Social: 1,
+  Confident: 1,
+  Leadership: 1,
+  Fighter: 1,
+  Brash: 1,
+  Rude: 1,
+  Antisocial: 1,
+  RogueClass: 1,
+  HealerClass: 1,
+};
+
+const CIGARETTES_MODIFIERS = {
+  MageClass: 1,
+  HealerClass: 1,
+  Leadership: 1,
+  Confident: 1,
+  Reckless: 1,
+};
+
+function buildFirstNightMainChoices(includeDirections: boolean): QuestChoice[] {
+  const choices: QuestChoice[] = [
+    {
+      id: 'q2-flavor-call-help',
+      label: 'Call out for help',
+      nextStepId: 'flavor-call-help',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_CALL_HELP],
+      disabledLabel: '',
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_CALL_HELP],
+        modifiersDelta: CALL_HELP_MODIFIERS,
+      },
+      journalSummaryLineAdd: 'You called out for help.',
+    },
+    {
+      id: 'q2-flavor-pockets',
+      label: 'Check your pockets',
+      nextStepId: 'flavor-pockets',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_POCKETS],
+      disabledLabel: '',
+      journalSummaryLineAdd: 'You checked your pockets.',
+    },
+    {
+      id: 'q2-flavor-tree',
+      label: 'Climb a tree to look around',
+      nextStepId: 'flavor-tree-start',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
+      disabledLabel: '',
+      journalSummaryLineAdd: 'You climbed a tree to look around.',
+    },
+    {
+      id: 'q2-flavor-still',
+      label: 'Stay still and listen',
+      nextStepId: 'flavor-still',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_STILL],
+      disabledLabel: '',
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_STILL],
+      },
+      journalSummaryLineAdd: 'You stayed still and listened.',
+    },
+  ];
+
+  if (includeDirections) {
+    choices.push(
+      {
+        id: 'q2-go-south',
+        label: 'Go South',
+        nextStepId: 'boar-encounter',
+        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_STILL],
+        journalSummaryLineAdd: 'You headed south.',
+      },
+      {
+        id: 'q2-go-west',
+        label: 'Go West',
+        nextStepId: 'boar-encounter',
+        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_STILL],
+        journalSummaryLineAdd: 'You headed west.',
+      },
+      {
+        id: 'q2-go-north',
+        label: 'Go North',
+        nextStepId: 'boar-encounter',
+        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
+        journalSummaryLineAdd: 'You headed north.',
+      },
+      {
+        id: 'q2-go-east',
+        label: 'Go East',
+        nextStepId: 'boar-encounter',
+        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
+        journalSummaryLineAdd: 'You headed east.',
+      }
+    );
+  }
+
+  return choices;
+}
 
 export const quest002FirstNight = createQuestDefinition({
   id: 'quest-002-first-night',
@@ -17,70 +137,188 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'flavor-five',
       type: 'choice',
-      text:
-        "What do you do now?",
-      choices: [
-        {
-          id: 'q1-flavor-call-help',
-          label: 'Call out for help',
-          nextStepId: 'flavor-call-help',
-          journalSummaryLineAdd: 'You tried to call for help.',
-        },
-        {
-          id: 'q1-flavor-pockets',
-          label: 'Check your pockets',
-          nextStepId: 'flavor-pockets',
-          journalSummaryLineAdd: 'You checked your pockets.',
-        },
-        {
-          id: 'q1-flavor-tree',
-          label: 'Climb a tree to look around',
-          nextStepId: 'flavor-tree',
-          journalSummaryLineAdd: 'You climbed a tree to look around.',
-        },
-        {
-          id: 'q1-flavor-stream',
-          label: 'Follow a stream if you hear one',
-          nextStepId: 'flavor-stream',
-          journalSummaryLineAdd: 'You listened for a stream and tried to follow it.',
-        },
-        {
-          id: 'q1-flavor-still',
-          label: 'Stay still and listen',
-          nextStepId: 'flavor-still',
-          journalSummaryLineAdd: 'You stay in one place and listen.',
-        },
-      ],
+      text: 'What do you do now?',
+      choices: buildFirstNightMainChoices(false),
+    },
+    {
+      id: 'flavor-five-hub',
+      type: 'choice',
+      text: 'What do you do now?',
+      choices: buildFirstNightMainChoices(true),
     },
     {
       id: 'flavor-call-help',
       type: 'message',
-      text: 'You try to call for help.',
-      nextStepId: 'compass-four',
+      text:
+        'You become aware of the sound of silence as every bird and bug suddenly stops its hum and the forest becomes eerily quiet...',
+      nextStepId: 'flavor-five-hub',
     },
     {
       id: 'flavor-pockets',
       type: 'message',
-      text: 'You check your pockets.',
-      nextStepId: 'compass-four',
+      text: 'Your hand finds the familiar shape of...',
+      nextStepId: 'flavor-pockets-pick',
     },
     {
-      id: 'flavor-tree',
-      type: 'message',
-      text: 'You climb a tree to look around.',
-      nextStepId: 'compass-four',
+      id: 'flavor-pockets-pick',
+      type: 'choice',
+      text: '',
+      choices: [
+        {
+          id: 'q2-pocket-flask',
+          label: 'a flask',
+          nextStepId: 'flavor-pockets-found-flask',
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
+            questItemsAdd: ['a flask'],
+            modifiersDelta: FLASK_MODIFIERS,
+          },
+        },
+        {
+          id: 'q2-pocket-cigarettes',
+          label: 'cigarettes and a lighter',
+          nextStepId: 'flavor-pockets-found-cigarettes',
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
+            questItemsAdd: ['cigarettes and a lighter'],
+            modifiersDelta: CIGARETTES_MODIFIERS,
+          },
+        },
+        {
+          id: 'q2-pocket-cell-phone',
+          label: 'a cell phone',
+          nextStepId: 'flavor-pockets-cell-phone',
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
+            questItemsAdd: ['a cell phone'],
+            modifiersDelta: { Placeholder: 1 },
+          },
+        },
+      ],
     },
     {
-      id: 'flavor-stream',
+      id: 'flavor-pockets-found-flask',
       type: 'message',
-      text: 'You listen for running water and try to follow it.',
-      nextStepId: 'compass-four',
+      text: 'You found a flask.',
+      nextStepId: 'flavor-five-hub',
+    },
+    {
+      id: 'flavor-pockets-found-cigarettes',
+      type: 'message',
+      text: 'You found cigarettes and a lighter.',
+      nextStepId: 'flavor-five-hub',
+    },
+    {
+      id: 'flavor-pockets-cell-phone',
+      type: 'message',
+      text: "It won't turn on...",
+      nextStepId: 'flavor-five-hub',
+    },
+    {
+      id: 'flavor-tree-start',
+      type: 'message',
+      text: 'This is harder than it looks...',
+      nextStepId: 'flavor-tree-continue',
+    },
+    {
+      id: 'flavor-tree-continue',
+      type: 'choice',
+      text: '',
+      choices: [
+        {
+          id: 'q2-tree-continue',
+          label: 'Continue...',
+          nextStepId: 'flavor-tree-vista',
+        },
+      ],
+    },
+    {
+      id: 'flavor-tree-vista',
+      type: 'message',
+      text:
+        'You shimmy up the tree with surprising agility but the activity exhausts you... you feel hungry and a little cold. Resting on a high branch you take a good look around...\n\nThere is higher ground to the North. To the East it looks like the trees thin. That is all you can see.',
+      nextStepId: 'flavor-tree-fork',
+    },
+    {
+      id: 'flavor-tree-fork',
+      type: 'choice',
+      text: '',
+      choices: [
+        {
+          id: 'q2-tree-climb-higher',
+          label: 'Climb higher',
+          nextStepId: 'flavor-tree-fall',
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_TREE],
+          },
+        },
+        {
+          id: 'q2-tree-go-down',
+          label: 'Go back down',
+          nextStepId: 'flavor-tree-safe-down',
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_TREE],
+          },
+        },
+      ],
+    },
+    {
+      id: 'flavor-tree-fall',
+      type: 'message',
+      text:
+        'A piece of bark rips off the tree and you tumble backwards from the tree. A series of low branches cushion your fall but you sustain a minor injury.',
+      nextStepId: 'flavor-five-hub',
+    },
+    {
+      id: 'flavor-tree-safe-down',
+      type: 'message',
+      text: 'You return safely to the ground.',
+      nextStepId: 'flavor-five-hub',
     },
     {
       id: 'flavor-still',
       type: 'message',
-      text: 'You stay in one place and listen.',
-      nextStepId: 'compass-four',
+      text:
+        'You hear the sound of running water to the west... suddenly a fawn bursts out of the brush near you and disappears southward.',
+      nextStepId: 'flavor-five-hub',
+    },
+    /** Legacy step ids — old saves only. */
+    {
+      id: 'flavor-orient',
+      type: 'message',
+      text: "The sun is setting in the East. It's impossible to see far in any direction.",
+      nextStepId: 'flavor-five-hub',
+    },
+    {
+      id: 'flavor-explore-north',
+      type: 'message',
+      text: 'You head north.',
+      nextStepId: 'boar-encounter',
+    },
+    {
+      id: 'flavor-explore-south',
+      type: 'message',
+      text: 'You head south.',
+      nextStepId: 'boar-encounter',
+    },
+    {
+      id: 'flavor-explore-east',
+      type: 'message',
+      text: 'You head east.',
+      nextStepId: 'boar-encounter',
+    },
+    {
+      id: 'flavor-explore-west',
+      type: 'message',
+      text: 'You head west.',
+      nextStepId: 'boar-encounter',
+    },
+    /** Legacy step id — old saves only; stream branch removed. */
+    {
+      id: 'flavor-stream',
+      type: 'message',
+      text: 'You listen for running water but hear none.',
+      nextStepId: 'flavor-five-hub',
     },
     {
       id: 'compass-four',

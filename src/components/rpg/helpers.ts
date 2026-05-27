@@ -247,6 +247,29 @@ export const toItemLabel = (key: string): string =>
     .replace(/[_-]/g, ' ')
     .trim() || 'supplies';
 
+/** Human label for village stockpile keys (`QuestState.resources`). */
+export function formatResourceLabel(key: string): string {
+  if (key === 'stone') return 'Stone';
+  if (key === 'iron') return 'Iron';
+  return formatOrganicSlugForDisplay(key);
+}
+
+/** Character-sheet inventory: quest item modifiers plus village resources. */
+export function buildInventoryDisplayLine(state: QuestState): string | null {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(state.modifiers)) {
+    if (isItemModifierKey(key) && Math.abs(value) !== 0) {
+      parts.push(`${toItemLabel(key)} ×${value}`);
+    }
+  }
+  for (const [key, amount] of Object.entries(state.resources ?? {})) {
+    if (amount > 0) {
+      parts.push(`${formatResourceLabel(key)} ×${amount}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
 export const getRewardLines = (
   prevModifiers: Record<string, number>,
   nextModifiers: Record<string, number>
@@ -348,6 +371,21 @@ export const getLevelUpLines = (prevState: QuestState, nextState: QuestState): s
   ...getModifierLevelUpLines(prevState, nextState),
 ];
 
+/** Day-report lines for passive village resources (`QuestState.resources`). */
+export const getResourceGainLines = (prevState: QuestState, nextState: QuestState): string[] => {
+  const prev = prevState.resources ?? {};
+  const next = nextState.resources ?? {};
+  const keys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)])).sort();
+  const out: string[] = [];
+  for (const key of keys) {
+    const delta = (next[key] ?? 0) - (prev[key] ?? 0);
+    if (delta > 0) {
+      out.push(`You gained ${delta} ${key}.`);
+    }
+  }
+  return out;
+};
+
 /** End-of-day summary lines for the main dialogue (title always; body when applicable). */
 export function buildDayReportDialogueLines(
   prevDayNumber: number,
@@ -364,6 +402,10 @@ export function buildDayReportDialogueLines(
   }
 
   for (const text of getRewardLines(prevState.modifiers, nextState.modifiers)) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
+  }
+
+  for (const text of getResourceGainLines(prevState, nextState)) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }
 

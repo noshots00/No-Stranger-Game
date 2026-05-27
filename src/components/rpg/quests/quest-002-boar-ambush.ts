@@ -1,3 +1,4 @@
+import { meetsMinDay } from './branching-quest-template';
 import type { QuestDefinition } from './types';
 
 export const quest002BoarAmbush: QuestDefinition = {
@@ -6,7 +7,7 @@ export const quest002BoarAmbush: QuestDefinition = {
   briefing: 'A wild boar charges from the treeline. Your instinct defines your path.',
   createdAt: 2,
   startStepId: 'boar-attack',
-  isAvailable: (context) => context.explorationLevel >= 2 && context.currentDay >= 2,
+  isAvailable: (context) => context.explorationLevel >= 2 && meetsMinDay(context, 2),
   journalSummaryFallback: 'Boar in the Brush',
   steps: {
     'boar-attack': {

@@ -133,7 +133,8 @@ import { useMarket } from './market/useMarket';
 import { MayorsHutPanel } from './mayorsHut/MayorsHutPanel';
 import { useMayorsHut } from './mayorsHut/useMayorsHut';
 import { JobsHallPanel } from './jobs/JobsHallPanel';
-import { applyJobDailyAction, switchActiveJob } from './jobs/applyJobAction';
+import { switchActiveJob } from './jobs/applyJobAction';
+import { getJobDefinition } from './jobs/registry';
 import { VillageProjectsPanel } from './villageProjects/VillageProjectsPanel';
 import { useVillageProjects } from './villageProjects/useVillageProjects';
 import { CraftersCornerPanel } from './crafter/CraftersCornerPanel';
@@ -679,15 +680,6 @@ export function RPGInterface() {
     [setQuestState, persistQuestCheckpoint]
   );
 
-  const handleJobDailyAction = useCallback(() => {
-    setQuestState((prev) => {
-      const result = applyJobDailyAction(prev, prev.activeJobSlug ?? '', dayCounter);
-      if (!result) return prev;
-      void persistQuestCheckpoint(result.state);
-      return result.state;
-    });
-  }, [dayCounter, setQuestState, persistQuestCheckpoint]);
-
   const handleReturnToForest = useCallback(() => {
     handleTravelLocationSelect('Forest');
     setActiveTab('play');
@@ -895,6 +887,15 @@ export function RPGInterface() {
       skills: nextSkills,
       lastDailyXpDay: dayCounter,
     };
+    const activeJob = updatedState.activeJobSlug ? getJobDefinition(updatedState.activeJobSlug) : undefined;
+    if (activeJob && daysToGrant > 0) {
+      const nextResources = { ...(updatedState.resources ?? {}) };
+      for (const [resourceKey, amountPerDay] of Object.entries(activeJob.dailyYields)) {
+        if (!amountPerDay || amountPerDay <= 0) continue;
+        nextResources[resourceKey] = (nextResources[resourceKey] ?? 0) + amountPerDay * daysToGrant;
+      }
+      updatedState.resources = nextResources;
+    }
     const completedQuestIdSet = new Set(getCompletedQuestIds(updatedState));
     const dailyProbabilisticFlags: Array<{ flag: string; active: boolean }> = [
       { flag: WOLF_ATTACK_DAILY_FLAG, active: getDeterministicDailyRoll(dayCounter, 1) < WOLF_ATTACK_DAILY_CHANCE },
@@ -1578,9 +1579,7 @@ export function RPGInterface() {
           open={jobsHallOpen}
           onOpenChange={setJobsHallOpen}
           questState={questState}
-          dayCounter={dayCounter}
           onSwitchJob={handleJobsSwitch}
-          onDailyAction={handleJobDailyAction}
         />
         <VillageProjectsPanel
           open={villageProjectsOpen}

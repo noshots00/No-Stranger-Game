@@ -7,35 +7,24 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { JOB_REGISTRY } from './registry';
-import { canUseJobDailyAction } from './applyJobAction';
 import type { QuestState } from '../quests/types';
 
 type JobsHallPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   questState: QuestState;
-  dayCounter: number;
   onSwitchJob: (jobSlug: string) => void;
-  onDailyAction: () => void;
-  isDailyActionPending?: boolean;
 };
 
 export function JobsHallPanel({
   open,
   onOpenChange,
   questState,
-  dayCounter,
   onSwitchJob,
-  onDailyAction,
-  isDailyActionPending = false,
 }: JobsHallPanelProps) {
   const unlocked = new Set(questState.unlockedJobSlugs ?? []);
   const activeSlug = questState.activeJobSlug;
   const activeJob = activeSlug ? JOB_REGISTRY[activeSlug] : undefined;
-  const canAct =
-    activeSlug !== null &&
-    activeSlug !== undefined &&
-    canUseJobDailyAction(questState, activeSlug, dayCounter);
 
   const resourceEntries = Object.entries(questState.resources ?? {}).filter(([, n]) => n > 0);
 
@@ -48,7 +37,7 @@ export function JobsHallPanel({
         <ScrollArea className="max-h-[min(70vh,520px)] pr-3">
           <div className="space-y-4 text-sm">
             <p className="text-[var(--candle-ink-soft)]">
-              One profession at a time. Switch here in the village; work your daily shift before the sun turns.
+              Your profession stays active until you switch. Choose once, and it remains selected.
             </p>
 
             {activeJob ? (
@@ -56,15 +45,6 @@ export function JobsHallPanel({
                 <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-faint)]">Active</p>
                 <p className="font-semibold text-[var(--candle-wax)]">{activeJob.displayName}</p>
                 <p className="mt-1 text-xs text-[var(--candle-ink-soft)]">{activeJob.description}</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="mt-2 w-full font-serif"
-                  disabled={!canAct || isDailyActionPending}
-                  onClick={onDailyAction}
-                >
-                  {canAct ? "Today's shift" : 'Shift used today'}
-                </Button>
               </div>
             ) : null}
 

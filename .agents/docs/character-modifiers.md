@@ -133,4 +133,6 @@ Same conventions as fever dreams: `*Stat`, simple `*Trait`, misc characteristics
 
 Modifiers **without** an organic suffix (e.g. `Coward`, `Leader`) or anything that does not map to `class:|trait:|skill:|stat:|blessing:`.
 
+- **`Placeholder`** — stub tally for unfinished item beats (e.g. cell phone in First Night); search the repo for `Placeholder` when authoring follow-up quests.
+
 *Add entries as you design modifiers.*

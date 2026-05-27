@@ -1,4 +1,8 @@
-import { QUEST_018_SILVER_LAKE_REFLECTION_ID, VILLAGE_PHASE_FLAG } from '../constants';
+import {
+  DAY_PACING_ACTIVE_FLAG,
+  QUEST_018_SILVER_LAKE_REFLECTION_ID,
+  VILLAGE_PHASE_FLAG,
+} from '../constants';
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
@@ -11,6 +15,8 @@ export const quest036TheVillage = createQuestDefinition({
   startStepId: 'village-arrival',
   isAvailable: makeQuestAvailability({
     requiresAnyCompletedQuestIds: [QUEST_018_SILVER_LAKE_REFLECTION_ID],
+    requiresLockedRace: true,
+    requiresLockedClass: true,
   }),
   journalSummaryFallback: 'You reached the village.',
   steps: [
@@ -24,7 +30,7 @@ export const quest036TheVillage = createQuestDefinition({
           label: 'Approach the village',
           completeQuest: true,
           effects: {
-            flagsSet: [VILLAGE_PHASE_FLAG],
+            flagsSet: [VILLAGE_PHASE_FLAG, DAY_PACING_ACTIVE_FLAG],
             setCurrentLocation: 'Village',
           },
           worldEventLogAdd: ['{playerName} approached the village gates.'],

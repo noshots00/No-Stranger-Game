@@ -11,6 +11,10 @@ import { cn } from '@/lib/utils';
 
 type GameHeaderProps = {
   dayCounter: number;
+  /** When false, header shows `preVillageDayLabel` instead of the calendar day. */
+  dayPacingActive?: boolean;
+  /** Shown left of header when `dayPacingActive` is false (creation arc / forest binge). */
+  preVillageDayLabel?: string;
   currentLocation: string;
   /** Maps persisted location id to header/travel menu label (storage stays canonical). */
   formatLocationLabel?: (location: string) => string;
@@ -25,6 +29,8 @@ type GameHeaderProps = {
 
 export function GameHeader({
   dayCounter,
+  dayPacingActive = true,
+  preVillageDayLabel = 'The Forest',
   currentLocation,
   formatLocationLabel = (loc) => loc,
   locationIndicatorClass,
@@ -62,7 +68,7 @@ export function GameHeader({
     <header className="sticky top-0 z-20 w-full select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
       <div className="grid min-w-0 grid-cols-3 items-center gap-1 rounded-md border border-[var(--candle-rule)] bg-black/40 px-1.5 py-px font-serif text-[var(--candle-ink)] backdrop-blur-sm">
         <p className="min-w-0 truncate text-left font-serif text-[0.5625rem] font-medium leading-none tracking-[0.02em] text-[var(--candle-ink)]">
-          Day {dayCounter}
+          {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
         </p>
         {versionCell}
         <DropdownMenu>

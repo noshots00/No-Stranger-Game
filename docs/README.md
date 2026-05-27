@@ -2,6 +2,10 @@
 
 The living index for No Stranger Game design and reference docs.
 
+## LLM context bundle
+
+- **[LLM Paste](./LLM_PASTE.md)** — single file to copy into another LLM when brainstorming (features, main quest, races, classes, modifier rules). Update when design docs change.
+
 ## Curated design library
 
 These are human-curated; Cliff fills them in over time.

@@ -51,6 +51,12 @@ function choiceLockedByModifierMinimums(choice: QuestChoice, playerModifiers: Mo
   return Object.entries(req).some(([key, min]) => (playerModifiers[key] ?? 0) < min);
 }
 
+function choiceIsVisible(choice: QuestChoice, playerFlags: Set<string>): boolean {
+  const req = choice.enabledIfAnyFlags;
+  if (!req || req.length === 0) return true;
+  return req.some((flag) => playerFlags.has(flag));
+}
+
 function transcriptDisplayRole(
   entry: { speaker: string; text: string },
   openingPromptNormalized: string
@@ -75,6 +81,10 @@ const QUEST_POPUP_PROMPT_LINE_CLASSES =
 
 const QUEST_POPUP_RESPONSE_LINE_CLASSES =
   'font-serif text-sm italic leading-relaxed text-[var(--candle-ink-soft)]';
+
+/** Inline (Play tab): keep quest prompts lightweight (no bubble). */
+const QUEST_POPUP_PROMPT_LINE_INLINE_CLASSES =
+  'whitespace-pre-line font-serif text-[1rem] leading-relaxed text-[var(--candle-ink-soft)]';
 
 export function QuestPopup({
   quest,
@@ -257,7 +267,8 @@ export function QuestPopup({
                 'whitespace-pre-line',
                 burnInEntryIdSet.has(entry.id) && 'quest-transcript-burn-in',
                 role === 'narrator' && QUEST_POPUP_RESPONSE_LINE_CLASSES,
-                role === 'narrator_prompt' && QUEST_POPUP_PROMPT_LINE_CLASSES,
+                role === 'narrator_prompt' &&
+                  (presentation === 'inline' ? QUEST_POPUP_PROMPT_LINE_INLINE_CLASSES : QUEST_POPUP_PROMPT_LINE_CLASSES),
                 role === 'player' && 'text-[0.9375rem] font-medium text-[var(--candle-wax)]',
                 role === 'neutral' && 'text-sm text-[var(--candle-ink-soft)]'
               )}
@@ -277,7 +288,11 @@ export function QuestPopup({
         <p
           className={cn(
             'whitespace-pre-line',
-            step.type === 'choice' ? QUEST_POPUP_PROMPT_LINE_CLASSES : QUEST_POPUP_RESPONSE_LINE_CLASSES
+            step.type === 'choice'
+              ? presentation === 'inline'
+                ? QUEST_POPUP_PROMPT_LINE_INLINE_CLASSES
+                : QUEST_POPUP_PROMPT_LINE_CLASSES
+              : QUEST_POPUP_RESPONSE_LINE_CLASSES
           )}
         >
           {narrativeText}
@@ -307,7 +322,7 @@ export function QuestPopup({
             {departingStep && departingStep.id !== step.id && departingStep.type === 'choice' ? (
               <div className="quest-body-depart space-y-2">
                 <ul className="space-y-0">
-                  {departingStep.choices.map((choice) => (
+                  {departingStep.choices.filter((choice) => choiceIsVisible(choice, playerFlagSet)).map((choice) => (
                     <li key={`depart-${choice.id}`} className="py-0.5">
                       <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
                         <span
@@ -325,7 +340,7 @@ export function QuestPopup({
               <p className={cn(DIALOGUE_DEV_MESSAGE_CLASSES, 'px-1')}>Select a line below to continue.</p>
             ) : null}
             <ul className="quest-body-arrive space-y-0">
-              {step.choices.map((choice) => {
+              {step.choices.filter((choice) => choiceIsVisible(choice, playerFlagSet)).map((choice) => {
                 const isPending = pendingChoiceId !== null;
                 const isChosen = pendingChoiceId === choice.id;
                 const isFading = isPending && !isChosen;
@@ -434,11 +449,11 @@ export function QuestPopup({
               {stepImageEl}
               <div
                 ref={inlineBlockRef}
-                className="flex min-w-0 flex-col overflow-hidden rounded-md border border-[var(--candle-rule)] bg-black/25"
+                className="flex min-w-0 flex-col overflow-hidden"
               >
-                <div className="min-w-0 shrink-0 px-1">{dialogueLogEl}</div>
+                <div className="min-w-0 shrink-0 px-0.5">{dialogueLogEl}</div>
                 {choicePaneVisible ? (
-                  <div className="min-w-0 shrink-0 border-t border-[var(--candle-rule)] bg-black/30 px-1">
+                  <div className="min-w-0 shrink-0 px-0.5">
                     {choiceBodyEl}
                   </div>
                 ) : null}

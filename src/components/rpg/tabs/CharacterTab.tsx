@@ -7,6 +7,7 @@ import {
   getLevelFromXp,
 } from '../quests/engine';
 import {
+  buildInventoryDisplayLine,
   formatCoinShort,
   formatModifierKeyForCharacterSheet,
   formatOrganicSlugForDisplay,
@@ -19,8 +20,8 @@ import {
   isItemModifierKey,
   isPrimaryStatCanonicalKey,
   splitCopperIntoCoins,
-  toItemLabel,
 } from '../helpers';
+import { JOB_REGISTRY } from '../jobs/registry';
 import { characterStats, CLASS_UNLOCK_POINTS } from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
@@ -131,15 +132,10 @@ export function CharacterTab({
   const copperTotal = getCopperFromModifiers(questState.modifiers);
   const coinLabel = formatCoinShort(splitCopperIntoCoins(copperTotal));
 
-  const inventoryEntries = Object.entries(questState.modifiers).filter(
-    ([name, value]) => isItemModifierKey(name) && Math.abs(value) !== 0
-  );
-  const inventoryLine =
-    inventoryEntries.length > 0
-      ? inventoryEntries
-          .map(([k, v]) => `${toItemLabel(k)} ×${v}`)
-          .join(', ')
-      : null;
+  const inventoryLine = buildInventoryDisplayLine(questState);
+  const activeJob = questState.activeJobSlug
+    ? JOB_REGISTRY[questState.activeJobSlug]
+    : undefined;
 
   const raceMiddle =
     race?.displayName ??
@@ -397,7 +393,9 @@ export function CharacterTab({
                 <p className="block max-w-[min(16rem,55vw)] font-serif text-[0.5rem] text-[var(--candle-ink-soft)]">
                   Combat rating {combatRating}
                 </p>
-                <p className={`${bt} block text-[var(--candle-ink-soft)]`}>Unemployed</p>
+                <p className={`${bt} block text-[var(--candle-ink-soft)]`}>
+                  {activeJob ? activeJob.displayName : 'Unemployed'}
+                </p>
                 <p className={`${bt} block`}>
                   <span className="text-[var(--candle-ink-soft)]">Coin: </span>
                   <span

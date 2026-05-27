@@ -748,13 +748,62 @@ function mergeQuestProgressMaps(
   return out;
 }
 
-/** Union flags, unveiled ids, and quest completions from relay + local saves on login. */
+function mergeJobDailyActionMaps(
+  a: QuestState['jobDailyActionBySlug'],
+  b: QuestState['jobDailyActionBySlug']
+): Record<string, { lastActionDay: number }> {
+  const out: Record<string, { lastActionDay: number }> = { ...(a ?? {}) };
+  for (const [slug, row] of Object.entries(b ?? {})) {
+    const prev = out[slug]?.lastActionDay ?? 0;
+    out[slug] = { lastActionDay: Math.max(prev, row.lastActionDay) };
+  }
+  return out;
+}
+
+function mergeResourceMaps(
+  a: QuestState['resources'],
+  b: QuestState['resources']
+): Record<string, number> {
+  const out: Record<string, number> = { ...(a ?? {}) };
+  for (const [key, amount] of Object.entries(b ?? {})) {
+    out[key] = Math.max(out[key] ?? 0, amount);
+  }
+  return out;
+}
+
+function pickMergedActiveJobSlug(relay: QuestState, local: QuestState, unlocked: string[]): string {
+  for (const slug of [local.activeJobSlug, relay.activeJobSlug]) {
+    if (typeof slug === 'string' && slug.length > 0 && unlocked.includes(slug)) return slug;
+  }
+  return JOB_SLUG_EXPLORER;
+}
+
+/** Union flags, unveiled ids, quest completions, and job state from relay + local saves on login. */
 export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): QuestState {
+  const unlockedJobSlugs = Array.from(
+    new Set([...(relay.unlockedJobSlugs ?? []), ...(local.unlockedJobSlugs ?? [])])
+  );
+  if (!unlockedJobSlugs.includes(JOB_SLUG_EXPLORER)) unlockedJobSlugs.push(JOB_SLUG_EXPLORER);
+
+  const currentLocation = VALID_SAVE_LOCATIONS.has(local.currentLocation)
+    ? local.currentLocation
+    : VALID_SAVE_LOCATIONS.has(relay.currentLocation)
+      ? relay.currentLocation
+      : createInitialQuestState().currentLocation;
+
   const merged = normalizeQuestState({
     ...relay,
     flags: Array.from(new Set([...relay.flags, ...local.flags])),
     unveiledQuestIds: Array.from(new Set([...relay.unveiledQuestIds, ...local.unveiledQuestIds])),
     progressByQuestId: mergeQuestProgressMaps(relay.progressByQuestId, local.progressByQuestId),
+    currentLocation,
+    unlockedJobSlugs,
+    activeJobSlug: pickMergedActiveJobSlug(relay, local, unlockedJobSlugs),
+    jobDailyActionBySlug: mergeJobDailyActionMaps(
+      relay.jobDailyActionBySlug,
+      local.jobDailyActionBySlug
+    ),
+    resources: mergeResourceMaps(relay.resources, local.resources),
   });
   return reconcileVillagePhaseState(merged);
 }

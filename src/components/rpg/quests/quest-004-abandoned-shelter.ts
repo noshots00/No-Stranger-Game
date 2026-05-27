@@ -1,3 +1,4 @@
+import { meetsMinDay } from './branching-quest-template';
 import type { QuestDefinition } from './types';
 
 export const quest004AbandonedShelter: QuestDefinition = {
@@ -7,7 +8,8 @@ export const quest004AbandonedShelter: QuestDefinition = {
     'A collapsed lean-to in the brush. Something—or someone—left supplies behind. Explore carefully; your approach shapes what you find.',
   createdAt: 7,
   startStepId: 'shelter-intro',
-  isAvailable: (context) => context.flags.includes('quest001-complete') && context.currentDay >= 3,
+  isAvailable: (context) =>
+    context.flags.includes('quest001-complete') && meetsMinDay(context, 3),
   journalSummaryFallback: 'Abandoned Shelter',
   steps: {
     'shelter-intro': {
