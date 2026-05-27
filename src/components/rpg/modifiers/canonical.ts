@@ -8,11 +8,18 @@ import { LEGACY_RACE_SLUG_REWRITES } from '@/components/rpg/races';
 
 const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing|Race)$/u;
 
-/** `Category_NameSkill` → `skill:category:name`; plain `BashSkill` → `skill:bash`. */
+/** Plain organic stems (no `Combat_` prefix) that belong in the combat skill column. */
+const ORGANIC_COMBAT_SKILL_STEMS = new Set(['bash']);
+
+/** `Category_NameSkill` → `skill:category:name`; plain `BashSkill` → `skill:combat:bash`. */
 function canonicalSkillKeyFromStem(stem: string): string {
   const us = stem.indexOf('_');
   if (us <= 0) {
-    return `skill:${stem.toLowerCase()}`;
+    const slug = stem.toLowerCase();
+    if (ORGANIC_COMBAT_SKILL_STEMS.has(slug)) {
+      return `skill:combat:${slug}`;
+    }
+    return `skill:${slug}`;
   }
   const category = stem.slice(0, us).toLowerCase();
   const rest = stem.slice(us + 1);
@@ -108,6 +115,10 @@ export function migrateModifiersToCanonical(map: ModifierMap): ModifierMap {
     if (canonical.startsWith('race:')) {
       const slug = canonical.slice('race:'.length);
       canonical = `race:${rewriteRaceSlug(slug)}`;
+    }
+
+    if (canonical === 'skill:bash') {
+      canonical = 'skill:combat:bash';
     }
 
     next[canonical] = (next[canonical] ?? 0) + value;

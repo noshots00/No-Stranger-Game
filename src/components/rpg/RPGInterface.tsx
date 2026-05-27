@@ -406,13 +406,24 @@ export function RPGInterface() {
   );
 
   const guildAlley = useGuildAlley({
-    enabled: guildAlleyOpen && canShowGame,
+    enabled: (guildAlleyOpen || activeTab === 'character') && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     setQuestState,
     persistQuestCheckpoint,
     onApplyModifiers: handleMerchantApplyModifiers,
   });
+
+  const guildDisplayName = useMemo(() => {
+    const membership = questState.guildMembership;
+    if (membership && membership.leftAtMs === undefined) {
+      const fromState = membership.guildName.trim();
+      if (fromState) return fromState;
+    }
+    const slug = guildAlley.myActiveMembershipSlug;
+    if (!slug) return null;
+    return guildAlley.feed.guilds.find((g) => g.slug === slug)?.name ?? null;
+  }, [questState.guildMembership, guildAlley.myActiveMembershipSlug, guildAlley.feed.guilds]);
 
   const tavern = useTavern({
     enabled: tavernOpen && canShowGame,
@@ -1350,6 +1361,9 @@ export function RPGInterface() {
           <CharacterTab
             questState={questState}
             userPubkey={user?.pubkey}
+            dayCounter={dayCounter}
+            dayPacingActive={questContext.dayPacingActive}
+            guildDisplayName={guildDisplayName}
             kindredSpirits={user ? socialStats.kindredSpirits : undefined}
             onOpenChronicle={() => setActiveTab('chronicle')}
             showModifierDetails={showModifierDetails}
@@ -1387,8 +1401,6 @@ export function RPGInterface() {
         if (questState.currentLocation === 'Village') {
           return (
             <VillagePlaySurface
-              dayCounter={dayCounter}
-              characterNameLabel={characterNameLabel}
               onOpenArena={() => setArenaOpen(true)}
               onOpenGuildAlley={() => setGuildAlleyOpen(true)}
               onOpenTavern={() => setTavernOpen(true)}
@@ -1480,7 +1492,9 @@ export function RPGInterface() {
               ? 'play-surface-fade-in overflow-hidden'
               : activeTab === 'social'
                 ? 'emerge flex h-full min-h-0 flex-1 flex-col overflow-hidden'
-                : 'emerge facsimile-scroll overflow-y-auto pr-0'
+                : activeTab === 'character'
+                  ? 'emerge facsimile-scroll facsimile-scroll-character overflow-y-auto'
+                  : 'emerge facsimile-scroll overflow-y-auto pr-0'
           }`}
         >
           {renderTabPanel()}

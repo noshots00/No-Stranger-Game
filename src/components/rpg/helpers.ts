@@ -76,6 +76,22 @@ export function formatPascalCaseModifierDisplay(key: string): string {
     .trim();
 }
 
+/** Drops a trailing " Spell" word (e.g. slug `healing_spell` → "Healing"). */
+export function stripSpellWordFromDisplayLabel(label: string): string {
+  return label.replace(/\s+Spell$/i, '').trim();
+}
+
+/** Character sheet / tile label for spell modifiers (no "Spell" in the name). */
+export function formatSpellModifierKeyForDisplay(key: string): string {
+  if (key.startsWith('spell:')) {
+    return stripSpellWordFromDisplayLabel(formatOrganicSlugForDisplay(key.slice('spell:'.length)));
+  }
+  if (key.endsWith('Spell')) {
+    return formatPascalCaseModifierDisplay(key.slice(0, -'Spell'.length));
+  }
+  return stripSpellWordFromDisplayLabel(formatModifierKeyForCharacterSheet(key));
+}
+
 export type ModifierSheetBucket = 'stat' | 'trait' | 'skill' | 'spell' | 'class' | 'blessing' | 'misc';
 
 export function getModifierSheetBucket(key: string): ModifierSheetBucket {
@@ -145,8 +161,8 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
     const legacy = slugToPrimaryStatKey(slug);
     if (legacy) return legacy;
   }
-  if (key.startsWith('spell:')) {
-    return formatOrganicSlugForDisplay(key.slice('spell:'.length));
+  if (key.startsWith('spell:') || key.endsWith('Spell')) {
+    return formatSpellModifierKeyForDisplay(key);
   }
   if (key.startsWith('skill:')) {
     const parsed = parseSkillModifierKey(key);
@@ -156,7 +172,7 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
     const slug = key.slice(key.indexOf(':') + 1);
     return formatOrganicSlugForDisplay(slug);
   }
-  if (key.endsWith('Spell') || (/Skill$/.test(key) && !key.startsWith('skill:'))) {
+  if (/Skill$/.test(key) && !key.startsWith('skill:')) {
     return formatPascalCaseModifierDisplay(key);
   }
   return key;
@@ -254,21 +270,61 @@ export function formatResourceLabel(key: string): string {
   return formatOrganicSlugForDisplay(key);
 }
 
-/** Character-sheet inventory: quest item modifiers plus village resources. */
-export function buildInventoryDisplayLine(state: QuestState): string | null {
-  const parts: string[] = [];
+export type InventoryEntry = { label: string; quantity: number };
+
+/** Character-sheet inventory rows (items + village resources). */
+export function buildInventoryEntries(state: QuestState): InventoryEntry[] {
+  const out: InventoryEntry[] = [];
   for (const [key, value] of Object.entries(state.modifiers)) {
     if (isItemModifierKey(key) && Math.abs(value) !== 0) {
-      parts.push(`${toItemLabel(key)} ×${value}`);
+      out.push({ label: toItemLabel(key), quantity: value });
     }
   }
   for (const [key, amount] of Object.entries(state.resources ?? {})) {
     if (amount > 0) {
-      parts.push(`${formatResourceLabel(key)} ×${amount}`);
+      out.push({ label: formatResourceLabel(key), quantity: amount });
     }
   }
-  return parts.length > 0 ? parts.join(', ') : null;
+  return out;
 }
+
+/** Character-sheet inventory: quest item modifiers plus village resources. */
+export function buildInventoryDisplayLine(state: QuestState): string | null {
+  const entries = buildInventoryEntries(state);
+  return entries.length > 0
+    ? entries.map((e) => `${e.label} ×${e.quantity}`).join(', ')
+    : null;
+}
+
+/** Combat column on the character sheet (`skill:combat:*`, organic Combat skills). */
+export function isCombatSkillModifierKey(key: string): boolean {
+  if (key.startsWith('skill:combat:')) return true;
+  if (key === 'skill:bash') return true;
+  if (/^BashSkill$/i.test(key)) return true;
+  if (/^Combat_/i.test(key)) return true;
+  if (/Combat.*Skill$/i.test(key)) return true;
+  return false;
+}
+
+export function partitionSkillGroups(groups: SkillModifierGroup[]): {
+  combat: SkillModifierGroup[];
+  nonCombat: SkillModifierGroup[];
+} {
+  const combat: SkillModifierGroup[] = [];
+  const nonCombat: SkillModifierGroup[] = [];
+  for (const group of groups) {
+    if (group.categoryKey === 'combat') combat.push(group);
+    else nonCombat.push(group);
+  }
+  return { combat, nonCombat };
+}
+
+export type CharacterAbilityTileData = {
+  id: string;
+  name: string;
+  level: number;
+  placeholder?: boolean;
+};
 
 export const getRewardLines = (
   prevModifiers: Record<string, number>,
@@ -328,10 +384,7 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
       return;
     }
     if (kind === 'organic_spell') {
-      const label = key.startsWith('spell:')
-        ? formatOrganicSlugForDisplay(canonicalSlug(key, 'spell:'))
-        : formatPascalCaseModifierDisplay(key);
-      lines.push(`You gain ${delta} ${label} (spell).`);
+      lines.push(`You gain ${delta} ${formatSpellModifierKeyForDisplay(key)} (spell).`);
       return;
     }
     if (kind === 'organic_skill') {

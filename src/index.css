@@ -327,6 +327,67 @@
     outline: none;
   }
 
+  /** Character tab: compact vertical — 1px padding top/bottom (2px taller than text). */
+  .character-inventory-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: min(9.5rem, 72vw);
+    padding: 1px 1.35rem;
+    font-family: "Cormorant Garamond", ui-serif, Georgia, serif;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--candle-wax);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--candle-hearth) 88%, #3d342c) 0%,
+      color-mix(in srgb, #14100e 92%, black) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--candle-flame-soft) 42%, var(--candle-rule));
+    border-radius: 0.5rem;
+    box-shadow:
+      inset 0 1px 0 rgba(245, 209, 155, 0.14),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+      0 4px 10px rgba(0, 0, 0, 0.4),
+      0 10px 22px rgba(0, 0, 0, 0.32);
+    cursor: pointer;
+    transition:
+      transform 160ms ease,
+      box-shadow 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease;
+  }
+
+  .character-inventory-btn:hover,
+  .character-inventory-btn:focus-visible {
+    color: var(--candle-ink);
+    border-color: rgba(230, 161, 87, 0.55);
+    box-shadow:
+      inset 0 1px 0 rgba(245, 209, 155, 0.22),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+      0 6px 14px rgba(0, 0, 0, 0.45),
+      0 0 20px rgba(230, 161, 87, 0.22);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .character-inventory-btn:active {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 2px 6px rgba(0, 0, 0, 0.55),
+      0 2px 6px rgba(0, 0, 0, 0.35);
+  }
+
+  /** Character tab text actions (e.g. Chronicle) — override global .choice-line padding. */
+  .choice-line.character-sheet-action {
+    padding-block: 1px;
+    padding-inline: 0;
+    line-height: 1;
+  }
+
   /**
    * Play tab quest choices: same shell + type as post-choice player line (DialogueVoiceBlock);
    * only reset button chrome so layout matches `<p>` for a smooth pick animation.
@@ -577,6 +638,31 @@
   /** Play dialogue: inset content on the left by the same width as the scrollbar gutter. */
   .facsimile-scroll-dialogue-inner {
     padding-left: var(--facsimile-scrollbar-width);
+  }
+
+  /**
+   * Character tab: one gutter width for the scrollbar track and the left inset.
+   * (Global `--facsimile-scrollbar-width` is 3px for overlay chrome; native thin
+   * scrollbars are wider — this keeps left/right visually matched.)
+   */
+  .facsimile-scroll-character {
+    --facsimile-scroll-gutter: 8px;
+    scrollbar-width: thin;
+    /* Reserve space for scrollbar on the right so it never overlaps content */
+    scrollbar-gutter: stable;
+    /* Symmetric horizontal padding — content centered under scrollbar */
+    padding-left: var(--facsimile-scroll-gutter);
+    padding-right: var(--facsimile-scroll-gutter);
+  }
+
+  .facsimile-scroll-character::-webkit-scrollbar {
+    width: var(--facsimile-scroll-gutter);
+  }
+
+  /** Character tab inner: no extra padding (outer scroll already handles it). */
+  .facsimile-scroll-dialogue-inner--character {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   /* Utility classes below are optional helpers you add in JSX className.
