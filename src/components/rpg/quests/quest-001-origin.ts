@@ -10,7 +10,7 @@ export const quest001Origin = createQuestDefinition({
   createdAt: 1,
   startStepId: 'start',
   journalSummaryFallback:
-    'You awakened in the forest with no memory — except your name.',
+    'You awoke in the forest with no memory — except your name.',
   steps: [
     {
       id: 'start',
@@ -45,7 +45,7 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'how-did-i-get-here-first',
       type: 'message',
-      text: "It's like I just woke up... only I can't remember a thing",
+      text: "It's like you just woke up... only you can't remember a thing.",
       nextStepId: 'opening-after-how',
     },
     {
@@ -101,13 +101,13 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'how-did-i-get-here-second',
       type: 'message',
-      text: "It's like I just woke up... only I can't remember a thing",
+      text: "It's like you just woke up... only you can't remember a thing",
       nextStepId: 'three',
     },
     {
       id: 'where-am-i-second',
       type: 'message',
-      text: 'You are in a dense forest with uneven terrain... all you see in every direction are trees.',
+      text: 'You are in a dense forest.. all you can see are trees.',
       nextStepId: 'three',
     },
     {

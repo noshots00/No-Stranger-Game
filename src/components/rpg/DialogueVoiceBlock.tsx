@@ -155,12 +155,12 @@ export function DialogueVoiceBlock({
       <div className="py-0">
         <div className={presentation === 'play' ? shellPlay : shellChronicle}>
           {hasStyledTitle && titleLine ? (
-            <p className="font-cormorant text-base font-medium leading-none tracking-[0.04em] text-[var(--candle-wax)]">
+            <p className="font-cormorant text-sm font-medium leading-none tracking-[0.04em] text-[var(--candle-wax)]">
               {titleLine.text}
             </p>
           ) : null}
           {reportBodyLines.length > 0 ? (
-            <ul className="mt-[2px] list-disc space-y-0 pl-5 font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
+            <ul className="mt-[2px] list-disc space-y-0 pl-4 font-serif text-xs leading-snug text-[var(--candle-ink-soft)]">
               {reportBodyLines.map((line) => (
                 <li key={line.id}>{line.text}</li>
               ))}

@@ -1,9 +1,8 @@
+import { cn } from '@/lib/utils';
 import type { JournalLogEntry, QuestDefinition } from '../quests/types';
 import { PlayLedgerDisclosure, PlayLedgerKicker } from './PlayLedgerDisclosure';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
 import { questToneDisplayLabel } from '../quests/questToneLabel';
-
-const QUEST_2B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
 
 function latestJournalEntry(questId: string, journalLog: readonly JournalLogEntry[]): JournalLogEntry | undefined {
   let best: JournalLogEntry | undefined;
@@ -59,7 +58,7 @@ export function QuestsTab({
     const isActiveHere = activeQuestId !== null && activeQuestId === quest.id;
     const isNewQuest = newQuestIdSet.has(quest.id);
     const toneLabel = questToneDisplayLabel(quest.toneTag);
-    const trackButton = !isActiveHere ? (
+    const trackButton = !isActiveHere && quest.questCardInteractive !== false ? (
       <button
         type="button"
         onClick={() => onTrackQuest(quest.id)}
@@ -69,8 +68,15 @@ export function QuestsTab({
       </button>
     ) : null;
     const overlayImageCard =
-      quest.questCardLayout === 'title-overlay' ? (
-        <div className="relative mx-auto mb-2 w-full max-w-[170px] overflow-hidden rounded-md border border-[var(--candle-rule)]">
+      quest.questCardLayout === 'title-overlay' || quest.questCardLayout === 'title-overlay-hero' ? (
+        <div
+          className={cn(
+            'relative mx-auto mb-2 overflow-hidden rounded-md border border-[var(--candle-rule)]',
+            quest.questCardLayout === 'title-overlay-hero'
+              ? 'w-full max-w-[260px]'
+              : 'w-[150px] shrink-0'
+          )}
+        >
           <img
             src={getQuestCardImageSrc(quest)}
             alt={`${quest.title} illustration`}
@@ -92,7 +98,7 @@ export function QuestsTab({
         loading="lazy"
       />
     );
-    const imageOnRight = quest.id === QUEST_2B_WILL_I_STARVE_ID;
+    const imageOnRight = quest.questCardImageSide === 'right';
     return (
       <li key={quest.id}>
         <PlayLedgerDisclosure
@@ -127,7 +133,7 @@ export function QuestsTab({
               </div>
               {overlayImageCard ?? questImage}
             </div>
-          ) : quest.questCardLayout === 'title-overlay' ? (
+          ) : quest.questCardLayout === 'title-overlay' || quest.questCardLayout === 'title-overlay-hero' ? (
             <>
               {overlayImageCard}
               <p className="font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">{quest.briefing}</p>

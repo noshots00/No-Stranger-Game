@@ -415,6 +415,28 @@
     outline: none;
   }
 
+  /** Location/NPC dialogs (Old Well, Carl, Merchant talk) — compact vs default 17px choice-line. */
+  .choice-line.npc-dialog-choice {
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    font-size: 11px;
+    line-height: 1.35;
+    padding: 0.3rem 0;
+    text-align: left;
+    color: var(--candle-wax);
+  }
+
+  .choice-line.npc-dialog-choice:hover,
+  .choice-line.npc-dialog-choice:focus-visible {
+    color: var(--candle-ink);
+    border-bottom-color: rgba(230, 161, 87, 0.35);
+  }
+
+  /** Keep short choice lists pinned to the top (Radix viewport child defaults to min-height: 100%). */
+  .npc-talk-choice-scroll [data-radix-scroll-area-viewport] > div {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
   .choice-line--dissolve {
     opacity: 0.12;
     filter: blur(3px);

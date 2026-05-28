@@ -1,4 +1,6 @@
+import { QUEST_FIRST_NIGHT_ID } from '@/components/rpg/constants';
 import { getLevelUpLines, getRewardLines } from '../helpers';
+import { buildFirstNightJournalSummary } from './quest-002-first-night-journal';
 import { interpolateStepText } from './engine';
 import type { JournalLogEntry, QuestDefinition, QuestState } from './types';
 
@@ -14,13 +16,26 @@ export function resolveJournalSummaryText(
   choiceHistory: string[],
   playerName: string
 ): string | null {
+  if (quest.id === QUEST_FIRST_NIGHT_ID) {
+    return interpolateStepText(buildFirstNightJournalSummary(choiceHistory), playerName);
+  }
+
   const map = quest.journalSummariesByChoicePath;
   const pathKey = choiceHistory.join(QUEST_JOURNAL_PATH_SEP);
-  const raw =
-    (pathKey.length > 0 ? map?.[pathKey] : undefined) ??
-    map?.['*'] ??
-    quest.journalSummaryFallback ??
-    null;
+  let raw: string | undefined =
+    pathKey.length > 0 ? map?.[pathKey] : undefined;
+
+  if (!raw && map) {
+    for (const choiceId of choiceHistory) {
+      const candidate = map[choiceId];
+      if (candidate && !choiceId.includes(QUEST_JOURNAL_PATH_SEP)) {
+        raw = candidate;
+        break;
+      }
+    }
+  }
+
+  raw = raw ?? map?.['*'] ?? quest.journalSummaryFallback ?? undefined;
   if (!raw || raw.trim().length === 0) return null;
   return interpolateStepText(raw.trim(), playerName);
 }
@@ -39,7 +54,7 @@ export function appendJournalRecapEntry(
   state: QuestState,
   questId: string,
   text: string,
-  options?: { atMs?: number; completionRewards?: string[] }
+  options?: { atMs?: number; completionRewards?: string[]; replaceText?: boolean }
 ): QuestState {
   const atMs = options?.atMs ?? Date.now();
   const completionRewards = options?.completionRewards?.filter((s) => s.trim().length > 0);
@@ -48,9 +63,11 @@ export function appendJournalRecapEntry(
     const existing = state.journalLog[existingIndex];
     const normalizedText = text.trim();
     const mergedText =
-      normalizedText.length > 0 && !existing.text.includes(normalizedText)
-        ? `${existing.text.trim()} ${normalizedText}`.trim()
-        : existing.text;
+      options?.replaceText && normalizedText.length > 0
+        ? normalizedText
+        : normalizedText.length > 0 && !existing.text.includes(normalizedText)
+          ? `${existing.text.trim()} ${normalizedText}`.trim()
+          : existing.text;
     const mergedRewards = Array.from(
       new Set([...(existing.completionRewards ?? []), ...(completionRewards ?? [])])
     );
@@ -58,7 +75,7 @@ export function appendJournalRecapEntry(
     next[existingIndex] = {
       ...existing,
       text: mergedText,
-      atMs,
+      atMs: options?.atMs ?? existing.atMs,
       ...(mergedRewards.length > 0 ? { completionRewards: mergedRewards } : {}),
     };
     return { ...state, journalLog: next };
@@ -82,18 +99,25 @@ export function mergeJournalRecapOnQuestComplete(
   const wasCompleted = Boolean(prevState.progressByQuestId[quest.id]?.isCompleted);
   const isCompleted = Boolean(nextState.progressByQuestId[quest.id]?.isCompleted);
   if (wasCompleted || !isCompleted) return nextState;
+  const history = nextState.progressByQuestId[quest.id]?.choiceHistory ?? [];
+  const text = resolveJournalSummaryText(quest, history, nextState.playerName);
+  const completionRewards = collectCompletionRewardLines(prevState, nextState);
   const existingQuestEntry = nextState.journalLog.find((row) => row.questId === quest.id);
+
   if (existingQuestEntry) {
-    const completionRewards = collectCompletionRewardLines(prevState, nextState);
+    if (text) {
+      return appendJournalRecapEntry(nextState, quest.id, text, {
+        replaceText: true,
+        completionRewards: completionRewards.length > 0 ? completionRewards : undefined,
+      });
+    }
     if (completionRewards.length === 0) return nextState;
     return appendJournalRecapEntry(nextState, quest.id, '', {
       completionRewards,
     });
   }
-  const history = nextState.progressByQuestId[quest.id]?.choiceHistory ?? [];
-  const text = resolveJournalSummaryText(quest, history, nextState.playerName);
+
   if (!text) return nextState;
-  const completionRewards = collectCompletionRewardLines(prevState, nextState);
   return appendJournalRecapEntry(nextState, quest.id, text, {
     completionRewards: completionRewards.length > 0 ? completionRewards : undefined,
   });

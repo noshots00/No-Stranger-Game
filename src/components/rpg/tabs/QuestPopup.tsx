@@ -1,13 +1,23 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SHOW_QUEST_STEP_BACK } from '../constants';
 import {
   DIALOGUE_DEV_MESSAGE_CLASSES,
   PLAY_TAB_PLAYER_LINE_SHELL,
   PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
 } from '../DialogueVoiceBlock';
+import { thrownItemLabelFromFlags } from '../constants';
 import { interpolateStepText } from '../quests/engine';
 import type { DialogueLogEntry, ModifierMap, QuestChoice, QuestDefinition, QuestStep } from '../quests/types';
-import { getQuestStepImageSrc } from '../rpgArtAssignments';
+import { NpcTalkDialog } from '../npc/NpcTalkDialog';
+import { getQuestPopupPortraitSrc, getQuestStepImageSrc } from '../rpgArtAssignments';
+import { npcTranscriptWithStepFallback } from '../quests/questPopupTranscript';
+import {
+  RPG_DIALOG_BODY,
+  RPG_DIALOG_CHOICE_CLASS,
+  RPG_DIALOG_META,
+} from '../typography/rpgDialogTypography';
 import {
   NARRATOR_RESPONSE_SPEAKER,
   PLAYER_ACTION_SPEAKER,
@@ -21,6 +31,7 @@ type QuestPopupProps = {
   playerFlags: string[];
   /** Stackable counts (e.g. `item:*`); unlocks choices using `disabledUnlessModifiersAtLeast`. */
   playerModifiers: ModifierMap;
+  questItems: string[];
   showOriginStartHint: boolean;
   /** Saved character name (used with `nameInput` fallback for `{playerName}` in step copy). */
   committedPlayerName: string;
@@ -29,6 +40,7 @@ type QuestPopupProps = {
   nameInputError: string | null;
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
+  onInventoryPickSubmit?: (itemLabel: string) => void;
   /** Advance chained `message` steps with `nextStepId` (Continue). */
   onAdvanceQuestMessage?: () => void;
   onClose: () => void;
@@ -39,6 +51,10 @@ type QuestPopupProps = {
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
   /** Inline play feed: keep dialogue + options scrolled into view after layout changes. */
   onSnapPlayFeedBottom?: () => void;
+  /** Dev: rewind one quest step (see `SHOW_QUEST_STEP_BACK`). */
+  showQuestStepBack?: boolean;
+  canQuestStepBack?: boolean;
+  onQuestStepBack?: () => void;
 };
 
 function normalizePromptText(s: string): string {
@@ -55,6 +71,17 @@ function choiceIsVisible(choice: QuestChoice, playerFlags: Set<string>): boolean
   const req = choice.enabledIfAnyFlags;
   if (!req || req.length === 0) return true;
   return req.some((flag) => playerFlags.has(flag));
+}
+
+function choiceDisabledSuffix(
+  choice: QuestChoice,
+  locked: { byFlags: boolean; byModifiers: boolean; byEmptyQuestItems: boolean }
+): string {
+  if (locked.byEmptyQuestItems) return ' (nothing in your pack)';
+  if (choice.disabledLabel !== undefined) return choice.disabledLabel;
+  if (locked.byFlags) return ' (already explored)';
+  if (locked.byModifiers) return ' (requirements not met)';
+  return ' (unavailable)';
 }
 
 function transcriptDisplayRole(
@@ -91,6 +118,7 @@ export function QuestPopup({
   step,
   playerFlags,
   playerModifiers,
+  questItems,
   showOriginStartHint,
   committedPlayerName,
   nameInput,
@@ -98,12 +126,16 @@ export function QuestPopup({
   nameInputError,
   onStepChoice,
   onNameSubmit,
+  onInventoryPickSubmit,
   onAdvanceQuestMessage,
   onClose,
   presentation = 'modal',
   questTranscript,
   onQuestChoiceVisualPhase,
   onSnapPlayFeedBottom,
+  showQuestStepBack = SHOW_QUEST_STEP_BACK,
+  canQuestStepBack = false,
+  onQuestStepBack,
 }: QuestPopupProps) {
   const playerFlagSet = new Set(playerFlags);
   const isOriginStartCard = quest.id === 'quest-001-origin' && step.id === 'start';
@@ -113,8 +145,18 @@ export function QuestPopup({
   const openingPromptNormalized = startStep
     ? normalizePromptText(interpolateStepText(startStep.text.trim(), nameForTemplates))
     : '';
+  const thrownLabel = thrownItemLabelFromFlags(playerFlags);
   const narrativeText =
-    step.text.trim().length > 0 ? interpolateStepText(step.text.trim(), nameForTemplates) : '';
+    step.text.trim().length > 0
+      ? interpolateStepText(step.text.trim(), nameForTemplates, thrownLabel ? { thrownItem: thrownLabel } : undefined)
+      : '';
+  const isLocationPopupQuest = Boolean(quest.locationPopup);
+  const [inventoryPickLabel, setInventoryPickLabel] = useState('');
+  useEffect(() => {
+    if (step.type === 'inventoryPick') {
+      setInventoryPickLabel(questItems[0] ?? '');
+    }
+  }, [step.id, step.type, questItems]);
   const trimmedNameInput = nameInput.trim();
   const isValidInputStepName =
     step.type === 'input'
@@ -143,6 +185,11 @@ export function QuestPopup({
     }
     return new Set<string>();
   })();
+
+  useEffect(() => {
+    setPendingChoiceId(null);
+    setDepartingStep(null);
+  }, [step.id]);
 
   useEffect(() => {
     return () => {
@@ -219,7 +266,7 @@ export function QuestPopup({
     (typeof window === 'undefined' ? false : window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   const choicePaneVisible =
-    step.type === 'choice' || step.type === 'input' || showMessageContinue;
+    step.type === 'choice' || step.type === 'input' || step.type === 'inventoryPick' || showMessageContinue;
 
   useLayoutEffect(() => {
     if (presentation !== 'inline') return;
@@ -302,15 +349,45 @@ export function QuestPopup({
     </div>
   );
 
-  const choiceBodyEl = (
-    <div className="max-h-[min(50dvh,480px)] overflow-y-auto">
-      <div className="flex flex-col gap-0.5 py-1 pr-4">
+  const renderStepBackButton = (floating: boolean) =>
+    showQuestStepBack && onQuestStepBack && choicePaneVisible ? (
+      <div
+        className={cn(
+          'pointer-events-none z-20',
+          floating ? 'absolute left-0.5 top-0.5' : 'relative mb-1 flex min-h-9 justify-start px-1'
+        )}
+      >
+        <button
+          type="button"
+          onClick={onQuestStepBack}
+          disabled={!canQuestStepBack}
+          className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-[var(--candle-rule)] bg-black/75 text-[var(--candle-ink-soft)] shadow-[0_2px_10px_rgba(0,0,0,0.45)] backdrop-blur-sm transition-colors hover:border-[var(--candle-flame-soft)]/50 hover:bg-black/90 hover:text-[var(--candle-wax)] disabled:cursor-not-allowed disabled:opacity-35"
+          aria-label="Go back one quest step"
+          title="Back one step (dev)"
+        >
+          <ArrowLeft className="size-4" strokeWidth={2.25} aria-hidden />
+        </button>
+      </div>
+    ) : null;
+
+  const renderChoicePane = (npcTalkLayout = false) => (
+      <div className={cn('relative flex flex-col', npcTalkLayout ? 'gap-0 px-1' : 'gap-0.5 py-1 pr-4')}>
+        {!npcTalkLayout ? renderStepBackButton(false) : null}
         {showMessageContinue ? (
-          <div className="space-y-2 border-b border-[var(--candle-rule)]/80 px-1 pb-2">
+          <div
+            className={cn(
+              'border-b border-[var(--candle-rule)]/80 px-1 pb-1.5',
+              npcTalkLayout ? 'space-y-1' : 'space-y-2 pb-2'
+            )}
+          >
             <button
               type="button"
               onClick={() => onAdvanceQuestMessage?.()}
-              className="choice-line w-auto border-b border-transparent py-2 text-emerald-300 hover:text-emerald-200"
+              className={
+                npcTalkLayout
+                  ? `${RPG_DIALOG_CHOICE_CLASS} text-emerald-300/90 hover:text-emerald-200`
+                  : 'choice-line w-auto border-b border-transparent py-2 text-emerald-300 hover:text-emerald-200'
+              }
             >
               Continue
             </button>
@@ -344,22 +421,35 @@ export function QuestPopup({
                 const isPending = pendingChoiceId !== null;
                 const isChosen = pendingChoiceId === choice.id;
                 const isFading = isPending && !isChosen;
-                const isLocked =
-                  Boolean(choice.disabledIfAnyFlags?.some((flag) => playerFlagSet.has(flag))) ||
-                  choiceLockedByModifierMinimums(choice, playerModifiers);
+                const lockedByFlags = Boolean(
+                  choice.disabledIfAnyFlags?.some((flag) => playerFlagSet.has(flag))
+                );
+                const lockedByModifiers = choiceLockedByModifierMinimums(choice, playerModifiers);
+                const lockedByEmptyQuestItems =
+                  choice.id === 'q2-well-throw' && questItems.length === 0;
+                const isLocked = lockedByFlags || lockedByModifiers || lockedByEmptyQuestItems;
                 const renderedLabel = isLocked
-                  ? `${choice.label}${choice.disabledLabel ?? ' (already explored)'}`
+                  ? `${choice.label}${choiceDisabledSuffix(choice, {
+                      byFlags: lockedByFlags,
+                      byModifiers: lockedByModifiers,
+                      byEmptyQuestItems: lockedByEmptyQuestItems,
+                    })}`
                   : choice.label;
+                const choiceButtonClass = npcTalkLayout
+                  ? `${RPG_DIALOG_CHOICE_CLASS} ${isFading ? 'choice-fade-out' : ''} ${
+                      isChosen ? 'choice-selected-flash' : ''
+                    } ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`
+                  : `choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} !text-[0.8125rem] sm:!text-[0.875rem] ${
+                      isFading ? 'choice-fade-out' : ''
+                    } ${isChosen ? 'choice-selected-flash' : ''} ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`;
                 return (
-                  <li key={choice.id} className="py-0.5">
-                    <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
+                  <li key={choice.id} className={npcTalkLayout ? 'py-0' : 'py-0.5'}>
+                    {npcTalkLayout ? (
                       <button
                         type="button"
                         disabled={isPending || isLocked}
                         aria-disabled={isLocked || undefined}
-                        className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} !text-[0.8125rem] sm:!text-[0.875rem] ${isFading ? 'choice-fade-out' : ''} ${
-                          isChosen ? 'choice-selected-flash' : ''
-                        } ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                        className={choiceButtonClass}
                         onClick={() => {
                           if (isLocked) return;
                           handleChoiceClick(choice.id);
@@ -367,11 +457,73 @@ export function QuestPopup({
                       >
                         {renderedLabel}
                       </button>
-                    </div>
+                    ) : (
+                      <div className={PLAY_TAB_PLAYER_LINE_SHELL}>
+                        <button
+                          type="button"
+                          disabled={isPending || isLocked}
+                          aria-disabled={isLocked || undefined}
+                          className={choiceButtonClass}
+                          onClick={() => {
+                            if (isLocked) return;
+                            handleChoiceClick(choice.id);
+                          }}
+                        >
+                          {renderedLabel}
+                        </button>
+                      </div>
+                    )}
                   </li>
                 );
               })}
             </ul>
+          </div>
+        ) : null}
+
+        {step.type === 'inventoryPick' ? (
+          <div className={cn('space-y-2 px-1', npcTalkLayout && 'space-y-1.5')}>
+            {questItems.length === 0 ? (
+              <p className={npcTalkLayout ? RPG_DIALOG_META : 'font-serif text-sm text-[var(--candle-ink-faint)]'}>
+                {step.emptyText ?? 'You have nothing to throw in.'}
+              </p>
+            ) : (
+              <>
+                <label
+                  className={cn(
+                    'block text-[var(--candle-ink-soft)]',
+                    npcTalkLayout ? RPG_DIALOG_META : 'font-serif text-xs'
+                  )}
+                >
+                  {step.text.trim() || 'Choose an item'}
+                </label>
+                <select
+                  className={cn(
+                    'w-full rounded border border-[var(--candle-rule)] bg-black/30 px-2 py-1 text-[var(--candle-ink)]',
+                    npcTalkLayout ? RPG_DIALOG_BODY : 'font-serif text-sm'
+                  )}
+                  value={inventoryPickLabel}
+                  onChange={(event) => setInventoryPickLabel(event.target.value)}
+                >
+                  {questItems.map((label) => (
+                    <option key={label} value={label}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!inventoryPickLabel.trim() || pendingChoiceId !== null}
+                  onClick={() => onInventoryPickSubmit?.(inventoryPickLabel)}
+                  className={
+                    npcTalkLayout
+                      ? `${RPG_DIALOG_CHOICE_CLASS} text-emerald-300/90 hover:text-emerald-200 disabled:opacity-50`
+                      : 'choice-line w-auto border-b border-transparent py-2 text-emerald-300 hover:text-emerald-200 disabled:opacity-50'
+                  }
+                >
+                  {step.submitLabel}
+                </button>
+              </>
+            )}
           </div>
         ) : null}
 
@@ -399,8 +551,36 @@ export function QuestPopup({
           </div>
         ) : null}
       </div>
-    </div>
   );
+
+  const choiceBodyEl = (
+    <div className="max-h-[min(50dvh,480px)] overflow-y-auto">{renderChoicePane(false)}</div>
+  );
+
+  const npcTalkTranscript = useMemo(
+    () => npcTranscriptWithStepFallback(questTranscript, narrativeText),
+    [questTranscript, narrativeText]
+  );
+
+  if (presentation === 'modal' && isLocationPopupQuest) {
+    return (
+      <NpcTalkDialog
+        open
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+        title={quest.title}
+        portraitSrc={getQuestPopupPortraitSrc(quest, step.id)}
+        portraitAlt={quest.title}
+        npcSpeakerLabel="Narrator"
+        logAriaLabel={`${quest.title} dialogue`}
+        transcript={npcTalkTranscript}
+        logEndRef={logEndRef}
+        choiceOverlay={renderStepBackButton(true)}
+        choicePane={choicePaneVisible ? renderChoicePane(true) : null}
+      />
+    );
+  }
 
   return (
     <div

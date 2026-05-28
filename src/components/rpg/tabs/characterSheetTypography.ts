@@ -8,7 +8,7 @@
 
  * |----------------------|-----|
 
- * | Name                 | 14  |
+ * | Name                 | 16  |
 
  * | Level / race / class | 11  |
 
@@ -25,16 +25,14 @@
 /** Tier 1: player name */
 
 export const CHAR_NAME =
-
-  'font-cormorant text-[14px] font-semibold leading-tight tracking-[0.03em] text-[var(--candle-ink)]';
+  'font-cormorant text-[16px] font-semibold leading-tight tracking-[0.03em] text-[var(--candle-ink)]';
 
 
 
 /** Tier 3: level · race · class */
 
 export const CHAR_SUBTITLE =
-
-  'font-mono text-[11px] uppercase leading-snug tracking-[0.08em] text-[var(--candle-ink-soft)]';
+  'font-serif text-[10px] leading-snug text-[var(--candle-ink-soft)]';
 
 
 

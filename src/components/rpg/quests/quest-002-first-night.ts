@@ -2,24 +2,16 @@ import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 import type { QuestChoice } from './types';
 
-export const FIRST_NIGHT_FLAG_CALL_HELP = 'quest-002-first-night-call-help';
+export const FIRST_NIGHT_FLAG_SHELTER = 'quest-002-first-night-shelter';
 export const FIRST_NIGHT_FLAG_POCKETS = 'quest-002-first-night-pockets';
 export const FIRST_NIGHT_FLAG_TREE = 'quest-002-first-night-tree';
-export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
+export const FIRST_NIGHT_FLAG_WATER = 'quest-002-first-night-water';
+export const FIRST_NIGHT_FLAG_STREAM_DRINK = 'quest-002-first-night-stream-drink';
 
-const CALL_HELP_MODIFIERS = {
-  BraveTrait: 1,
-  FoolhardyTrait: 1,
-  WarriorClass: 1,
-  OrcRace: 1,
-  LoudMouth: 1,
-  Social: 1,
-  DiplomaticTrait: 1,
-  Charisma: 1,
-  StupidTrait: 1,
-  BoldTrait: 1,
-  CrazyTrait: 1,
-};
+/** @deprecated Legacy saves only */
+export const FIRST_NIGHT_FLAG_CALL_HELP = 'quest-002-first-night-call-help';
+/** @deprecated Legacy saves only */
+export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
 
 const FLASK_MODIFIERS = {
   Drunk: 1,
@@ -42,109 +34,69 @@ const CIGARETTES_MODIFIERS = {
   Reckless: 1,
 };
 
-function buildFirstNightMainChoices(includeDirections: boolean): QuestChoice[] {
-  const choices: QuestChoice[] = [
+function buildFirstNightMainChoices(): QuestChoice[] {
+  return [
     {
-      id: 'q2-flavor-call-help',
-      label: 'Call out for help',
-      nextStepId: 'flavor-call-help',
-      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_CALL_HELP],
-      disabledLabel: '',
+      id: 'q2-build-shelter',
+      label: 'Build a shelter',
+      nextStepId: 'boar-encounter',
       effects: {
-        flagsSet: [FIRST_NIGHT_FLAG_CALL_HELP],
-        modifiersDelta: CALL_HELP_MODIFIERS,
+        flagsSet: [FIRST_NIGHT_FLAG_SHELTER],
       },
-      journalSummaryLineAdd: 'You called out for help.',
+      journalSummaryLineAdd: 'You worked on a shelter.',
     },
     {
-      id: 'q2-flavor-pockets',
-      label: 'Check your pockets',
-      nextStepId: 'flavor-pockets',
-      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_POCKETS],
-      disabledLabel: '',
-      journalSummaryLineAdd: 'You checked your pockets.',
+      id: 'q2-high-ground',
+      label: 'Go to high ground',
+      nextStepId: 'boar-encounter',
+      journalSummaryLineAdd: 'You climbed toward high ground.',
     },
     {
-      id: 'q2-flavor-tree',
-      label: 'Climb a tree to look around',
-      nextStepId: 'flavor-tree-start',
-      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
-      disabledLabel: '',
-      journalSummaryLineAdd: 'You climbed a tree to look around.',
+      id: 'q2-look-food',
+      label: 'Look for food',
+      nextStepId: 'boar-encounter',
+      journalSummaryLineAdd: 'You looked for food.',
     },
     {
-      id: 'q2-flavor-still',
-      label: 'Stay still and listen',
-      nextStepId: 'flavor-still',
-      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_STILL],
-      disabledLabel: '',
-      effects: {
-        flagsSet: [FIRST_NIGHT_FLAG_STILL],
-      },
-      journalSummaryLineAdd: 'You stayed still and listened.',
+      id: 'q2-look-water',
+      label: 'Look for water',
+      nextStepId: 'boar-encounter',
+      journalSummaryLineAdd: 'You looked for water.',
     },
   ];
-
-  if (includeDirections) {
-    choices.push(
-      {
-        id: 'q2-go-south',
-        label: 'Go South',
-        nextStepId: 'boar-encounter',
-        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_STILL],
-        journalSummaryLineAdd: 'You headed south.',
-      },
-      {
-        id: 'q2-go-west',
-        label: 'Go West',
-        nextStepId: 'boar-encounter',
-        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_STILL],
-        journalSummaryLineAdd: 'You headed west.',
-      },
-      {
-        id: 'q2-go-north',
-        label: 'Go North',
-        nextStepId: 'boar-encounter',
-        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
-        journalSummaryLineAdd: 'You headed north.',
-      },
-      {
-        id: 'q2-go-east',
-        label: 'Go East',
-        nextStepId: 'boar-encounter',
-        enabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
-        journalSummaryLineAdd: 'You headed east.',
-      }
-    );
-  }
-
-  return choices;
 }
 
 export const quest002FirstNight = createQuestDefinition({
   id: 'quest-002-first-night',
-  title: 'First Night',
+  title: 'The Sun Sets in the West',
   briefing: 'Every choice is permanent.  Choose wisely.',
   createdAt: 2,
   mainDailyQuest: true,
   startStepId: 'flavor-five',
+  questCardImageSide: 'right',
   isAvailable: makeQuestAvailability({
     requiresAnyCompletedQuestIds: ['quest-001-origin'],
   }),
-  journalSummaryFallback:
-    '(Quest 2 journal recap placeholder — author fills; branches diverge at dusk and boar.)',
+  journalSummaryFallback: 'You had a strange night in the forest.',
   steps: [
     {
       id: 'flavor-five',
       type: 'choice',
       text: 'What do you do now?',
-      choices: buildFirstNightMainChoices(false),
+      choices: buildFirstNightMainChoices(),
     },
     {
       id: 'flavor-five-hub',
       type: 'choice',
       text: 'What do you do now?',
-      choices: buildFirstNightMainChoices(true),
+      choices: buildFirstNightMainChoices(),
+    },
+    {
+      id: 'flavor-build-shelter',
+      type: 'message',
+      text:
+        'You gather branches and leaf litter, shaping a crude lean-to. Your hands ache and the light is failing — it will have to do for now.',
+      nextStepId: 'flavor-five-hub',
     },
     {
       id: 'flavor-call-help',
@@ -313,12 +265,101 @@ export const quest002FirstNight = createQuestDefinition({
       text: 'You head west.',
       nextStepId: 'boar-encounter',
     },
-    /** Legacy step id — old saves only; stream branch removed. */
+    /** Legacy step id — old saves only. */
     {
       id: 'flavor-stream',
       type: 'message',
       text: 'You listen for running water but hear none.',
       nextStepId: 'flavor-five-hub',
+    },
+    {
+      id: 'dir-west-stream',
+      type: 'choice',
+      text: 'You soon find a trickling stream.\n\nWhat now?',
+      choices: [
+        {
+          id: 'q2-west-drink',
+          label: 'Take a drink',
+          nextStepId: 'dir-west-drink',
+          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_STREAM_DRINK],
+          disabledLabel: '',
+          effects: {
+            modifiersDelta: { PlaceholderDrink: 1 },
+            flagsSet: [FIRST_NIGHT_FLAG_STREAM_DRINK],
+          },
+          journalSummaryLineAdd: 'You drank from the stream.',
+        },
+        {
+          id: 'q2-west-upstream',
+          label: 'Go upstream',
+          nextStepId: 'boar-encounter',
+          journalSummaryLineAdd: 'You followed the stream upstream.',
+        },
+        {
+          id: 'q2-west-downstream',
+          label: 'Go downstream',
+          nextStepId: 'boar-encounter',
+          journalSummaryLineAdd: 'You followed the stream downstream.',
+        },
+      ],
+    },
+    {
+      id: 'dir-west-drink',
+      type: 'message',
+      text: 'You kneel and drink from the stream.',
+      nextStepId: 'dir-west-stream',
+    },
+    {
+      id: 'dir-south-path',
+      type: 'message',
+      text: 'You come upon a well beaten animal path.',
+      nextStepId: 'dir-south-path-fork',
+    },
+    {
+      id: 'dir-south-path-fork',
+      type: 'choice',
+      text: '',
+      choices: [
+        {
+          id: 'q2-south-left',
+          label: 'Follow it left',
+          nextStepId: 'boar-encounter',
+          journalSummaryLineAdd: 'You followed the path to the left.',
+        },
+        {
+          id: 'q2-south-right',
+          label: 'Follow it right',
+          nextStepId: 'boar-encounter',
+          journalSummaryLineAdd: 'You followed the path to the right.',
+        },
+      ],
+    },
+    {
+      id: 'dir-north-steep',
+      type: 'message',
+      text:
+        'The ground begins to steepen, the footing is rocky. It is harder to travel.',
+      nextStepId: 'dir-north-continue',
+    },
+    {
+      id: 'dir-north-continue',
+      type: 'choice',
+      text: '',
+      choices: [
+        {
+          id: 'q2-north-continue',
+          label: 'Continue',
+          nextStepId: 'boar-encounter',
+          journalSummaryLineAdd: 'You pressed on up the rocky slope.',
+        },
+      ],
+    },
+    {
+      id: 'dir-east-swamp',
+      type: 'message',
+      text:
+        'The putrid smell of a rotting bog whiffs through your nose from time to time... you are entering a swamp.',
+      nextStepId: 'boar-encounter',
     },
     {
       id: 'compass-four',
@@ -350,7 +391,8 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'boar-encounter',
       type: 'choice',
-      text: 'A wild boar rushes you. Instinct takes over.\n\n(Quest 2 — boar encounter sensory placeholder.)',
+      text:
+        'You are startled by a loud rustling sound!  A wild boar with sharp tusks bounds out of the nearby brush and charges straight at you... What do you do?',
       choices: [
         {
           id: 'q1-origin-boar-strike',
@@ -420,9 +462,34 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'boar-aftermath',
       type: 'message',
+      text: "The boar misses and vanishes into the woods. You're unharmed.",
+      nextStepId: 'night-router',
+    },
+    {
+      id: 'night-router',
+      type: 'choice',
+      text: 'Dusk is closing in.',
+      choices: [
+        {
+          id: 'q2-night-hub-shelter',
+          label: 'Continue',
+          nextStepId: 'night-hub-shelter',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SHELTER],
+        },
+        {
+          id: 'q2-night-dusk',
+          label: 'Continue',
+          nextStepId: 'dusk-choice',
+          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_SHELTER],
+        },
+      ],
+    },
+    {
+      id: 'night-hub-shelter',
+      type: 'message',
       text:
-        "The boar misses and vanishes into the woods. You're unharmed.\n\n(Quest 2 — boar aftermath: optional extra sensory beat placeholder.)",
-      nextStepId: 'dusk-choice',
+        'You return to the crude lean-to you started. The forest darkens around you. You stay put and wait — the wind shifts, and the night deepens.',
+      nextStepId: 'stay-blue-bugs',
     },
     {
       id: 'dusk-choice',
@@ -448,20 +515,19 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'shelter-lean-end',
       type: 'message',
       text:
-        'You craft a crude lean-to from branches and leaf litter. Exhaustion wins — you curl up inside.\n\nDay ends.\n\n(Quest 2 — lean-to epilogue placeholder.)',
+        'You craft a crude lean-to from branches and leaf litter. Exhaustion wins — you curl up inside.\n\nDay ends.',
       completeQuest: true,
     },
     {
       id: 'dark-pitch',
       type: 'message',
-      text:
-        'You stumble onward until the forest becomes pitch black.\n\n(Quest 2 — darkness transition placeholder.)',
+      text: 'You stumble onward until the forest becomes pitch black.',
       nextStepId: 'dark-branch',
     },
     {
       id: 'dark-branch',
       type: 'choice',
-      text: 'What do you try?',
+      text: 'What do you do?',
       choices: [
         {
           id: 'q1-dark-creep',
@@ -484,28 +550,28 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'yell-help-end',
       type: 'message',
       text:
-        '(Quest 2 — yell-for-help outcome placeholder — author fills. Someone answers? Something answers?)\n\nDay ends.',
+        'Day ends.',
       completeQuest: true,
     },
     {
       id: 'creep-moonlit',
       type: 'message',
       text:
-        'Your hands find roots and cold stone. Eventually the canopy opens onto a moonlit rock outcropping — enough shelter from the wind.\n\n(Quest 2 — creep-forward interim beat placeholder.)',
+        'Your hands find roots and cold stone. Eventually the canopy opens onto a moonlit rock outcropping — enough shelter from the wind.',
       nextStepId: 'creep-sleep-end',
     },
     {
       id: 'creep-sleep-end',
       type: 'message',
       text:
-        'You tuck yourself against the stone and fade toward sleep.\n\nDay ends.\n\n(Quest 2 — moonlit rock epilogue placeholder.)',
+        'You tuck yourself against the stone and fade toward sleep.\n\nDay ends.',
       completeQuest: true,
     },
     {
       id: 'stay-blue-bugs',
       type: 'message',
       text:
-        'Hours blur. Then — motion overhead: a river of blue sparks drifts through the black trees. Lightning bugs? Something stranger?\n\n(Quest 2 — blue-light spectacle placeholder.)',
+        'Hours blur. Then — motion overhead: a river of blue sparks drifts through the black trees. Lightning bugs? Something stranger?',
       nextStepId: 'bugs-fork',
     },
     {
@@ -529,21 +595,21 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'bugs-shelter-end',
       type: 'message',
       text:
-        '(Quest 2 — shelter-under-bugs outcome placeholder — dreams? Visitors?)\n\nDay ends.',
+        'Day ends.',
       completeQuest: true,
     },
     {
       id: 'follow-ravine',
       type: 'message',
       text:
-        'The glow leads you until the ground drops away — a ravine too steep to cross. The blue sparks thin and scatter.\n\n(Quest 2 — ravine approach placeholder.)',
+        'The glow leads you until the ground drops away — a ravine too steep to cross. The blue sparks thin and scatter.',
       nextStepId: 'follow-outcrop-end',
     },
     {
       id: 'follow-outcrop-end',
       type: 'message',
       text:
-        'You find a little ledge beneath an overhang — barely enough to wait out the night.\n\nDay ends.\n\n(Quest 2 — ravine ledge epilogue placeholder.)',
+        'You find a little ledge beneath an overhang — barely enough to wait out the night.\n\nDay ends.',
       completeQuest: true,
     },
   ],

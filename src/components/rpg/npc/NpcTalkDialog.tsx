@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import type { TranscriptEntry } from '@/components/rpg/merchant/merchantDialogueTree';
 import { NpcTalkScrollPanes } from '@/components/rpg/npc/NpcTalkScrollPanes';
 import { NPC_DIALOG_CONTENT_MOTION } from '@/components/rpg/npc/npcDialogMotion';
+import { RPG_DIALOG_TITLE } from '@/components/rpg/typography/rpgDialogTypography';
 
 type NpcTalkDialogProps = {
   open: boolean;
@@ -22,6 +23,8 @@ type NpcTalkDialogProps = {
   logEndRef: RefObject<HTMLDivElement | null>;
   /** Optional slot beside portrait (e.g. Merchant Talk/Shop tabs). Omit for talk-only NPCs. */
   portraitAside?: ReactNode;
+  /** Floated over the choice pane (outside scroll flow). */
+  choiceOverlay?: ReactNode;
   choicePane: ReactNode;
 };
 
@@ -39,6 +42,7 @@ export function NpcTalkDialog({
   transcript,
   logEndRef,
   portraitAside,
+  choiceOverlay,
   choicePane,
 }: NpcTalkDialogProps) {
   return (
@@ -52,9 +56,7 @@ export function NpcTalkDialog({
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="shrink-0 space-y-1 px-10 text-center sm:text-center">
-          <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-            {title}
-          </DialogTitle>
+          <DialogTitle className={RPG_DIALOG_TITLE}>{title}</DialogTitle>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
@@ -84,6 +86,7 @@ export function NpcTalkDialog({
             logEndRef={logEndRef}
             npcSpeakerLabel={npcSpeakerLabel}
             logAriaLabel={logAriaLabel}
+            choiceOverlay={choiceOverlay}
           >
             {choicePane}
           </NpcTalkScrollPanes>

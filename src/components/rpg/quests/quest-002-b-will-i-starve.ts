@@ -1,62 +1,123 @@
-import { makeQuestAvailability } from './branching-quest-template';
+import {
+  OLD_WELL_LOCATION,
+  QUEST_002B_WELL_COIN_FLAG,
+  QUEST_002B_WELL_OPENED_FLAG,
+  QUEST_002B_THROWN_LABEL_PREFIX,
+  QUEST_002B_WELL_THREW_FLAG,
+  QUEST_FIRST_NIGHT_ID,
+} from '../constants';
+import { makeQuestAvailability, makeQuestUnveilEligibility } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
+const BATCH = 'art/converted/batch-2026-05-02_21-10-35';
+const WELL_IMG = `${BATCH}/forest-gnome-drinking-from-pond.webp`;
+
+const WELL_DESCRIPTION =
+  'A ray of light shines through the usual dense canopy upon an ancient well.';
+
+const WELL_AVAILABILITY = {
+  requiresAnyCompletedQuestIds: [QUEST_FIRST_NIGHT_ID],
+  requiresLocation: OLD_WELL_LOCATION,
+};
+
+/** Forest beat after first night — Door-style NPC popup at Old Well (travel to play). */
 export const quest002BWillIStarve = createQuestDefinition({
   id: 'quest-002-b-will-i-starve',
-  title: 'Will I Starve?',
-  briefing: '... alone in this forest?',
+  title: 'The Old Well',
+  briefing:
+    'You discovered The Old Well!  You can revisit locations you have discovered.',
   createdAt: 2,
-  startStepId: 'starve-intro',
-  isAvailable: makeQuestAvailability({
-    requiresAnyCompletedQuestIds: ['quest-002-first-night'],
-  }),
-  journalSummaryFallback: 'Will I Starve?',
+  locationPopup: true,
+  locationRepeats: true,
+  locationGated: true,
+  questCardInteractive: false,
+  requiredPlayLocation: OLD_WELL_LOCATION,
+  startStepId: 'well-halt',
+  isAvailable: makeQuestAvailability(WELL_AVAILABILITY),
+  isUnveilEligible: makeQuestUnveilEligibility(WELL_AVAILABILITY),
+  journalSummaryFallback: 'You visited an ancient well in the forest.',
   steps: [
     {
-      id: 'starve-intro',
+      id: 'well-halt',
       type: 'choice',
-      text:
-        'Your stomach twists. The forest is beautiful, but beauty is not food. You realize you have no idea what is safe to eat here.',
-      worldEventLogAfterChoice: ['{playerName} wondered if they would starve alone in the forest.'],
+      text: WELL_DESCRIPTION,
+      visuals: [{ kind: 'image', src: WELL_IMG, alt: 'The Old Well' }],
       choices: [
         {
-          id: 'starve-search-food',
-          label: 'Search the forest for something edible',
-          nextStepId: 'starve-search-aftermath',
+          id: 'well-continue',
+          label: 'Continue...',
+          nextStepId: 'well-hub',
+        },
+      ],
+    },
+    {
+      id: 'well-hub',
+      type: 'choice',
+      text: '',
+      choices: [
+        {
+          id: 'q2-well-turn-water',
+          label: 'Turn the handle',
+          nextStepId: 'well-turn-water',
+          disabledIfAnyFlags: [QUEST_002B_WELL_THREW_FLAG],
+          disabledLabel: ' (something is already in the well)',
+        },
+        {
+          id: 'q2-well-turn-coin',
+          label: 'Turn the handle',
+          nextStepId: 'well-turn-coin',
+          enabledIfAnyFlags: [QUEST_002B_WELL_THREW_FLAG],
+          disabledIfAnyFlags: [QUEST_002B_WELL_COIN_FLAG],
+          disabledLabel: ' (coin already retrieved)',
           effects: {
-            flagsSet: ['quest-002-b-foraging-started'],
-            modifiersDelta: {
-              SurvivalInstinct: 1,
-              ForagingSkill: 1,
-              HalflingRace: 1,
-              WoodElfRace: 1,
-              GnomeRace: 1,
-            },
+            flagsSet: [QUEST_002B_WELL_COIN_FLAG],
+            questItemsAdd: ['Strange coin'],
           },
         },
         {
-          id: 'starve-wait',
-          label: 'Stay put and save your strength',
+          id: 'q2-well-throw',
+          label: 'Throw something in',
+          nextStepId: 'well-throw-pick',
+        },
+        {
+          id: 'q2-well-leave',
+          label: 'Leave for now... (you can return to places on your map)',
           completeQuest: true,
           effects: {
-            flagsSet: ['quest-002-b-foraging-started'],
-            modifiersDelta: {
-              PatienceTrait: 1,
-              SurvivalInstinct: 1,
-              DwarfRace: 1,
-              RiverKingdomRace: 1,
-              CatfolkRace: 1,
-            },
+            flagsSet: [QUEST_002B_WELL_OPENED_FLAG],
           },
         },
       ],
     },
     {
-      id: 'starve-search-aftermath',
+      id: 'well-turn-water',
       type: 'message',
-      text:
-        '{playerName} searches beneath the trees, finding more questions than answers, but also the first hints of what might keep someone alive here.',
-      completeQuest: true,
+      text: 'A bucket full of water comes up.',
+      nextStepId: 'well-hub',
+    },
+    {
+      id: 'well-turn-coin',
+      type: 'message',
+      text: "There's a strange coin in the bucket.",
+      nextStepId: 'well-hub',
+    },
+    {
+      id: 'well-throw-pick',
+      type: 'inventoryPick',
+      text: 'Choose something from your pack to drop into the well.',
+      submitLabel: 'Throw it in',
+      nextStepId: 'well-throw-done',
+      emptyText: 'You have nothing to throw in.',
+      thrownItemFlagPrefix: QUEST_002B_THROWN_LABEL_PREFIX,
+      effects: {
+        flagsSet: [QUEST_002B_WELL_THREW_FLAG],
+      },
+    },
+    {
+      id: 'well-throw-done',
+      type: 'message',
+      text: 'You threw a {thrownItem} into the well.',
+      nextStepId: 'well-hub',
     },
   ],
 });

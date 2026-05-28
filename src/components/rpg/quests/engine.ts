@@ -18,6 +18,9 @@ import {
   collectChoiceWorldLogLines,
   interpolateQuestWorldLogTemplates,
 } from '../worldLog';
+import { applyTravelLocationChange, normalizeForestLocationFields } from '../locationPresence';
+import { isQuestEligibleForUnveil } from './branching-quest-template';
+import { pushDevStepHistory } from './questStepBack';
 import { canonicalizeModifierMap, migrateModifiersToCanonical } from '../modifiers/canonical';
 import {
   displayLabelForClassSlug,
@@ -350,7 +353,14 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     typeof state.currentLocation === 'string' && state.currentLocation.trim().length > 0
       ? state.currentLocation.trim()
       : initial.currentLocation;
-  const currentLocation = VALID_SAVE_LOCATIONS.has(rawLocation) ? rawLocation : initial.currentLocation;
+  const rawLocationValidated = VALID_SAVE_LOCATIONS.has(rawLocation) ? rawLocation : initial.currentLocation;
+  const rawForestSub = (state as { forestSubLocation?: unknown }).forestSubLocation;
+  const forestFields = normalizeForestLocationFields(
+    rawLocationValidated,
+    typeof rawForestSub === 'string' ? rawForestSub : null
+  );
+  const currentLocation = forestFields.currentLocation;
+  const forestSubLocation = forestFields.forestSubLocation;
 
   const rawUnveiled = (state as { unveiledQuestIds?: unknown }).unveiledQuestIds;
   let unveiledQuestIds: string[];
@@ -434,6 +444,15 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     activeQuestId: resolvedActiveQuestId,
     unveiledQuestIds,
   });
+
+  const progressByQuestId: Record<string, QuestProgress> = {};
+  for (const [qid, prog] of Object.entries(migrated.progressByQuestId)) {
+    const rawHist = (prog as QuestProgress).devStepHistory;
+    const devStepHistory = Array.isArray(rawHist)
+      ? rawHist.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+      : [];
+    progressByQuestId[qid] = { ...prog, devStepHistory };
+  }
 
   const rawArena = (state as { arenaRecord?: unknown }).arenaRecord;
   let arenaRecord: ArenaRecord = createEmptyArenaRecord();
@@ -599,8 +618,17 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   }
 
   const flags = Array.isArray(state.flags) ? state.flags.filter((f) => typeof f === 'string') : initial.flags;
-  const pacingActive = flags.includes(DAY_PACING_ACTIVE_FLAG) || flags.includes(VILLAGE_PHASE_FLAG);
-  let lastDailyXpDay = Math.max(
+
+  const rawAckTravel = (state as { acknowledgedTravelLocationIds?: unknown }).acknowledgedTravelLocationIds;
+  const acknowledgedTravelLocationIds = Array.isArray(rawAckTravel)
+    ? Array.from(
+        new Set(
+          rawAckTravel.filter((id): id is string => typeof id === 'string' && id.trim().length > 0).map((id) => id.trim())
+        )
+      )
+    : (initial.acknowledgedTravelLocationIds ?? []);
+
+  const lastDailyXpDay = Math.max(
     1,
     Math.floor(
       typeof state.lastDailyXpDay === 'number'
@@ -610,14 +638,12 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
         : initial.lastDailyXpDay
     )
   );
-  if (!pacingActive) {
-    lastDailyXpDay = 1;
-  }
 
   return {
     ...initial,
     ...state,
     currentLocation,
+    forestSubLocation,
     experience: legacyExperience,
     assignedRaceSlug,
     lockedClassSlug,
@@ -634,7 +660,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     journalLog,
     questItems,
     unveiledQuestIds: migrated.unveiledQuestIds,
-    progressByQuestId: migrated.progressByQuestId,
+    progressByQuestId,
     activeQuestId: migrated.activeQuestId,
     health,
     characterCreationDateEastern,
@@ -648,6 +674,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     activeJobSlug,
     jobDailyActionBySlug,
     resources,
+    acknowledgedTravelLocationIds,
   };
 };
 
@@ -716,15 +743,13 @@ export const getLevelProgressFromXp = (xp: number) => {
   };
 };
 
-export const getCharacterLevel = (state: QuestState): number =>
-  getLevelFromXp(state.skills.explorationXp) +
-  getLevelFromXp(state.skills.foragingXp) +
-  getLevelFromXp(state.skills.meleeAttackXp);
-
 export const getCompletedQuestIds = (state: QuestState): string[] =>
   Object.entries(state.progressByQuestId)
     .filter(([, progress]) => progress.isCompleted)
     .map(([questId]) => questId);
+
+/** Character level = number of completed quests. */
+export const getCharacterLevel = (state: QuestState): number => getCompletedQuestIds(state).length;
 
 function mergeQuestProgressMaps(
   a: Record<string, QuestProgress>,
@@ -790,6 +815,12 @@ export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): 
     : VALID_SAVE_LOCATIONS.has(relay.currentLocation)
       ? relay.currentLocation
       : createInitialQuestState().currentLocation;
+  const forestSubLocation =
+    typeof local.forestSubLocation === 'string'
+      ? local.forestSubLocation
+      : typeof relay.forestSubLocation === 'string'
+        ? relay.forestSubLocation
+        : null;
 
   const merged = normalizeQuestState({
     ...relay,
@@ -797,6 +828,7 @@ export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): 
     unveiledQuestIds: Array.from(new Set([...relay.unveiledQuestIds, ...local.unveiledQuestIds])),
     progressByQuestId: mergeQuestProgressMaps(relay.progressByQuestId, local.progressByQuestId),
     currentLocation,
+    forestSubLocation,
     unlockedJobSlugs,
     activeJobSlug: pickMergedActiveJobSlug(relay, local, unlockedJobSlugs),
     jobDailyActionBySlug: mergeJobDailyActionMaps(
@@ -825,6 +857,24 @@ export function hydrateQuestStateFromSources(
  */
 export const isDayPacingActive = (flags: readonly string[]): boolean =>
   flags.includes(DAY_PACING_ACTIVE_FLAG);
+
+export const isVillagePhase = (flags: readonly string[]): boolean =>
+  flags.includes(VILLAGE_PHASE_FLAG);
+
+/** Forest arc: in-session day counter (`lastDailyXpDay`), not Eastern calendar. */
+export function resolveDisplayDay(state: QuestState, calendarDay: number): number {
+  if (isVillagePhase(state.flags)) {
+    return isDayPacingActive(state.flags)
+      ? Math.max(1, state.lastDailyXpDay)
+      : Math.max(1, Math.floor(calendarDay));
+  }
+  return Math.max(1, state.lastDailyXpDay);
+}
+
+export function shouldShowDayInHeader(state: QuestState): boolean {
+  if (isVillagePhase(state.flags)) return isDayPacingActive(state.flags);
+  return true;
+}
 
 /**
  * When calendar pacing first activates, anchor daily XP to the current Eastern day
@@ -895,6 +945,7 @@ export function reconcileVillagePhaseState(state: QuestState, calendarDay?: numb
 
 export const getQuestContext = (state: QuestState, currentDay: number): QuestContext => ({
   currentLocation: state.currentLocation,
+  forestSubLocation: state.forestSubLocation ?? null,
   completedQuestIds: getCompletedQuestIds(state),
   flags: state.flags,
   explorationLevel: getLevelFromXp(state.skills.explorationXp),
@@ -922,9 +973,14 @@ export const getPlayerVisibleQuests = (
   unveiledQuestIds: string[]
 ): QuestDefinition[] => {
   const unveiledSet = new Set(unveiledQuestIds);
-  return getVisibleQuests(quests, context).filter(
-    (quest) => unveiledSet.has(quest.id) || context.completedQuestIds.includes(quest.id)
-  );
+  const completedSet = new Set(context.completedQuestIds);
+  return quests
+    .filter((quest) => {
+      if (completedSet.has(quest.id)) return true;
+      if (!unveiledSet.has(quest.id)) return false;
+      return isQuestEligibleForUnveil(quest, context);
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
 };
 
 /** Quest list for Play/Quests tabs: unveiled + eligible, or every quest when dev unlock-all. */
@@ -937,9 +993,7 @@ export const getQuestListForUi = (
   if (devUnlockAllQuests) {
     return [...quests].sort((a, b) => b.createdAt - a.createdAt);
   }
-  if (!context.dayPacingActive) {
-    return getVisibleQuests(quests, context);
-  }
+  // Temporary manual quest gating: UI should respect unveiled/completed only.
   return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
 };
 
@@ -950,6 +1004,7 @@ export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): 
     currentStepId: quest.startStepId,
     isCompleted: false,
     choiceHistory: [],
+    devStepHistory: [],
   };
 
   return {
@@ -970,6 +1025,30 @@ export const startQuest = (state: QuestState, quest: QuestDefinition): QuestStat
   };
 };
 
+/** Reopen a completed (or in-progress) location scene at a given step; keeps `isCompleted` for saga gates. */
+export const resumeLocationQuestAtStep = (
+  state: QuestState,
+  quest: QuestDefinition,
+  stepId: string
+): QuestState => {
+  const withProgress = ensureQuestProgress(state, quest);
+  const existing = withProgress.progressByQuestId[quest.id];
+  if (!existing) {
+    return startQuest(withProgress, quest);
+  }
+  return {
+    ...withProgress,
+    activeQuestId: quest.id,
+    progressByQuestId: {
+      ...withProgress.progressByQuestId,
+      [quest.id]: {
+        ...existing,
+        currentStepId: stepId,
+      },
+    },
+  };
+};
+
 /** Reset quest progress so a location scene can be replayed (repeatable ambient quests). */
 export const restartQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => ({
   ...state,
@@ -979,6 +1058,7 @@ export const restartQuestProgress = (state: QuestState, quest: QuestDefinition):
       currentStepId: quest.startStepId,
       isCompleted: false,
       choiceHistory: [],
+      devStepHistory: [],
     },
   },
 });
@@ -1085,7 +1165,7 @@ const appendJournalSummaryLine = (
     nextJournalLog[existingIndex] = {
       ...existing,
       text: mergedText,
-      atMs: Date.now(),
+      atMs: existing.atMs,
     };
     return { ...state, journalLog: nextJournalLog };
   }
@@ -1107,7 +1187,15 @@ const moveToStep = (
 ): QuestState => {
   const currentProgress = state.progressByQuestId[quest.id];
   const clearActive = Boolean(choice.effects?.clearActiveQuest);
-  const nextStepId = clearActive ? quest.startStepId : (choice.nextStepId ?? currentStepId);
+  let resolvedNextStepId = choice.nextStepId ?? currentStepId;
+  if (!clearActive && choice.randomBranch) {
+    const p = choice.randomBranch.probability ?? 0.5;
+    resolvedNextStepId =
+      Math.random() < p
+        ? choice.randomBranch.successStepId
+        : choice.randomBranch.failStepId;
+  }
+  const nextStepId = clearActive ? quest.startStepId : resolvedNextStepId;
   const nextStep = quest.steps[nextStepId];
   const mergedFlags = mergeFlags(state.flags, choice.effects);
   const requiredAll = quest.completionRequiresAllFlags;
@@ -1156,13 +1244,17 @@ const moveToStep = (
       worldExtra.length > 0 ? appendUniqueWorldEntries(state.worldEventLog, worldExtra) : state.worldEventLog,
     progressByQuestId: {
       ...state.progressByQuestId,
-      [quest.id]: {
-        currentStepId: nextStepId,
-        isCompleted,
-        choiceHistory: clearActive
-          ? []
-          : [...(currentProgress?.choiceHistory ?? []), choice.id],
-      },
+      [quest.id]: pushDevStepHistory(
+        {
+          currentStepId: nextStepId,
+          isCompleted,
+          choiceHistory: clearActive
+            ? []
+            : [...(currentProgress?.choiceHistory ?? []), choice.id],
+          devStepHistory: clearActive ? [] : currentProgress?.devStepHistory,
+        },
+        currentStepId
+      ),
     },
   };
 
@@ -1184,7 +1276,7 @@ const moveToStep = (
 
   const travelTo = choice.effects?.setCurrentLocation?.trim();
   if (travelTo && VALID_SAVE_LOCATIONS.has(travelTo)) {
-    nextState = { ...nextState, currentLocation: travelTo };
+    nextState = applyTravelLocationChange(nextState, travelTo);
   }
 
   const jobsToUnlock = choice.effects?.unlockJobSlugs;
@@ -1275,7 +1367,7 @@ const applyRaceLockEffects = (
 export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): QuestState | null => {
   const withProgress = ensureQuestProgress(state, quest);
   const progress = withProgress.progressByQuestId[quest.id];
-  if (!progress || progress.isCompleted) return null;
+  if (!progress || (progress.isCompleted && !quest.locationRepeats)) return null;
   const step = quest.steps[progress.currentStepId];
   if (!step || step.type !== 'message') return null;
   if (step.completeQuest) return null;
@@ -1288,12 +1380,15 @@ export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): 
     activeQuestId: completesHere ? null : withProgress.activeQuestId,
     progressByQuestId: {
       ...withProgress.progressByQuestId,
-      [quest.id]: {
-        ...progress,
-        currentStepId: nextId,
-        isCompleted: completesHere,
-        choiceHistory: progress.choiceHistory,
-      },
+      [quest.id]: pushDevStepHistory(
+        {
+          ...progress,
+          currentStepId: nextId,
+          isCompleted: completesHere,
+          choiceHistory: progress.choiceHistory,
+        },
+        progress.currentStepId
+      ),
     },
   };
 };
@@ -1350,15 +1445,25 @@ export const submitPlayerName = (
     return { nextState: withProgress, error: `Name must be ${minLength}-${maxLength} characters.` };
   }
 
+  const priorProgress = withProgress.progressByQuestId[quest.id] ?? {
+    currentStepId: quest.startStepId,
+    isCompleted: false,
+    choiceHistory: [],
+    devStepHistory: [],
+  };
+
   let nextState: QuestState = {
     ...withProgress,
     playerName: trimmed,
     progressByQuestId: {
       ...withProgress.progressByQuestId,
-      [quest.id]: {
-        ...withProgress.progressByQuestId[quest.id],
-        currentStepId: currentStep.nextStepId ?? currentStep.id,
-      },
+      [quest.id]: pushDevStepHistory(
+        {
+          ...priorProgress,
+          currentStepId: currentStep.nextStepId ?? currentStep.id,
+        },
+        priorProgress.currentStepId
+      ),
     },
   };
 
@@ -1379,5 +1484,84 @@ export const submitPlayerName = (
   return { nextState };
 };
 
-export const interpolateStepText = (text: string, playerName: string): string =>
-  text.replaceAll('{playerName}', playerName.trim() || 'Stranger');
+export const interpolateStepText = (
+  text: string,
+  playerName: string,
+  extras?: Record<string, string>
+): string => {
+  let out = text.replaceAll('{playerName}', playerName.trim() || 'Stranger');
+  if (extras) {
+    for (const [key, value] of Object.entries(extras)) {
+      out = out.replaceAll(`{${key}}`, value);
+    }
+  }
+  return out;
+};
+
+function removeOneQuestItem(items: readonly string[], label: string): string[] {
+  const idx = items.indexOf(label);
+  if (idx < 0) return [...items];
+  return [...items.slice(0, idx), ...items.slice(idx + 1)];
+}
+
+/** Submit an `inventoryPick` step: consume one `questItems` label and advance. */
+export const submitQuestInventoryPick = (
+  state: QuestState,
+  quest: QuestDefinition,
+  itemLabel: string,
+  calendarDay?: number
+): { nextState: QuestState; error?: string } => {
+  const withProgress = ensureQuestProgress(state, quest);
+  const currentStep = getCurrentStep(withProgress, quest);
+  if (currentStep.type !== 'inventoryPick') {
+    return { nextState: withProgress };
+  }
+
+  const trimmed = itemLabel.trim();
+  if (!trimmed || !withProgress.questItems.includes(trimmed)) {
+    return { nextState: withProgress, error: 'Choose an item from your inventory.' };
+  }
+
+  const currentProgress = withProgress.progressByQuestId[quest.id];
+  const nextStepId = currentStep.nextStepId;
+  const nextStep = quest.steps[nextStepId];
+  const previousFlags = withProgress.flags;
+
+  const pickFlags = [...(currentStep.effects?.flagsSet ?? [])];
+  if (currentStep.thrownItemFlagPrefix && trimmed.length > 0) {
+    pickFlags.push(`${currentStep.thrownItemFlagPrefix}${trimmed}`);
+  }
+
+  const mergedFlags = mergeFlags(withProgress.flags, {
+    ...currentStep.effects,
+    flagsSet: pickFlags,
+  });
+
+  const isCompleted = Boolean(nextStep?.completeQuest);
+  const nextProgress: QuestProgress = {
+    currentStepId: nextStepId,
+    isCompleted,
+    choiceHistory: [...(currentProgress?.choiceHistory ?? []), `inventory-pick:${trimmed}`],
+    devStepHistory: currentProgress?.devStepHistory,
+  };
+
+  let nextState: QuestState = {
+    ...withProgress,
+    activeQuestId: isCompleted ? null : withProgress.activeQuestId,
+    flags: mergedFlags,
+    questItems: removeOneQuestItem(withProgress.questItems, trimmed),
+    progressByQuestId: {
+      ...withProgress.progressByQuestId,
+      [quest.id]: pushDevStepHistory(nextProgress, currentProgress?.currentStepId ?? quest.startStepId),
+    },
+  };
+
+  nextState = appendJournalSummaryLine(
+    nextState,
+    quest.id,
+    `You threw a ${trimmed} into the well.`,
+    nextState.playerName
+  );
+
+  return { nextState: finalizeChoiceState(nextState, previousFlags, calendarDay) };
+};

@@ -11,9 +11,9 @@ export const quest004BTheDoor = createQuestDefinition({
   briefing: 'Something blocks the path—voice, wood, and patience.',
   createdAt: 11,
   startStepId: 'door-halt',
-  questCardLayout: 'title-overlay',
+  questCardImageSide: 'right',
   isAvailable: makeQuestAvailability({
-    requiresAnyCompletedQuestIds: ['quest-003-b-meet-merchant'],
+    requiresAnyCompletedQuestIds: ['quest-002-b-will-i-starve'],
   }),
   journalSummaryFallback: 'Answered the voice beyond the forest door.',
   steps: [

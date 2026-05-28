@@ -449,11 +449,6 @@ export function buildDayReportDialogueLines(
     appendDialogue(DAY_REPORT_SPEAKER, `Day ${prevDayNumber} Report`),
   ];
 
-  const xpDelta = nextState.experience - prevState.experience;
-  if (xpDelta > 0) {
-    lines.push(appendDialogue(DAY_REPORT_SPEAKER, `You gained ${xpDelta} experience.`));
-  }
-
   for (const text of getRewardLines(prevState.modifiers, nextState.modifiers)) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }

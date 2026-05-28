@@ -32,8 +32,36 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
 /** Mainline forest / first night (`flavor-five` → endings); grants `quest001-complete` when done. */
 export const QUEST_FIRST_NIGHT_ID = 'quest-002-first-night';
+/** Forest beat after first night — The Old Well (Door-style popup). */
+export const QUEST_002B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
+export const QUEST_002B_WELL_HALT_STEP_ID = 'well-halt';
+export const QUEST_002B_WELL_HUB_STEP_ID = 'well-hub';
 /** Story beat: after 2b, unlocks merchant travel (`quest-003-b-meet-merchant`). */
 export const QUEST_003B_MEET_MERCHANT_ID = 'quest-003-b-meet-merchant';
+
+/** Forest parent hub in the header travel menu (persisted `currentLocation`). */
+export const FOREST_PARENT_LOCATION = 'Forest';
+/** Unlocks under The Forest when quest 3 is unveiled. */
+export const OLD_WELL_LOCATION = 'Old Well';
+/** Player entered the Old Well popup quest at least once. */
+export const QUEST_002B_WELL_OPENED_FLAG = 'quest-002-b-well-opened';
+/** Player threw an item into the well (see `quest-002-b-thrown-item-*`). */
+export const QUEST_002B_WELL_THREW_FLAG = 'quest-002-b-well-threw-item';
+/** Strange coin already retrieved from the bucket. */
+export const QUEST_002B_WELL_COIN_FLAG = 'quest-002-b-well-coin-received';
+/** `quest-002-b-thrown:<item label>` — thrown item label for well copy. */
+export const QUEST_002B_THROWN_LABEL_PREFIX = 'quest-002-b-thrown:';
+
+export function thrownItemLabelFromFlags(flags: readonly string[]): string | null {
+  const hit = flags.find((f) => f.startsWith(QUEST_002B_THROWN_LABEL_PREFIX));
+  if (!hit) return null;
+  const label = hit.slice(QUEST_002B_THROWN_LABEL_PREFIX.length).trim();
+  return label.length > 0 ? label : null;
+}
+
+export function thrownItemFlagForLabel(label: string): string {
+  return `${QUEST_002B_THROWN_LABEL_PREFIX}${label.trim()}`;
+}
 /** Quest 4b — Carl at the door (NPC dialog template). */
 export const QUEST_004_B_THE_DOOR_ID = 'quest-004-b-the-door';
 export const QUEST_004_B_CARL_HUB_STEP_ID = 'carl-hub';
@@ -64,6 +92,8 @@ export const DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY = 'nsg:dev-show-modifier-deta
 export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';
 /** When enabled, Play quest interactions use the legacy modal popup instead of inline expansion. */
 export const DEV_USE_QUEST_POPUP_STORAGE_KEY = 'nsg:dev-use-quest-popup';
+/** Quest step back arrow on choice/message panes (dev testing). */
+export const SHOW_QUEST_STEP_BACK = true;
 /** Set once the player opens quest 1 at least once this run/save. */
 export const ORIGIN_QUEST_OPENED_FLAG = 'quest001-opened';
 export const DEV_RAPID_DAY_SIM_INTERVAL_MS = 2000;
@@ -141,6 +171,7 @@ export const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-de
 /** Persisted `QuestState.currentLocation` must be one of these; others normalize to Forest on load. */
 export const VALID_SAVE_LOCATIONS = new Set<string>([
   'Forest',
+  'Old Well',
   'Merchant',
   'Silver Lake',
   'Airship',
@@ -155,6 +186,7 @@ export const VALID_SAVE_LOCATIONS = new Set<string>([
 export const LOCATION_LABEL_DISPLAY: Readonly<Record<string, string>> = {
   Village: 'VILLAGE',
   Forest: 'THE FOREST',
+  'Old Well': 'OLD WELL',
   Cemetery: 'CEMETERY',
   Quarry: 'QUARRY',
   Mine: 'MINE',
@@ -198,6 +230,7 @@ export const DAY_PACING_ACTIVE_FLAG = 'day-pacing-active';
 export const locationActions: Record<string, string[]> = {
   Town: ['Visit the tavern', 'Visit the market'],
   Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
+  'Old Well': ['Interact with the old well'],
   'Silver Lake': ['Still waters', 'Light in the water'],
   Merchant: [],
   Airship: [],

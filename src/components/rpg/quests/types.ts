@@ -56,6 +56,15 @@ export type QuestChoice = {
   disabledUnlessModifiersAtLeast?: ModifierMap;
   /** Optional suffix appended to `label` when the choice is disabled (e.g. "(already explored)"). */
   disabledLabel?: string;
+  /**
+   * Resolve `nextStepId` at choice time: `probability` (default 0.5) chance of
+   * `successStepId`, otherwise `failStepId`. Ignores `nextStepId` when set.
+   */
+  randomBranch?: {
+    successStepId: string;
+    failStepId: string;
+    probability?: number;
+  };
 };
 
 type QuestStepBase = {
@@ -91,7 +100,20 @@ export type InputQuestStep = QuestStepBase & {
   journalSummaryLineAfterSubmit?: string;
 };
 
-export type QuestStep = MessageQuestStep | ChoiceQuestStep | InputQuestStep;
+/** Pick one label from `QuestState.questItems`; consumes one matching entry on submit. */
+export type InventoryPickQuestStep = QuestStepBase & {
+  type: 'inventoryPick';
+  submitLabel: string;
+  nextStepId: string;
+  /** Shown when `questItems` is empty. */
+  emptyText?: string;
+  /** Flags applied after a successful throw/pick. */
+  effects?: ChoiceEffect;
+  /** When set, also records `prefix + itemLabel` (e.g. thrown-item label flag). */
+  thrownItemFlagPrefix?: string;
+};
+
+export type QuestStep = MessageQuestStep | ChoiceQuestStep | InputQuestStep | InventoryPickQuestStep;
 
 export type QuestDefinition = {
   id: string;
@@ -101,6 +123,8 @@ export type QuestDefinition = {
   startStepId: string;
   steps: Record<string, QuestStep>;
   isAvailable: (context: QuestContext) => boolean;
+  /** Saga unveil only — omit to use `isAvailable` (location gates ignored when set). */
+  isUnveilEligible?: (context: QuestContext) => boolean;
   /** When true, completing this quest credits daily pacing / XP for the current game-day slice (main storyline). */
   mainDailyQuest?: boolean;
   /** When set, the quest completes once all listed flags are present after a choice (union with `completeQuest`). */
@@ -120,13 +144,27 @@ export type QuestDefinition = {
   /** When no path key matches (and no `*` entry), use this recap if set. */
   journalSummaryFallback?: string;
   /** Play-tab quest list card: title beside image (default) or overlaid on the card art. */
-  questCardLayout?: 'default' | 'title-overlay';
+  /** `title-overlay`: title on art at standard card size; `title-overlay-hero`: full-width card for marquee beats. */
+  questCardLayout?: 'default' | 'title-overlay' | 'title-overlay-hero';
+  /** Default two-column card: art column (default left). */
+  questCardImageSide?: 'left' | 'right';
   /** Chronicle / quest card tone label (forest memoryless arc). */
   toneTag?: 'vision' | 'echo' | 'mundane';
+  /** Always opens in the modal popup (not inline on Play). */
+  locationPopup?: boolean;
+  /** After completion, travel can reopen the popup (hub/actions) without resetting saga progress. */
+  locationRepeats?: boolean;
+  /** Only listed on Play when `currentLocation` matches (travel-menu entry). */
+  locationGated?: boolean;
+  /** Travel here before opening a location-gated popup from the quest card. */
+  requiredPlayLocation?: string;
+  /** When false, Play quest card is display-only (no click/hover affordance). Default true. */
+  questCardInteractive?: boolean;
 };
 
 export type QuestContext = {
   currentLocation: string;
+  forestSubLocation: string | null;
   completedQuestIds: string[];
   flags: string[];
   /** Exploration skill level from `skills.explorationXp`. */
@@ -151,6 +189,8 @@ export type QuestProgress = {
   currentStepId: string;
   isCompleted: boolean;
   choiceHistory: string[];
+  /** Prior step ids for dev back navigation (testing). */
+  devStepHistory?: string[];
 };
 
 export type DialogueLogEntry = {
@@ -181,6 +221,8 @@ export type JournalLogEntry = {
   atMs: number;
   /** Modifier/item/skill gains attributed to this completion (may be empty). */
   completionRewards?: string[];
+  /** Play-tab lines under the quest recap (ember milestone styling). */
+  playMilestones?: string[];
 };
 
 export type QuestState = {
@@ -190,6 +232,8 @@ export type QuestState = {
   flags: string[];
   /** Player location label (e.g. Forest, Silver Lake). */
   currentLocation: string;
+  /** Forest sub-destination (e.g. Old Well); header stays on Forest. */
+  forestSubLocation?: string | null;
   playerName: string;
   experience: number; // Legacy aggregate XP field kept for migration compatibility.
   skills: {
@@ -215,6 +259,8 @@ export type QuestState = {
    * quests sit in a hidden queue until day-rollover unveils them.
    */
   unveiledQuestIds: string[];
+  /** Travel-menu location ids the player has selected (clears “new” pings). */
+  acknowledgedTravelLocationIds?: string[];
   /** Player health 0-100. Placeholder; reserved for future combat. */
   health: number;
   /**

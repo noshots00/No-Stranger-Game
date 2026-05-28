@@ -4,7 +4,17 @@
  */
 
 import { formatInTimeZone } from 'date-fns-tz';
-import { QUEST001_NAMED_FLAG, QUEST_FIRST_NIGHT_ID } from '@/components/rpg/constants';
+import { applyQuestLevelMilestoneIfNeeded } from '@/components/rpg/dayMilestones';
+import { applyInSessionDayAdvanceAfterMainQuest } from '@/components/rpg/dayPacing';
+import {
+  FOREST_PARENT_LOCATION,
+  ORIGIN_QUEST_OPENED_FLAG,
+  QUEST001_NAMED_FLAG,
+  QUEST_FIRST_NIGHT_ID,
+} from '@/components/rpg/constants';
+import { DAY_REPORT_SPEAKER } from '@/components/rpg/dialogueFormat';
+import { restartQuestProgress } from '@/components/rpg/quests/engine';
+import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
 import type { QuestDefinition, QuestProgress, QuestState } from '@/components/rpg/quests/types';
 import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 
@@ -55,44 +65,95 @@ function ensureNamedDevBasics(state: QuestState): QuestState {
   };
 }
 
-function applyCompletionsForPrefix(
-  state: QuestState,
-  questById: Record<string, QuestDefinition>,
-  upToIncludingIndex: number
-): QuestState {
-  let next: QuestState = { ...state, activeQuestId: null, progressByQuestId: { ...state.progressByQuestId } };
-  const toReveal: string[] = [];
+function isDayReportDialogueLine(text: string): boolean {
+  return /^Day\s+\d+\s+Report$/i.test(text.trim());
+}
 
-  for (let i = 0; i <= upToIncludingIndex && i < MAIN_B_ARC_QUEST_IDS.length; i++) {
+function filterDialogueForPrefix(
+  dialogueLog: QuestState['dialogueLog'],
+  keepQuestIds: Set<string>
+): QuestState['dialogueLog'] {
+  return dialogueLog.filter((entry) => {
+    if (entry.sourceQuestId && !keepQuestIds.has(entry.sourceQuestId)) return false;
+    if (entry.speaker === DAY_REPORT_SPEAKER || isDayReportDialogueLine(entry.text)) return false;
+    return true;
+  });
+}
+
+function filterWorldLogForPrefix(worldEventLog: QuestState['worldEventLog']): QuestState['worldEventLog'] {
+  return worldEventLog.filter((entry) => !/^Day\s+\d+\.\.\./i.test(entry.text));
+}
+
+/**
+ * Mark main-arc quests `0..arcIndex` complete and rebuild journal recaps, play milestones,
+ * and (after first night) in-session day roll — same outcomes as playing through in order.
+ */
+function rebuildPrefixThroughArcIndex(
+  state: QuestState,
+  arcIndex: number,
+  questById: Record<string, QuestDefinition>
+): QuestState {
+  const keepQuestIds = prefixQuestIds(arcIndex);
+
+  let accum: QuestState = {
+    ...state,
+    activeQuestId: null,
+    currentLocation: FOREST_PARENT_LOCATION,
+    progressByQuestId: {},
+    journalLog: [],
+    dialogueLog: filterDialogueForPrefix(state.dialogueLog, keepQuestIds),
+    worldEventLog: filterWorldLogForPrefix(state.worldEventLog),
+    flags: [],
+    lastDailyXpDay: 1,
+    unveiledQuestIds: ['quest-001-origin'],
+    acknowledgedTravelLocationIds:
+      arcIndex >= 3 ? [...(state.acknowledgedTravelLocationIds ?? [])] : [],
+  };
+
+  for (let i = 0; i <= arcIndex && i < MAIN_B_ARC_QUEST_IDS.length; i++) {
     const qid = MAIN_B_ARC_QUEST_IDS[i]!;
     const quest = questById[qid];
     if (!quest) continue;
-    next.progressByQuestId[qid] = completedProgress(quest);
-    toReveal.push(qid);
+
+    const prev = accum;
+    accum = {
+      ...accum,
+      progressByQuestId: {
+        ...accum.progressByQuestId,
+        [qid]: completedProgress(quest),
+      },
+    };
+
+    if (i === 0) {
+      accum = {
+        ...ensureNamedDevBasics(accum),
+        playerName: state.playerName.trim().length > 0 ? state.playerName : accum.playerName,
+        characterCreationDateEastern:
+          state.characterCreationDateEastern ?? accum.characterCreationDateEastern,
+      };
+    }
+    if (i >= 1) {
+      accum = {
+        ...accum,
+        flags: Array.from(new Set([...accum.flags, QUEST001_COMPLETE_FLAG])),
+      };
+    }
+
+    accum = mergeJournalRecapOnQuestComplete(prev, accum, quest);
+    accum = applyQuestLevelMilestoneIfNeeded(prev, accum, qid);
+
+    if (qid === QUEST_FIRST_NIGHT_ID && quest.mainDailyQuest) {
+      accum = applyInSessionDayAdvanceAfterMainQuest(prev, accum, Math.max(1, accum.lastDailyXpDay), true);
+    }
   }
 
-  const nextIndex = upToIncludingIndex + 1;
-  if (nextIndex < MAIN_B_ARC_QUEST_IDS.length) {
-    toReveal.push(MAIN_B_ARC_QUEST_IDS[nextIndex]!);
-  }
-
-  next = {
-    ...next,
-    unveiledQuestIds: mergeUnveiled(next, toReveal),
+  const toReveal = MAIN_B_ARC_QUEST_IDS.slice(0, Math.min(arcIndex + 2, MAIN_B_ARC_QUEST_IDS.length));
+  accum = {
+    ...accum,
+    unveiledQuestIds: Array.from(new Set(toReveal)),
   };
 
-  if (upToIncludingIndex >= 0) {
-    next = ensureNamedDevBasics(next);
-  }
-
-  if (upToIncludingIndex >= 1) {
-    next = {
-      ...next,
-      flags: Array.from(new Set([...next.flags, QUEST001_COMPLETE_FLAG])),
-    };
-  }
-
-  return next;
+  return accum;
 }
 
 /**
@@ -120,7 +181,9 @@ export function applyStoryCheckpoint(
     }
   })();
 
-  return applyCompletionsForPrefix(state, questById, idx);
+  const anchorId = MAIN_B_ARC_QUEST_IDS[idx];
+  if (!anchorId) return state;
+  return devStartFromQuestAnchor(state, anchorId, questById);
 }
 
 /**
@@ -153,6 +216,90 @@ export function devCompleteQuestById(
       ...next,
       flags: Array.from(new Set([...next.flags, QUEST001_COMPLETE_FLAG])),
     };
+  }
+
+  return next;
+}
+
+/**
+ * Dev-only: replay a quest from `startStepId` without wiping the character.
+ * Clears completion, progress flags (`{questId}-*`), dialogue, and journal lines;
+ * keeps modifiers, other quests, name, race, location, etc.
+ */
+export function isMainArcQuestId(questId: string): boolean {
+  return (MAIN_B_ARC_QUEST_IDS as readonly string[]).includes(questId);
+}
+
+function mainArcIndex(questId: string): number {
+  return MAIN_B_ARC_QUEST_IDS.indexOf(questId as (typeof MAIN_B_ARC_QUEST_IDS)[number]);
+}
+
+function prefixQuestIds(arcIndex: number): Set<string> {
+  return new Set(MAIN_B_ARC_QUEST_IDS.slice(0, arcIndex + 1));
+}
+
+function filterFlagsForAnchor(flags: readonly string[], arcIndex: number, keepQuestIds: Set<string>): string[] {
+  const out: string[] = [];
+  for (const flag of flags) {
+    if (flag === QUEST001_NAMED_FLAG || flag === ORIGIN_QUEST_OPENED_FLAG) {
+      if (arcIndex >= 0) out.push(flag);
+      continue;
+    }
+    if (flag === QUEST001_COMPLETE_FLAG) {
+      if (arcIndex >= 1) out.push(flag);
+      continue;
+    }
+    const owner = MAIN_B_ARC_QUEST_IDS.find((qid) => flag.startsWith(`${qid}-`));
+    if (owner) {
+      if (keepQuestIds.has(owner)) out.push(flag);
+      continue;
+    }
+  }
+  return Array.from(new Set(out));
+}
+
+/**
+ * Dev rewind: treat `anchorQuestId` as the last completed main-arc beat; clear everything after it.
+ * Rebuilds journal recaps, play milestones, and day pacing through the anchor (same as a real playthrough).
+ */
+export function devStartFromQuestAnchor(
+  state: QuestState,
+  anchorQuestId: string,
+  questById: Record<string, QuestDefinition>
+): QuestState {
+  const arcIndex = mainArcIndex(anchorQuestId);
+  if (arcIndex < 0) return state;
+
+  const keepQuestIds = prefixQuestIds(arcIndex);
+  const base: QuestState = {
+    ...state,
+    flags: filterFlagsForAnchor(state.flags, arcIndex, keepQuestIds),
+  };
+
+  return rebuildPrefixThroughArcIndex(base, arcIndex, questById);
+}
+
+export function devResetQuestById(
+  state: QuestState,
+  questId: string,
+  questById: Record<string, QuestDefinition>
+): QuestState {
+  const quest = questById[questId];
+  if (!quest) return state;
+
+  const flagPrefix = `${questId}-`;
+  let next = restartQuestProgress(state, quest);
+  next = {
+    ...next,
+    activeQuestId: questId,
+    flags: state.flags.filter((flag) => !flag.startsWith(flagPrefix)),
+    dialogueLog: state.dialogueLog.filter((entry) => entry.sourceQuestId !== questId),
+    journalLog: state.journalLog.filter((entry) => entry.questId !== questId),
+    unveiledQuestIds: mergeUnveiled(state, [questId]),
+  };
+
+  if (questId === 'quest-001-origin') {
+    next = ensureNamedDevBasics(next);
   }
 
   return next;

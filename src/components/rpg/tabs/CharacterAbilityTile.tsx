@@ -9,7 +9,7 @@ type CharacterAbilityTileProps = {
 
 /** Combat and spell slots: 1px vertical padding (2px taller than text). */
 const TILE_CLASS =
-  'inline-flex shrink-0 flex-col items-center justify-center rounded border bg-transparent px-1 py-px text-center font-serif leading-none';
+  'inline-flex shrink-0 flex-col items-center justify-center rounded bg-transparent px-1 py-px text-center font-serif leading-none';
 
 export function CharacterAbilityTile({ tile, className }: CharacterAbilityTileProps) {
   return (
@@ -17,8 +17,8 @@ export function CharacterAbilityTile({ tile, className }: CharacterAbilityTilePr
       className={cn(
         TILE_CLASS,
         tile.placeholder
-          ? 'border-[var(--candle-rule)]/60 text-[var(--candle-ink-faint)]'
-          : 'border-[var(--candle-flame-soft)]/35 text-[var(--candle-ink)]',
+          ? 'text-[var(--candle-ink-faint)]'
+          : 'text-[var(--candle-ink)]',
         className
       )}
       title={tile.placeholder ? `${tile.name} (placeholder)` : tile.name}

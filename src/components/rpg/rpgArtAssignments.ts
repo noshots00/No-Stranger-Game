@@ -179,6 +179,15 @@ export function getQuestStepImageSrc(quest: QuestDefinition, stepId: string): st
   return firstAuthoredVisualImageSrcForStep(quest, stepId);
 }
 
+/** Location/NPC-style popup portrait — current step, then quest open beat, then card art. */
+export function getQuestPopupPortraitSrc(quest: QuestDefinition, stepId: string): string {
+  return (
+    getQuestStepImageSrc(quest, stepId) ??
+    getQuestStepImageSrc(quest, quest.startStepId) ??
+    getQuestCardImageSrc(quest)
+  );
+}
+
 /** Portrait URL for the character sheet from canonical race slug; falls back when unknown / no race. */
 export function getRacePortraitSrc(slug: string | null | undefined): string {
   if (!slug) return fallbackBatchPortraitSrc;

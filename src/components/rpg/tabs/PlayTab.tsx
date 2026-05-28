@@ -7,8 +7,6 @@ import { getQuestCardImageSrc } from '../rpgArtAssignments';
 import { ORIGIN_QUEST_OPENED_FLAG, QUEST_004_B_CARL_HUB_STEP_ID, QUEST_004_B_THE_DOOR_ID } from '../constants';
 import { QuestPopup } from './QuestPopup';
 
-const QUEST_2B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
-
 type PlayLedgerTimelineRow =
   | { kind: 'story'; segment: ChronicleSegment; sortMs: number }
   | { kind: 'journal_group'; entries: JournalLogEntry[]; sortMs: number; groupKey: string };
@@ -45,6 +43,9 @@ type PlayTabProps = {
   playerFlags: string[];
   /** Stackable item/stat tallies; used by `disabledUnlessModifiersAtLeast` on QuestChoice. */
   playerModifiers: ModifierMap;
+  /** Inventory labels for `inventoryPick` quest steps. */
+  questItems: string[];
+  onInventoryPickSubmit?: (itemLabel: string) => void;
   /** Narrative lines for the active quest popup (sourced from `dialogueLog`). */
   activeQuestTranscript: DialogueLogEntry[];
   useQuestPopupFallback: boolean;
@@ -52,6 +53,8 @@ type PlayTabProps = {
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
   /** Scroll play feed so the latest dialogue + quest options are fully visible. */
   onSnapPlayFeedBottom?: () => void;
+  canQuestStepBack?: boolean;
+  onQuestStepBack?: () => void;
 };
 
 export function PlayTab({
@@ -82,10 +85,14 @@ export function PlayTab({
   onLocationAction,
   playerFlags,
   playerModifiers,
+  questItems,
+  onInventoryPickSubmit,
   activeQuestTranscript,
   useQuestPopupFallback,
   onQuestChoiceVisualPhase,
   onSnapPlayFeedBottom,
+  canQuestStepBack,
+  onQuestStepBack,
 }: PlayTabProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
     const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
@@ -192,9 +199,22 @@ export function PlayTab({
     onOpen?: () => void;
   }) => {
     const cardSrc = getQuestCardImageSrc(quest);
+    const titleOverlayHero = quest.questCardLayout === 'title-overlay-hero';
     const titleOverlayBlock = (
-      <div className="mx-auto w-full max-w-[260px]">
-        <div className="relative overflow-hidden rounded border border-[var(--candle-rule)] shadow-[0_10px_32px_rgba(0,0,0,0.35)]">
+      <div
+        className={cn(
+          'flex flex-col items-center',
+          titleOverlayHero && 'mx-auto w-full max-w-[260px]'
+        )}
+      >
+        <div
+          className={cn(
+            'relative overflow-hidden rounded border border-[var(--candle-rule)]',
+            titleOverlayHero
+              ? 'w-full shadow-[0_10px_32px_rgba(0,0,0,0.35)]'
+              : 'w-[150px] shrink-0 shadow-[0_6px_20px_rgba(0,0,0,0.3)]'
+          )}
+        >
           <img
             src={cardSrc}
             alt={`${title} illustration`}
@@ -212,7 +232,9 @@ export function PlayTab({
             </span>
           ) : null}
         </div>
-        <p className="mt-2 text-center font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">{briefingText}</p>
+        <p className="mt-2 max-w-[260px] text-center font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">
+          {briefingText}
+        </p>
       </div>
     );
 
@@ -235,9 +257,9 @@ export function PlayTab({
         <p className="font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">{briefingText}</p>
       </div>
     );
-    const imageOnRight = quest.id === QUEST_2B_WILL_I_STARVE_ID;
+    const imageOnRight = quest.questCardImageSide === 'right';
     const content =
-      quest.questCardLayout === 'title-overlay' ? (
+      quest.questCardLayout === 'title-overlay' || quest.questCardLayout === 'title-overlay-hero' ? (
         titleOverlayBlock
       ) : (
         <div className="flex items-start justify-center gap-3">
@@ -256,7 +278,9 @@ export function PlayTab({
       );
 
     if (!interactive) {
-      return <div className="w-full py-2 text-left font-serif">{content}</div>;
+      return (
+        <div className="w-full cursor-default py-2 text-left font-serif select-none">{content}</div>
+      );
     }
 
     return (
@@ -330,6 +354,18 @@ export function PlayTab({
                               </p>
                             </div>
                           ) : null}
+                          {je.playMilestones && je.playMilestones.length > 0 ? (
+                            <div className="space-y-1 pt-1">
+                              {je.playMilestones.map((line, milestoneIdx) => (
+                                <p
+                                  key={`${je.id}-milestone-${milestoneIdx}`}
+                                  className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
+                                >
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -343,6 +379,7 @@ export function PlayTab({
             const briefingText = resolveQuestBriefing(quest.id, quest.briefing);
             const showInlineQuest =
               !useQuestPopupFallback &&
+              !quest.locationPopup &&
               questPopupQuestId === quest.id &&
               activeQuest?.id === quest.id &&
               Boolean(activeStep);
@@ -350,6 +387,7 @@ export function PlayTab({
               quest.id === QUEST_004_B_THE_DOOR_ID &&
               activeQuest?.id === quest.id &&
               activeStep?.id === QUEST_004_B_CARL_HUB_STEP_ID;
+            const questCardInteractive = quest.questCardInteractive !== false;
             return (
               <div key={`active-journal-${quest.id}`} className="py-0.5">
                 <div className="space-y-2">
@@ -358,8 +396,8 @@ export function PlayTab({
                     title: quest.title,
                     briefingText,
                     isNew,
-                    interactive: !showInlineQuest,
-                    onOpen: () => onOpenQuestPopup(quest.id),
+                    interactive: questCardInteractive && !showInlineQuest,
+                    onOpen: questCardInteractive ? () => onOpenQuestPopup(quest.id) : undefined,
                   })}
                   {suppressQuestPopupForCarlNpc && showInlineQuest ? (
                     <p className="px-0.5 font-serif text-sm italic text-[var(--candle-ink-faint)]">
@@ -372,6 +410,7 @@ export function PlayTab({
                       step={activeStep}
                       playerFlags={playerFlags}
                       playerModifiers={playerModifiers}
+                      questItems={questItems}
                       showOriginStartHint={showOriginStartHint}
                       committedPlayerName={committedPlayerName}
                       nameInput={nameInput}
@@ -379,12 +418,15 @@ export function PlayTab({
                       nameInputError={nameInputError}
                       onStepChoice={onStepChoice}
                       onNameSubmit={onNameSubmit}
+                      onInventoryPickSubmit={onInventoryPickSubmit}
                       onAdvanceQuestMessage={onAdvanceQuestMessage}
                       onClose={onCloseQuestPopup}
                       presentation="inline"
                       questTranscript={activeQuestTranscript}
                       onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
                       onSnapPlayFeedBottom={onSnapPlayFeedBottom}
+                      canQuestStepBack={canQuestStepBack}
+                      onQuestStepBack={onQuestStepBack}
                     />
                   ) : null}
                 </div>
@@ -410,15 +452,16 @@ export function PlayTab({
           </div>
         </div>
       ) : null}
-      {useQuestPopupFallback && popupQuest && popupStep && !(
-        popupQuest.id === QUEST_004_B_THE_DOOR_ID &&
-        popupStep.id === QUEST_004_B_CARL_HUB_STEP_ID
-      ) ? (
+      {(useQuestPopupFallback || popupQuest?.locationPopup) &&
+      popupQuest &&
+      popupStep &&
+      !(popupQuest.id === QUEST_004_B_THE_DOOR_ID && popupStep.id === QUEST_004_B_CARL_HUB_STEP_ID) ? (
         <QuestPopup
           quest={popupQuest}
           step={popupStep}
           playerFlags={playerFlags}
           playerModifiers={playerModifiers}
+          questItems={questItems}
           showOriginStartHint={showOriginStartHint}
           committedPlayerName={committedPlayerName}
           nameInput={nameInput}
@@ -426,12 +469,15 @@ export function PlayTab({
           nameInputError={nameInputError}
           onStepChoice={onStepChoice}
           onNameSubmit={onNameSubmit}
+          onInventoryPickSubmit={onInventoryPickSubmit}
           onAdvanceQuestMessage={onAdvanceQuestMessage}
           onClose={onCloseQuestPopup}
           presentation="modal"
           questTranscript={activeQuestTranscript}
           onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
           onSnapPlayFeedBottom={onSnapPlayFeedBottom}
+          canQuestStepBack={canQuestStepBack}
+          onQuestStepBack={onQuestStepBack}
         />
       ) : null}
     </section>

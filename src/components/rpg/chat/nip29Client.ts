@@ -14,12 +14,12 @@
 export const DEFAULT_CHAT_RELAY = 'wss://relay.ditto.pub';
 
 /**
- * Group room messages use kind 1 + `t` = room id so standard relays (ditto, dreamith) index them.
- * Legacy kind 9 + `h` (NIP-29) is still read for older messages.
+ * Group room messages use kind 9 + `h` room id (NIP-29 style).
+ * Legacy kind 1 + `t` is still read for older messages.
  */
-export const GAME_CHAT_MESSAGE_KIND = 1;
-/** @deprecated Read path only — new messages use {@link GAME_CHAT_MESSAGE_KIND}. */
-export const NIP29_CHAT_KIND = 9;
+export const GAME_CHAT_MESSAGE_KIND = 9;
+/** @deprecated Read path only — older public-note chat messages. */
+export const LEGACY_GAME_CHAT_KIND = 1;
 export const GAME_CHAT_COMMUNITY_T = 'no-stranger-game-chat';
 
 const GLOBAL_GROUP_ID = 'no-stranger-game-global';
@@ -53,7 +53,7 @@ export function buildChatMessageTemplate(
     kind: GAME_CHAT_MESSAGE_KIND,
     content,
     tags: [
-      ['t', groupId],
+      ['h', groupId],
       ['t', GAME_CHAT_COMMUNITY_T],
       ['alt', `No Stranger Game chat (${groupId})`],
     ],

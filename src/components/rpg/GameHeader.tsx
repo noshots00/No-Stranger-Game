@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { UI_VERSION_LABEL } from './constants';
+import type { TravelMenuItem } from './travelLocations';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,18 +10,35 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
+function TravelNewDot({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'size-1.5 shrink-0 rounded-full bg-[var(--candle-flame-soft)] shadow-[0_0_6px_rgba(230,161,87,0.55)]',
+        className
+      )}
+      aria-hidden
+    />
+  );
+}
+
 type GameHeaderProps = {
   dayCounter: number;
   /** When false, header shows `preVillageDayLabel` instead of the calendar day. */
   dayPacingActive?: boolean;
   /** Shown left of header when `dayPacingActive` is false (creation arc / forest binge). */
   preVillageDayLabel?: string;
+  /** Shown in the header (parent hub — e.g. The Forest, not Old Well). */
   currentLocation: string;
+  /** Highlights the active row in the travel menu (may be a forest sub-location). */
+  travelMenuHighlightLocation?: string;
   /** Maps persisted location id to header/travel menu label (storage stays canonical). */
   formatLocationLabel?: (location: string) => string;
   locationIndicatorClass: string;
-  /** Ordered travel destinations (Forest, optional Merchant when unlocked, …). */
-  travelLocations: readonly string[];
+  /** Forest hub + optional sub-locations and other travel destinations. */
+  travelMenuItems: readonly TravelMenuItem[];
+  /** Pings on the header location control until required menu entries are acknowledged. */
+  locationMenuNotify?: boolean;
   onTravelLocationSelect: (location: string) => void;
   /** When set, version label opens a scrollable dev panel (`devToolsPanel`). */
   showHeaderDevTools?: boolean;
@@ -32,9 +50,11 @@ export function GameHeader({
   dayPacingActive = true,
   preVillageDayLabel = 'The Forest',
   currentLocation,
+  travelMenuHighlightLocation,
   formatLocationLabel = (loc) => loc,
   locationIndicatorClass,
-  travelLocations,
+  travelMenuItems,
+  locationMenuNotify = false,
   onTravelLocationSelect,
   showHeaderDevTools = false,
   devToolsPanel,
@@ -75,30 +95,36 @@ export function GameHeader({
           <DropdownMenuTrigger
             type="button"
             className={cn(
-              'inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-serif text-[0.5625rem] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
+              'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-serif text-[0.5625rem] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
               locationIndicatorClass
             )}
-            aria-label="Choose location"
+            aria-label={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}
           >
             <span className="truncate">{formatLocationLabel(currentLocation)}</span>
+            {locationMenuNotify ? <TravelNewDot className="mr-0.5" /> : null}
             <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
             className="z-[60] min-w-[10rem] border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)]"
           >
-            {travelLocations.map((loc) => (
+            {travelMenuItems.map((item) => {
+              const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
+              return (
               <DropdownMenuItem
-                key={loc}
-                onSelect={() => onTravelLocationSelect(loc)}
+                key={item.locationId}
+                onSelect={() => onTravelLocationSelect(item.locationId)}
                 className={cn(
-                  'font-serif text-sm uppercase tracking-[0.12em] focus:bg-[var(--candle-flame)]/15',
-                  loc === currentLocation ? 'text-[var(--candle-wax)]' : 'text-[var(--candle-ink-soft)]'
+                  'flex items-center justify-between gap-2 font-serif text-sm uppercase tracking-[0.12em] focus:bg-[var(--candle-flame)]/15',
+                  item.indent ? 'pl-6' : undefined,
+                  item.locationId === menuHighlight ? 'text-[var(--candle-wax)]' : 'text-[var(--candle-ink-soft)]'
                 )}
               >
-                {formatLocationLabel(loc)}
+                <span className="truncate">{item.label}</span>
+                {item.showNew ? <TravelNewDot /> : null}
               </DropdownMenuItem>
-            ))}
+            );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -12,7 +12,7 @@ import { queryGameRelays } from '@/lib/queryGameRelays';
 
 import { publishGameRelayEvent } from '@/lib/publishGameRelayEvent';
 
-import { GAME_CHAT_MESSAGE_KIND, NIP29_CHAT_KIND, buildChatMessageTemplate } from './nip29Client';
+import { GAME_CHAT_MESSAGE_KIND, LEGACY_GAME_CHAT_KIND, buildChatMessageTemplate } from './nip29Client';
 
 
 
@@ -72,7 +72,7 @@ function mergeChatEvents(primary: readonly NostrEvent[], legacy: readonly NostrE
 
 /**
 
- * Group chat on game relays (kind 1 + room `t` tag; reads legacy kind 9 + `h` too).
+ * Group chat on game relays (kind 9 + room `h` tag; reads legacy kind 1 + `t` too).
 
  */
 
@@ -104,9 +104,9 @@ export function useChatRoom({ groupId, enabled = true }: UseChatRoomOptions): Ch
 
       const [modern, legacy] = await Promise.all([
 
-        queryGameRelays(nostr, [{ kinds: [GAME_CHAT_MESSAGE_KIND], '#t': [groupId], limit: CHAT_QUERY_LIMIT }]),
+        queryGameRelays(nostr, [{ kinds: [GAME_CHAT_MESSAGE_KIND], '#h': [groupId], limit: CHAT_QUERY_LIMIT }]),
 
-        queryGameRelays(nostr, [{ kinds: [NIP29_CHAT_KIND], '#h': [groupId], limit: CHAT_QUERY_LIMIT }]),
+        queryGameRelays(nostr, [{ kinds: [LEGACY_GAME_CHAT_KIND], '#t': [groupId], limit: CHAT_QUERY_LIMIT }]),
 
       ]);
 

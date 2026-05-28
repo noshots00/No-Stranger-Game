@@ -1,3 +1,4 @@
+import { isPlayerAtLocation } from '../locationPresence';
 import type { QuestChoice, QuestContext, QuestDefinition, QuestStep } from './types';
 
 export type QuestAvailability = {
@@ -56,10 +57,12 @@ const includesAny = (haystack: string[], needles: string[]): boolean => needles.
 export const meetsMinDay = (context: QuestContext, minDay: number): boolean =>
   !context.dayPacingActive || context.currentDay >= minDay;
 
-export const makeQuestAvailability =
-  (availability?: QuestAvailability) =>
-  (context: QuestContext): boolean => {
-    if (!availability) return true;
+const checkQuestAvailability = (
+  availability: QuestAvailability | undefined,
+  context: QuestContext,
+  options?: { ignoreLocation?: boolean }
+): boolean => {
+  if (!availability) return true;
     if (
       typeof availability.minExplorationLevel === 'number' &&
       context.explorationLevel < availability.minExplorationLevel
@@ -76,8 +79,9 @@ export const makeQuestAvailability =
       return false;
     }
     if (
+      !options?.ignoreLocation &&
       typeof availability.requiresLocation === 'string' &&
-      context.currentLocation !== availability.requiresLocation
+      !isPlayerAtLocation(context, availability.requiresLocation)
     ) {
       return false;
     }
@@ -118,7 +122,24 @@ export const makeQuestAvailability =
       return false;
     }
     return true;
-  };
+};
+
+export const makeQuestAvailability =
+  (availability?: QuestAvailability) =>
+  (context: QuestContext): boolean => checkQuestAvailability(availability, context);
+
+/** Saga unveil: prerequisite gates only (location is for travel/play, not listing). */
+export const makeQuestUnveilEligibility =
+  (availability?: QuestAvailability) =>
+  (context: QuestContext): boolean =>
+    checkQuestAvailability(availability, context, { ignoreLocation: true });
+
+export function isQuestEligibleForUnveil(
+  quest: Pick<QuestDefinition, 'isAvailable' | 'isUnveilEligible'>,
+  context: QuestContext
+): boolean {
+  return (quest.isUnveilEligible ?? quest.isAvailable)(context);
+}
 
 export function createBranchingQuest(options: BranchingQuestOptions): QuestDefinition {
   const steps = options.steps.reduce<Record<string, QuestStep>>((acc, step) => {

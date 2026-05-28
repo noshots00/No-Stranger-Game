@@ -1,12 +1,21 @@
 import {
+  QUEST_004_B_THE_DOOR_ID,
   QUEST_018_SILVER_LAKE_REFLECTION_ID,
   QUEST_DISCOVER_CEMETERY_ID,
   QUEST_DISCOVER_MINE_ID,
   QUEST_DISCOVER_QUARRY_ID,
+  QUEST_FIRST_NIGHT_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
 } from '../constants';
-import type { QuestContext } from './types';
+import { isQuestEligibleForUnveil } from './branching-quest-template';
+import type { QuestContext, QuestDefinition } from './types';
 import { allQuests, questById } from './registry';
+
+const unveilEligible = (q: QuestDefinition | undefined, context: QuestContext): boolean =>
+  q ? isQuestEligibleForUnveil(q, context) : false;
+
+/** Temporary maintainer gate: only manually-unveiled quests should surface. */
+const MANUAL_QUEST_GATING = true;
 
 /** Implemented forest → door → home spine; extend as MAIN_QUEST.md grows. */
 export const MAIN_SAGA_QUEST_IDS: readonly string[] = [
@@ -64,6 +73,32 @@ export function computeNextUnveilIdsAfterCompletion(
   completedQuestIds: readonly string[],
   context: QuestContext
 ): string[] {
+  if (MANUAL_QUEST_GATING) {
+    const completed = new Set(completedQuestIds);
+    const unveiled = new Set(unveiledQuestIds);
+    if (completedQuestId === 'quest-001-origin') {
+      const nextId = 'quest-002-first-night';
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    if (completedQuestId === QUEST_FIRST_NIGHT_ID) {
+      const nextId = 'quest-002-b-will-i-starve';
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    if (completedQuestId === 'quest-002-b-will-i-starve') {
+      const nextId = QUEST_004_B_THE_DOOR_ID;
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    return [];
+  }
   const unveiled = new Set(unveiledQuestIds);
   const completed = new Set(completedQuestIds);
 
@@ -72,7 +107,7 @@ export function computeNextUnveilIdsAfterCompletion(
     const nextId = MAIN_SAGA_QUEST_IDS[sagaIdx + 1];
     if (!completed.has(nextId) && !unveiled.has(nextId)) {
       const q = questById[nextId];
-      if (q?.isAvailable(context)) return [nextId];
+      if (unveilEligible(q, context)) return [nextId];
     }
     // Saga next not ready yet — still allow side drip (do not return [] here).
   }
@@ -81,7 +116,7 @@ export function computeNextUnveilIdsAfterCompletion(
     const villageId = QUEST_VILLAGE_ARRIVAL_ID;
     if (!completed.has(villageId) && !unveiled.has(villageId)) {
       const q = questById[villageId];
-      if (q?.isAvailable(context)) return [villageId];
+      if (unveilEligible(q, context)) return [villageId];
     }
   }
 
@@ -89,7 +124,7 @@ export function computeNextUnveilIdsAfterCompletion(
     const firstDiscovery = QUEST_DISCOVER_CEMETERY_ID;
     if (!completed.has(firstDiscovery) && !unveiled.has(firstDiscovery)) {
       const q = questById[firstDiscovery];
-      if (q?.isAvailable(context)) return [firstDiscovery];
+      if (unveilEligible(q, context)) return [firstDiscovery];
     }
   }
 
@@ -105,7 +140,7 @@ export function computeNextUnveilIdsAfterCompletion(
     const nextId = discoveryChain[discoveryIdx + 1];
     if (!completed.has(nextId) && !unveiled.has(nextId)) {
       const q = questById[nextId];
-      if (q?.isAvailable(context)) return [nextId];
+      if (unveilEligible(q, context)) return [nextId];
     }
   }
 
@@ -114,7 +149,7 @@ export function computeNextUnveilIdsAfterCompletion(
   for (const id of SIDE_QUEST_UNVEIL_ORDER) {
     if (completed.has(id) || unveiled.has(id)) continue;
     const q = questById[id];
-    if (q?.isAvailable(context)) return [id];
+    if (unveilEligible(q, context)) return [id];
   }
   return [];
 }
@@ -125,13 +160,14 @@ export function pickNextSideQuestToUnveilOnDayRoll(
   completedQuestIds: readonly string[],
   context: QuestContext
 ): string | null {
+  if (MANUAL_QUEST_GATING) return null;
   if (!completedQuestIds.includes(SIDE_QUEST_UNVEIL_AFTER_MAIN_ID)) return null;
   const unveiled = new Set(unveiledQuestIds);
   const completed = new Set(completedQuestIds);
   for (const id of SIDE_QUEST_UNVEIL_ORDER) {
     if (completed.has(id) || unveiled.has(id)) continue;
     const q = questById[id];
-    if (q?.isAvailable(context)) return id;
+    if (unveilEligible(q, context)) return id;
   }
   return null;
 }
@@ -142,13 +178,36 @@ export function catchUpVillageUnveilId(
   completedQuestIds: readonly string[],
   context: QuestContext
 ): string | null {
+  if (MANUAL_QUEST_GATING) return null;
   if (!completedQuestIds.includes(QUEST_018_SILVER_LAKE_REFLECTION_ID)) return null;
   const villageId = QUEST_VILLAGE_ARRIVAL_ID;
   if (completedQuestIds.includes(villageId)) return null;
   if (unveiledQuestIds.includes(villageId)) return null;
   const q = questById[villageId];
-  if (!q?.isAvailable(context)) return null;
+  if (!unveilEligible(q, context)) return null;
   return villageId;
+}
+
+/** Manual gating: unveil the next forest saga step when the prior step is already complete. */
+export function catchUpManualSagaUnveilIds(
+  unveiledQuestIds: readonly string[],
+  completedQuestIds: readonly string[],
+  context: QuestContext
+): string[] {
+  if (!MANUAL_QUEST_GATING) return [];
+  const completed = new Set(completedQuestIds);
+  const out: string[] = [];
+  const chain = [
+    ['quest-001-origin', 'quest-002-first-night'],
+    [QUEST_FIRST_NIGHT_ID, 'quest-002-b-will-i-starve'],
+    ['quest-002-b-will-i-starve', QUEST_004_B_THE_DOOR_ID],
+  ] as const;
+  for (const [prevId, nextId] of chain) {
+    if (!completed.has(prevId)) continue;
+    const add = computeNextUnveilIdsAfterCompletion(prevId, [...unveiledQuestIds, ...out], completedQuestIds, context);
+    if (add.includes(nextId)) out.push(nextId);
+  }
+  return out;
 }
 
 /** One-shot migration: unveil the next saga step whenever the previous saga step is already complete. */
@@ -157,6 +216,7 @@ export function catchUpSagaUnveilIds(
   completedQuestIds: readonly string[],
   context: QuestContext
 ): string[] {
+  if (MANUAL_QUEST_GATING) return [];
   const unveiled = new Set(unveiledQuestIds);
   const completed = new Set(completedQuestIds);
   const out: string[] = [];
@@ -166,7 +226,7 @@ export function catchUpSagaUnveilIds(
     if (!completed.has(cur)) continue;
     if (completed.has(next) || unveiled.has(next)) continue;
     const q = questById[next];
-    if (q?.isAvailable(context)) {
+    if (unveilEligible(q, context)) {
       unveiled.add(next);
       out.push(next);
     }
