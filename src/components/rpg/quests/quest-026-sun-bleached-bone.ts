@@ -17,13 +17,11 @@ export const quest026SunBleachedBone = createBranchingQuest({
           id: 'bone-bury',
           label: '[placeholder] Bury the bone with quiet words',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Wisdom: 1 } },
         },
         {
           id: 'bone-take-pouch',
           label: '[placeholder] Take the pouch and leave the bone where it lies',
           completeQuest: true,
-          effects: { modifiersDelta: { RogueClass: 1, Dexterity: 1 } },
         },
       ],
     },

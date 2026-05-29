@@ -1,5 +1,9 @@
-import { meetsMinDay } from './branching-quest-template';
+import { QUEST_DYERS_CRYPT_ID } from '../constants';
+import { makeQuestUnveilEligibility, meetsMinDay } from './branching-quest-template';
 import type { QuestDefinition } from './types';
+
+/** Merged into Dyer's Crypt; kept for legacy saves. */
+const LEGACY_WANDERING_SKELETON_QUEST_ID = 'quest-006-wandering-skeleton';
 
 export const quest004AbandonedShelter: QuestDefinition = {
   id: 'quest-004-abandoned-shelter',
@@ -9,8 +13,12 @@ export const quest004AbandonedShelter: QuestDefinition = {
   createdAt: 7,
   startStepId: 'shelter-intro',
   isAvailable: (context) =>
-    context.flags.includes('quest001-complete') && meetsMinDay(context, 3),
-  journalSummaryFallback: 'Abandoned Shelter',
+    (context.completedQuestIds.includes(QUEST_DYERS_CRYPT_ID) ||
+      context.completedQuestIds.includes(LEGACY_WANDERING_SKELETON_QUEST_ID)) &&
+    meetsMinDay(context, 2),
+  isUnveilEligible: makeQuestUnveilEligibility({
+    requiresAnyCompletedQuestIds: [QUEST_DYERS_CRYPT_ID, LEGACY_WANDERING_SKELETON_QUEST_ID],
+  }),
   steps: {
     'shelter-intro': {
       id: 'shelter-intro',
@@ -22,14 +30,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           label: 'At least Ill have somewhere to sleep.',
           nextStepId: 'shelter-loot',
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              Scoundrel: 1,
-              GnomeRace: 1,
-              GoblinRace: 1,
-              HalflingRace: 1,
-              NightElfRace: 1,
-            },
+
           },
         },
         {
@@ -37,29 +38,16 @@ export const quest004AbandonedShelter: QuestDefinition = {
           label: "Shout out 'Is there anyone in there?'",
           nextStepId: 'shelter-shout-bridge',
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              Leader: 1,
-              OrcRace: 1,
-              DwarfRace: 1,
-              AtlantiansRace: 1,
-              CatfolkRace: 1,
-            },
+
           },
         },
       ],
     },
     'shelter-shout-bridge': {
       id: 'shelter-shout-bridge',
-      type: 'choice',
+      type: 'message',
       text: 'The only sounds you hear are crickets and birds. Satisfied, you enter the shelter.',
-      choices: [
-        {
-          id: 'shelter-shout-continue',
-          label: 'Continue',
-          nextStepId: 'shelter-loot',
-        },
-      ],
+      nextStepId: 'shelter-loot',
     },
     'shelter-loot': {
       id: 'shelter-loot',
@@ -73,11 +61,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ["It's a tiny buckler."],
-            modifiersDelta: {
-              DwarfRace: 1,
-              AtlantiansRace: 1,
-              OrcRace: 1,
-            },
+
           },
         },
         {
@@ -87,12 +71,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ["It's an old parrying dagger."],
-            modifiersDelta: {
-              WoodElfRace: 1,
-              NightElfRace: 1,
-              GoblinRace: 1,
-              HighElfRace: 1,
-            },
+
           },
         },
         {
@@ -102,12 +81,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['An old book with a strange symbol on the cover.'],
-            modifiersDelta: {
-              HighElfRace: 1,
-              RiverKingdomRace: 1,
-              GnomeRace: 1,
-              SunbornRace: 1,
-            },
+
           },
         },
         {
@@ -117,11 +91,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['A small silver cross on a worn cord.'],
-            modifiersDelta: {
-              GoblinRace: 1,
-              HalflingRace: 1,
-              GnomeRace: 1,
-            },
+
           },
         },
         {
@@ -131,11 +101,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['An exotic arrow with iridescent fletching.'],
-            modifiersDelta: {
-              DwarfRace: 1,
-              TrollRace: 1,
-              OrcRace: 1,
-            },
+
           },
         },
         {
@@ -145,11 +111,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['A copper signet ring, sigil worn smooth.'],
-            modifiersDelta: {
-              WoodElfRace: 1,
-              CatfolkRace: 1,
-              NightElfRace: 1,
-            },
+
           },
         },
         {
@@ -159,11 +121,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['A bone-handled fishing knife.'],
-            modifiersDelta: {
-              RiverKingdomRace: 1,
-              SunbornRace: 1,
-              AtlantiansRace: 1,
-            },
+
           },
         },
         {
@@ -173,11 +131,7 @@ export const quest004AbandonedShelter: QuestDefinition = {
           effects: {
             flagsSet: ['abandoned-shelter-complete'],
             questItemsAdd: ['A folded scrap of map, ink-faded at the edges.'],
-            modifiersDelta: {
-              HighElfRace: 1,
-              HalflingRace: 1,
-              GnomeRace: 1,
-            },
+
           },
         },
       ],

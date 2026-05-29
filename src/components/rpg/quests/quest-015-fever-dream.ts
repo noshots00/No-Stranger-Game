@@ -8,7 +8,7 @@ export const quest015FeverDream = createBranchingQuest({
   createdAt: 16,
   toneTag: 'vision',
   startStepId: 'fever-dream-intro',
-  availability: { requiresAnyFlags: [FEVER_DREAM_UNLOCKED_FLAG] },
+  availability: { requiresAnyFlags: [FEVER_DREAM_UNLOCKED_FLAG], minDay: 99 },
   steps: [
     {
       id: 'fever-dream-intro',
@@ -20,13 +20,7 @@ export const quest015FeverDream = createBranchingQuest({
           label: 'Black halls beneath the tide',
           nextStepId: 'fever-dream-outcome-trident',
           effects: {
-            modifiersDelta: {
-              AtlantiansRace: 1,
-              WarriorClass: 1,
-              ConstitutionStat: 1,
-              CautiousTrait: 1,
-              SwimmingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} recalls drowning halls hung with rusted tridents.'],
         },
@@ -35,15 +29,7 @@ export const quest015FeverDream = createBranchingQuest({
           label: 'A sun that never sets',
           nextStepId: 'fever-dream-outcome-sun',
           effects: {
-            modifiersDelta: {
-              SunbornRace: 1,
-              MageClass: 1,
-              WisdomStat: 1,
-              Haunted: 1,
-              CowardTrait: 1,
-              ElementalSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} woke tasting brass and salt wind—noon stretched into forever.'],
         },
@@ -52,15 +38,7 @@ export const quest015FeverDream = createBranchingQuest({
           label: 'Endless stairs of stamped contracts',
           nextStepId: 'fever-dream-outcome-ledger',
           effects: {
-            modifiersDelta: {
-              RiverKingdomRace: 1,
-              MageClass: 1,
-              IntelligenceStat: 1,
-              Paranoid: 1,
-              CautiousTrait: 1,
-              IllusionSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} fled ink wells and lotus seals that judged every footstep.'],
         },
@@ -69,13 +47,7 @@ export const quest015FeverDream = createBranchingQuest({
           label: 'Smiling shadows on the hunt',
           nextStepId: 'fever-dream-outcome-moon',
           effects: {
-            modifiersDelta: {
-              NightElfRace: 1,
-              RogueClass: 1,
-              DexterityStat: 1,
-              CowardTrait: 1,
-              StealthSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} heard steel kiss leaves—the moon watched with too many eyes.'],
         },
@@ -84,13 +56,7 @@ export const quest015FeverDream = createBranchingQuest({
           label: 'Cheering crowds of sharpened teeth',
           nextStepId: 'fever-dream-outcome-arena',
           effects: {
-            modifiersDelta: {
-              OrcRace: 1,
-              RogueClass: 1,
-              StrengthStat: 1,
-              CourageTrait: 1,
-              BashSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} stumbled through sand circles where tusks roared approval.'],
         },

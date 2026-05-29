@@ -113,7 +113,7 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'three',
       type: 'choice',
-      text: "What am I doing here? Why can't I remember anything?",
+      text: '',
       choices: [
         {
           id: 'q3-my-name-is-',
@@ -127,7 +127,7 @@ export const quest001Origin = createQuestDefinition({
       type: 'input',
       text: '',
       field: 'playerName',
-      placeholder: 'Please type your name here.',
+      placeholder: "Please type your character's name here.",
       submitLabel: 'Confirm Name',
       journalSummaryLineAfterSubmit:
         "You find yourself in a forest.  You can't remember anything, except...\n\n...your name is {playerName}.",

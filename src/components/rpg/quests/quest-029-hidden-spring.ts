@@ -17,13 +17,11 @@ export const quest029HiddenSpring = createBranchingQuest({
           id: 'spring-bottle',
           label: '[placeholder] Fill a vessel for the wounded back at camp',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Wisdom: 1 } },
         },
         {
           id: 'spring-mark',
           label: '[placeholder] Mark the spot for hunters and travellers',
           completeQuest: true,
-          effects: { modifiersDelta: { RangerClass: 1, Wisdom: 1 } },
         },
       ],
     },

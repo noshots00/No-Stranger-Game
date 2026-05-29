@@ -30,12 +30,7 @@ export const quest009Waterfall = createBranchingQuest({
           disabledIfAnyFlags: [WATERFALL_FLAG_VISTA_PICKED],
           disabledLabel: " (You've already explored here.)",
           effects: {
-            modifiersDelta: {
-              WoodElfRace: 1,
-              NightElfRace: 1,
-              CatfolkRace: 1,
-              DwarfRace: 1,
-            },
+
           },
         },
         {
@@ -45,12 +40,7 @@ export const quest009Waterfall = createBranchingQuest({
           disabledIfAnyFlags: [WATERFALL_FLAG_BEHIND_PICKED],
           disabledLabel: " (You've already explored here.)",
           effects: {
-            modifiersDelta: {
-              NightElfRace: 1,
-              GoblinRace: 1,
-              RiverKingdomRace: 1,
-              GnomeRace: 1,
-            },
+
           },
         },
       ],
@@ -66,13 +56,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-after-climb',
           effects: {
             flagsSet: [WATERFALL_FLAG_VISTA_PICKED],
-            modifiersDelta: {
-              Ik: 1,
-              ClimbingSkill: 1,
-              AtlantiansRace: 1,
-              WoodElfRace: 1,
-              SunbornRace: 1,
-            },
+
           },
         },
         {
@@ -81,11 +65,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-after-climb',
           effects: {
             flagsSet: [WATERFALL_FLAG_VISTA_PICKED],
-            modifiersDelta: {
-              WoodElfRace: 1,
-              RiverKingdomRace: 1,
-              HighElfRace: 1,
-            },
+
           },
         },
         {
@@ -94,11 +74,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-after-climb',
           effects: {
             flagsSet: [WATERFALL_FLAG_VISTA_PICKED],
-            modifiersDelta: {
-              NightElfRace: 1,
-              CatfolkRace: 1,
-              HalflingRace: 1,
-            },
+
           },
         },
       ],
@@ -114,11 +90,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-intro',
           effects: {
             flagsSet: [WATERFALL_FLAG_CLIMBED],
-            modifiersDelta: {
-              DwarfRace: 1,
-              AtlantiansRace: 1,
-              OrcRace: 1,
-            },
+
           },
         },
       ],
@@ -135,11 +107,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-after-behind',
           effects: {
             flagsSet: [WATERFALL_FLAG_BEHIND_PICKED],
-            modifiersDelta: {
-              NightElfRace: 1,
-              TrollRace: 1,
-              OrcRace: 1,
-            },
+
           },
         },
         {
@@ -148,11 +116,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-after-behind',
           effects: {
             flagsSet: [WATERFALL_FLAG_BEHIND_PICKED],
-            modifiersDelta: {
-              GoblinRace: 1,
-              GnomeRace: 1,
-              CatfolkRace: 1,
-            },
+
           },
         },
         {
@@ -161,11 +125,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-after-behind',
           effects: {
             flagsSet: [WATERFALL_FLAG_BEHIND_PICKED],
-            modifiersDelta: {
-              SunbornRace: 1,
-              RiverKingdomRace: 1,
-              WoodElfRace: 1,
-            },
+
           },
         },
       ],
@@ -181,11 +141,7 @@ export const quest009Waterfall = createBranchingQuest({
           nextStepId: 'waterfall-intro',
           effects: {
             flagsSet: [WATERFALL_FLAG_BEHIND],
-            modifiersDelta: {
-              HalflingRace: 1,
-              GoblinRace: 1,
-              AtlantiansRace: 1,
-            },
+
           },
         },
       ],

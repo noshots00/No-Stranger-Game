@@ -1,3 +1,4 @@
+import { WORLD_EVENT_PRINTS_ENABLED } from '@/components/rpg/constants';
 import type { QuestChoice, QuestStep, WorldEventLogEntry } from '@/components/rpg/quests/types';
 
 /** Replace `{playerName}` placeholders (same convention as quest dialogue text). */
@@ -11,7 +12,7 @@ export function appendUniqueWorldEntries(
   texts: string[],
   baseAtMs = Date.now()
 ): WorldEventLogEntry[] {
-  if (texts.length === 0) return existing;
+  if (!WORLD_EVENT_PRINTS_ENABLED || texts.length === 0) return existing;
   const seen = new Set(existing.map((e) => e.text));
   const next = [...existing];
   let offset = 0;

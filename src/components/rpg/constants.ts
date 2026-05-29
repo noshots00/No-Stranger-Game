@@ -5,7 +5,10 @@ declare const __APP_VERSION__: string;
 export const APP_VERSION = __APP_VERSION__;
 
 export const SILVER_LAKE_FLAG = 'silver-lake-unlocked';
+/** @deprecated Legacy saves — airship quest replaced by forest cave. */
 export const AIRSHIP_FLAG = 'airship-discovered';
+export const FOREST_CAVE_DISCOVERED_FLAG = 'forest-cave-discovered';
+export const QUEST_FOREST_CAVE_ID = 'quest-005-forest-cave';
 export const WOLF_ATTACK_DAILY_FLAG = 'wolf-attack-daily-active';
 export const WOLF_ATTACK_DAILY_CHANCE = 0.1;
 export const DAILY_ITEM_QUEST_CHANCE = 0.025;
@@ -41,6 +44,13 @@ export const QUEST_003B_MEET_MERCHANT_ID = 'quest-003-b-meet-merchant';
 
 /** Forest parent hub in the header travel menu (persisted `currentLocation`). */
 export const FOREST_PARENT_LOCATION = 'Forest';
+/** Day 2 forest beat — Dyer's Crypt (main quest 3). */
+export const QUEST_DYERS_CRYPT_ID = 'quest-003-dyers-crypt';
+/** Day 2 forest beat — fever or sweet dream (ends the calendar day). */
+export const QUEST_DAY_TWO_DREAM_ID = 'quest-007-day-two-dream';
+/** Forest sub-location reached via Wandering Skeleton. */
+export const ANCIENT_CEMETERY_LOCATION = 'Ancient Cemetery';
+export const ANCIENT_CEMETERY_DISCOVERED_FLAG = 'ancient-cemetery-discovered';
 /** Unlocks under The Forest when quest 3 is unveiled. */
 export const OLD_WELL_LOCATION = 'Old Well';
 /** Player entered the Old Well popup quest at least once. */
@@ -88,19 +98,33 @@ export const DEV_FIVE_MINUTE_DAYS_STORAGE_KEY = 'nsg:dev-five-minute-days';
 export const DEV_RAPID_DAY_SIM_STORAGE_KEY = 'nsg:dev-rapid-day-simulation';
 /** When enabled in the game menu, shows quest modifier breakdown on the Character tab. */
 export const DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY = 'nsg:dev-show-modifier-details';
+/** When enabled, quest choices show modifiersDelta, flagsSet, and gating flags (dev only). */
+export const DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY = 'nsg:dev-show-quest-choice-effects';
 /** When enabled, Quests tab lists every quest for testing (dev only). */
 export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';
 /** When enabled, Play quest interactions use the legacy modal popup instead of inline expansion. */
 export const DEV_USE_QUEST_POPUP_STORAGE_KEY = 'nsg:dev-use-quest-popup';
 /** Quest step back arrow on choice/message panes (dev testing). */
-export const SHOW_QUEST_STEP_BACK = true;
+/** Dev quest-step rewind UI (removed from Play; logic remains in `questStepBack.ts`). */
+export const SHOW_QUEST_STEP_BACK = false;
 /** Set once the player opens quest 1 at least once this run/save. */
 export const ORIGIN_QUEST_OPENED_FLAG = 'quest001-opened';
 export const DEV_RAPID_DAY_SIM_INTERVAL_MS = 2000;
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 export const DAILY_XP = 1440;
+/** When false, end-of-day rolls advance `lastDailyXpDay` only (no character XP or skill XP). */
+export const DAILY_XP_GRANTS_ENABLED = false;
+
+/** Play/Chronicle “prints”: `worldEventLog` lines + journal `playMilestones` (name, level-up, …) — off while authoring. */
+export const WORLD_EVENT_PRINTS_ENABLED = false;
 export const NPC_AVATAR_URL = 'https://api.dicebear.com/8.x/adventurer/svg?seed=Elira';
 export const CLASS_UNLOCK_POINTS = 5;
+/** Injury modifiers appear on the character sheet at this magnitude (1 = minor). */
+export const INJURY_SHEET_UNLOCK_POINTS = 1;
+/** Modifier magnitude for severe injuries (`minor` = 1, `moderate` = 2). */
+export const SEVERE_INJURY_MAGNITUDE = 3;
+/** Dyer's Crypt cemetery skeleton fight → character sheet injury row. */
+export const WOUNDED_SHOULDER_INJURY_KEY = 'injury:wounded_shoulder';
 
 /** Canonical class archetype slugs (`class:<slug>`); single-class lock picks one at ≥ CLASS_UNLOCK_POINTS. */
 export const CLASS_ARCHETYPE_SLUGS = ['warrior', 'rogue', 'mage', 'healer', 'ranger'] as const;
@@ -172,8 +196,10 @@ export const UI_VERSION_LABEL = `v${__APP_VERSION__}${import.meta.env.DEV ? '-de
 export const VALID_SAVE_LOCATIONS = new Set<string>([
   'Forest',
   'Old Well',
+  'Ancient Cemetery',
   'Merchant',
   'Silver Lake',
+  'Forest Cave',
   'Airship',
   'Town',
   'Village',
@@ -187,6 +213,7 @@ export const LOCATION_LABEL_DISPLAY: Readonly<Record<string, string>> = {
   Village: 'VILLAGE',
   Forest: 'THE FOREST',
   'Old Well': 'OLD WELL',
+  'Ancient Cemetery': 'ANCIENT CEMETERY',
   Cemetery: 'CEMETERY',
   Quarry: 'QUARRY',
   Mine: 'MINE',
@@ -232,6 +259,7 @@ export const locationActions: Record<string, string[]> = {
   Forest: ['Interact with the old well', 'Visit the abandoned cabin'],
   'Old Well': ['Interact with the old well'],
   'Silver Lake': ['Still waters', 'Light in the water'],
+  'Forest Cave': [],
   Merchant: [],
   Airship: [],
   /** Placeholders for future building scenes / mechanics. */

@@ -1,4 +1,4 @@
-import { AIRSHIP_FLAG, SILVER_LAKE_FLAG } from '../constants';
+import { AIRSHIP_FLAG, FOREST_CAVE_DISCOVERED_FLAG, SILVER_LAKE_FLAG } from '../constants';
 
 type MapTabProps = {
   currentLocation: string;
@@ -7,10 +7,12 @@ type MapTabProps = {
   onLocationChange: (location: string) => void;
   /** After “You meet a merchant” quest, enables travel UI to the forest merchant. */
   merchantTravelUnlocked?: boolean;
-  /** Quest 3 unveiled — show Old Well under The Forest. */
+  /** Wandering Skeleton unveiled — show Ancient Cemetery under The Forest. */
+  ancientCemeteryTravelUnlocked?: boolean;
+  /** @deprecated Legacy saves — Old Well sub-location. */
   oldWellTravelUnlocked?: boolean;
   /** “New” pings until each forest menu entry is selected. */
-  forestTravelPings?: { forest: boolean; oldWell: boolean };
+  forestTravelPings?: { forest: boolean; ancientCemetery?: boolean; oldWell?: boolean };
 };
 
 function MapNewDot() {
@@ -28,9 +30,11 @@ export function MapTab({
   flags,
   onLocationChange,
   merchantTravelUnlocked,
+  ancientCemeteryTravelUnlocked,
   oldWellTravelUnlocked,
   forestTravelPings,
 }: MapTabProps) {
+  const cemeteryUnlocked = ancientCemeteryTravelUnlocked ?? false;
   return (
     <section className="space-y-8 pb-4">
       <div className="rounded-lg border border-dashed border-[var(--candle-rule)] bg-black/25 px-4 py-6 text-center">
@@ -54,6 +58,22 @@ export function MapTab({
           <span>The Forest</span>
           {forestTravelPings?.forest ? <MapNewDot /> : null}
         </button>
+        {cemeteryUnlocked ? (
+          <div className="mt-3 pl-5">
+            <button
+              type="button"
+              onClick={() => onLocationChange('Ancient Cemetery')}
+              className={`inline-flex max-w-full items-center font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
+                forestSubLocation === 'Ancient Cemetery'
+                  ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+                  : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
+              }`}
+            >
+              <span>Ancient Cemetery</span>
+              {forestTravelPings?.ancientCemetery ? <MapNewDot /> : null}
+            </button>
+          </div>
+        ) : null}
         {oldWellTravelUnlocked ? (
           <div className="mt-3 pl-5">
             <button
@@ -86,7 +106,9 @@ export function MapTab({
           </button>
         </div>
       ) : null}
-      {flags.includes(SILVER_LAKE_FLAG) || flags.includes(AIRSHIP_FLAG) ? (
+      {flags.includes(SILVER_LAKE_FLAG) ||
+      flags.includes(FOREST_CAVE_DISCOVERED_FLAG) ||
+      flags.includes(AIRSHIP_FLAG) ? (
         <ul className="space-y-4 border-t border-[var(--candle-rule)] pt-6">
           {flags.includes(SILVER_LAKE_FLAG) ? (
             <li>
@@ -100,6 +122,21 @@ export function MapTab({
                 }`}
               >
                 Silver Lake
+              </button>
+            </li>
+          ) : null}
+          {flags.includes(FOREST_CAVE_DISCOVERED_FLAG) ? (
+            <li>
+              <button
+                type="button"
+                onClick={() => onLocationChange('Forest Cave')}
+                className={`font-cormorant text-left text-2xl font-medium tracking-[0.02em] transition-colors ${
+                  currentLocation === 'Forest Cave'
+                    ? 'border-b border-[var(--candle-flame-soft)] text-[var(--candle-ink)]'
+                    : 'border-b border-transparent text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]'
+                }`}
+              >
+                Forest Cave
               </button>
             </li>
           ) : null}

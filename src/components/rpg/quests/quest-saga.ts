@@ -1,10 +1,12 @@
 import {
-  QUEST_004_B_THE_DOOR_ID,
   QUEST_018_SILVER_LAKE_REFLECTION_ID,
+  QUEST_DAY_TWO_DREAM_ID,
   QUEST_DISCOVER_CEMETERY_ID,
   QUEST_DISCOVER_MINE_ID,
   QUEST_DISCOVER_QUARRY_ID,
+  QUEST_DYERS_CRYPT_ID,
   QUEST_FIRST_NIGHT_ID,
+  QUEST_FOREST_CAVE_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
 } from '../constants';
 import { isQuestEligibleForUnveil } from './branching-quest-template';
@@ -36,14 +38,11 @@ export const SIDE_QUEST_UNVEIL_AFTER_MAIN_ID = 'quest-003-b-meet-merchant';
 
 /**
  * Side quests surface in this order first (looser gates / forest beats after saga), then the rest
- * by createdAt so `quest-005-airship` does not block `quest-004-abandoned-shelter`.
+ * by createdAt so `quest-005-forest-cave` does not block `quest-004-abandoned-shelter`.
  */
 const SIDE_QUEST_UNVEIL_PRIORITY: readonly string[] = [
-  'quest-004-abandoned-shelter',
-  'quest-006-wandering-skeleton',
   'quest-002-boar-ambush',
   'quest-003-silver-lake',
-  'quest-005-airship',
 ];
 
 const PRIORITY_SET = new Set<string>(SIDE_QUEST_UNVEIL_PRIORITY);
@@ -84,14 +83,28 @@ export function computeNextUnveilIdsAfterCompletion(
       }
     }
     if (completedQuestId === QUEST_FIRST_NIGHT_ID) {
-      const nextId = 'quest-002-b-will-i-starve';
+      const nextId = QUEST_DYERS_CRYPT_ID;
       if (!completed.has(nextId) && !unveiled.has(nextId)) {
         const q = questById[nextId];
         if (unveilEligible(q, context)) return [nextId];
       }
     }
-    if (completedQuestId === 'quest-002-b-will-i-starve') {
-      const nextId = QUEST_004_B_THE_DOOR_ID;
+    if (completedQuestId === QUEST_DYERS_CRYPT_ID) {
+      const nextId = 'quest-004-abandoned-shelter';
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    if (completedQuestId === 'quest-004-abandoned-shelter') {
+      const nextId = QUEST_DAY_TWO_DREAM_ID;
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    if (completedQuestId === QUEST_DAY_TWO_DREAM_ID) {
+      const nextId = QUEST_FOREST_CAVE_ID;
       if (!completed.has(nextId) && !unveiled.has(nextId)) {
         const q = questById[nextId];
         if (unveilEligible(q, context)) return [nextId];
@@ -199,8 +212,10 @@ export function catchUpManualSagaUnveilIds(
   const out: string[] = [];
   const chain = [
     ['quest-001-origin', 'quest-002-first-night'],
-    [QUEST_FIRST_NIGHT_ID, 'quest-002-b-will-i-starve'],
-    ['quest-002-b-will-i-starve', QUEST_004_B_THE_DOOR_ID],
+    [QUEST_FIRST_NIGHT_ID, QUEST_DYERS_CRYPT_ID],
+    [QUEST_DYERS_CRYPT_ID, 'quest-004-abandoned-shelter'],
+    ['quest-004-abandoned-shelter', QUEST_DAY_TWO_DREAM_ID],
+    [QUEST_DAY_TWO_DREAM_ID, QUEST_FOREST_CAVE_ID],
   ] as const;
   for (const [prevId, nextId] of chain) {
     if (!completed.has(prevId)) continue;

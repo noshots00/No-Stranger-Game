@@ -64,16 +64,19 @@ const DIALOGUE_NARRATOR_PROMPT_CHRONICLE_CLASSES =
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';
 
-/** Post-choice player line + quest choice buttons (Play) — keep in sync for fade continuity. */
+/** Post-choice player line (Play feed). */
 export const PLAY_TAB_PLAYER_LINE_SHELL =
   'ml-auto w-[min(92%,22rem)] border-l border-[var(--candle-flame-soft)] pl-3 text-right';
+
+/** Quest choice rail — same width/alignment as player line, without the accent bar. */
+export const PLAY_TAB_QUEST_CHOICE_SHELL = 'ml-auto w-[min(92%,22rem)] text-right';
 
 export const PLAY_TAB_PLAYER_LINE_TEXT =
   'font-serif text-[0.9375rem] font-medium leading-relaxed text-[var(--candle-wax)]';
 
 /** Same metrics as `PLAY_TAB_PLAYER_LINE_TEXT` with `!` so it wins over global `.choice-line`. */
 export const PLAY_TAB_PLAYER_LINE_TEXT_CHOICE =
-  '!font-serif !text-[0.9375rem] !font-medium !leading-relaxed !text-[var(--candle-wax)] !text-right';
+  '!font-serif !text-[0.9375rem] !font-medium !leading-snug !text-[var(--candle-wax)] !text-right';
 
 /** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
 export const DIALOGUE_DEV_MESSAGE_CLASSES =

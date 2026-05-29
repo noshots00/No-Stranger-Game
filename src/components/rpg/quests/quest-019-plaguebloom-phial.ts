@@ -19,13 +19,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           label: 'Beg at the counter',
           nextStepId: 'plague-beg',
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              SunbornRace: 1,
-              CharismaStat: 1,
-              CautiousTrait: 1,
-              Hopeful: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} walked in with empty hands and a low voice.'],
         },
@@ -34,13 +28,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           label: 'Demand the price be lowered',
           nextStepId: 'plague-demand',
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              OrcRace: 1,
-              StrengthStat: 1,
-              CourageTrait: 1,
-              Resolute: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} kicked the door open and named a fairer price.'],
         },
@@ -49,14 +37,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           label: 'Slip in the back at dusk',
           nextStepId: 'plague-slip',
           effects: {
-            modifiersDelta: {
-              RogueClass: 1,
-              GoblinRace: 1,
-              CatfolkRace: 1,
-              DexterityStat: 1,
-              CautiousTrait: 1,
-              StealthSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} circled the apothecary at last light and counted his shutters.'],
         },
@@ -73,14 +54,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           nextStepId: 'plague-outcome-pay',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              HalflingRace: 1,
-              WisdomStat: 1,
-              TemperanceTrait: 1,
-              HealingSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} emptied their purse and held out the phial in trembling hands.'],
         },
@@ -90,16 +64,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           nextStepId: 'plague-outcome-pray',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              AtlantiansRace: 1,
-              DwarfRace: 1,
-              WisdomStat: 1,
-              CourageTrait: 1,
-              Hopeful: 1,
-              HealingSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} returned empty-handed and knelt by the bedside instead.'],
         },
@@ -116,14 +81,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           nextStepId: 'plague-outcome-strike',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              TrollRace: 1,
-              OrcRace: 1,
-              StrengthStat: 1,
-              CourageTrait: 1,
-              BashSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} cracked the apothecary across the jaw and pocketed the phial.'],
         },
@@ -133,13 +91,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           nextStepId: 'plague-outcome-walk',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              RiverKingdomRace: 1,
-              IntelligenceStat: 1,
-              CautiousTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} turned at the threshold and walked back out into the dark.'],
         },
@@ -156,14 +108,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           nextStepId: 'plague-outcome-steal',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              RogueClass: 1,
-              NightElfRace: 1,
-              CatfolkRace: 1,
-              DexterityStat: 1,
-              CowardTrait: 1,
-              StealthSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} pocketed the phial and slipped back out the way they came.'],
         },
@@ -173,16 +118,7 @@ export const quest019PlaguebloomPhial = createBranchingQuest({
           nextStepId: 'plague-outcome-burn',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              GnomeRace: 1,
-              RiverKingdomRace: 1,
-              IntelligenceStat: 1,
-              CourageTrait: 1,
-              Resolute: 1,
-              ElementalSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} copied the recipe onto a slip, then put the ledger to the candle.'],
         },

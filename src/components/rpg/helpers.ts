@@ -2,19 +2,23 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import type { QuestState, DialogueLogEntry } from './quests/types';
 import { getSkillLevelUpLines } from './quests/engine';
 import { appendDialogue, DAY_REPORT_SPEAKER } from './dialogueFormat';
+import { formatDayBeginsLine } from './dayMilestones';
 import { parseQuestCheckpointPayload } from './gameProfile';
 import {
+  CLASS_UNLOCK_POINTS,
   COPPER_PER_GOLD,
   COPPER_PER_SILVER,
   CURRENCY_COPPER_KEY,
   GOLD_MODIFIER_KEYS,
   HIDDEN_CLASS_MODIFIER_KEYS,
+  INJURY_SHEET_UNLOCK_POINTS,
   PRIMARY_STAT_MODIFIER_LABEL,
   QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
   SKILL_MODIFIER_CATEGORY_LABEL,
   SKILL_MODIFIER_CATEGORY_ORDER,
 } from './constants';
+import { CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE } from './quests/engine';
 
 const PRIMARY_STAT_SLUGS = new Set(Object.values(PRIMARY_STAT_MODIFIER_LABEL));
 
@@ -25,7 +29,7 @@ export const PRIMARY_STAT_SCORE_BASE = 1;
 export function getPrimaryStatTotal(modifiers: Record<string, number>, statLabel: string): number {
   const slug = PRIMARY_STAT_MODIFIER_LABEL[statLabel];
   if (!slug) return PRIMARY_STAT_SCORE_BASE;
-  const delta = modifiers[`stat:${slug}`] ?? 0;
+  const delta = (modifiers[`stat:${slug}`] ?? 0) + (modifiers[statLabel] ?? 0);
   return PRIMARY_STAT_SCORE_BASE + delta;
 }
 
@@ -92,7 +96,21 @@ export function formatSpellModifierKeyForDisplay(key: string): string {
   return stripSpellWordFromDisplayLabel(formatModifierKeyForCharacterSheet(key));
 }
 
-export type ModifierSheetBucket = 'stat' | 'trait' | 'skill' | 'spell' | 'class' | 'blessing' | 'misc';
+/** Day report / journal when a spell modifier is newly gained. */
+export function formatSpellLearnedMessage(key: string): string {
+  const name = formatSpellModifierKeyForDisplay(key);
+  return `You learned the ${name} spell.`;
+}
+
+export type ModifierSheetBucket =
+  | 'stat'
+  | 'trait'
+  | 'skill'
+  | 'spell'
+  | 'class'
+  | 'blessing'
+  | 'injury'
+  | 'misc';
 
 export function getModifierSheetBucket(key: string): ModifierSheetBucket {
   if (key.startsWith('stat:')) return 'stat';
@@ -103,7 +121,35 @@ export function getModifierSheetBucket(key: string): ModifierSheetBucket {
   if (/Skill$/.test(key)) return 'skill';
   if (key.startsWith('class:')) return 'class';
   if (key.startsWith('blessing:')) return 'blessing';
+  if (key.startsWith('injury:')) return 'injury';
+  if (/Injury$/u.test(key)) return 'injury';
   return 'misc';
+}
+
+const INJURY_SEVERITY_BY_MAGNITUDE: Record<number, string> = {
+  1: 'minor',
+  2: 'moderate',
+  3: 'severe',
+};
+
+/** Severity label for `injury:*` sheet rows (magnitude 1 → minor). */
+export function getInjurySeverityLabel(magnitude: number): string {
+  const abs = Math.abs(Math.trunc(magnitude));
+  if (abs <= 0) return INJURY_SEVERITY_BY_MAGNITUDE[1];
+  return INJURY_SEVERITY_BY_MAGNITUDE[abs] ?? `rank ${abs}`;
+}
+
+/** Character sheet injury row, e.g. `ankle (minor)`. */
+export function formatInjurySheetLine(key: string, value: number): string {
+  const slug = key.startsWith('injury:')
+    ? key.slice('injury:'.length)
+    : key.replace(/Injury$/u, '').toLowerCase();
+  const site = formatOrganicSlugForDisplay(slug);
+  return `${site} (${getInjurySeverityLabel(value)})`;
+}
+
+export function formatInjurySheetLines(entries: [string, number][]): string {
+  return entries.map(([k, v]) => formatInjurySheetLine(k, v)).join(', ');
 }
 
 /** Parse `skill:bash` (legacy) vs `skill:combat:block` (categorized). */
@@ -168,9 +214,17 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
     const parsed = parseSkillModifierKey(key);
     if (parsed) return formatOrganicSlugForDisplay(parsed.skillSlug);
   }
-  if (key.startsWith('trait:') || key.startsWith('class:') || key.startsWith('blessing:')) {
+  if (
+    key.startsWith('trait:') ||
+    key.startsWith('class:') ||
+    key.startsWith('blessing:') ||
+    key.startsWith('injury:')
+  ) {
     const slug = key.slice(key.indexOf(':') + 1);
     return formatOrganicSlugForDisplay(slug);
+  }
+  if (/Injury$/u.test(key)) {
+    return formatOrganicSlugForDisplay(key.replace(/Injury$/u, '').toLowerCase());
   }
   if (/Skill$/.test(key) && !key.startsWith('skill:')) {
     return formatPascalCaseModifierDisplay(key);
@@ -237,6 +291,7 @@ export type ModifierMessageKind =
   | 'organic_spell'
   | 'organic_class'
   | 'organic_blessing'
+  | 'organic_injury'
   | 'other';
 
 export const getModifierMessageKind = (key: string): ModifierMessageKind => {
@@ -254,8 +309,47 @@ export const getModifierMessageKind = (key: string): ModifierMessageKind => {
   if (/Skill$/.test(key)) return 'organic_skill';
   if (key.startsWith('class:')) return 'organic_class';
   if (key.startsWith('blessing:')) return 'organic_blessing';
+  if (key.startsWith('injury:')) return 'organic_injury';
+  if (/Injury$/u.test(key)) return 'organic_injury';
   return 'other';
 };
+
+/**
+ * Minimum |magnitude| before a modifier row appears on the character sheet
+ * (matches [`CharacterTab`](./tabs/CharacterTab.tsx) `partitionSheetUnlock`).
+ */
+export function getModifierSheetUnlockThreshold(key: string): number {
+  if (getModifierMessageKind(key) === 'primary_stat') return 0;
+  if (getModifierMessageKind(key) === 'hidden_class') return Number.POSITIVE_INFINITY;
+  if (key.startsWith('race:')) return Number.POSITIVE_INFINITY;
+  const bucket = getModifierSheetBucket(key);
+  if (bucket === 'skill' || bucket === 'spell') {
+    return CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE;
+  }
+  if (bucket === 'injury') return INJURY_SHEET_UNLOCK_POINTS;
+  return CLASS_UNLOCK_POINTS;
+}
+
+/** Whether the sheet shows this modifier at the given magnitude (primary stats always). */
+export function isModifierVisibleOnCharacterSheet(key: string, magnitude: number): boolean {
+  const threshold = getModifierSheetUnlockThreshold(key);
+  if (!Number.isFinite(threshold)) return false;
+  if (getModifierMessageKind(key) === 'primary_stat') return true;
+  return Math.abs(magnitude) >= threshold;
+}
+
+/** Day report / journal: only gains that change what the player sees on the character sheet. */
+export function shouldReportModifierGainInDayReport(
+  key: string,
+  prevMagnitude: number,
+  nextMagnitude: number
+): boolean {
+  const delta = nextMagnitude - prevMagnitude;
+  if (delta <= 0) return false;
+  if (getModifierMessageKind(key) === 'hidden_class') return false;
+  if (key.startsWith('race:')) return false;
+  return isModifierVisibleOnCharacterSheet(key, nextMagnitude);
+}
 
 export const toItemLabel = (key: string): string =>
   key
@@ -371,6 +465,7 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
     const current = nextState.modifiers[key] ?? 0;
     const delta = current - previous;
     if (delta <= 0) return;
+    if (!shouldReportModifierGainInDayReport(key, previous, current)) return;
 
     if (kind === 'primary_stat') {
       const word = primaryStatWordForKey(key);
@@ -384,7 +479,7 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
       return;
     }
     if (kind === 'organic_spell') {
-      lines.push(`You gain ${delta} ${formatSpellModifierKeyForDisplay(key)} (spell).`);
+      lines.push(formatSpellLearnedMessage(key));
       return;
     }
     if (kind === 'organic_skill') {
@@ -414,6 +509,13 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
       lines.push(`You gain ${delta} ${formatOrganicSlugForDisplay(slug)} (blessing).`);
       return;
     }
+    if (kind === 'organic_injury') {
+      const slug = canonicalSlug(key, 'injury:');
+      const site = formatOrganicSlugForDisplay(slug);
+      const severity = getInjurySeverityLabel(current);
+      lines.push(`You sustain a ${severity} ${site} injury.`);
+      return;
+    }
   });
 
   return lines;
@@ -423,6 +525,14 @@ export const getLevelUpLines = (prevState: QuestState, nextState: QuestState): s
   ...getSkillLevelUpLines(prevState, nextState),
   ...getModifierLevelUpLines(prevState, nextState),
 ];
+
+/** Day-report lines for labels added to `QuestState.questItems` since the prior day baseline. */
+export const getQuestItemGainLines = (prevItems: readonly string[], nextItems: readonly string[]): string[] => {
+  const prev = new Set(prevItems);
+  return nextItems
+    .filter((label) => label.trim().length > 0 && !prev.has(label))
+    .map((label) => label.trim());
+};
 
 /** Day-report lines for passive village resources (`QuestState.resources`). */
 export const getResourceGainLines = (prevState: QuestState, nextState: QuestState): string[] => {
@@ -453,6 +563,10 @@ export function buildDayReportDialogueLines(
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }
 
+  for (const text of getQuestItemGainLines(prevState.questItems, nextState.questItems)) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
+  }
+
   for (const text of getResourceGainLines(prevState, nextState)) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }
@@ -460,6 +574,8 @@ export function buildDayReportDialogueLines(
   for (const text of getLevelUpLines(prevState, nextState)) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }
+
+  lines.push(appendDialogue(DAY_REPORT_SPEAKER, formatDayBeginsLine(prevDayNumber + 1)));
 
   return lines;
 };

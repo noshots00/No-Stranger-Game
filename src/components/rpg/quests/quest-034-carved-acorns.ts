@@ -17,13 +17,11 @@ export const quest034CarvedAcorns = createBranchingQuest({
           id: 'acorns-pocket',
           label: '[placeholder] Pocket the acorns silently and walk on',
           completeQuest: true,
-          effects: { modifiersDelta: { RogueClass: 1, Dexterity: 1 } },
         },
         {
           id: 'acorns-call',
           label: '[placeholder] Call out a challenge to whoever set them here',
           completeQuest: true,
-          effects: { modifiersDelta: { WarriorClass: 1, Strength: 1 } },
         },
       ],
     },

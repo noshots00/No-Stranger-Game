@@ -62,6 +62,10 @@ After a choice arrow, note mechanical effects in curly braces:
 
 The full modifier list lives in the quest code; here just note the **intent** (e.g. "warrior-leaning" or "coward path").
 
+### Quest copy voice
+
+When drafting narrator lines and choice labels, follow **[QUEST_COPY_STYLE.md](./QUEST_COPY_STYLE.md)** (short, direct, one line when possible).
+
 ### Quest header
 
 Each quest section starts with a header block:
@@ -124,13 +128,33 @@ Quest 001 — The Beginning (Forest, Day 1)
   === All paths end Day 1 — Quest 001 complete ===
     |
     v
-  Quest 002+ (Day 2 onward) — [SKELETON: to be outlined below]
+  Quest 002 — Sunset (Day 1 end)
+    |
+    v
+  Quest 003 — Dyer's Crypt (Day 2) → 006 Skeleton → 004 Shelter → 007 Dream [Day 2 end]
+    |
+    v
+  Quest 005 — Airship (Day 3+)
     |
     ...
     |
     v
   Final quest — Arrival at the Village [SKELETON]
 ```
+
+---
+
+## Forest Day 2–3 spine (code)
+
+| Quest | File | Notes |
+|-------|------|--------|
+| 003 Dyer's Crypt | `quest-003-dyers-crypt.ts` | Sunset flags → opener; mushrooms; sweet/fever pending |
+| 006 Wandering Skeleton | `quest-006-wandering-skeleton.ts` | After Crypt; Ancient Cemetery travel |
+| 004 Abandoned Shelter | `quest-004-abandoned-shelter.ts` | After Skeleton |
+| 007 Dream | `quest-007-day-two-dream.ts` | Fever or sweet; **main daily quest** (ends Day 2) |
+| 005 Airship | `quest-005-airship.ts` | Day 3 after Dream |
+
+Voice: [QUEST_COPY_STYLE.md](./QUEST_COPY_STYLE.md).
 
 ---
 

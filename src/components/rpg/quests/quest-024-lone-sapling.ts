@@ -17,7 +17,6 @@ export const quest024LoneSapling = createBranchingQuest({
           id: 'sapling-water',
           label: '[placeholder] Cup water from your skin and pour it on the roots',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Constitution: 1 } },
         },
       ],
     },

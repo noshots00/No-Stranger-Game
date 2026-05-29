@@ -2,9 +2,21 @@ import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
 import type { ChronicleSegment } from '../dialogueFormat';
-import type { DialogueLogEntry, JournalLogEntry, ModifierMap, QuestDefinition, QuestStep } from '../quests/types';
+import type {
+  DialogueLogEntry,
+  JournalLogEntry,
+  ModifierMap,
+  PlayDayRollStaging,
+  QuestDefinition,
+  QuestStep,
+} from '../quests/types';
 import { getQuestCardImageSrc } from '../rpgArtAssignments';
-import { ORIGIN_QUEST_OPENED_FLAG, QUEST_004_B_CARL_HUB_STEP_ID, QUEST_004_B_THE_DOOR_ID } from '../constants';
+import {
+  ORIGIN_QUEST_OPENED_FLAG,
+  QUEST_004_B_CARL_HUB_STEP_ID,
+  QUEST_004_B_THE_DOOR_ID,
+  WORLD_EVENT_PRINTS_ENABLED,
+} from '../constants';
 import { QuestPopup } from './QuestPopup';
 
 type PlayLedgerTimelineRow =
@@ -32,6 +44,9 @@ type PlayTabProps = {
   onNameSubmit: () => void;
   /** Advance chained `message` steps with `nextStepId` (Continue). */
   onAdvanceQuestMessage?: () => void;
+  /** Staged forest day roll: Continue before report, then after report. */
+  playDayRollStaging?: PlayDayRollStaging | null;
+  onAdvancePlayDayRoll?: () => void;
   dialogueScrollRef: RefObject<HTMLDivElement | null>;
   onDialogueScroll: () => void;
   visibleLocationActions: string[];
@@ -53,8 +68,8 @@ type PlayTabProps = {
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
   /** Scroll play feed so the latest dialogue + quest options are fully visible. */
   onSnapPlayFeedBottom?: () => void;
-  canQuestStepBack?: boolean;
-  onQuestStepBack?: () => void;
+  /** Dev: show modifiersDelta / flagsSet under each quest choice. */
+  showQuestChoiceEffects?: boolean;
 };
 
 export function PlayTab({
@@ -77,6 +92,8 @@ export function PlayTab({
   onStepChoice,
   onNameSubmit,
   onAdvanceQuestMessage,
+  playDayRollStaging = null,
+  onAdvancePlayDayRoll,
   dialogueScrollRef,
   onDialogueScroll,
   visibleLocationActions,
@@ -91,8 +108,7 @@ export function PlayTab({
   useQuestPopupFallback,
   onQuestChoiceVisualPhase,
   onSnapPlayFeedBottom,
-  canQuestStepBack,
-  onQuestStepBack,
+  showQuestChoiceEffects = false,
 }: PlayTabProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
     const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
@@ -151,10 +167,12 @@ export function PlayTab({
     return rows.map(({ seq: _seq, ...row }) => row);
   }, [playFeedSegments, playJournalLines]);
   const completedQuestIdSet = useMemo(() => new Set(completedQuestIds), [completedQuestIds]);
-  const activeQuestRows = useMemo(
-    () => visibleQuests.filter((q) => !completedQuestIdSet.has(q.id)),
-    [visibleQuests, completedQuestIdSet]
-  );
+  /** Play feed: one card for the tracked quest; when idle, cards for incomplete unveiled quests only. */
+  const activeQuestRows = useMemo(() => {
+    const incomplete = visibleQuests.filter((q) => !completedQuestIdSet.has(q.id));
+    if (activeQuest) return [activeQuest];
+    return incomplete;
+  }, [visibleQuests, completedQuestIdSet, activeQuest]);
   const [frozenLedgerRows, setFrozenLedgerRows] = useState<PlayLedgerTimelineRow[] | null>(null);
   const [frozenActiveQuestRows, setFrozenActiveQuestRows] = useState<QuestDefinition[] | null>(null);
   useEffect(() => {
@@ -172,8 +190,23 @@ export function PlayTab({
     frozenLedgerRows,
     frozenActiveQuestRows,
   ]);
+
   const renderedLedgerRows = frozenLedgerRows ?? playLedgerRows;
-  const renderedActiveQuestRows = frozenActiveQuestRows ?? activeQuestRows;
+  const renderedActiveQuestRows = useMemo(() => {
+    if (playDayRollStaging) return [];
+    if (activeQuest && activeStep && !completedQuestIdSet.has(activeQuest.id)) {
+      return [activeQuest];
+    }
+    const rows = frozenActiveQuestRows ?? activeQuestRows;
+    return rows.filter((q) => !completedQuestIdSet.has(q.id));
+  }, [
+    frozenActiveQuestRows,
+    activeQuestRows,
+    completedQuestIdSet,
+    activeQuest,
+    activeStep,
+    playDayRollStaging,
+  ]);
   const popupQuest =
     questPopupQuestId && activeQuest?.id === questPopupQuestId ? activeQuest : null;
   const popupStep = popupQuest ? activeStep : null;
@@ -199,6 +232,11 @@ export function PlayTab({
     onOpen?: () => void;
   }) => {
     const cardSrc = getQuestCardImageSrc(quest);
+    const imageOnRight = quest.questCardImageSide === 'right';
+    const newBadgeClass = cn(
+      'absolute top-0 z-10 border border-[var(--candle-flame-soft)]/55 bg-[var(--candle-flame-soft)]/15 px-0.5 py-px font-sans text-[0.5rem] font-semibold uppercase leading-none tracking-[0.1em] text-[var(--candle-wax)]',
+      imageOnRight ? 'left-0 rounded-br' : 'right-0 rounded-bl'
+    );
     const titleOverlayHero = quest.questCardLayout === 'title-overlay-hero';
     const titleOverlayBlock = (
       <div
@@ -226,11 +264,7 @@ export function PlayTab({
               {title}
             </p>
           </div>
-          {isNew ? (
-            <span className="absolute right-2 top-2 rounded border border-[var(--candle-flame-soft)]/55 bg-[var(--candle-flame-soft)]/15 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
-              New
-            </span>
-          ) : null}
+          {isNew ? <span className={newBadgeClass}>New</span> : null}
         </div>
         <p className="mt-2 max-w-[260px] text-center font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">
           {briefingText}
@@ -247,22 +281,17 @@ export function PlayTab({
       />
     );
     const titleAndBriefing = (
-      <div className="relative flex min-h-[200px] w-[260px] min-w-0 flex-col items-center justify-center text-center">
-        {isNew ? (
-          <span className="absolute top-0 rounded border border-[var(--candle-flame-soft)]/45 bg-[var(--candle-flame-soft)]/10 px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-wax)]">
-            New
-          </span>
-        ) : null}
+      <div className="flex min-h-0 w-[260px] min-w-0 flex-col items-center justify-center text-center">
         <p className="font-serif text-base text-[var(--candle-flame-soft)]">{title}</p>
         <p className="font-serif text-[0.8125rem] text-[var(--candle-ink-faint)]">{briefingText}</p>
       </div>
     );
-    const imageOnRight = quest.questCardImageSide === 'right';
     const content =
       quest.questCardLayout === 'title-overlay' || quest.questCardLayout === 'title-overlay-hero' ? (
         titleOverlayBlock
       ) : (
-        <div className="flex items-start justify-center gap-3">
+        <div className="relative flex items-start justify-center gap-3">
+          {isNew ? <span className={newBadgeClass}>New</span> : null}
           {imageOnRight ? (
             <>
               {titleAndBriefing}
@@ -279,12 +308,12 @@ export function PlayTab({
 
     if (!interactive) {
       return (
-        <div className="w-full cursor-default py-2 text-left font-serif select-none">{content}</div>
+        <div className="w-full cursor-default py-0.5 text-left font-serif select-none">{content}</div>
       );
     }
 
     return (
-      <button type="button" onClick={onOpen} className="w-full py-2 text-left font-serif hover:bg-black/15">
+      <button type="button" onClick={onOpen} className="w-full py-0.5 text-left font-serif hover:bg-black/15">
         {content}
       </button>
     );
@@ -298,11 +327,11 @@ export function PlayTab({
         className={cn(
           'facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0',
           activeStep?.type === 'choice' || activeStep?.type === 'input'
-            ? '[scroll-padding-bottom:min(52dvh,420px)]'
-            : '[scroll-padding-bottom:min(42dvh,320px)]'
+            ? '[scroll-padding-bottom:min(14dvh,140px)]'
+            : '[scroll-padding-bottom:min(10dvh,100px)]'
         )}
       >
-        <div className="facsimile-scroll-dialogue-inner !pl-[16px] !pr-[16px] space-y-2">
+        <div className="play-feed-scroll-inner facsimile-scroll-dialogue-inner !pl-[16px] !pr-[16px] space-y-1">
           {renderedLedgerRows.map((row, idx) => {
             if (row.kind === 'story') {
               const segment = row.segment;
@@ -333,28 +362,27 @@ export function PlayTab({
                 <div className="space-y-3">
                   <div className="space-y-3">
                     {dayEntries.map((je) => {
-                      const title = questTitleById[je.questId] ?? 'Quest';
                       const questDef = questById[je.questId];
                       if (!questDef) return null;
                       const summaryText = je.text.trim();
-                      const briefingText = resolveQuestBriefing(je.questId, questDef.briefing.trim());
+                      const showTitle = !completedQuestIdSet.has(je.questId);
                       return (
-                        <div key={je.id} className="space-y-1 border-b border-[var(--candle-rule)]/40 pb-2 last:border-b-0 last:pb-0">
-                          {renderQuestCardHeader({
-                            quest: questDef,
-                            title,
-                            briefingText,
-                            isNew: false,
-                            interactive: false,
-                          })}
+                        <div key={je.id} className="space-y-1">
+                          {showTitle ? (
+                            <p className="font-serif text-sm font-semibold text-[var(--candle-flame-soft)]">
+                              {questTitleById[je.questId] ?? 'Quest'}
+                            </p>
+                          ) : null}
                           {summaryText.length > 0 ? (
-                            <div className="quest-body-transition space-y-2 pt-2">
+                            <div className={cn('quest-body-transition space-y-2', showTitle && 'pt-2')}>
                               <p className="whitespace-pre-line font-serif text-sm leading-relaxed text-[var(--candle-ink-soft)]">
                                 {summaryText}
                               </p>
                             </div>
                           ) : null}
-                          {je.playMilestones && je.playMilestones.length > 0 ? (
+                          {WORLD_EVENT_PRINTS_ENABLED &&
+                          je.playMilestones &&
+                          je.playMilestones.length > 0 ? (
                             <div className="space-y-1 pt-1">
                               {je.playMilestones.map((line, milestoneIdx) => (
                                 <p
@@ -374,23 +402,43 @@ export function PlayTab({
               </div>
             );
           })}
+          {playDayRollStaging && typeof onAdvancePlayDayRoll === 'function' ? (
+            <div className="dialogue-line-reveal py-1">
+              {playDayRollStaging.phase === 'before_report' ? (
+                <p className="mb-1 font-serif text-sm text-[var(--candle-ink-soft)]">The first day ends.</p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  onAdvancePlayDayRoll();
+                  onSnapPlayFeedBottom?.();
+                }}
+                className="choice-line w-auto border-b border-transparent py-2 text-emerald-200 hover:text-emerald-300"
+              >
+                Continue
+              </button>
+            </div>
+          ) : null}
           {renderedActiveQuestRows.map((quest) => {
             const isNew = newQuestIds.includes(quest.id);
             const briefingText = resolveQuestBriefing(quest.id, quest.briefing);
+            const questInProgress =
+              activeQuest?.id === quest.id &&
+              Boolean(activeStep) &&
+              !completedQuestIdSet.has(quest.id);
             const showInlineQuest =
               !useQuestPopupFallback &&
               !quest.locationPopup &&
               questPopupQuestId === quest.id &&
-              activeQuest?.id === quest.id &&
-              Boolean(activeStep);
+              questInProgress;
             const suppressQuestPopupForCarlNpc =
               quest.id === QUEST_004_B_THE_DOOR_ID &&
               activeQuest?.id === quest.id &&
               activeStep?.id === QUEST_004_B_CARL_HUB_STEP_ID;
             const questCardInteractive = quest.questCardInteractive !== false;
             return (
-              <div key={`active-journal-${quest.id}`} className="py-0.5">
-                <div className="space-y-2">
+              <div key={`active-journal-${quest.id}`} className="py-0">
+                <div className="flex flex-col gap-0">
                   {renderQuestCardHeader({
                     quest,
                     title: quest.title,
@@ -425,8 +473,7 @@ export function PlayTab({
                       questTranscript={activeQuestTranscript}
                       onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
                       onSnapPlayFeedBottom={onSnapPlayFeedBottom}
-                      canQuestStepBack={canQuestStepBack}
-                      onQuestStepBack={onQuestStepBack}
+                      showQuestChoiceEffects={showQuestChoiceEffects}
                     />
                   ) : null}
                 </div>
@@ -476,8 +523,7 @@ export function PlayTab({
           questTranscript={activeQuestTranscript}
           onQuestChoiceVisualPhase={onQuestChoiceVisualPhase}
           onSnapPlayFeedBottom={onSnapPlayFeedBottom}
-          canQuestStepBack={canQuestStepBack}
-          onQuestStepBack={onQuestStepBack}
+          showQuestChoiceEffects={showQuestChoiceEffects}
         />
       ) : null}
     </section>

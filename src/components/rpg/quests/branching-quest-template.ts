@@ -1,5 +1,5 @@
 import { isPlayerAtLocation } from '../locationPresence';
-import type { QuestChoice, QuestContext, QuestDefinition, QuestStep } from './types';
+import type { QuestChoice, QuestContext, QuestDefinition, QuestState, QuestStep } from './types';
 
 export type QuestAvailability = {
   minExplorationLevel?: number;
@@ -37,7 +37,7 @@ type MessageStepBlueprint = {
   nextStepId?: string;
 };
 
-type StepBlueprint = ChoiceStepBlueprint | MessageStepBlueprint;
+export type StepBlueprint = ChoiceStepBlueprint | MessageStepBlueprint;
 
 type BranchingQuestOptions = {
   id: string;
@@ -49,6 +49,8 @@ type BranchingQuestOptions = {
   steps: StepBlueprint[];
   completionRequiresAllFlags?: string[];
   toneTag?: 'vision' | 'echo' | 'mundane';
+  resolveInitialStepId?: (state: QuestState) => string;
+  mainDailyQuest?: boolean;
 };
 
 const includesAny = (haystack: string[], needles: string[]): boolean => needles.some((n) => haystack.includes(n));
@@ -134,6 +136,15 @@ export const makeQuestUnveilEligibility =
   (context: QuestContext): boolean =>
     checkQuestAvailability(availability, context, { ignoreLocation: true });
 
+/** Play gates without day pacing or branch flags (those gate content, not the quest card). */
+export function availabilityForSagaUnveil(
+  availability?: QuestAvailability
+): QuestAvailability | undefined {
+  if (!availability) return undefined;
+  const { minDay: _minDay, requiresAnyFlags: _flags, ...rest } = availability;
+  return rest;
+}
+
 export function isQuestEligibleForUnveil(
   quest: Pick<QuestDefinition, 'isAvailable' | 'isUnveilEligible'>,
   context: QuestContext
@@ -154,9 +165,12 @@ export function createBranchingQuest(options: BranchingQuestOptions): QuestDefin
     createdAt: options.createdAt,
     startStepId: options.startStepId,
     isAvailable: makeQuestAvailability(options.availability),
+    isUnveilEligible: makeQuestUnveilEligibility(availabilityForSagaUnveil(options.availability)),
     journalSummaryFallback: options.title,
     steps,
     ...(options.completionRequiresAllFlags ? { completionRequiresAllFlags: options.completionRequiresAllFlags } : {}),
     ...(options.toneTag ? { toneTag: options.toneTag } : {}),
+    ...(options.resolveInitialStepId ? { resolveInitialStepId: options.resolveInitialStepId } : {}),
+    ...(options.mainDailyQuest ? { mainDailyQuest: true } : {}),
   };
 }

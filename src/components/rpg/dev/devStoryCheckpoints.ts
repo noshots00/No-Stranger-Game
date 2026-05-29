@@ -10,12 +10,16 @@ import {
   FOREST_PARENT_LOCATION,
   ORIGIN_QUEST_OPENED_FLAG,
   QUEST001_NAMED_FLAG,
+  QUEST_018_SILVER_LAKE_REFLECTION_ID,
   QUEST_FIRST_NIGHT_ID,
 } from '@/components/rpg/constants';
 import { DAY_REPORT_SPEAKER } from '@/components/rpg/dialogueFormat';
-import { restartQuestProgress } from '@/components/rpg/quests/engine';
+import {
+  resyncCharacterLocksAfterModifierRewind,
+  restartQuestProgress,
+} from '@/components/rpg/quests/engine';
 import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
-import type { QuestDefinition, QuestProgress, QuestState } from '@/components/rpg/quests/types';
+import type { ModifierMap, QuestDefinition, QuestProgress, QuestState } from '@/components/rpg/quests/types';
 import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 
 const QUEST001_COMPLETE_FLAG = 'quest001-complete';
@@ -95,6 +99,17 @@ function rebuildPrefixThroughArcIndex(
 ): QuestState {
   const keepQuestIds = prefixQuestIds(arcIndex);
 
+  const anchorQuestId = MAIN_B_ARC_QUEST_IDS[arcIndex]!;
+  const anchorModifiers = {
+    ...(state.modifiersAfterQuestComplete?.[anchorQuestId] ?? {}),
+  };
+
+  const keptSnapshots: Record<string, ModifierMap> = {};
+  for (const qid of keepQuestIds) {
+    const snap = state.modifiersAfterQuestComplete?.[qid];
+    if (snap) keptSnapshots[qid] = snap;
+  }
+
   let accum: QuestState = {
     ...state,
     activeQuestId: null,
@@ -105,6 +120,9 @@ function rebuildPrefixThroughArcIndex(
     worldEventLog: filterWorldLogForPrefix(state.worldEventLog),
     flags: [],
     lastDailyXpDay: 1,
+    modifiers: anchorModifiers,
+    dayReportModifierBaseline: { ...anchorModifiers },
+    modifiersAfterQuestComplete: keptSnapshots,
     unveiledQuestIds: ['quest-001-origin'],
     acknowledgedTravelLocationIds:
       arcIndex >= 3 ? [...(state.acknowledgedTravelLocationIds ?? [])] : [],
@@ -221,11 +239,6 @@ export function devCompleteQuestById(
   return next;
 }
 
-/**
- * Dev-only: replay a quest from `startStepId` without wiping the character.
- * Clears completion, progress flags (`{questId}-*`), dialogue, and journal lines;
- * keeps modifiers, other quests, name, race, location, etc.
- */
 export function isMainArcQuestId(questId: string): boolean {
   return (MAIN_B_ARC_QUEST_IDS as readonly string[]).includes(questId);
 }
@@ -279,16 +292,176 @@ export function devStartFromQuestAnchor(
   return rebuildPrefixThroughArcIndex(base, arcIndex, questById);
 }
 
+/** Modifier map before `questId` (last completed predecessor snapshot). */
+export function modifierBaselineBeforeQuest(
+  state: QuestState,
+  questId: string,
+  orderedQuestIds: readonly string[]
+): ModifierMap {
+  const arcIdx = mainArcIndex(questId);
+  if (arcIdx > 0) {
+    const prevMain = MAIN_B_ARC_QUEST_IDS[arcIdx - 1]!;
+    return { ...(state.modifiersAfterQuestComplete?.[prevMain] ?? {}) };
+  }
+  if (arcIdx === 0) return {};
+
+  const idx = orderedQuestIds.indexOf(questId);
+  const atOpen = state.progressByQuestId[questId]?.modifiersAtQuestOpen;
+  if (atOpen) return { ...atOpen };
+  for (let i = idx - 1; i >= 0; i--) {
+    const pid = orderedQuestIds[i]!;
+    const snap = state.modifiersAfterQuestComplete?.[pid];
+    if (snap) return { ...snap };
+  }
+  return {};
+}
+
+function shouldClearAssignedRaceOnRestart(
+  restartQuestId: string,
+  orderedQuestIds: readonly string[]
+): boolean {
+  const raceIdx = orderedQuestIds.indexOf(QUEST_018_SILVER_LAKE_REFLECTION_ID);
+  const questIdx = orderedQuestIds.indexOf(restartQuestId);
+  if (raceIdx < 0 || questIdx < 0) return false;
+  return questIdx <= raceIdx;
+}
+
+function pruneModifiersAfterQuestComplete(
+  snapshots: Record<string, ModifierMap> | undefined,
+  clearedQuestIds: Set<string>
+): Record<string, ModifierMap> | undefined {
+  if (!snapshots) return undefined;
+  const next: Record<string, ModifierMap> = {};
+  for (const [qid, map] of Object.entries(snapshots)) {
+    if (!clearedQuestIds.has(qid)) next[qid] = map;
+  }
+  return next;
+}
+
+function clearQuestsFromIndex(
+  state: QuestState,
+  questIdsToClear: readonly string[]
+): QuestState {
+  const clearSet = new Set(questIdsToClear);
+  const progressByQuestId = { ...state.progressByQuestId };
+  for (const qid of questIdsToClear) {
+    delete progressByQuestId[qid];
+  }
+
+  const flags = state.flags.filter((flag) => {
+    for (const qid of questIdsToClear) {
+      if (flag.startsWith(`${qid}-`)) return false;
+    }
+    return true;
+  });
+
+  const dialogueLog = state.dialogueLog.filter(
+    (entry) => !entry.sourceQuestId || !clearSet.has(entry.sourceQuestId)
+  );
+  const journalLog = state.journalLog.filter((entry) => !clearSet.has(entry.questId));
+
+  return {
+    ...state,
+    progressByQuestId,
+    flags,
+    dialogueLog,
+    journalLog,
+    modifiersAfterQuestComplete: pruneModifiersAfterQuestComplete(
+      state.modifiersAfterQuestComplete,
+      clearSet
+    ),
+  };
+}
+
+/**
+ * Dev Restart From: rewind to before `questId`, drop that quest's modifiers and all later quest progress.
+ */
+export function devRestartFromQuest(
+  state: QuestState,
+  questId: string,
+  questById: Record<string, QuestDefinition>,
+  orderedQuestIds: readonly string[]
+): QuestState {
+  const quest = questById[questId];
+  if (!quest) return state;
+
+  const arcIdx = mainArcIndex(questId);
+  let next = state;
+
+  if (arcIdx > 0) {
+    const previousMainArcQuestId = MAIN_B_ARC_QUEST_IDS[arcIdx - 1]!;
+    next = devStartFromQuestAnchor(next, previousMainArcQuestId, questById);
+  } else if (arcIdx === 0) {
+    next = {
+      ...next,
+      modifiers: {},
+      dayReportModifierBaseline: {},
+      modifiersAfterQuestComplete: {},
+      assignedRaceSlug: null,
+      lockedClassSlug: null,
+    };
+  }
+
+  const startIdx = orderedQuestIds.indexOf(questId);
+  const questsToClear = startIdx >= 0 ? orderedQuestIds.slice(startIdx) : [questId];
+  next = clearQuestsFromIndex(next, questsToClear);
+
+  const baseline = modifierBaselineBeforeQuest(state, questId, orderedQuestIds);
+  next = {
+    ...next,
+    modifiers: { ...baseline },
+    dayReportModifierBaseline: { ...baseline },
+    ...(shouldClearAssignedRaceOnRestart(questId, orderedQuestIds)
+      ? { assignedRaceSlug: null }
+      : {}),
+  };
+  next = resyncCharacterLocksAfterModifierRewind(next);
+
+  next = devResetQuestById(next, questId, questById, { skipModifierRewind: true });
+
+  const progress = next.progressByQuestId[questId];
+  if (progress) {
+    next = {
+      ...next,
+      progressByQuestId: {
+        ...next.progressByQuestId,
+        [questId]: {
+          ...progress,
+          modifiersAtQuestOpen: { ...baseline },
+        },
+      },
+    };
+  }
+
+  return next;
+}
+
 export function devResetQuestById(
   state: QuestState,
   questId: string,
-  questById: Record<string, QuestDefinition>
+  questById: Record<string, QuestDefinition>,
+  options?: { skipModifierRewind?: boolean; orderedQuestIds?: readonly string[] }
 ): QuestState {
   const quest = questById[questId];
   if (!quest) return state;
 
   const flagPrefix = `${questId}-`;
+  const baseline =
+    state.progressByQuestId[questId]?.modifiersAtQuestOpen ??
+    (options?.orderedQuestIds
+      ? modifierBaselineBeforeQuest(state, questId, options.orderedQuestIds)
+      : state.modifiers);
+
   let next = restartQuestProgress(state, quest);
+  if (!options?.skipModifierRewind) {
+    next = {
+      ...next,
+      modifiers: { ...baseline },
+      dayReportModifierBaseline: { ...baseline },
+    };
+    next = resyncCharacterLocksAfterModifierRewind(next);
+  }
+
   next = {
     ...next,
     activeQuestId: questId,
@@ -296,6 +469,13 @@ export function devResetQuestById(
     dialogueLog: state.dialogueLog.filter((entry) => entry.sourceQuestId !== questId),
     journalLog: state.journalLog.filter((entry) => entry.questId !== questId),
     unveiledQuestIds: mergeUnveiled(state, [questId]),
+    progressByQuestId: {
+      ...next.progressByQuestId,
+      [questId]: {
+        ...next.progressByQuestId[questId]!,
+        modifiersAtQuestOpen: { ...baseline },
+      },
+    },
   };
 
   if (questId === 'quest-001-origin') {

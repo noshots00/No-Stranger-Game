@@ -20,14 +20,7 @@ export const quest022WarlordsChoice = createBranchingQuest({
           nextStepId: 'warlord-outcome-daughter',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              AtlantiansRace: 1,
-              DwarfRace: 1,
-              CharismaStat: 1,
-              CourageTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} pointed once, at the daughter, and could not look at the son.'],
         },
@@ -37,14 +30,7 @@ export const quest022WarlordsChoice = createBranchingQuest({
           nextStepId: 'warlord-outcome-son',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              OrcRace: 1,
-              SunbornRace: 1,
-              StrengthStat: 1,
-              CourageTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} pointed once, at the son, and could not look at the daughter.'],
         },
@@ -54,15 +40,7 @@ export const quest022WarlordsChoice = createBranchingQuest({
           nextStepId: 'warlord-outcome-refuse',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              RiverKingdomRace: 1,
-              NightElfRace: 1,
-              CatfolkRace: 1,
-              IntelligenceStat: 1,
-              CowardTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} closed their mouth and would not name either child.'],
         },
@@ -72,16 +50,7 @@ export const quest022WarlordsChoice = createBranchingQuest({
           nextStepId: 'warlord-outcome-sacrifice',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              SunbornRace: 1,
-              TrollRace: 1,
-              ConstitutionStat: 1,
-              CourageTrait: 1,
-              Resolute: 1,
-              HealingSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} stepped between the warlord and the children, hands open.'],
         },

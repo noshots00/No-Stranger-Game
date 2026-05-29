@@ -17,13 +17,11 @@ export const quest027SleepingHare = createBranchingQuest({
           id: 'hare-stalk',
           label: '[placeholder] Stalk closer through the leaves',
           completeQuest: true,
-          effects: { modifiersDelta: { RangerClass: 1, Dexterity: 1 } },
         },
         {
           id: 'hare-mend',
           label: '[placeholder] Tend its torn flank with herbs',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Wisdom: 1 } },
         },
       ],
     },

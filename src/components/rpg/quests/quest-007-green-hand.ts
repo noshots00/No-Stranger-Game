@@ -19,12 +19,7 @@ export const quest007GreenHand = createBranchingQuest({
           nextStepId: 'green-hand-discovery',
           worldEventLogAdd: ['{playerName} found the Green Hand!'],
           effects: {
-            modifiersDelta: {
-              GnomeRace: 1,
-              HighElfRace: 1,
-              RiverKingdomRace: 1,
-              CatfolkRace: 1,
-            },
+
           },
         },
         {
@@ -32,11 +27,7 @@ export const quest007GreenHand = createBranchingQuest({
           label: 'Leave for now',
           completeQuest: false,
           effects: {
-            modifiersDelta: {
-              HalflingRace: 1,
-              WoodElfRace: 1,
-              RiverKingdomRace: 1,
-            },
+
           },
         },
       ],

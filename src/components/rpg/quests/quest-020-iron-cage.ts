@@ -20,14 +20,7 @@ export const quest020IronCage = createBranchingQuest({
           nextStepId: 'iron-cage-outcome-silent',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              SunbornRace: 1,
-              AtlantiansRace: 1,
-              WisdomStat: 1,
-              CourageTrait: 1,
-              Resolute: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} kept their tongue and listened to the bars settle.'],
         },
@@ -37,13 +30,7 @@ export const quest020IronCage = createBranchingQuest({
           nextStepId: 'iron-cage-outcome-accuse',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              RogueClass: 1,
-              GoblinRace: 1,
-              CharismaStat: 1,
-              CowardTrait: 1,
-              Paranoid: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} laid every charge at the other cage and asked for the door.'],
         },
@@ -53,14 +40,7 @@ export const quest020IronCage = createBranchingQuest({
           nextStepId: 'iron-cage-outcome-confess',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              DwarfRace: 1,
-              HalflingRace: 1,
-              WisdomStat: 1,
-              TemperanceTrait: 1,
-              Resolute: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} owned their part of it and only their part of it.'],
         },
@@ -70,16 +50,7 @@ export const quest020IronCage = createBranchingQuest({
           nextStepId: 'iron-cage-outcome-deflect',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              GnomeRace: 1,
-              NightElfRace: 1,
-              IntelligenceStat: 1,
-              CautiousTrait: 1,
-              Paranoid: 1,
-              IllusionSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} invented a stranger and watched the magistrate write the name down.'],
         },

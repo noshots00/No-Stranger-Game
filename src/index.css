@@ -389,7 +389,7 @@
   }
 
   /**
-   * Play tab quest choices: same shell + type as post-choice player line (DialogueVoiceBlock);
+   * Play tab quest choices: same type metrics as post-choice player line (DialogueVoiceBlock);
    * only reset button chrome so layout matches `<p>` for a smooth pick animation.
    */
   .choice-line.play-quest-choice {
@@ -413,6 +413,15 @@
     border-bottom: none;
     border-bottom-color: transparent;
     outline: none;
+  }
+
+  /** Play tab inline quest: tight stack (prompt → choices) without extra scroll padding. */
+  .play-quest-inline .quest-body-arrive > li + li {
+    margin-top: 0.125rem;
+  }
+
+  .play-quest-inline [role='log'] > p:last-child {
+    margin-bottom: 0.125rem;
   }
 
   /** Location/NPC dialogs (Old Well, Carl, Merchant talk) — compact vs default 17px choice-line. */
@@ -630,6 +639,11 @@
     scrollbar-color: transparent transparent;
     /* Avoid browser scroll anchoring fighting programmatic snap-to-latest on refresh. */
     overflow-anchor: none;
+  }
+
+  /* Play tab inner column: native anchoring assists coalesced JS snap (outer scroller stays overflow-anchor: none). */
+  .play-feed-scroll-inner {
+    overflow-anchor: auto;
   }
 
   .facsimile-scroll:hover {

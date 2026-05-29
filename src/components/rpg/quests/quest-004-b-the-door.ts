@@ -19,17 +19,11 @@ export const quest004BTheDoor = createQuestDefinition({
   steps: [
     {
       id: 'door-halt',
-      type: 'choice',
+      type: 'message',
       text:
         'The trail narrows. A great voice rolls through the trees—deep as distant thunder.\n\n“HALT, TRAVELER!”\n\nYou freeze.',
       visuals: [{ kind: 'image', src: DOOR_IMG, alt: 'A door in the forest' }],
-      choices: [
-        {
-          id: 'door-continue',
-          label: 'Continue...',
-          nextStepId: 'carl-hub',
-        },
-      ],
+      nextStepId: 'carl-hub',
     },
     {
       id: 'carl-hub',

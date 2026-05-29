@@ -17,13 +17,11 @@ export const quest033TwinMounds = createBranchingQuest({
           id: 'mounds-circle',
           label: '[placeholder] Walk the boundary and read the placement',
           completeQuest: true,
-          effects: { modifiersDelta: { RangerClass: 1, Wisdom: 1 } },
         },
         {
           id: 'mounds-listen',
           label: '[placeholder] Sit between them and listen for resonance',
           completeQuest: true,
-          effects: { modifiersDelta: { MageClass: 1, Intelligence: 1 } },
         },
       ],
     },

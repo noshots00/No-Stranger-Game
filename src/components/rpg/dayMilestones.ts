@@ -1,10 +1,14 @@
-import { QUEST_ORIGIN_ID } from '@/components/rpg/constants';
+import { QUEST_ORIGIN_ID, WORLD_EVENT_PRINTS_ENABLED } from '@/components/rpg/constants';
 import { getCharacterLevel } from './quests/engine';
 import { appendUniqueWorldEntries } from './helpers';
 import type { QuestState } from './quests/types';
 
 export function formatDayMarker(day: number): string {
   return `Day ${day}...`;
+}
+
+export function formatDayBeginsLine(day: number): string {
+  return `Day ${day} begins`;
 }
 
 function displayName(playerName: string): string {
@@ -65,6 +69,8 @@ export function applyQuestLevelMilestoneIfNeeded(
   next: QuestState,
   completedQuestId: string
 ): QuestState {
+  if (!WORLD_EVENT_PRINTS_ENABLED) return next;
+
   const prevLevel = getCharacterLevel(prev);
   const nextLevel = getCharacterLevel(next);
   if (nextLevel <= prevLevel) return next;

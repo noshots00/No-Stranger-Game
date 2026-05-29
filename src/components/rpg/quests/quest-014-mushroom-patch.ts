@@ -13,7 +13,7 @@ export const quest014MushroomPatch = createBranchingQuest({
   availability: {
     requiresAnyCompletedQuestIds: ['quest-001-origin'],
     requiresAnyFlags: ['quest001-complete'],
-    minDay: 2,
+    minDay: 99,
   },
   steps: [
     {
@@ -29,14 +29,7 @@ export const quest014MushroomPatch = createBranchingQuest({
           completeQuest: true,
           effects: {
             flagsSet: [SWEET_DREAM_PENDING_FLAG],
-            modifiersDelta: {
-              RiverKingdomRace: 1,
-              RangerClass: 1,
-              Wisdom: 1,
-              GroundedSpiritBlessing: 1,
-              CautiousTrait: 1,
-              Survival_MycologySkill: 1,
-            },
+
           },
         },
       ],
@@ -53,14 +46,7 @@ export const quest014MushroomPatch = createBranchingQuest({
           completeQuest: true,
           effects: {
             flagsSet: [FEVER_DREAM_PENDING_FLAG],
-            modifiersDelta: {
-              NightElfRace: 1,
-              MageClass: 1,
-              Constitution: 1,
-              
-              Food_LoverCharacteristic: 1,
-              
-            },
+
           },
         },
         {
@@ -70,13 +56,7 @@ export const quest014MushroomPatch = createBranchingQuest({
           completeQuest: true,
           effects: {
             flagsSet: [FEVER_DREAM_PENDING_FLAG],
-            modifiersDelta: {
-              HalflingRace: 1,
-              RangerClass: 1,
-              Charisma: 1,
-              TemperanceTrait: 1,
-              HerbalismSkill : 1,
-            },
+
           },
         },
       ],

@@ -17,13 +17,11 @@ export const quest025CrookedCairn = createBranchingQuest({
           id: 'cairn-follow',
           label: '[placeholder] Follow the disturbance into the brush',
           completeQuest: true,
-          effects: { modifiersDelta: { RangerClass: 1, Wisdom: 1 } },
         },
         {
           id: 'cairn-pocket',
           label: '[placeholder] Pocket whatever was hidden beneath the stones',
           completeQuest: true,
-          effects: { modifiersDelta: { RogueClass: 1, Dexterity: 1 } },
         },
       ],
     },

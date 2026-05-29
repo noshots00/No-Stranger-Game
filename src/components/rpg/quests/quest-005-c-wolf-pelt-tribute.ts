@@ -35,10 +35,7 @@ export const quest005CWolfPeltTribute = createQuestDefinition({
           disabledUnlessModifiersAtLeast: { 'item:wolf-pelt': 3 },
           disabledLabel: ' (need 3 from the merchant)',
           effects: {
-            modifiersDelta: {
-              'item:wolf-pelt': -3,
-              'item:brass-ring': 1,
-            },
+
             questItemsAdd: ['A brass ring'],
           },
         },

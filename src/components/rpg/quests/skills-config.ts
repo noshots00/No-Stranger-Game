@@ -1,3 +1,5 @@
+import { DAILY_XP_GRANTS_ENABLED } from '../constants';
+
 /** Keys on `QuestState.skills` that use the shared XP / level curve. */
 export const SKILL_XP_KEYS = ['explorationXp', 'foragingXp', 'meleeAttackXp'] as const;
 export type SkillXpKey = (typeof SKILL_XP_KEYS)[number];
@@ -39,7 +41,7 @@ export function distributeDailySkillXp(
   activity: SkillActivity = DEFAULT_SKILL_ACTIVITY,
 ): Record<SkillXpKey, number> {
   const out = Object.fromEntries(SKILL_XP_KEYS.map((k) => [k, 0])) as Record<SkillXpKey, number>;
-  if (totalXp <= 0) return out;
+  if (!DAILY_XP_GRANTS_ENABLED || totalXp <= 0) return out;
 
   const weights = SKILL_ACTIVITY_WEIGHTS[activity];
   const exact: Array<{ key: SkillXpKey; floor: number; frac: number }> = SKILL_XP_KEYS.map((key) => {

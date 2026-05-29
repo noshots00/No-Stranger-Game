@@ -19,14 +19,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           label: 'You decide alone — claim authority before anyone else does',
           nextStepId: 'lifeboat-decide',
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              MageClass: 1,
-              RiverKingdomRace: 1,
-              IntelligenceStat: 1,
-              CourageTrait: 1,
-              Resolute: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} stood at the raft\'s prow and called for silence.'],
         },
@@ -35,14 +28,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           label: 'Cut reeds — let lots decide',
           nextStepId: 'lifeboat-lots',
           effects: {
-            modifiersDelta: {
-              RangerClass: 1,
-              HalflingRace: 1,
-              CatfolkRace: 1,
-              DexterityStat: 1,
-              CautiousTrait: 1,
-              Content: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} sliced reeds into uneven lengths and held them in a closed fist.'],
         },
@@ -51,14 +37,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           label: 'Refuse to choose — offer to leave the raft yourself if needed',
           nextStepId: 'lifeboat-refuse',
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              SunbornRace: 1,
-              TrollRace: 1,
-              ConstitutionStat: 1,
-              CourageTrait: 1,
-              Selfless: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} stepped to the rail and would not name another soul.'],
         },
@@ -75,14 +54,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           nextStepId: 'lifeboat-outcome-elders',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              OrcRace: 1,
-              StrengthStat: 1,
-              CowardTrait: 1,
-              Haunted: 1,
-              BashSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} pried the elders\' hands free of the rail one by one.'],
         },
@@ -92,14 +64,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           nextStepId: 'lifeboat-outcome-strong',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              RangerClass: 1,
-              WoodElfRace: 1,
-              AtlantiansRace: 1,
-              WisdomStat: 1,
-              CourageTrait: 1,
-              SwimmingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} pointed at the broadest shoulders and sent them into the dark.'],
         },
@@ -116,13 +81,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           nextStepId: 'lifeboat-outcome-honor',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              RangerClass: 1,
-              HalflingRace: 1,
-              ConstitutionStat: 1,
-              TemperanceTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} held the rules above the child and did not look down.'],
         },
@@ -132,16 +91,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           nextStepId: 'lifeboat-outcome-redraw',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              HighElfRace: 1,
-              CatfolkRace: 1,
-              CharismaStat: 1,
-              CourageTrait: 1,
-              Hopeful: 1,
-              HealingSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} dropped the reed into the river and called for fresh ones.'],
         },
@@ -158,15 +108,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           nextStepId: 'lifeboat-outcome-slip',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              TrollRace: 1,
-              SunbornRace: 1,
-              ConstitutionStat: 1,
-              CourageTrait: 1,
-              Selfless: 1,
-              SwimmingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} let go of the rail without a word.'],
         },
@@ -176,14 +118,7 @@ export const quest021NineOarRaft = createBranchingQuest({
           nextStepId: 'lifeboat-outcome-stay',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              NightElfRace: 1,
-              RiverKingdomRace: 1,
-              IntelligenceStat: 1,
-              CowardTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} held the rail until the deck went under.'],
         },

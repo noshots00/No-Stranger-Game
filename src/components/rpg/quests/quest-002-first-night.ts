@@ -7,68 +7,84 @@ export const FIRST_NIGHT_FLAG_POCKETS = 'quest-002-first-night-pockets';
 export const FIRST_NIGHT_FLAG_TREE = 'quest-002-first-night-tree';
 export const FIRST_NIGHT_FLAG_WATER = 'quest-002-first-night-water';
 export const FIRST_NIGHT_FLAG_STREAM_DRINK = 'quest-002-first-night-stream-drink';
-
-/** @deprecated Legacy saves only */
+export const FIRST_NIGHT_FLAG_TRAILS = 'quest-002-first-night-trails';
 export const FIRST_NIGHT_FLAG_CALL_HELP = 'quest-002-first-night-call-help';
+export const FIRST_NIGHT_FLAG_FOOD = 'quest-002-first-night-food';
+export const FIRST_NIGHT_FLAG_HIGH_GROUND = 'quest-002-first-night-high-ground';
 /** @deprecated Legacy saves only */
 export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
-
-const FLASK_MODIFIERS = {
-  Drunk: 1,
-  Social: 1,
-  Confident: 1,
-  Leadership: 1,
-  Fighter: 1,
-  Brash: 1,
-  Rude: 1,
-  Antisocial: 1,
-  RogueClass: 1,
-  HealerClass: 1,
-};
-
-const CIGARETTES_MODIFIERS = {
-  MageClass: 1,
-  HealerClass: 1,
-  Leadership: 1,
-  Confident: 1,
-  Reckless: 1,
-};
 
 function buildFirstNightMainChoices(): QuestChoice[] {
   return [
     {
       id: 'q2-build-shelter',
       label: 'Build a shelter',
-      nextStepId: 'boar-encounter',
+      nextStepId: 'flavor-build-shelter',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_SHELTER],
       effects: {
         flagsSet: [FIRST_NIGHT_FLAG_SHELTER],
       },
-      journalSummaryLineAdd: 'You worked on a shelter.',
     },
     {
       id: 'q2-high-ground',
       label: 'Go to high ground',
-      nextStepId: 'boar-encounter',
-      journalSummaryLineAdd: 'You climbed toward high ground.',
+      nextStepId: 'dir-north-steep',
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_HIGH_GROUND],
+      },
     },
     {
       id: 'q2-look-food',
       label: 'Look for food',
-      nextStepId: 'boar-encounter',
-      journalSummaryLineAdd: 'You looked for food.',
+      nextStepId: 'flavor-explore-south',
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_FOOD],
+      },
     },
     {
       id: 'q2-look-water',
       label: 'Look for water',
-      nextStepId: 'boar-encounter',
-      journalSummaryLineAdd: 'You looked for water.',
+      nextStepId: 'flavor-look-water',
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_WATER],
+      },
+    },
+    {
+      id: 'q2-look-trails',
+      label: 'Look for animal trails',
+      nextStepId: 'dir-south-path',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_TRAILS],
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_TRAILS],
+      },
+    },
+    {
+      id: 'q2-check-pockets',
+      label: 'Check your pockets',
+      nextStepId: 'flavor-pockets',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_POCKETS],
+    },
+    {
+      id: 'q2-climb-tree',
+      label: 'Climb a tree',
+      nextStepId: 'flavor-tree-start',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_TREE],
+    },
+    {
+      id: 'q2-call-help',
+      label: 'Call for help',
+      nextStepId: 'flavor-call-help',
+      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_CALL_HELP],
+      effects: {
+        flagsSet: [FIRST_NIGHT_FLAG_CALL_HELP],
+      },
     },
   ];
 }
 
 export const quest002FirstNight = createQuestDefinition({
   id: 'quest-002-first-night',
-  title: 'The Sun Sets in the West',
+  title: 'Sunset',
   briefing: 'Every choice is permanent.  Choose wisely.',
   createdAt: 2,
   mainDailyQuest: true,
@@ -95,14 +111,14 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-build-shelter',
       type: 'message',
       text:
-        'You gather branches and leaf litter, shaping a crude lean-to. Your hands ache and the light is failing — it will have to do for now.',
+        'You shape a crude lean-to.',
       nextStepId: 'flavor-five-hub',
     },
     {
       id: 'flavor-call-help',
       type: 'message',
       text:
-        'You become aware of the sound of silence as every bird and bug suddenly stops its hum and the forest becomes eerily quiet...',
+        'Every bird and insect suddenly stops its sound and the forest becomes eerily quiet...',
       nextStepId: 'flavor-five-hub',
     },
     {
@@ -123,7 +139,6 @@ export const quest002FirstNight = createQuestDefinition({
           effects: {
             flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
             questItemsAdd: ['a flask'],
-            modifiersDelta: FLASK_MODIFIERS,
           },
         },
         {
@@ -133,7 +148,6 @@ export const quest002FirstNight = createQuestDefinition({
           effects: {
             flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
             questItemsAdd: ['cigarettes and a lighter'],
-            modifiersDelta: CIGARETTES_MODIFIERS,
           },
         },
         {
@@ -143,7 +157,7 @@ export const quest002FirstNight = createQuestDefinition({
           effects: {
             flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
             questItemsAdd: ['a cell phone'],
-            modifiersDelta: { Placeholder: 1 },
+
           },
         },
       ],
@@ -170,25 +184,13 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-tree-start',
       type: 'message',
       text: 'This is harder than it looks...',
-      nextStepId: 'flavor-tree-continue',
-    },
-    {
-      id: 'flavor-tree-continue',
-      type: 'choice',
-      text: '',
-      choices: [
-        {
-          id: 'q2-tree-continue',
-          label: 'Continue...',
-          nextStepId: 'flavor-tree-vista',
-        },
-      ],
+      nextStepId: 'flavor-tree-vista',
     },
     {
       id: 'flavor-tree-vista',
       type: 'message',
       text:
-        'You shimmy up the tree with surprising agility but the activity exhausts you... you feel hungry and a little cold. Resting on a high branch you take a good look around...\n\nThere is higher ground to the North. To the East it looks like the trees thin. That is all you can see.',
+        'The trees are still too thick to see much.',
       nextStepId: 'flavor-tree-fork',
     },
     {
@@ -202,7 +204,9 @@ export const quest002FirstNight = createQuestDefinition({
           nextStepId: 'flavor-tree-fall',
           effects: {
             flagsSet: [FIRST_NIGHT_FLAG_TREE],
+
           },
+          journalSummaryLineAdd: 'You fell from a tree and twisted your ankle.',
         },
         {
           id: 'q2-tree-go-down',
@@ -218,7 +222,7 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-tree-fall',
       type: 'message',
       text:
-        'A piece of bark rips off the tree and you tumble backwards from the tree. A series of low branches cushion your fall but you sustain a minor injury.',
+        'You fall from the tree and twist your ankle.',
       nextStepId: 'flavor-five-hub',
     },
     {
@@ -265,6 +269,12 @@ export const quest002FirstNight = createQuestDefinition({
       text: 'You head west.',
       nextStepId: 'boar-encounter',
     },
+    {
+      id: 'flavor-look-water',
+      type: 'message',
+      text: 'You listen for running water and catch the faint sound of a trickle to the west.',
+      nextStepId: 'dir-west-stream',
+    },
     /** Legacy step id — old saves only. */
     {
       id: 'flavor-stream',
@@ -284,22 +294,19 @@ export const quest002FirstNight = createQuestDefinition({
           disabledIfAnyFlags: [FIRST_NIGHT_FLAG_STREAM_DRINK],
           disabledLabel: '',
           effects: {
-            modifiersDelta: { PlaceholderDrink: 1 },
+
             flagsSet: [FIRST_NIGHT_FLAG_STREAM_DRINK],
           },
-          journalSummaryLineAdd: 'You drank from the stream.',
         },
         {
           id: 'q2-west-upstream',
           label: 'Go upstream',
           nextStepId: 'boar-encounter',
-          journalSummaryLineAdd: 'You followed the stream upstream.',
         },
         {
           id: 'q2-west-downstream',
           label: 'Go downstream',
           nextStepId: 'boar-encounter',
-          journalSummaryLineAdd: 'You followed the stream downstream.',
         },
       ],
     },
@@ -330,7 +337,6 @@ export const quest002FirstNight = createQuestDefinition({
           id: 'q2-south-right',
           label: 'Follow it right',
           nextStepId: 'boar-encounter',
-          journalSummaryLineAdd: 'You followed the path to the right.',
         },
       ],
     },
@@ -339,20 +345,7 @@ export const quest002FirstNight = createQuestDefinition({
       type: 'message',
       text:
         'The ground begins to steepen, the footing is rocky. It is harder to travel.',
-      nextStepId: 'dir-north-continue',
-    },
-    {
-      id: 'dir-north-continue',
-      type: 'choice',
-      text: '',
-      choices: [
-        {
-          id: 'q2-north-continue',
-          label: 'Continue',
-          nextStepId: 'boar-encounter',
-          journalSummaryLineAdd: 'You pressed on up the rocky slope.',
-        },
-      ],
+      nextStepId: 'boar-encounter',
     },
     {
       id: 'dir-east-swamp',
@@ -391,8 +384,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'boar-encounter',
       type: 'choice',
-      text:
-        'You are startled by a loud rustling sound!  A wild boar with sharp tusks bounds out of the nearby brush and charges straight at you... What do you do?',
+      text: 'A wild boar charges straight at you!',
       choices: [
         {
           id: 'q1-origin-boar-strike',
@@ -400,28 +392,16 @@ export const quest002FirstNight = createQuestDefinition({
           nextStepId: 'boar-aftermath',
           journalSummaryLineAdd: 'You fended off a boar by attacking it.',
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              Strength: 1,
-              OrcRace: 1,
-              DwarfRace: 1,
-              AtlantiansRace: 1,
-            },
+
           },
         },
         {
           id: 'q1-origin-boar-spark',
-          label: 'Cast a spell (you produce a small spark—surprising even you)',
+          label: 'Cast a spell',
           nextStepId: 'boar-aftermath',
           journalSummaryLineAdd: 'You fended off a boar by using magic.',
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              Intelligence: 1,
-              HighElfRace: 1,
-              GnomeRace: 1,
-              RiverKingdomRace: 1,
-            },
+
           },
         },
         {
@@ -430,15 +410,7 @@ export const quest002FirstNight = createQuestDefinition({
           nextStepId: 'boar-aftermath',
           journalSummaryLineAdd: 'You fended off a boar by dodging it.',
           effects: {
-            modifiersDelta: {
-              RogueClass: 1,
-              Evasion: 1,
-              Dodge: 1,
-              HalflingRace: 1,
-              GoblinRace: 1,
-              WoodElfRace: 1,
-              CatfolkRace: 1,
-            },
+
           },
         },
         {
@@ -447,14 +419,7 @@ export const quest002FirstNight = createQuestDefinition({
           nextStepId: 'boar-aftermath',
           journalSummaryLineAdd: 'You fended off a boar by running from it.',
           effects: {
-            modifiersDelta: {
-              Coward: 1,
-              FastFeet: 1,
-              SurvivalInstinct: 1,
-              GoblinRace: 1,
-              HalflingRace: 1,
-              RiverKingdomRace: 1,
-            },
+
           },
         },
       ],
@@ -462,154 +427,13 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'boar-aftermath',
       type: 'message',
-      text: "The boar misses and vanishes into the woods. You're unharmed.",
+      text: "The boar misses and vanishes into the woods.",
       nextStepId: 'night-router',
     },
     {
       id: 'night-router',
-      type: 'choice',
-      text: 'Dusk is closing in.',
-      choices: [
-        {
-          id: 'q2-night-hub-shelter',
-          label: 'Continue',
-          nextStepId: 'night-hub-shelter',
-          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SHELTER],
-        },
-        {
-          id: 'q2-night-dusk',
-          label: 'Continue',
-          nextStepId: 'dusk-choice',
-          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_SHELTER],
-        },
-      ],
-    },
-    {
-      id: 'night-hub-shelter',
       type: 'message',
-      text:
-        'You return to the crude lean-to you started. The forest darkens around you. You stay put and wait — the wind shifts, and the night deepens.',
-      nextStepId: 'stay-blue-bugs',
-    },
-    {
-      id: 'dusk-choice',
-      type: 'choice',
-      text: "Dusk falls.\n\nIt's getting dark fast. You can barely see the trees ahead.",
-      choices: [
-        {
-          id: 'q1-dusk-keep-going',
-          label: 'Keep going',
-          nextStepId: 'dark-pitch',
-          journalSummaryLineAdd:
-            'You had a strange night in the forest before eventually falling asleep.',
-        },
-        {
-          id: 'q1-dusk-build-shelter',
-          label: 'Build a shelter',
-          nextStepId: 'shelter-lean-end',
-          journalSummaryLineAdd: 'You built a primitive lean-to and slept for the night.',
-        },
-      ],
-    },
-    {
-      id: 'shelter-lean-end',
-      type: 'message',
-      text:
-        'You craft a crude lean-to from branches and leaf litter. Exhaustion wins — you curl up inside.\n\nDay ends.',
-      completeQuest: true,
-    },
-    {
-      id: 'dark-pitch',
-      type: 'message',
-      text: 'You stumble onward until the forest becomes pitch black.',
-      nextStepId: 'dark-branch',
-    },
-    {
-      id: 'dark-branch',
-      type: 'choice',
-      text: 'What do you do?',
-      choices: [
-        {
-          id: 'q1-dark-creep',
-          label: 'Slowly creep forward in the dark',
-          nextStepId: 'creep-moonlit',
-        },
-        {
-          id: 'q1-dark-stay',
-          label: 'Stay in one place',
-          nextStepId: 'stay-blue-bugs',
-        },
-        {
-          id: 'q1-dark-yell',
-          label: 'Yell out for help',
-          nextStepId: 'yell-help-end',
-        },
-      ],
-    },
-    {
-      id: 'yell-help-end',
-      type: 'message',
-      text:
-        'Day ends.',
-      completeQuest: true,
-    },
-    {
-      id: 'creep-moonlit',
-      type: 'message',
-      text:
-        'Your hands find roots and cold stone. Eventually the canopy opens onto a moonlit rock outcropping — enough shelter from the wind.',
-      nextStepId: 'creep-sleep-end',
-    },
-    {
-      id: 'creep-sleep-end',
-      type: 'message',
-      text:
-        'You tuck yourself against the stone and fade toward sleep.\n\nDay ends.',
-      completeQuest: true,
-    },
-    {
-      id: 'stay-blue-bugs',
-      type: 'message',
-      text:
-        'Hours blur. Then — motion overhead: a river of blue sparks drifts through the black trees. Lightning bugs? Something stranger?',
-      nextStepId: 'bugs-fork',
-    },
-    {
-      id: 'bugs-fork',
-      type: 'choice',
-      text: 'What do you do?',
-      choices: [
-        {
-          id: 'q1-bugs-follow',
-          label: 'Follow the lights',
-          nextStepId: 'follow-ravine',
-        },
-        {
-          id: 'q1-bugs-shelter',
-          label: 'Take shelter and try to sleep',
-          nextStepId: 'bugs-shelter-end',
-        },
-      ],
-    },
-    {
-      id: 'bugs-shelter-end',
-      type: 'message',
-      text:
-        'Day ends.',
-      completeQuest: true,
-    },
-    {
-      id: 'follow-ravine',
-      type: 'message',
-      text:
-        'The glow leads you until the ground drops away — a ravine too steep to cross. The blue sparks thin and scatter.',
-      nextStepId: 'follow-outcrop-end',
-    },
-    {
-      id: 'follow-outcrop-end',
-      type: 'message',
-      text:
-        'You find a little ledge beneath an overhang — barely enough to wait out the night.\n\nDay ends.',
+      text: 'Dusk is closing in.  You build a primitive shelter and rest for the night.',
       completeQuest: true,
     },
   ],

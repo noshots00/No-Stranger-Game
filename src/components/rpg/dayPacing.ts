@@ -3,6 +3,7 @@ import {
   DAILY_ITEM_QUEST_CHANCE,
   DILEMMA_DAILY_CHANCE,
   DAILY_XP,
+  DAILY_XP_GRANTS_ENABLED,
   EARRING_DAILY_FLAG,
   HAT_DAILY_FLAG,
   HEINZ_DAILY_FLAG,
@@ -15,13 +16,25 @@ import {
   WOLF_ATTACK_DAILY_FLAG,
   DELAYED_QUEST_UNLOCKS,
 } from './constants';
-import { formatDayMarker } from './dayMilestones';
+import { DAY_REPORT_SPEAKER, isReportInfographicTitle } from './dialogueFormat';
 import { appendUniqueWorldEntries, buildDayReportDialogueLines } from './helpers';
 import { getJobDefinition } from './jobs/registry';
-import { getCompletedQuestIds, getQuestContext, isDayPacingActive, isVillagePhase } from './quests/engine';
+import {
+  createInitialSkills,
+  getCompletedQuestIds,
+  getLevelFromXp,
+  getQuestContext,
+  isDayPacingActive,
+  isVillagePhase,
+} from './quests/engine';
 import { pickNextSideQuestToUnveilOnDayRoll } from './quests/quest-saga';
 import { SKILL_XP_KEYS, distributeDailySkillXp } from './quests/skills-config';
-import type { QuestState } from './quests/types';
+import type {
+  DayReportPrevSnapshot,
+  DialogueLogEntry,
+  PlayDayRollStaging,
+  QuestState,
+} from './quests/types';
 import { applyWolfHideDailyGrants } from './tavern/wolfHidesDaily';
 import { getDeterministicDailyRoll } from '@/lib/deterministicDailyRoll';
 
@@ -59,12 +72,7 @@ export function applyDailyXpGrants(
   nextDay: number
 ): QuestState {
   if (daysToGrant <= 0) return { ...state, lastDailyXpDay: nextDay };
-  const xpToGrant = daysToGrant * DAILY_XP;
-  const skillGrants = distributeDailySkillXp(xpToGrant, 'exploring');
-  const nextSkills = { ...state.skills };
-  for (const key of SKILL_XP_KEYS) {
-    nextSkills[key] = state.skills[key] + (skillGrants[key] ?? 0);
-  }
+
   const activeJob = state.activeJobSlug ? getJobDefinition(state.activeJobSlug) : undefined;
   let nextResources = state.resources;
   if (activeJob) {
@@ -74,6 +82,21 @@ export function applyDailyXpGrants(
       resources[resourceKey] = (resources[resourceKey] ?? 0) + amountPerDay * daysToGrant;
     }
     nextResources = resources;
+  }
+
+  if (!DAILY_XP_GRANTS_ENABLED) {
+    return {
+      ...state,
+      lastDailyXpDay: nextDay,
+      ...(nextResources !== undefined ? { resources: nextResources } : {}),
+    };
+  }
+
+  const xpToGrant = daysToGrant * DAILY_XP;
+  const skillGrants = distributeDailySkillXp(xpToGrant, 'exploring');
+  const nextSkills = { ...state.skills };
+  for (const key of SKILL_XP_KEYS) {
+    nextSkills[key] = state.skills[key] + (skillGrants[key] ?? 0);
   }
   return {
     ...state,
@@ -177,12 +200,19 @@ export function applyDayEndTransition(args: ApplyDayRollArgs): QuestState {
     }
   }
 
-  const reportLines = buildDayReportDialogueLines(endingDay, prevForReport, updatedState);
+  const modifierBaseline = prevForReport.dayReportModifierBaseline ?? {};
+  const prevForModifierReport: QuestState = {
+    ...prevForReport,
+    modifiers: { ...modifierBaseline },
+    questItems: [...(prevForReport.dayReportQuestItemsBaseline ?? [])],
+  };
+  const reportLines = buildDayReportDialogueLines(endingDay, prevForModifierReport, updatedState);
   updatedState = {
     ...updatedState,
     dialogueLog: [...updatedState.dialogueLog, ...reportLines],
-    worldEventLog: appendUniqueWorldEntries(updatedState.worldEventLog, [formatDayMarker(nextDay)]),
     lastDailyXpDay: nextDay,
+    dayReportModifierBaseline: { ...updatedState.modifiers },
+    dayReportQuestItemsBaseline: [...updatedState.questItems],
   };
 
   return updatedState;
@@ -205,26 +235,232 @@ export function applyCalendarDayCatchUp(prevState: QuestState, calendarDay: numb
   return updated;
 }
 
-/** In-session advance after main daily quest (e.g. first night): one day of XP, Day 1 Report, Day 2... */
-/** Repair pre–forest-day-roll saves: first night done but still on Day 1. */
+export function dayReportTitle(dayNumber: number): string {
+  return `Day ${dayNumber} Report`;
+}
+
+/** True while Play is waiting on Continue before/after the pending day report. */
+export function isPlayDayRollPending(state: QuestState): boolean {
+  return Boolean(state.playDayRollStaging);
+}
+
+/**
+ * Day-roll Continue UI blocks auto-track only while the quest that triggered the roll is still
+ * active and incomplete. Other forest beats (e.g. Dyer's Crypt after Sunset) may still chain.
+ */
+export function isForestAutoTrackBlockedByDayRoll(state: QuestState): boolean {
+  const staging = state.playDayRollStaging;
+  if (!staging) return false;
+  const activeId = state.activeQuestId;
+  if (!activeId) return false;
+  if (activeId !== staging.completedQuestId) return false;
+  const prog = state.progressByQuestId[activeId];
+  return Boolean(prog && !prog.isCompleted);
+}
+
+/** True when a day report block has at least one body line after its title. */
+export function dayReportHasBody(
+  dialogueLog: readonly DialogueLogEntry[],
+  dayNumber: number
+): boolean {
+  const title = dayReportTitle(dayNumber);
+  let inBlock = false;
+  for (const line of dialogueLog) {
+    if (line.speaker !== DAY_REPORT_SPEAKER) {
+      if (inBlock) break;
+      continue;
+    }
+    const trimmed = line.text.trim();
+    if (trimmed === title) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock && isReportInfographicTitle(line.text)) break;
+    if (inBlock && trimmed.length > 0) return true;
+  }
+  return false;
+}
+
+function stripDayReportBlock(
+  dialogueLog: readonly DialogueLogEntry[],
+  dayNumber: number
+): DialogueLogEntry[] {
+  const title = dayReportTitle(dayNumber);
+  const out: DialogueLogEntry[] = [];
+  let skipping = false;
+  for (const line of dialogueLog) {
+    if (line.speaker === DAY_REPORT_SPEAKER && line.text.trim() === title) {
+      skipping = true;
+      continue;
+    }
+    if (skipping) {
+      if (line.speaker !== DAY_REPORT_SPEAKER) {
+        skipping = false;
+        out.push(line);
+        continue;
+      }
+      if (isReportInfographicTitle(line.text)) {
+        skipping = false;
+        out.push(line);
+      }
+      continue;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+function forestDayOneSkillsGranted(state: QuestState): boolean {
+  if (!DAILY_XP_GRANTS_ENABLED) return true;
+  return (
+    getLevelFromXp(state.skills.explorationXp) >= 1 && getLevelFromXp(state.skills.foragingXp) >= 1
+  );
+}
+
+/** Repair forest saves: first night done but Day 1 XP/report missing or title-only. */
 export function reconcileForestSessionDay(state: QuestState): QuestState {
   if (isVillagePhase(state.flags)) return state;
   if (!state.flags.includes('quest001-complete')) return state;
-  if (state.lastDailyXpDay >= 2) return state;
 
-  const hasDay1Report = state.dialogueLog.some((line) => line.text === 'Day 1 Report');
-  if (hasDay1Report) {
-    return {
-      ...state,
-      lastDailyXpDay: 2,
-      worldEventLog: appendUniqueWorldEntries(state.worldEventLog, [formatDayMarker(2)]),
-    };
+  if (state.playDayRollStaging?.phase === 'before_report') {
+    return state;
+  }
+  if (state.playDayRollStaging?.phase === 'after_report') {
+    return state;
   }
 
-  const anchor: QuestState = { ...state, lastDailyXpDay: 1 };
-  return applyInSessionDayAdvanceAfterMainQuest(anchor, state, 1, true);
+  const reportOk = dayReportHasBody(state.dialogueLog, 1);
+  const skillsOk = forestDayOneSkillsGranted(state);
+  if (reportOk && skillsOk && state.lastDailyXpDay >= 2) return state;
+
+  if (!skillsOk) {
+    const cleaned = stripDayReportBlock(state.dialogueLog, 1);
+    const base: QuestState = {
+      ...state,
+      dialogueLog: cleaned,
+      lastDailyXpDay: 1,
+      skills: createInitialSkills(),
+    };
+    return applyInSessionDayAdvanceAfterMainQuest(base, base, 1, true);
+  }
+
+  if (!reportOk) {
+    const pseudoPrev: QuestState = {
+      ...state,
+      skills: createInitialSkills(),
+      modifiers: state.dayReportModifierBaseline ?? {},
+      questItems: [...(state.dayReportQuestItemsBaseline ?? [])],
+    };
+    const reportLines = buildDayReportDialogueLines(1, pseudoPrev, state);
+    const bodyLines = reportLines.filter((line) => line.text.trim() !== dayReportTitle(1));
+    if (bodyLines.length === 0) return state;
+
+    const hasTitle = state.dialogueLog.some((line) => line.text.trim() === dayReportTitle(1));
+    const dialogueLog = hasTitle
+      ? [...state.dialogueLog, ...bodyLines]
+      : [...state.dialogueLog, ...reportLines];
+
+    const next =
+      state.lastDailyXpDay < 2
+        ? {
+            ...state,
+            lastDailyXpDay: 2,
+            dayReportModifierBaseline: { ...state.modifiers },
+            dayReportQuestItemsBaseline: [...state.questItems],
+          }
+        : state;
+    return { ...next, dialogueLog };
+  }
+
+  if (state.lastDailyXpDay < 2) {
+    return { ...state, lastDailyXpDay: 2 };
+  }
+
+  return state;
 }
 
+function snapshotForDayReport(prevState: QuestState): DayReportPrevSnapshot {
+  return {
+    modifiers: { ...prevState.modifiers },
+    skills: { ...prevState.skills },
+    experience: prevState.experience,
+    resources: prevState.resources ? { ...prevState.resources } : undefined,
+    dayReportModifierBaseline: prevState.dayReportModifierBaseline
+      ? { ...prevState.dayReportModifierBaseline }
+      : undefined,
+    dayReportQuestItemsBaseline: [...(prevState.dayReportQuestItemsBaseline ?? [])],
+    questItems: [...prevState.questItems],
+    flags: [...prevState.flags],
+  };
+}
+
+function stagingFromArgs(
+  prevState: QuestState,
+  state: QuestState,
+  calendarDay: number,
+  sessionOnly: boolean,
+  completedQuestId: string
+): PlayDayRollStaging {
+  const endingDay = prevState.lastDailyXpDay;
+  const nextDay = endingDay + 1;
+  return {
+    phase: 'before_report',
+    endingDay,
+    nextDay,
+    calendarDay,
+    sessionOnly,
+    completedQuestId,
+    prevForReport: snapshotForDayReport(prevState),
+  };
+}
+
+/**
+ * Forest in-session: grant daily XP, then wait for Play Continue before/after the day report.
+ */
+export function stageInSessionDayAdvanceAfterMainQuest(
+  prevState: QuestState,
+  state: QuestState,
+  calendarDay: number,
+  completedQuestId: string,
+  sessionOnly = false
+): QuestState {
+  const staging = stagingFromArgs(prevState, state, calendarDay, sessionOnly, completedQuestId);
+  const updated = applyDailyXpGrants(state, 1, staging.nextDay);
+  return { ...updated, playDayRollStaging: staging, activeQuestId: null };
+}
+
+/** Advance staged day roll: first Continue shows report; second clears staging. */
+export function advancePlayDayRollPhase(state: QuestState): QuestState {
+  const staging = state.playDayRollStaging;
+  if (!staging) return state;
+
+  if (staging.phase === 'before_report') {
+    const prevForReport: QuestState = {
+      ...state,
+      ...staging.prevForReport,
+      modifiers: { ...staging.prevForReport.modifiers },
+      skills: { ...staging.prevForReport.skills },
+      dayReportModifierBaseline: staging.prevForReport.dayReportModifierBaseline
+        ? { ...staging.prevForReport.dayReportModifierBaseline }
+        : undefined,
+      dayReportQuestItemsBaseline: [...(staging.prevForReport.dayReportQuestItemsBaseline ?? [])],
+      questItems: [...staging.prevForReport.questItems],
+    };
+    const updated = applyDayEndTransition({
+      prevForReport,
+      state,
+      endingDay: staging.endingDay,
+      nextDay: staging.nextDay,
+      calendarDay: staging.calendarDay,
+      sessionOnly: staging.sessionOnly,
+    });
+    return { ...updated, playDayRollStaging: { ...staging, phase: 'after_report' } };
+  }
+
+  return { ...state, playDayRollStaging: undefined };
+}
+
+/** In-session advance after main daily quest (e.g. first night): one day of XP + Day N Report. */
 export function applyInSessionDayAdvanceAfterMainQuest(
   prevState: QuestState,
   state: QuestState,

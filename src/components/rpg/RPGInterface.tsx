@@ -17,6 +17,7 @@ import {
   interpolateStepText,
   isDayPacingActive,
   isVillagePhase,
+  offerNextTrackedForestQuest,
   resolveDisplayDay,
   shouldShowDayInHeader,
   reconcileVillagePhaseState,
@@ -34,7 +35,6 @@ import {
   computeNextUnveilIdsAfterCompletion,
 } from '@/components/rpg/quests/quest-saga';
 import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
-import { canQuestStepBack, questStepBack } from '@/components/rpg/quests/questStepBack';
 import type { DialogueLogEntry, ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
   APP_VERSION,
@@ -42,14 +42,15 @@ import {
   CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
   characterCreationDateStorageKeyForPubkey,
   DAY_IN_MS,
-  DIALOGUE_SCROLL_PIN_EPS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
+  DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY,
   DEV_USE_QUEST_POPUP_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
   locationActions,
   QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
+  QUEST_DYERS_CRYPT_ID,
   QUEST_003B_MEET_MERCHANT_ID,
   QUEST_004_B_CARL_HUB_STEP_ID,
   QUEST_004_B_THE_DOOR_ID,
@@ -60,6 +61,7 @@ import {
   PLAY_WORLD_RECENT_MAX,
   LOCATION_LABEL_DISPLAY,
   FOREST_PARENT_LOCATION,
+  ANCIENT_CEMETERY_LOCATION,
   OLD_WELL_LOCATION,
   QUEST_002B_WELL_HUB_STEP_ID,
   QUEST_002B_WELL_OPENED_FLAG,
@@ -69,15 +71,26 @@ import {
   DISCOVERED_MINE_FLAG,
   DISCOVERED_QUARRY_FLAG,
   VILLAGE_PHASE_FLAG,
+  WORLD_EVENT_PRINTS_ENABLED,
 } from './constants';
 import type { MobileTab } from './constants';
 import {
+  advancePlayDayRollPhase,
   applyCalendarDayCatchUp,
   applyInSessionDayAdvanceAfterMainQuest,
+  isForestAutoTrackBlockedByDayRoll,
   reconcileForestSessionDay,
+  stageInSessionDayAdvanceAfterMainQuest,
 } from './dayPacing';
-import { applyQuestLevelMilestoneIfNeeded, formatDayMarker } from './dayMilestones';
-import { appendDialogue, appendUniqueWorldEntries, getCopperFromModifiers } from './helpers';
+import { applyQuestLevelMilestoneIfNeeded } from './dayMilestones';
+import {
+  dialogueLinesForPlayFeed,
+  journalLinesForPlayFeed,
+  isPlayDayMarkerText,
+  worldLinesForPlayFeed,
+} from './playLedgerSchema';
+import { appendDialogue, getCopperFromModifiers } from './helpers';
+import { createPlayFeedScrollController } from './playFeedScroll';
 import {
   dialogueHasQuestOpeningAtEnd,
   formatPlayerChoiceDialogueLine,
@@ -98,7 +111,7 @@ import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
 import {
   devResetQuestById,
-  devStartFromQuestAnchor,
+  devRestartFromQuest,
   MAIN_B_ARC_QUEST_IDS,
 } from './dev/devStoryCheckpoints';
 import { GameHeader } from './GameHeader';
@@ -118,6 +131,7 @@ import {
   travelMenuHighlightLocation,
 } from './locationPresence';
 import {
+  acknowledgeAncientCemeteryTravelDiscovery,
   acknowledgeOldWellTravelDiscovery,
   acknowledgeTravelLocation,
   buildForestTravelMenuItems,
@@ -173,7 +187,14 @@ function applyMainDailyQuestCompletionIfNeeded(
   }
   const sessionOnly = !isVillagePhase(withFlags.flags);
   const rollCalendarDay = sessionOnly ? Math.max(1, prev.lastDailyXpDay) : calendarDay;
+  if (sessionOnly) {
+    return stageInSessionDayAdvanceAfterMainQuest(prev, withFlags, rollCalendarDay, quest.id, true);
+  }
   return applyInSessionDayAdvanceAfterMainQuest(prev, withFlags, rollCalendarDay, sessionOnly);
+}
+
+function shouldDeferDiscoveryUnveilOnComplete(merged: QuestState, quest: QuestDefinition): boolean {
+  return Boolean(merged.playDayRollStaging && quest.mainDailyQuest);
 }
 
 function mergeDiscoveryUnveils(
@@ -189,11 +210,15 @@ function mergeDiscoveryUnveils(
     completed,
     ctx
   );
-  if (add.length === 0) return merged;
-  return {
-    ...merged,
-    unveiledQuestIds: Array.from(new Set([...merged.unveiledQuestIds, ...add])),
-  };
+  const withUnveils =
+    add.length === 0
+      ? merged
+      : {
+          ...merged,
+          unveiledQuestIds: Array.from(new Set([...merged.unveiledQuestIds, ...add])),
+        };
+  const displayDay = resolveDisplayDay(withUnveils, calendarDay);
+  return offerNextTrackedForestQuest(withUnveils, getQuestContext(withUnveils, displayDay));
 }
 
 export function RPGInterface() {
@@ -231,6 +256,7 @@ export function RPGInterface() {
   const [nameInputError, setNameInputError] = useState<string | null>(null);
   const [questPopupQuestId, setQuestPopupQuestId] = useState<string | null>(null);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
+  const [showQuestChoiceEffects, setShowQuestChoiceEffects] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
   const [arenaOpen, setArenaOpen] = useState(false);
@@ -263,8 +289,17 @@ export function RPGInterface() {
   }, []);
 
   useEffect(() => {
+    const raw = localStorage.getItem(DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY);
+    if (raw === '1') setShowQuestChoiceEffects(true);
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY, showModifierDetails ? '1' : '0');
   }, [showModifierDetails]);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY, showQuestChoiceEffects ? '1' : '0');
+  }, [showQuestChoiceEffects]);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY);
@@ -301,61 +336,26 @@ export function RPGInterface() {
   }, [canShowGame, hasShownGameOnce]);
 
   const dialogueScrollRef = useRef<HTMLDivElement | null>(null);
-  /** When true, play-feed snap uses smooth scroll instead of instant scrollTop (quest choice visual transition). */
-  const questChoiceVisualActiveRef = useRef(false);
-  const dialoguePinnedRef = useRef(true);
-  const dialogueInstantScrollRef = useRef(false);
-  /** False until first bottom snap on Play; avoids scrollTop=0 on mount marking the feed "unpinned". */
-  const dialogueScrollReadyRef = useRef(false);
-  /** After switching to Play, keep snapping to bottom while layout/fonts grow until user scrolls up or timeout. */
-  const playDialogueSnapInitialRef = useRef(false);
+  const playFeedScroll = useMemo(() => createPlayFeedScrollController(), []);
   const prevPlayTabRef = useRef(false);
   const completedQuestCountRef = useRef(0);
   const activeTabRef = useRef<MobileTab>(activeTab);
   activeTabRef.current = activeTab;
 
-  const snapPlayDialogueBottom = useCallback(() => {
-    const el = dialogueScrollRef.current;
-    if (!el) return;
-    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
-    if (questChoiceVisualActiveRef.current) {
-      el.scrollTo({ top: maxScroll, behavior: 'smooth' });
-    } else {
-      el.scrollTop = maxScroll;
-      const sentinels = el.querySelectorAll<HTMLElement>('[data-stick-scroll-bottom-sentinel]');
-      const sentinel = sentinels.length > 0 ? sentinels[sentinels.length - 1] : null;
-      sentinel?.scrollIntoView({ block: 'end', behavior: 'auto' });
-    }
-    dialoguePinnedRef.current = true;
-    dialogueScrollReadyRef.current = true;
-  }, []);
+  useEffect(() => () => playFeedScroll.dispose(), [playFeedScroll]);
 
-  const handleQuestChoiceVisualPhase = useCallback((phase: 'start' | 'end') => {
-    if (phase === 'start') {
-      questChoiceVisualActiveRef.current = true;
-      return;
-    }
-    questChoiceVisualActiveRef.current = false;
-    if (activeTabRef.current !== 'play') return;
-    dialoguePinnedRef.current = true;
-    playDialogueSnapInitialRef.current = true;
-    snapPlayDialogueBottom();
-  }, [snapPlayDialogueBottom]);
+  const handleQuestChoiceVisualPhase = useCallback(
+    (phase: 'start' | 'end') => {
+      if (phase === 'end' && activeTabRef.current === 'play') {
+        playFeedScroll.requestForceSnap();
+      }
+    },
+    [playFeedScroll]
+  );
 
-  const handleDialogueScroll = () => {
-    if (!dialogueScrollReadyRef.current) return;
-    const el = dialogueScrollRef.current;
-    if (!el) return;
-    const maxScroll = el.scrollHeight - el.clientHeight;
-    if (maxScroll <= 0) {
-      dialoguePinnedRef.current = true;
-      return;
-    }
-    dialoguePinnedRef.current = el.scrollTop >= maxScroll - DIALOGUE_SCROLL_PIN_EPS;
-    if (!dialoguePinnedRef.current) {
-      playDialogueSnapInitialRef.current = false;
-    }
-  };
+  const handleDialogueScroll = useCallback(() => {
+    playFeedScroll.updatePinnedFromScroll();
+  }, [playFeedScroll]);
 
   const completedQuestIds = useMemo(() => getCompletedQuestIds(questState), [questState]);
   const merchantTravelUnlocked = completedQuestIds.includes(QUEST_003B_MEET_MERCHANT_ID);
@@ -387,7 +387,13 @@ export function RPGInterface() {
       items.push({ locationId: 'Merchant', label: formatLocationLabel('Merchant') });
     }
     const cur = questState.currentLocation;
-    if (cur && cur !== 'Forest' && cur !== OLD_WELL_LOCATION && !items.some((item) => item.locationId === cur)) {
+    if (
+      cur &&
+      cur !== 'Forest' &&
+      cur !== OLD_WELL_LOCATION &&
+      cur !== ANCIENT_CEMETERY_LOCATION &&
+      !items.some((item) => item.locationId === cur)
+    ) {
       items.push({ locationId: cur, label: formatLocationLabel(cur) });
     }
     return items;
@@ -403,6 +409,9 @@ export function RPGInterface() {
       setQuestState((prev) => {
         let next = applyTravelLocationChange(prev, nextLocation);
         next = acknowledgeTravelLocation(next, nextLocation);
+        if (nextLocation === ANCIENT_CEMETERY_LOCATION) {
+          next = acknowledgeAncientCemeteryTravelDiscovery(next);
+        }
         if (nextLocation === OLD_WELL_LOCATION) {
           next = acknowledgeOldWellTravelDiscovery(next);
           const wellQuest = questById[QUEST_002B_WILL_I_STARVE_ID];
@@ -510,6 +519,7 @@ export function RPGInterface() {
     }
   }, []);
   const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
+  const [devToolsMenuOpen, setDevToolsMenuOpen] = useState(false);
 
   const orderedQuestsForDev = useMemo(() => {
     const arcOrder = (id: string) => {
@@ -550,7 +560,8 @@ export function RPGInterface() {
       const quest = questById[questId];
       if (!quest) return;
       setQuestState((prev) => {
-        let next = devResetQuestById(prev, questId, questById);
+        const orderedIds = orderedQuestsForDev.map((q) => q.id);
+        let next = devResetQuestById(prev, questId, questById, { orderedQuestIds: orderedIds });
         next = appendQuestOpeningDialogue(next, quest);
         void persistQuestCheckpoint(next);
         return next;
@@ -558,7 +569,7 @@ export function RPGInterface() {
       setQuestPopupQuestId(null);
       setActiveTab('play');
     },
-    [appendQuestOpeningDialogue, setQuestState, persistQuestCheckpoint]
+    [appendQuestOpeningDialogue, orderedQuestsForDev, setQuestState, persistQuestCheckpoint]
   );
 
   const handleDevRestartFromQuest = useCallback(
@@ -566,24 +577,18 @@ export function RPGInterface() {
       if (!questId) return;
       const quest = questById[questId];
       if (!quest) return;
-      const selectedArcIndex = MAIN_B_ARC_QUEST_IDS.indexOf(
-        questId as (typeof MAIN_B_ARC_QUEST_IDS)[number]
-      );
+      const orderedIds = orderedQuestsForDev.map((q) => q.id);
       setQuestState((prev) => {
-        let next = prev;
-        if (selectedArcIndex > 0) {
-          const previousMainArcQuestId = MAIN_B_ARC_QUEST_IDS[selectedArcIndex - 1];
-          next = devStartFromQuestAnchor(next, previousMainArcQuestId, questById);
-        }
-        next = devResetQuestById(next, questId, questById);
+        let next = devRestartFromQuest(prev, questId, questById, orderedIds);
         next = appendQuestOpeningDialogue(next, quest);
         void persistQuestCheckpoint(next);
         return next;
       });
       setQuestPopupQuestId(questId);
       setActiveTab('play');
+      setDevToolsMenuOpen(false);
     },
-    [appendQuestOpeningDialogue, setQuestState, persistQuestCheckpoint]
+    [appendQuestOpeningDialogue, orderedQuestsForDev, setQuestState, persistQuestCheckpoint]
   );
 
   const headerDevPanel = useMemo(() => {
@@ -627,10 +632,27 @@ export function RPGInterface() {
               </button>
             </div>
             <p className="text-[0.6rem] leading-snug text-[var(--candle-ink-faint)]">
-              Restart from rewinds to just after the previous main quest, then opens this quest fresh. Test opens
-              only this quest for replay/testing.
+              Restart from rewinds story progress and modifiers to before this quest (later quests cleared).
+              Test replays one quest without clearing later progress.
             </p>
           </div>
+        </div>
+        <div>
+          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">Play</p>
+          <label className="flex cursor-pointer items-start gap-2 rounded border border-[var(--candle-rule)]/60 bg-black/25 px-2 py-1.5">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={showQuestChoiceEffects}
+              onChange={(e) => setShowQuestChoiceEffects(e.target.checked)}
+            />
+            <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
+              Show choice modifiers &amp; flags
+              <span className="mt-0.5 block text-[0.6rem] text-[var(--candle-ink-faint)]">
+                Lists modifiersDelta, flagsSet, and gating under each quest choice.
+              </span>
+            </span>
+          </label>
         </div>
       </div>
     );
@@ -641,6 +663,7 @@ export function RPGInterface() {
     orderedQuestsForDev,
     devQuestSelection,
     completedQuestIds,
+    showQuestChoiceEffects,
   ]);
 
   const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
@@ -668,9 +691,6 @@ export function RPGInterface() {
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
-  const canQuestStepBackActive = Boolean(
-    activeQuest && canQuestStepBack(questState, activeQuest.id)
-  );
   const activeQuestTranscript = useMemo((): DialogueLogEntry[] => {
     if (!activeQuest) return [];
     return questState.dialogueLog.filter(
@@ -688,17 +708,17 @@ export function RPGInterface() {
     () => new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }),
     []
   );
-  const playDialogueLines = useMemo(() => {
-    const filtered = questState.dialogueLog.filter((line) => !line.sourceQuestId);
-    return filtered.slice(-PLAY_DIALOGUE_RECENT_MAX);
-  }, [questState.dialogueLog]);
+  const playDialogueLines = useMemo(
+    () => dialogueLinesForPlayFeed(questState.dialogueLog, questState.flags, PLAY_DIALOGUE_RECENT_MAX),
+    [questState.dialogueLog, questState.flags]
+  );
   const playWorldLines = useMemo(
-    () => questState.worldEventLog.slice(-PLAY_WORLD_RECENT_MAX),
-    [questState.worldEventLog]
+    () => worldLinesForPlayFeed(questState.worldEventLog, questState.flags, PLAY_WORLD_RECENT_MAX),
+    [questState.worldEventLog, questState.flags]
   );
   const playJournalLines = useMemo(
-    () => questState.journalLog.slice(-PLAY_JOURNAL_RECENT_MAX),
-    [questState.journalLog]
+    () => journalLinesForPlayFeed(questState.journalLog, questState.flags, PLAY_JOURNAL_RECENT_MAX),
+    [questState.journalLog, questState.flags]
   );
   const playFeedSegments = useMemo(
     () => groupChronicleRows(mergePlayFeedRows(playDialogueLines, playWorldLines, [])),
@@ -713,57 +733,26 @@ export function RPGInterface() {
     return m;
   }, []);
 
-  /** Drives bottom-stick retries after journal/composer layout shifts (expand quest, new lines). */
-  const playScrollStickRevision = useMemo(
+  /** Narrow signals that change Play feed height (ledger + inline quest). */
+  const playScrollContentRevision = useMemo(
     () =>
       [
-        playDialogueLines.length,
-        questState.worldEventLog.length,
-        questState.journalLog.length,
-        visibleQuests.length,
-        activeQuest?.id ?? '',
-        activeStep?.id ?? '',
-        activeStep?.type ?? '',
         activeQuestTranscript.length,
-        questPopupQuestId ?? '',
-        playFeedSegments.length,
+        activeStep?.id ?? '',
+        activeQuest?.id ?? '',
         playJournalLines.length,
+        playFeedSegments.length,
+        questState.playDayRollStaging?.phase ?? '',
       ].join('|'),
     [
-      playDialogueLines.length,
-      questState.worldEventLog.length,
-      questState.journalLog.length,
-      visibleQuests.length,
-      activeQuest?.id,
-      activeStep?.id,
-      activeStep?.type,
       activeQuestTranscript.length,
-      questPopupQuestId,
-      playFeedSegments.length,
+      activeStep?.id,
+      activeQuest?.id,
       playJournalLines.length,
+      playFeedSegments.length,
+      questState.playDayRollStaging?.phase,
     ]
   );
-
-  /** Pin play feed to the latest dialogue + quest options whenever new lines or choices appear. */
-  useLayoutEffect(() => {
-    if (activeTab !== 'play') return;
-    dialoguePinnedRef.current = true;
-    playDialogueSnapInitialRef.current = true;
-    snapPlayDialogueBottom();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (activeTabRef.current !== 'play') return;
-        snapPlayDialogueBottom();
-      });
-    });
-  }, [
-    activeTab,
-    activeQuestTranscript.length,
-    activeStep?.id,
-    activeStep?.type,
-    questPopupQuestId,
-    snapPlayDialogueBottom,
-  ]);
   const characterNameLabel = useMemo(() => {
     const trimmed = questState.playerName.trim();
     return trimmed.length > 0 ? trimmed : 'Stranger';
@@ -804,96 +793,64 @@ export function RPGInterface() {
 
   const chronicleRows = useMemo((): ChronicleMergedRow[] => {
     if (activeTab !== 'chronicle') return [];
-    return mergeDialogueAndWorldRows(questState.dialogueLog, questState.worldEventLog);
+    const worldForChronicle = WORLD_EVENT_PRINTS_ENABLED
+      ? questState.worldEventLog.filter((entry) => !isPlayDayMarkerText(entry.text))
+      : [];
+    return mergeDialogueAndWorldRows(questState.dialogueLog, worldForChronicle);
   }, [activeTab, questState.dialogueLog, questState.worldEventLog]);
   const chronicleSegments = useMemo(() => groupChronicleRows(chronicleRows), [chronicleRows]);
 
   useLayoutEffect(() => {
+    playFeedScroll.bindScrollElement(dialogueScrollRef.current);
+
     if (activeTab !== 'play') {
+      if (prevPlayTabRef.current) playFeedScroll.onTabLeavePlay();
       prevPlayTabRef.current = false;
-      dialogueScrollReadyRef.current = false;
-      playDialogueSnapInitialRef.current = false;
       return;
     }
 
     const justEnteredPlay = !prevPlayTabRef.current;
     prevPlayTabRef.current = true;
+
     if (justEnteredPlay) {
-      dialoguePinnedRef.current = true;
-      dialogueScrollReadyRef.current = false;
-      playDialogueSnapInitialRef.current = true;
+      playFeedScroll.onTabEnterPlay();
+      playFeedScroll.scheduleSnap({ force: true });
+      return;
     }
 
-    const el = dialogueScrollRef.current;
-    if (!el) return;
-
-    let scheduleFollowUpSnap = false;
-
-    if (dialogueInstantScrollRef.current) {
-      snapPlayDialogueBottom();
-      dialogueInstantScrollRef.current = false;
-      playDialogueSnapInitialRef.current = true;
-      scheduleFollowUpSnap = true;
-    } else if (!dialoguePinnedRef.current) {
-      dialogueScrollReadyRef.current = true;
-    } else {
-      snapPlayDialogueBottom();
-      scheduleFollowUpSnap = true;
+    if (playFeedScroll.consumeInstantScrollIntent()) {
+      playFeedScroll.scheduleSnap({ force: true });
+      return;
     }
 
-    if (scheduleFollowUpSnap || justEnteredPlay) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (activeTabRef.current !== 'play') return;
-          if (!playDialogueSnapInitialRef.current && !dialoguePinnedRef.current) return;
-          snapPlayDialogueBottom();
-        });
-      });
-    }
-  }, [playScrollStickRevision, activeTab, snapPlayDialogueBottom]);
+    playFeedScroll.scheduleSnap();
+  }, [activeTab, playScrollContentRevision, playFeedScroll]);
 
-  /** Catch flex/font/layout growth after Play mounts so the latest line stays in view. */
+  /** Inner feed growth (quest expand, new lines) — snap only when user is pinned to tail. */
   useEffect(() => {
     if (activeTab !== 'play') return;
-    const el = dialogueScrollRef.current;
-    if (!el) return;
+    const inner = dialogueScrollRef.current?.firstElementChild;
+    if (!inner) return;
 
-    const maybeSnap = () => {
+    const ro = new ResizeObserver(() => {
       if (activeTabRef.current !== 'play') return;
-      if (!playDialogueSnapInitialRef.current && !dialoguePinnedRef.current) return;
-      snapPlayDialogueBottom();
-    };
-
-    const ro = new ResizeObserver(maybeSnap);
-    ro.observe(el);
-    const inner = el.firstElementChild;
-    if (inner) ro.observe(inner);
-
-    maybeSnap();
+      playFeedScroll.scheduleSnap();
+    });
+    ro.observe(inner);
     return () => ro.disconnect();
-  }, [activeTab, snapPlayDialogueBottom, playScrollStickRevision]);
+  }, [activeTab, playScrollContentRevision, playFeedScroll]);
 
-  /** Fonts + late image layout after refresh — re-pin when still following the tail. */
   useEffect(() => {
     if (activeTab !== 'play' || !canShowGame) return;
     let cancelled = false;
     void document.fonts?.ready?.then(() => {
       if (cancelled || activeTabRef.current !== 'play') return;
-      if (!playDialogueSnapInitialRef.current && !dialoguePinnedRef.current) return;
-      snapPlayDialogueBottom();
+      playFeedScroll.scheduleSnap();
     });
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canShowGame, snapPlayDialogueBottom, playScrollStickRevision]);
-
-  useEffect(() => {
-    if (activeTab !== 'play') return;
-    const id = window.setTimeout(() => {
-      playDialogueSnapInitialRef.current = false;
-    }, 8000);
-    return () => window.clearTimeout(id);
-  }, [activeTab]);
+  }, [activeTab, canShowGame, playScrollContentRevision, playFeedScroll]);
 
   useEffect(() => {
     if (!isQuestStateHydrated || showEarlyDevResetGate) return;
@@ -903,39 +860,50 @@ export function RPGInterface() {
     completedQuestCountRef.current = completedQuestIds.length;
   }, [completedQuestIds, isQuestStateHydrated, questState, persistQuestCheckpoint, showEarlyDevResetGate]);
 
-  // One-shot catch-up: unveils the next main-saga step when an older save already completed the prior step.
-  const unveilBackfillDoneRef = useRef(false);
+  // Catch-up: unveil the next saga step and auto-track it when an older save is stuck after a day report.
   useEffect(() => {
-    if (!isQuestStateHydrated || !isPacingResolved || unveilBackfillDoneRef.current || showEarlyDevResetGate) return;
+    if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
     const hasProgress = Object.keys(questState.progressByQuestId).length > 0;
-    if (!hasProgress) {
-      unveilBackfillDoneRef.current = true;
-      return;
-    }
-    const completed = getCompletedQuestIds(questState);
-    const catchUp = [
-      ...catchUpSagaUnveilIds(questState.unveiledQuestIds, completed, questContext),
-      ...catchUpManualSagaUnveilIds(questState.unveiledQuestIds, completed, questContext),
-      ...(() => {
-        const village = catchUpVillageUnveilId(questState.unveiledQuestIds, completed, questContext);
-        return village ? [village] : [];
-      })(),
-    ];
-    unveilBackfillDoneRef.current = true;
-    if (catchUp.length === 0) return;
-    const merged = Array.from(new Set([...questState.unveiledQuestIds, ...catchUp]));
-    if (merged.length === questState.unveiledQuestIds.length) return;
-    const next = { ...questState, unveiledQuestIds: merged };
-    setQuestState(next);
-    void persistQuestCheckpoint(next);
+    if (!hasProgress) return;
+
+    setQuestState((prev) => {
+      if (isForestAutoTrackBlockedByDayRoll(prev)) return prev;
+      const completed = getCompletedQuestIds(prev);
+      const ctx = getQuestContext(prev, resolveDisplayDay(prev, dayCounter));
+      const catchUp = [
+        ...catchUpSagaUnveilIds(prev.unveiledQuestIds, completed, ctx),
+        ...catchUpManualSagaUnveilIds(prev.unveiledQuestIds, completed, ctx),
+        ...(() => {
+          const village = catchUpVillageUnveilId(prev.unveiledQuestIds, completed, ctx);
+          return village ? [village] : [];
+        })(),
+      ];
+      let next = prev;
+      if (catchUp.length > 0) {
+        const merged = Array.from(new Set([...prev.unveiledQuestIds, ...catchUp]));
+        if (merged.length !== prev.unveiledQuestIds.length) {
+          next = { ...prev, unveiledQuestIds: merged };
+        }
+      }
+      const tracked = offerNextTrackedForestQuest(
+        next,
+        getQuestContext(next, resolveDisplayDay(next, dayCounter))
+      );
+      if (tracked === prev) return prev;
+      void persistQuestCheckpoint(tracked);
+      return tracked;
+    });
   }, [
     isQuestStateHydrated,
     isPacingResolved,
-    questState,
-    questContext,
+    showEarlyDevResetGate,
+    completedQuestIds,
+    questState.unveiledQuestIds,
+    questState.activeQuestId,
+    questState.playDayRollStaging?.phase,
+    dayCounter,
     persistQuestCheckpoint,
     setQuestState,
-    showEarlyDevResetGate,
   ]);
 
   // Forest: backfill Day 1 Report / Day 2 if first night was completed before in-session day rolls.
@@ -1016,9 +984,6 @@ export function RPGInterface() {
       }
       return {
         ...started,
-        worldEventLog: appendUniqueWorldEntries(started.worldEventLog, [
-          formatDayMarker(resolveDisplayDay(started, dayCounter)),
-        ]),
         dialogueLog: [
           ...visualDialogueEntriesForQuestStep(quest, quest.startStepId),
           appendDialogue(QUEST_NARRATOR_PROMPT_SPEAKER, openingText, { sourceQuestId: quest.id }),
@@ -1076,19 +1041,9 @@ export function RPGInterface() {
     setNameInputError(null);
   };
 
-  const handleQuestStepBack = useCallback(() => {
-    if (!activeQuest) return;
-    setQuestState((prev) => {
-      const next = questStepBack(prev, activeQuest);
-      if (!next) return prev;
-      void persistQuestCheckpoint(next);
-      return next;
-    });
-    setQuestPopupQuestId(activeQuest.id);
-  }, [activeQuest, setQuestState, persistQuestCheckpoint]);
-
   const handleStepChoice = (choiceId: string) => {
     if (!activeQuest) return;
+    playFeedScroll.requestForceSnap();
     setQuestState((prev) => {
       const currentStep = getCurrentStep(prev, activeQuest);
       if (currentStep.type !== 'choice') return prev;
@@ -1138,18 +1093,14 @@ export function RPGInterface() {
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
       merged = applyQuestLevelMilestoneIfNeeded(prev, merged, activeQuest.id);
       merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
-      if (!wasCompleted && isCompleted) {
+      if (!wasCompleted && isCompleted && !shouldDeferDiscoveryUnveilOnComplete(merged, activeQuest)) {
         merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
       }
-      if (!wasCompleted && isCompleted && activeQuest.id === QUEST_002B_WILL_I_STARVE_ID) {
-        merged = acknowledgeOldWellTravelDiscovery({ ...merged, forestSubLocation: null });
+      if (!wasCompleted && isCompleted && activeQuest.id === QUEST_DYERS_CRYPT_ID) {
+        merged = acknowledgeAncientCemeteryTravelDiscovery({ ...merged, forestSubLocation: null });
       }
       void persistQuestCheckpoint(merged);
-      if (
-        !wasCompleted &&
-        isCompleted &&
-        (activeQuest.locationPopup || activeQuest.id === QUEST_002B_WILL_I_STARVE_ID)
-      ) {
+      if (!wasCompleted && isCompleted) {
         setQuestPopupQuestId(null);
       }
       return merged;
@@ -1189,8 +1140,29 @@ export function RPGInterface() {
     });
   };
 
+  const handleAdvancePlayDayRoll = () => {
+    playFeedScroll.requestForceSnap();
+    setQuestState((prev) => {
+      const staging = prev.playDayRollStaging;
+      if (!staging) return prev;
+      const afterPhase = advancePlayDayRollPhase(prev);
+      let merged = afterPhase;
+      if (staging.phase === 'after_report') {
+        merged = mergeDiscoveryUnveils(
+          merged,
+          staging.completedQuestId,
+          resolveDisplayDay(merged, dayCounter)
+        );
+      }
+      void persistQuestCheckpoint(merged);
+      return merged;
+    });
+    playFeedScroll.scheduleSnap({ force: true });
+  };
+
   const handleAdvanceQuestMessage = () => {
     if (!activeQuest) return;
+    playFeedScroll.requestForceSnap();
     setQuestState((prev) => {
       const currentStep = getCurrentStep(prev, activeQuest);
       if (currentStep.type !== 'message') return prev;
@@ -1233,7 +1205,10 @@ export function RPGInterface() {
       merged = applyQuestLevelMilestoneIfNeeded(prev, merged, activeQuest.id);
       merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
       if (!wasCompleted && isCompleted) {
-        merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
+        if (!shouldDeferDiscoveryUnveilOnComplete(merged, activeQuest)) {
+          merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
+        }
+        setQuestPopupQuestId(null);
       }
       void persistQuestCheckpoint(merged);
       return merged;
@@ -1242,6 +1217,7 @@ export function RPGInterface() {
 
   const handleNameSubmit = () => {
     if (!activeQuest) return;
+    playFeedScroll.requestForceSnap();
     const { nextState, error } = submitPlayerName(questState, activeQuest, nameInput);
     if (error) {
       setNameInputError(error);
@@ -1296,6 +1272,7 @@ export function RPGInterface() {
       withJournal = mergeDiscoveryUnveils(withJournal, QUEST_ORIGIN_ID, resolveDisplayDay(withJournal, dayCounter));
       setQuestState(withJournal);
       void persistQuestCheckpoint(withJournal);
+      setQuestPopupQuestId(null);
       if (updatedState.characterCreationDateEastern) {
         if (user?.pubkey) {
           localStorage.setItem(
@@ -1341,7 +1318,7 @@ export function RPGInterface() {
   };
 
   const handleTrackQuest = (questId: string) => {
-    dialogueInstantScrollRef.current = true;
+    playFeedScroll.markInstantScrollIntent();
     handleStartQuest(questId);
     setActiveTab('play');
   };
@@ -1376,7 +1353,7 @@ export function RPGInterface() {
     setQuestState((prev) => {
       const ctx = getQuestContext(prev, dayCounter);
       if (!devUnlockAllQuests && !quest.isAvailable(ctx)) return prev;
-      dialogueInstantScrollRef.current = true;
+      playFeedScroll.markInstantScrollIntent();
       const restarted = restartQuestProgress(prev, quest);
       const started = startQuest(restarted, quest);
       const firstStep = getCurrentStep(started, quest);
@@ -1416,13 +1393,15 @@ export function RPGInterface() {
             kindredSpirits={user ? socialStats.kindredSpirits : undefined}
             onOpenChronicle={() => setActiveTab('chronicle')}
             showModifierDetails={showModifierDetails}
-            showDevTools
+            showDevTools={showHeaderDevTools}
             onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
             devFiveMinuteDays={devFiveMinuteDays}
             onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
             rapidDaySimulation={rapidDaySimulation}
             onRapidDaySimulationChange={setRapidDaySimulation}
             onShowModifierDetailsChange={setShowModifierDetails}
+            showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
+            onShowQuestChoiceEffectsChange={setShowQuestChoiceEffects}
             devUnlockAllQuests={devUnlockAllQuests}
             onDevUnlockAllQuestsChange={setDevUnlockAllQuests}
             onLogout={handleLogout}
@@ -1483,6 +1462,8 @@ export function RPGInterface() {
             onStepChoice={handleStepChoice}
             onNameSubmit={handleNameSubmit}
             onAdvanceQuestMessage={handleAdvanceQuestMessage}
+            playDayRollStaging={questState.playDayRollStaging ?? null}
+            onAdvancePlayDayRoll={handleAdvancePlayDayRoll}
             dialogueScrollRef={dialogueScrollRef}
             onDialogueScroll={handleDialogueScroll}
             visibleLocationActions={visibleLocationActions}
@@ -1496,9 +1477,8 @@ export function RPGInterface() {
             questItems={questState.questItems}
             onInventoryPickSubmit={handleInventoryPickSubmit}
             onQuestChoiceVisualPhase={handleQuestChoiceVisualPhase}
-            onSnapPlayFeedBottom={snapPlayDialogueBottom}
-            canQuestStepBack={canQuestStepBackActive}
-            onQuestStepBack={handleQuestStepBack}
+            onSnapPlayFeedBottom={() => playFeedScroll.scheduleSnap({ force: true })}
+            showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
           />
         );
     }
@@ -1540,6 +1520,9 @@ export function RPGInterface() {
           onTravelLocationSelect={handleTravelLocationSelect}
           showHeaderDevTools={showHeaderDevTools}
           devToolsPanel={headerDevPanel}
+          devToolsMenuOpen={devToolsMenuOpen}
+          onDevToolsMenuOpenChange={setDevToolsMenuOpen}
+          health={questState.health}
         />
         <div
           className={`min-h-0 flex-1 ${

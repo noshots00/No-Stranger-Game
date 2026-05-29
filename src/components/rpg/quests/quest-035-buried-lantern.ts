@@ -17,13 +17,11 @@ export const quest035BuriedLantern = createBranchingQuest({
           id: 'lantern-claim',
           label: '[placeholder] Dig it free and claim the light for yourself',
           completeQuest: true,
-          effects: { modifiersDelta: { WarriorClass: 1, Strength: 1 } },
         },
         {
           id: 'lantern-shelter',
           label: '[placeholder] Shield the flame and carry it gently to a shrine',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Wisdom: 1 } },
         },
       ],
     },

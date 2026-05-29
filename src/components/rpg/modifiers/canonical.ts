@@ -6,7 +6,7 @@ import {
 } from '@/components/rpg/constants';
 import { LEGACY_RACE_SLUG_REWRITES } from '@/components/rpg/races';
 
-const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing|Race)$/u;
+const ORGANIC_SUFFIX_RE = /^(?<stem>.+)(?<suffix>Class|Trait|Skill|Stat|Blessing|Race|Injury)$/u;
 
 /** Plain organic stems (no `Combat_` prefix) that belong in the combat skill column. */
 const ORGANIC_COMBAT_SKILL_STEMS = new Set(['bash']);
@@ -42,6 +42,22 @@ const tryFoldCoinKey = (key: string, delta: number): number | null => {
   return value ? delta * value : null;
 };
 
+/** Full storage key: organic suffixes, legacy `Strength` → `stat:strength`, race rewrites. */
+function resolveStorageCanonicalKey(key: string): string {
+  let canonical = canonicalizeModifierKey(key);
+  if (canonical === key && Object.prototype.hasOwnProperty.call(PRIMARY_STAT_MODIFIER_LABEL, key)) {
+    canonical = `stat:${key.toLowerCase()}`;
+  }
+  if (canonical.startsWith('race:')) {
+    const slug = canonical.slice('race:'.length);
+    canonical = `race:${rewriteRaceSlug(slug)}`;
+  }
+  if (canonical === 'skill:bash') {
+    canonical = 'skill:combat:bash';
+  }
+  return canonical;
+}
+
 /** Maps handwritten quest keys (e.g. WarriorClass, CourageTrait) to stable storage keys. */
 export function canonicalizeModifierKey(key: string): string {
   const m = key.match(ORGANIC_SUFFIX_RE);
@@ -63,6 +79,8 @@ export function canonicalizeModifierKey(key: string): string {
       return `blessing:${slug}`;
     case 'Race':
       return `race:${rewriteRaceSlug(slug)}`;
+    case 'Injury':
+      return `injury:${slug}`;
     default:
       return key;
   }
@@ -78,7 +96,7 @@ export function canonicalizeModifierMap(map: ModifierMap): ModifierMap {
       next[CURRENCY_COPPER_KEY] = (next[CURRENCY_COPPER_KEY] ?? 0) + copperDelta;
       continue;
     }
-    const ck = canonicalizeModifierKey(key);
+    const ck = resolveStorageCanonicalKey(key);
     next[ck] = (next[ck] ?? 0) + delta;
   }
   return next;
@@ -96,31 +114,7 @@ export function migrateModifiersToCanonical(map: ModifierMap): ModifierMap {
       continue;
     }
 
-    let canonical = canonicalizeModifierKey(key);
-    if (canonical === key) {
-      if (Object.prototype.hasOwnProperty.call(PRIMARY_STAT_MODIFIER_LABEL, key)) {
-        canonical = `stat:${key.toLowerCase()}`;
-      } else if (
-        key.startsWith('class:') ||
-        key.startsWith('trait:') ||
-        key.startsWith('skill:') ||
-        key.startsWith('stat:') ||
-        key.startsWith('blessing:') ||
-        key.startsWith('race:')
-      ) {
-        canonical = key;
-      }
-    }
-
-    if (canonical.startsWith('race:')) {
-      const slug = canonical.slice('race:'.length);
-      canonical = `race:${rewriteRaceSlug(slug)}`;
-    }
-
-    if (canonical === 'skill:bash') {
-      canonical = 'skill:combat:bash';
-    }
-
+    const canonical = resolveStorageCanonicalKey(key);
     next[canonical] = (next[canonical] ?? 0) + value;
   }
   return next;

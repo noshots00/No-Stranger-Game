@@ -1,13 +1,19 @@
 import {
+  ANCIENT_CEMETERY_DISCOVERED_FLAG,
+  ANCIENT_CEMETERY_LOCATION,
   FOREST_PARENT_LOCATION,
-  OLD_WELL_LOCATION,
-  QUEST_002B_WILL_I_STARVE_ID,
+  QUEST_DYERS_CRYPT_ID,
 } from './constants';
-import { getCompletedQuestIds } from './quests/engine';
 import type { QuestState } from './quests/types';
 
-function isOldWellQuestCompleted(state: QuestState): boolean {
-  return getCompletedQuestIds(state).includes(QUEST_002B_WILL_I_STARVE_ID);
+const LEGACY_WANDERING_SKELETON_QUEST_ID = 'quest-006-wandering-skeleton';
+
+function isDyersCryptQuestCompleted(state: QuestState): boolean {
+  const prog = state.progressByQuestId;
+  return (
+    prog[QUEST_DYERS_CRYPT_ID]?.isCompleted === true ||
+    prog[LEGACY_WANDERING_SKELETON_QUEST_ID]?.isCompleted === true
+  );
 }
 
 export type TravelMenuItem = {
@@ -17,8 +23,55 @@ export type TravelMenuItem = {
   showNew?: boolean;
 };
 
-export function isOldWellTravelUnlocked(state: Pick<QuestState, 'unveiledQuestIds'>): boolean {
-  return state.unveiledQuestIds.includes(QUEST_002B_WILL_I_STARVE_ID);
+/**
+ * When true, Ancient Cemetery appears under The Forest in the travel menu after discovery.
+ * Quest beats may still set `currentLocation` to the cemetery; re-enable menu travel later.
+ */
+export const ANCIENT_CEMETERY_TRAVEL_IN_MENU = false;
+
+/** Ancient Cemetery travel menu row (disabled until `ANCIENT_CEMETERY_TRAVEL_IN_MENU`). */
+export function isAncientCemeteryTravelUnlocked(state: Pick<QuestState, 'flags'>): boolean {
+  if (!ANCIENT_CEMETERY_TRAVEL_IN_MENU) return false;
+  return state.flags.includes(ANCIENT_CEMETERY_DISCOVERED_FLAG);
+}
+
+const SKELETON_CEMETERY_PATH_STEP_IDS = new Set([
+  'skeleton-cemetery-approach',
+  'skeleton-cemetery-found',
+  'skeleton-find-cemetery',
+  'skeleton-flee-into-cemetery',
+  'skeleton-sneak-away',
+  'skeleton-inside-gate',
+  'skeleton-fight-outcome',
+  'skeleton-escaped',
+]);
+
+const SKELETON_CEMETERY_DISCOVERY_CHOICE_IDS = new Set([
+  'skeleton-follow',
+  'skeleton-hide',
+  'skeleton-attack-flee',
+  'skeleton-cast-flee',
+]);
+
+/**
+ * Repair saves mid-follow or at the cemetery before the discovery flag existed.
+ */
+export function ensureAncientCemeteryDiscoveryFlags(args: {
+  flags: string[];
+  progressByQuestId: Record<string, { currentStepId: string; choiceHistory?: string[] }>;
+  currentLocation: string;
+  forestSubLocation: string | null;
+}): string[] {
+  if (args.flags.includes(ANCIENT_CEMETERY_DISCOVERED_FLAG)) return args.flags;
+  const crypt = args.progressByQuestId[QUEST_DYERS_CRYPT_ID];
+  const onCemeteryPath =
+    (crypt && SKELETON_CEMETERY_PATH_STEP_IDS.has(crypt.currentStepId)) ||
+    crypt?.choiceHistory?.some((id) => SKELETON_CEMETERY_DISCOVERY_CHOICE_IDS.has(id)) === true;
+  const atCemetery =
+    args.currentLocation === ANCIENT_CEMETERY_LOCATION ||
+    args.forestSubLocation === ANCIENT_CEMETERY_LOCATION;
+  if (!onCemeteryPath && !atCemetery) return args.flags;
+  return [...args.flags, ANCIENT_CEMETERY_DISCOVERED_FLAG];
 }
 
 export function hasAcknowledgedTravelLocation(state: QuestState, locationId: string): boolean {
@@ -34,29 +87,29 @@ export function acknowledgeTravelLocation(state: QuestState, locationId: string)
   };
 }
 
-/** Clears the single “discovered Old Well” travel ping (header + sub-item). */
-export function acknowledgeOldWellTravelDiscovery(state: QuestState): QuestState {
-  let next = acknowledgeTravelLocation(state, OLD_WELL_LOCATION);
+/** Clears the single “discovered Ancient Cemetery” travel ping (header + sub-item). */
+export function acknowledgeAncientCemeteryTravelDiscovery(state: QuestState): QuestState {
+  let next = acknowledgeTravelLocation(state, ANCIENT_CEMETERY_LOCATION);
   next = acknowledgeTravelLocation(next, FOREST_PARENT_LOCATION);
   return next;
 }
 
 /**
- * Old Well unlock uses one discovery ping: header + indented Old Well row (not a separate Forest ping).
+ * Forest sub-location discovery ping: header + indented cemetery row.
  */
 export function forestTravelNotificationsPending(state: QuestState): {
   header: boolean;
   forest: boolean;
-  oldWell: boolean;
+  ancientCemetery: boolean;
 } {
-  if (!isOldWellTravelUnlocked(state) || isOldWellQuestCompleted(state)) {
-    return { header: false, forest: false, oldWell: false };
+  if (!isAncientCemeteryTravelUnlocked(state) || isDyersCryptQuestCompleted(state)) {
+    return { header: false, forest: false, ancientCemetery: false };
   }
-  const oldWellSeen = hasAcknowledgedTravelLocation(state, OLD_WELL_LOCATION);
-  const showDiscoveryPing = !oldWellSeen;
+  const cemeterySeen = hasAcknowledgedTravelLocation(state, ANCIENT_CEMETERY_LOCATION);
+  const showDiscoveryPing = !cemeterySeen;
   return {
     forest: false,
-    oldWell: showDiscoveryPing,
+    ancientCemetery: showDiscoveryPing,
     header: showDiscoveryPing,
   };
 }
@@ -73,13 +126,25 @@ export function buildForestTravelMenuItems(
       showNew: pings.forest,
     },
   ];
-  if (isOldWellTravelUnlocked(state)) {
+  if (isAncientCemeteryTravelUnlocked(state)) {
     items.push({
-      locationId: OLD_WELL_LOCATION,
-      label: formatLabel(OLD_WELL_LOCATION),
+      locationId: ANCIENT_CEMETERY_LOCATION,
+      label: formatLabel(ANCIENT_CEMETERY_LOCATION),
       indent: true,
-      showNew: pings.oldWell,
+      showNew: pings.ancientCemetery,
     });
   }
   return items;
 }
+
+/** @deprecated Legacy Old Well travel; kept for saves that still reference it. */
+export function isOldWellTravelUnlocked(state: Pick<QuestState, 'unveiledQuestIds'>): boolean {
+  return state.unveiledQuestIds.includes('quest-002-b-will-i-starve');
+}
+
+/** @deprecated Use `acknowledgeAncientCemeteryTravelDiscovery`. */
+export function acknowledgeOldWellTravelDiscovery(state: QuestState): QuestState {
+  return acknowledgeAncientCemeteryTravelDiscovery(state);
+}
+
+export { QUEST_DYERS_CRYPT_ID };

@@ -1,4 +1,4 @@
-import type { QuestContext, QuestDefinition, QuestStep, QuestVisualBeat } from './types';
+import type { QuestContext, QuestDefinition, QuestState, QuestStep, QuestVisualBeat } from './types';
 
 type AuthoredQuestStep = QuestStep & {
   visuals?: QuestVisualBeat[];
@@ -15,6 +15,7 @@ type QuestAuthoringOptions = {
   isUnveilEligible?: (context: QuestContext) => boolean;
   /** Marks this quest as the calendar-main arc for daily XP credit when completed. */
   mainDailyQuest?: boolean;
+  resolveInitialStepId?: (state: QuestState) => string;
   stepVisuals?: Partial<Record<string, QuestVisualBeat[]>>;
   completionRequiresAllFlags?: string[];
   journalSummariesByChoicePath?: Record<string, string>;
@@ -56,6 +57,7 @@ export function createQuestDefinition(options: QuestAuthoringOptions): QuestDefi
     isAvailable: options.isAvailable ?? (() => true),
     ...(options.isUnveilEligible ? { isUnveilEligible: options.isUnveilEligible } : {}),
     ...(options.mainDailyQuest ? { mainDailyQuest: true } : {}),
+    ...(options.resolveInitialStepId ? { resolveInitialStepId: options.resolveInitialStepId } : {}),
     ...(hasStepVisuals ? { stepVisuals: mergedStepVisuals } : {}),
     ...(options.completionRequiresAllFlags
       ? { completionRequiresAllFlags: options.completionRequiresAllFlags }

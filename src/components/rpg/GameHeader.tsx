@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { UI_VERSION_LABEL } from './constants';
+import { HeaderHealthBar } from './HeaderHealthBar';
 import type { TravelMenuItem } from './travelLocations';
 import {
   DropdownMenu,
@@ -43,6 +43,10 @@ type GameHeaderProps = {
   /** When set, version label opens a scrollable dev panel (`devToolsPanel`). */
   showHeaderDevTools?: boolean;
   devToolsPanel?: ReactNode;
+  devToolsMenuOpen?: boolean;
+  onDevToolsMenuOpenChange?: (open: boolean) => void;
+  /** Player health 0–100 (center header HP bar). */
+  health?: number;
 };
 
 export function GameHeader({
@@ -58,17 +62,20 @@ export function GameHeader({
   onTravelLocationSelect,
   showHeaderDevTools = false,
   devToolsPanel,
+  devToolsMenuOpen,
+  onDevToolsMenuOpenChange,
+  health = 100,
 }: GameHeaderProps) {
   const versionCell =
     showHeaderDevTools && devToolsPanel ? (
-      <DropdownMenu>
+      <DropdownMenu open={devToolsMenuOpen} onOpenChange={onDevToolsMenuOpenChange}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="min-w-0 w-full truncate text-center font-serif text-[0.5rem] uppercase leading-none tracking-[0.14em] text-[var(--candle-ink-faint)]"
-            aria-label="Open developer tools"
+            className="mx-auto block w-full max-w-[4.75rem] rounded-sm bg-transparent p-0 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
+            aria-label={`Health ${health}; open developer tools`}
           >
-            {UI_VERSION_LABEL}
+            <HeaderHealthBar health={health} hideMeterSemantics />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -79,9 +86,7 @@ export function GameHeader({
         </DropdownMenuContent>
       </DropdownMenu>
     ) : (
-      <p className="min-w-0 truncate text-center font-serif text-[0.5rem] uppercase leading-none tracking-[0.14em] text-[var(--candle-ink-faint)]">
-        {UI_VERSION_LABEL}
-      </p>
+      <HeaderHealthBar health={health} className="px-0.5" />
     );
 
   return (

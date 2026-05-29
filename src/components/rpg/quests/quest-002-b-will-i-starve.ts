@@ -39,16 +39,10 @@ export const quest002BWillIStarve = createQuestDefinition({
   steps: [
     {
       id: 'well-halt',
-      type: 'choice',
+      type: 'message',
       text: WELL_DESCRIPTION,
       visuals: [{ kind: 'image', src: WELL_IMG, alt: 'The Old Well' }],
-      choices: [
-        {
-          id: 'well-continue',
-          label: 'Continue...',
-          nextStepId: 'well-hub',
-        },
-      ],
+      nextStepId: 'well-hub',
     },
     {
       id: 'well-hub',

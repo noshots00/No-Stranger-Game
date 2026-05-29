@@ -7,6 +7,7 @@ import type {
   QuestContext,
   QuestDefinition,
   QuestImageRef,
+  PlayDayRollStaging,
   QuestProgress,
   QuestState,
   QuestStep,
@@ -18,7 +19,9 @@ import {
   collectChoiceWorldLogLines,
   interpolateQuestWorldLogTemplates,
 } from '../worldLog';
+import { isForestAutoTrackBlockedByDayRoll } from '../dayPacing';
 import { applyTravelLocationChange, normalizeForestLocationFields } from '../locationPresence';
+import { ensureAncientCemeteryDiscoveryFlags } from '../travelLocations';
 import { isQuestEligibleForUnveil } from './branching-quest-template';
 import { pushDevStepHistory } from './questStepBack';
 import { canonicalizeModifierMap, migrateModifiersToCanonical } from '../modifiers/canonical';
@@ -35,14 +38,20 @@ import {
 } from '../dialogueFormat';
 import {
   CLASS_ARCHETYPE_SLUGS,
+  QUEST_DAY_TWO_DREAM_ID,
+  QUEST_DYERS_CRYPT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_ORIGIN_ID,
+  QUEST_FOREST_CAVE_ID,
   DAY_PACING_ACTIVE_FLAG,
+  FOREST_CAVE_DISCOVERED_FLAG,
+  AIRSHIP_FLAG,
   JOB_SLUG_EXPLORER,
   QUEST_VILLAGE_ARRIVAL_ID,
   VALID_SAVE_LOCATIONS,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
+import { questById } from './registry';
 import { unlockJobSlug } from '../jobs/unlockJob';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
@@ -223,7 +232,6 @@ const LEGACY_ORIGIN_FOREST_STEP_IDS = new Set([
   'flavor-pockets',
   'flavor-pockets-pick',
   'flavor-tree-start',
-  'flavor-tree-continue',
   'flavor-tree-vista',
   'flavor-tree-fork',
   'flavor-stream',
@@ -249,6 +257,137 @@ const LEGACY_ORIGIN_FOREST_STEP_IDS = new Set([
   'follow-ravine',
   'follow-outcrop-end',
 ]);
+
+/** Wandering Skeleton was merged into Dyer's Crypt (quest-003). */
+const LEGACY_WANDERING_SKELETON_QUEST_ID = 'quest-006-wandering-skeleton';
+
+/** Removed single-choice Continue bridges — map in-progress saves to the next beat. */
+const LEGACY_CONTINUE_BRIDGE_STEP_REDIRECTS: Record<string, string> = {
+  'flavor-tree-continue': 'flavor-tree-vista',
+  'dir-north-continue': 'boar-encounter',
+  'tree-continue': 'tree-vista',
+};
+
+const migrateLegacyContinueBridgeSteps = <T extends {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+}>(
+  args: T
+): T => {
+  const progressByQuestId = { ...args.progressByQuestId };
+  for (const [questId, prog] of Object.entries(progressByQuestId)) {
+    const redirect = LEGACY_CONTINUE_BRIDGE_STEP_REDIRECTS[prog.currentStepId];
+    if (!redirect) continue;
+    progressByQuestId[questId] = { ...prog, currentStepId: redirect };
+  }
+  return { ...args, progressByQuestId };
+};
+
+const LEGACY_AIRSHIP_QUEST_ID = 'quest-005-airship';
+
+const migrateAirshipQuestToForestCave = (args: {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+  flags: string[];
+}): {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+  flags: string[];
+} => {
+  const { activeQuestId, flags } = args;
+  const progressByQuestId = { ...args.progressByQuestId };
+  let unveiledQuestIds = [...args.unveiledQuestIds];
+  let nextFlags = [...flags];
+
+  const airshipProg = progressByQuestId[LEGACY_AIRSHIP_QUEST_ID];
+  if (airshipProg) {
+    delete progressByQuestId[LEGACY_AIRSHIP_QUEST_ID];
+    const caveProg = progressByQuestId[QUEST_FOREST_CAVE_ID];
+    if (airshipProg.isCompleted || !caveProg) {
+      progressByQuestId[QUEST_FOREST_CAVE_ID] = {
+        currentStepId: airshipProg.isCompleted ? 'cave-enter' : airshipProg.currentStepId,
+        isCompleted: airshipProg.isCompleted,
+        choiceHistory: Array.isArray(airshipProg.choiceHistory) ? [...airshipProg.choiceHistory] : [],
+        devStepHistory: Array.isArray(airshipProg.devStepHistory) ? [...airshipProg.devStepHistory] : [],
+      };
+    }
+  }
+
+  if (unveiledQuestIds.includes(LEGACY_AIRSHIP_QUEST_ID)) {
+    unveiledQuestIds = unveiledQuestIds.filter((id) => id !== LEGACY_AIRSHIP_QUEST_ID);
+    if (!unveiledQuestIds.includes(QUEST_FOREST_CAVE_ID)) {
+      unveiledQuestIds.push(QUEST_FOREST_CAVE_ID);
+    }
+  }
+
+  let nextActive = activeQuestId;
+  if (nextActive === LEGACY_AIRSHIP_QUEST_ID) {
+    nextActive = QUEST_FOREST_CAVE_ID;
+  }
+
+  if (nextFlags.includes(AIRSHIP_FLAG) && !nextFlags.includes(FOREST_CAVE_DISCOVERED_FLAG)) {
+    nextFlags = [...nextFlags, FOREST_CAVE_DISCOVERED_FLAG];
+  }
+
+  return {
+    progressByQuestId,
+    activeQuestId: nextActive,
+    unveiledQuestIds,
+    flags: nextFlags,
+  };
+};
+
+const migrateMergedWanderingSkeletonIntoDyersCrypt = (args: {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+}): {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+} => {
+  const { activeQuestId } = args;
+  const progressByQuestId = { ...args.progressByQuestId };
+  let unveiledQuestIds = [...args.unveiledQuestIds];
+
+  const skeletonProg = progressByQuestId[LEGACY_WANDERING_SKELETON_QUEST_ID];
+  if (skeletonProg) {
+    delete progressByQuestId[LEGACY_WANDERING_SKELETON_QUEST_ID];
+    const cryptProg = progressByQuestId[QUEST_DYERS_CRYPT_ID];
+    if (skeletonProg.isCompleted) {
+      progressByQuestId[QUEST_DYERS_CRYPT_ID] = {
+        currentStepId: skeletonProg.currentStepId,
+        isCompleted: true,
+        choiceHistory: Array.isArray(skeletonProg.choiceHistory) ? [...skeletonProg.choiceHistory] : [],
+        devStepHistory: Array.isArray(skeletonProg.devStepHistory) ? [...skeletonProg.devStepHistory] : [],
+      };
+    } else if (!cryptProg?.isCompleted) {
+      progressByQuestId[QUEST_DYERS_CRYPT_ID] = {
+        currentStepId: skeletonProg.currentStepId,
+        isCompleted: false,
+        choiceHistory: Array.isArray(skeletonProg.choiceHistory) ? [...skeletonProg.choiceHistory] : [],
+        devStepHistory: Array.isArray(skeletonProg.devStepHistory) ? [...skeletonProg.devStepHistory] : [],
+      };
+    }
+  }
+
+  if (unveiledQuestIds.includes(LEGACY_WANDERING_SKELETON_QUEST_ID)) {
+    unveiledQuestIds = unveiledQuestIds.filter((id) => id !== LEGACY_WANDERING_SKELETON_QUEST_ID);
+    if (!unveiledQuestIds.includes(QUEST_DYERS_CRYPT_ID)) {
+      unveiledQuestIds.push(QUEST_DYERS_CRYPT_ID);
+    }
+  }
+
+  let nextActive = activeQuestId;
+  if (nextActive === LEGACY_WANDERING_SKELETON_QUEST_ID) {
+    nextActive = QUEST_DYERS_CRYPT_ID;
+  }
+
+  return { progressByQuestId, activeQuestId: nextActive, unveiledQuestIds };
+};
 
 const migrateLegacyOriginForestProgress = (args: {
   progressByQuestId: Record<string, QuestProgress>;
@@ -300,6 +439,8 @@ export const createInitialQuestState = (): QuestState => ({
   activeQuestId: 'quest-001-origin',
   progressByQuestId: {},
   modifiers: {},
+  dayReportModifierBaseline: {},
+  dayReportQuestItemsBaseline: [],
   flags: [],
   currentLocation: 'Forest',
   playerName: '',
@@ -313,7 +454,7 @@ export const createInitialQuestState = (): QuestState => ({
   assignedRaceSlug: null,
   lockedClassSlug: null,
   unveiledQuestIds: ['quest-001-origin'],
-  health: 75,
+  health: 100,
   characterCreationDateEastern: null,
   characterCreatedAtAppVersion: null,
   arenaRecord: { wins: 0, losses: 0, fights: [] },
@@ -439,10 +580,23 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       ? rawActiveQuestId
       : initial.activeQuestId;
 
-  const migrated = migrateLegacyOriginForestProgress({
-    progressByQuestId: baseProgress,
-    activeQuestId: resolvedActiveQuestId,
-    unveiledQuestIds,
+  const rawFlags = Array.isArray(state.flags)
+    ? state.flags.filter((f): f is string => typeof f === 'string')
+    : initial.flags;
+
+  const coreMigrated = migrateLegacyContinueBridgeSteps(
+    migrateMergedWanderingSkeletonIntoDyersCrypt(
+      migrateLegacyOriginForestProgress({
+        progressByQuestId: baseProgress,
+        activeQuestId: resolvedActiveQuestId,
+        unveiledQuestIds,
+      })
+    )
+  );
+
+  const migrated = migrateAirshipQuestToForestCave({
+    ...coreMigrated,
+    flags: rawFlags,
   });
 
   const progressByQuestId: Record<string, QuestProgress> = {};
@@ -617,7 +771,13 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     }
   }
 
-  const flags = Array.isArray(state.flags) ? state.flags.filter((f) => typeof f === 'string') : initial.flags;
+  let flags = migrated.flags;
+  flags = ensureAncientCemeteryDiscoveryFlags({
+    flags,
+    progressByQuestId,
+    currentLocation,
+    forestSubLocation,
+  });
 
   const rawAckTravel = (state as { acknowledgedTravelLocationIds?: unknown }).acknowledgedTravelLocationIds;
   const acknowledgedTravelLocationIds = Array.isArray(rawAckTravel)
@@ -638,6 +798,84 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
         : initial.lastDailyXpDay
     )
   );
+
+  const rawPlayDayRoll = (state as { playDayRollStaging?: unknown }).playDayRollStaging;
+  let playDayRollStaging: PlayDayRollStaging | null = null;
+  if (rawPlayDayRoll && typeof rawPlayDayRoll === 'object') {
+    const row = rawPlayDayRoll as Record<string, unknown>;
+    const phase = row.phase;
+    const endingDay = row.endingDay;
+    const nextDay = row.nextDay;
+    const calendarDay = row.calendarDay;
+    const sessionOnly = row.sessionOnly;
+    const completedQuestId = row.completedQuestId;
+    const prevRaw = row.prevForReport;
+    if (
+      (phase === 'before_report' || phase === 'after_report') &&
+      typeof endingDay === 'number' &&
+      typeof nextDay === 'number' &&
+      typeof calendarDay === 'number' &&
+      typeof sessionOnly === 'boolean' &&
+      typeof completedQuestId === 'string' &&
+      completedQuestId.length > 0 &&
+      prevRaw &&
+      typeof prevRaw === 'object'
+    ) {
+      const prev = prevRaw as Record<string, unknown>;
+      playDayRollStaging = {
+        phase,
+        endingDay: Math.floor(endingDay),
+        nextDay: Math.floor(nextDay),
+        calendarDay: Math.floor(calendarDay),
+        sessionOnly,
+        completedQuestId,
+        prevForReport: {
+          modifiers:
+            prev.modifiers && typeof prev.modifiers === 'object'
+              ? (prev.modifiers as QuestState['modifiers'])
+              : {},
+          skills:
+            prev.skills && typeof prev.skills === 'object'
+              ? {
+                  explorationXp: Math.max(0, Math.floor((prev.skills as { explorationXp?: number }).explorationXp ?? 0)),
+                  foragingXp: Math.max(0, Math.floor((prev.skills as { foragingXp?: number }).foragingXp ?? 0)),
+                  meleeAttackXp: Math.max(
+                    0,
+                    Math.floor((prev.skills as { meleeAttackXp?: number }).meleeAttackXp ?? 0)
+                  ),
+                }
+              : createInitialSkills(),
+          experience:
+            typeof prev.experience === 'number' && Number.isFinite(prev.experience)
+              ? Math.max(0, Math.floor(prev.experience))
+              : 0,
+          resources:
+            prev.resources && typeof prev.resources === 'object'
+              ? Object.fromEntries(
+                  Object.entries(prev.resources as Record<string, unknown>).filter(
+                    ([, v]) => typeof v === 'number' && Number.isFinite(v)
+                  ) as [string, number][]
+                )
+              : undefined,
+          dayReportModifierBaseline:
+            prev.dayReportModifierBaseline && typeof prev.dayReportModifierBaseline === 'object'
+              ? (prev.dayReportModifierBaseline as QuestState['modifiers'])
+              : undefined,
+          dayReportQuestItemsBaseline: Array.isArray(prev.dayReportQuestItemsBaseline)
+            ? prev.dayReportQuestItemsBaseline.filter(
+                (label): label is string => typeof label === 'string' && label.trim().length > 0
+              )
+            : [],
+          questItems: Array.isArray(prev.questItems)
+            ? prev.questItems.filter((label): label is string => typeof label === 'string' && label.trim().length > 0)
+            : [],
+          flags: Array.isArray(prev.flags)
+            ? prev.flags.filter((f): f is string => typeof f === 'string')
+            : [],
+        },
+      };
+    }
+  }
 
   return {
     ...initial,
@@ -675,6 +913,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     jobDailyActionBySlug,
     resources,
     acknowledgedTravelLocationIds,
+    playDayRollStaging,
   };
 };
 
@@ -708,6 +947,7 @@ export const getLevelFromXp = (xp: number): number => {
 /**
  * Organic `*Skill` / `*Spell` modifiers (and `skill:` / `spell:` prefixed keys) are shown on the
  * character sheet when |value| is at least this magnitude — rank **1** counts as **unlocked**.
+ * `injury:*` modifiers unlock at magnitude **1** (severity labels: minor / moderate / severe).
  * Traits, blessings, class tracks, misc, and non-primary `stat:` rewards use `CLASS_UNLOCK_POINTS`
  * (5) as the unlock threshold on the sheet; sub-threshold rows appear only when modifier details
  * are enabled in dev tools.
@@ -997,14 +1237,56 @@ export const getQuestListForUi = (
   return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
 };
 
+/** Forest mainline order for auto-track after unveil (Play tab quest card + inline choices). */
+const FOREST_AUTO_TRACK_QUEST_IDS: readonly string[] = [
+  QUEST_ORIGIN_ID,
+  QUEST_FIRST_NIGHT_ID,
+  QUEST_DYERS_CRYPT_ID,
+  'quest-004-abandoned-shelter',
+  QUEST_DAY_TWO_DREAM_ID,
+  QUEST_FOREST_CAVE_ID,
+];
+
+/**
+ * When nothing is in progress, start the first unveiled, incomplete forest beat so Play always
+ * offers choices (e.g. after Day 1 Report / Sunset).
+ */
+export function offerNextTrackedForestQuest(state: QuestState, context: QuestContext): QuestState {
+  if (isForestAutoTrackBlockedByDayRoll(state)) return state;
+  if (isVillagePhase(state.flags)) return state;
+  const activeId = state.activeQuestId;
+  if (activeId) {
+    const prog = state.progressByQuestId[activeId];
+    if (prog && !prog.isCompleted) return state;
+  }
+  const completed = new Set(context.completedQuestIds);
+  const unveiled = new Set(state.unveiledQuestIds);
+  for (const questId of FOREST_AUTO_TRACK_QUEST_IDS) {
+    if (!unveiled.has(questId) || completed.has(questId)) continue;
+    const quest = questById[questId];
+    if (!quest) continue;
+    if (!isQuestEligibleForUnveil(quest, context)) continue;
+    return startQuest(state, quest);
+  }
+  return state;
+};
+
+/** First step when opening a quest (honors `resolveInitialStepId` when present). */
+export const resolveQuestEntryStepId = (quest: QuestDefinition, state: QuestState): string => {
+  const resolved = quest.resolveInitialStepId?.(state);
+  if (resolved && quest.steps[resolved]) return resolved;
+  return quest.startStepId;
+};
+
 export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): QuestState => {
   if (state.progressByQuestId[quest.id]) return state;
 
   const nextProgress: QuestProgress = {
-    currentStepId: quest.startStepId,
+    currentStepId: resolveQuestEntryStepId(quest, state),
     isCompleted: false,
     choiceHistory: [],
     devStepHistory: [],
+    modifiersAtQuestOpen: { ...state.modifiers },
   };
 
   return {
@@ -1013,6 +1295,31 @@ export const ensureQuestProgress = (state: QuestState, quest: QuestDefinition): 
       ...state.progressByQuestId,
       [quest.id]: nextProgress,
     },
+  };
+};
+
+/** Persist modifier map when a quest completes (used by dev Restart From rewind). */
+export const recordModifiersAfterQuestComplete = (
+  state: QuestState,
+  questId: string
+): QuestState => ({
+  ...state,
+  modifiersAfterQuestComplete: {
+    ...(state.modifiersAfterQuestComplete ?? {}),
+    [questId]: { ...state.modifiers },
+  },
+});
+
+/** Reconcile class lock after dev rewind; clears lock when no path reaches threshold. */
+export const resyncCharacterLocksAfterModifierRewind = (state: QuestState): QuestState => {
+  const lockedClassSlug = pickDominantLockedSlug(state.modifiers);
+  if (!lockedClassSlug) {
+    return { ...state, lockedClassSlug: null };
+  }
+  return {
+    ...state,
+    lockedClassSlug,
+    modifiers: stripNonLockedClassModifiers(state.modifiers, lockedClassSlug),
   };
 };
 
@@ -1055,7 +1362,7 @@ export const restartQuestProgress = (state: QuestState, quest: QuestDefinition):
   progressByQuestId: {
     ...state.progressByQuestId,
     [quest.id]: {
-      currentStepId: quest.startStepId,
+      currentStepId: resolveQuestEntryStepId(quest, state),
       isCompleted: false,
       choiceHistory: [],
       devStepHistory: [],
@@ -1089,7 +1396,13 @@ export const pickDominantRaceSlug = (modifiers: ModifierMap, tieSalt: string): s
 
 export const getCurrentStep = (state: QuestState, quest: QuestDefinition): QuestStep => {
   const progress = state.progressByQuestId[quest.id];
-  const stepId = progress?.currentStepId ?? quest.startStepId;
+  let stepId = progress?.currentStepId ?? resolveQuestEntryStepId(quest, state);
+  if (quest.id === QUEST_FIRST_NIGHT_ID && !quest.steps[stepId]) {
+    stepId = 'night-router';
+  }
+  if (!quest.steps[stepId]) {
+    stepId = quest.startStepId;
+  }
   return quest.steps[stepId];
 };
 
@@ -1133,6 +1446,22 @@ const mergeFlags = (current: string[], effect: ChoiceEffect | undefined): string
   const flags = effect?.flagsSet ?? [];
   if (flags.length === 0) return current;
   return Array.from(new Set([...current, ...flags]));
+};
+
+/** Apply HP changes from quest choice / message `effects`. */
+export const applyHealthFromChoiceEffect = (state: QuestState, effect?: ChoiceEffect): QuestState => {
+  if (!effect) return state;
+  let health = state.health;
+  if (typeof effect.healthLossFraction === 'number' && Number.isFinite(effect.healthLossFraction)) {
+    const fraction = Math.max(0, Math.min(1, effect.healthLossFraction));
+    if (fraction > 0) {
+      health = Math.max(0, Math.floor(health * (1 - fraction)));
+    }
+  }
+  if (typeof effect.healthDelta === 'number' && Number.isFinite(effect.healthDelta)) {
+    health = Math.max(0, Math.min(100, Math.floor(health + effect.healthDelta)));
+  }
+  return health === state.health ? state : { ...state, health };
 };
 
 const mergeQuestItems = (current: string[], effect: ChoiceEffect | undefined): string[] => {
@@ -1288,6 +1617,8 @@ const moveToStep = (
     }
   }
 
+  nextState = applyHealthFromChoiceEffect(nextState, choice.effects);
+
   return nextState;
 };
 
@@ -1360,6 +1691,39 @@ const applyRaceLockEffects = (
   };
 };
 
+const applyMessageStepEffects = (state: QuestState, effects: ChoiceEffect | undefined): QuestState => {
+  if (!effects) return state;
+  let nextState: QuestState = {
+    ...state,
+    flags: mergeFlags(state.flags, effects),
+    questItems: mergeQuestItems(state.questItems, effects),
+  };
+  const raceLocked = state.assignedRaceSlug !== null;
+  nextState = {
+    ...nextState,
+    modifiers: mergeModifiers(
+      nextState.modifiers,
+      effects.modifiersDelta,
+      raceLocked,
+      state.lockedClassSlug
+    ),
+  };
+  const travelTo = effects.setCurrentLocation?.trim();
+  if (travelTo && VALID_SAVE_LOCATIONS.has(travelTo)) {
+    nextState = applyTravelLocationChange(nextState, travelTo);
+  }
+  const jobsToUnlock = effects.unlockJobSlugs;
+  if (jobsToUnlock?.length) {
+    for (const slug of jobsToUnlock) {
+      if (typeof slug === 'string' && slug.trim().length > 0) {
+        nextState = unlockJobSlug(nextState, slug.trim());
+      }
+    }
+  }
+  nextState = applyHealthFromChoiceEffect(nextState, effects);
+  return nextState;
+};
+
 /**
  * Advance past a mid-quest `message` step that has `nextStepId` (Continue-style narration bridges).
  * Marks completion when landing on a terminal `message` step with `completeQuest`.
@@ -1375,7 +1739,8 @@ export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): 
   if (!nextId || !quest.steps[nextId]) return null;
   const nextStep = quest.steps[nextId];
   const completesHere = nextStep.type === 'message' && Boolean(nextStep.completeQuest);
-  return {
+  const previousFlags = state.flags;
+  let nextState: QuestState = {
     ...withProgress,
     activeQuestId: completesHere ? null : withProgress.activeQuestId,
     progressByQuestId: {
@@ -1391,6 +1756,11 @@ export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): 
       ),
     },
   };
+  nextState = applyMessageStepEffects(nextState, step.effects);
+  if (completesHere && nextStep.type === 'message') {
+    nextState = applyMessageStepEffects(nextState, nextStep.effects);
+  }
+  return finalizeChoiceState(nextState, previousFlags);
 };
 
 export const applyChoice = (

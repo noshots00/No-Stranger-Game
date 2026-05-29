@@ -19,6 +19,8 @@ export type CharacterScreenCornerControlsProps = {
   onRapidDaySimulationChange: (enabled: boolean) => void;
   showModifierDetails: boolean;
   onShowModifierDetailsChange: (enabled: boolean) => void;
+  showQuestChoiceEffects?: boolean;
+  onShowQuestChoiceEffectsChange?: (enabled: boolean) => void;
   devUnlockAllQuests: boolean;
   onDevUnlockAllQuestsChange: (enabled: boolean) => void;
   onLogout: () => void;
@@ -35,6 +37,8 @@ export function CharacterScreenCornerControls({
   onRapidDaySimulationChange,
   showModifierDetails,
   onShowModifierDetailsChange,
+  showQuestChoiceEffects = false,
+  onShowQuestChoiceEffectsChange,
   devUnlockAllQuests,
   onDevUnlockAllQuestsChange,
   onLogout,
@@ -118,6 +122,15 @@ export function CharacterScreenCornerControls({
               >
                 Show modifier details
               </DropdownMenuCheckboxItem>
+              {onShowQuestChoiceEffectsChange ? (
+                <DropdownMenuCheckboxItem
+                  className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                  checked={showQuestChoiceEffects}
+                  onCheckedChange={(v) => onShowQuestChoiceEffectsChange(v === true)}
+                >
+                  Show choice modifiers &amp; flags
+                </DropdownMenuCheckboxItem>
+              ) : null}
               <DropdownMenuCheckboxItem
                 className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
                 checked={devUnlockAllQuests}

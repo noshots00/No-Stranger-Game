@@ -23,11 +23,7 @@ export const quest003SilverLake = createBranchingQuest({
           label: 'Leave for now',
           effects: {
             flagsSet: [SILVER_LAKE_FLAG],
-            modifiersDelta: {
-              HalflingRace: 1,
-              RiverKingdomRace: 1,
-              AtlantiansRace: 1,
-            },
+
             clearActiveQuest: true,
           },
           worldEventLogAdd: ['{playerName} walked away from the still water.'],
@@ -38,12 +34,7 @@ export const quest003SilverLake = createBranchingQuest({
           nextStepId: 'sl3-2',
           effects: {
             flagsSet: [SILVER_LAKE_FLAG],
-            modifiersDelta: {
-              AtlantiansRace: 1,
-              SunbornRace: 1,
-              WoodElfRace: 1,
-              NightElfRace: 1,
-            },
+
           },
         },
       ],

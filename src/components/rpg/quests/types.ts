@@ -27,6 +27,10 @@ export type ChoiceEffect = {
   setCurrentLocation?: string;
   /** Post-village jobs unlocked when this choice resolves. */
   unlockJobSlugs?: string[];
+  /** Lose this fraction of current health (0–1), e.g. `0.5` = half current HP removed. */
+  healthLossFraction?: number;
+  /** Add to `QuestState.health` (clamped 0–100). */
+  healthDelta?: number;
 };
 
 export type QuestChoice = {
@@ -76,6 +80,7 @@ type QuestStepBase = {
 export type MessageQuestStep = QuestStepBase & {
   type: 'message';
   nextStepId?: string;
+  effects?: ChoiceEffect;
 };
 
 export type ChoiceQuestStep = QuestStepBase & {
@@ -127,6 +132,8 @@ export type QuestDefinition = {
   isUnveilEligible?: (context: QuestContext) => boolean;
   /** When true, completing this quest credits daily pacing / XP for the current game-day slice (main storyline). */
   mainDailyQuest?: boolean;
+  /** Pick first step from flags/state when opening progress (see `resolveQuestEntryStepId` in engine). */
+  resolveInitialStepId?: (state: QuestState) => string;
   /** When set, the quest completes once all listed flags are present after a choice (union with `completeQuest`). */
   completionRequiresAllFlags?: string[];
   /**
@@ -191,6 +198,8 @@ export type QuestProgress = {
   choiceHistory: string[];
   /** Prior step ids for dev back navigation (testing). */
   devStepHistory?: string[];
+  /** Modifier map when this quest was first opened (dev restart / rewind). */
+  modifiersAtQuestOpen?: ModifierMap;
 };
 
 export type DialogueLogEntry = {
@@ -229,6 +238,17 @@ export type QuestState = {
   activeQuestId: string | null;
   progressByQuestId: Record<string, QuestProgress>;
   modifiers: ModifierMap;
+  /**
+   * Modifier map at the start of the current in-game day (`lastDailyXpDay`).
+   * Day N Report diffs against this so gains during that day's quests appear in the report.
+   */
+  dayReportModifierBaseline?: ModifierMap;
+  /**
+   * `questItems` at the end of the prior day report — Day N Report lists items gained since then.
+   */
+  dayReportQuestItemsBaseline?: string[];
+  /** Full modifier map after each quest completes (dev restart rewind). */
+  modifiersAfterQuestComplete?: Record<string, ModifierMap>;
   flags: string[];
   /** Player location label (e.g. Forest, Silver Lake). */
   currentLocation: string;
@@ -291,6 +311,32 @@ export type QuestState = {
   jobDailyActionBySlug?: Record<string, { lastActionDay: number }>;
   /** Village community project resources (stone, iron, …). */
   resources?: Record<string, number>;
+  /** When set, Play shows Continue before/after the pending day report instead of auto-advancing. */
+  playDayRollStaging?: PlayDayRollStaging | null;
+};
+
+/** Snapshot for day-report deltas while the Play tab stages report / continue beats. */
+export type DayReportPrevSnapshot = Pick<
+  QuestState,
+  | 'modifiers'
+  | 'skills'
+  | 'experience'
+  | 'resources'
+  | 'dayReportModifierBaseline'
+  | 'dayReportQuestItemsBaseline'
+  | 'questItems'
+  | 'flags'
+>;
+
+/** Forest in-session day roll: Continue before report, then after report, then unveil next quest. */
+export type PlayDayRollStaging = {
+  phase: 'before_report' | 'after_report';
+  endingDay: number;
+  nextDay: number;
+  calendarDay: number;
+  sessionOnly: boolean;
+  completedQuestId: string;
+  prevForReport: DayReportPrevSnapshot;
 };
 
 export type TavernEscrowEntry = {

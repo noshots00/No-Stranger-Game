@@ -8,6 +8,7 @@ import {
 import {
   buildInventoryEntries,
   formatCoinShort,
+  formatInjurySheetLines,
   formatModifierKeyForCharacterSheet,
   formatOrganicSlugForDisplay,
   getCharacterClass,
@@ -24,7 +25,7 @@ import {
   type CharacterAbilityTileData,
 } from '../helpers';
 import { JOB_REGISTRY } from '../jobs/registry';
-import { characterStats, CLASS_UNLOCK_POINTS } from '../constants';
+import { characterStats, CLASS_UNLOCK_POINTS, INJURY_SHEET_UNLOCK_POINTS } from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
 import { formatUnlockedTraitsLine } from '../traitSheet';
@@ -80,6 +81,7 @@ const ALL_MODIFIER_BUCKETS: ModifierSheetBucket[] = [
   'spell',
   'class',
   'blessing',
+  'injury',
   'misc',
 ];
 
@@ -89,6 +91,7 @@ const BUCKET_LABEL: Record<Exclude<ModifierSheetBucket, 'skill'>, string> = {
   spell: 'Spells',
   class: 'Archetype tracks',
   blessing: 'Blessings',
+  injury: 'Injuries',
   misc: 'Other modifiers',
 };
 
@@ -98,7 +101,7 @@ function formatModifierLines(entries: [string, number][]): string {
   return entries.map(([k, v]) => `${formatModifierKeyForCharacterSheet(k)} ${v}`).join(', ');
 }
 
-/** Spells / `skill:*` & organic *Skill unlock at 1; other sheet buckets unlock at `CLASS_UNLOCK_POINTS`. */
+/** Spells / `skill:*` / `injury:*` unlock at 1; other sheet buckets unlock at `CLASS_UNLOCK_POINTS`. */
 function partitionSheetUnlock(
   bucket: ModifierSheetBucket,
   entries: [string, number][]
@@ -108,7 +111,9 @@ function partitionSheetUnlock(
   const threshold =
     bucket === 'skill' || bucket === 'spell'
       ? CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE
-      : CLASS_UNLOCK_POINTS;
+      : bucket === 'injury'
+        ? INJURY_SHEET_UNLOCK_POINTS
+        : CLASS_UNLOCK_POINTS;
   for (const row of entries) {
     const mag = Math.abs(row[1]);
     if (mag >= threshold) unlocked.push(row);
@@ -187,6 +192,8 @@ export function CharacterTab({
   rapidDaySimulation,
   onRapidDaySimulationChange,
   onShowModifierDetailsChange,
+  showQuestChoiceEffects,
+  onShowQuestChoiceEffectsChange,
   devUnlockAllQuests,
   onDevUnlockAllQuestsChange,
   onLogout,
@@ -242,6 +249,11 @@ export function CharacterTab({
   const blessingPart = partitionSheetUnlock('blessing', blessingEntries);
   const blessingLinesUnlocked = formatModifierLines(blessingPart.unlocked);
   const blessingLinesLocked = formatModifierLines(blessingPart.locked);
+
+  const injuryEntries = byBucket.get('injury') ?? [];
+  const injuryPart = partitionSheetUnlock('injury', injuryEntries);
+  const injuryLinesUnlocked = formatInjurySheetLines(injuryPart.unlocked);
+  const injuryLinesLocked = formatInjurySheetLines(injuryPart.locked);
 
   const spellEntries = byBucket.get('spell') ?? [];
   const spellPart = partitionSheetUnlock('spell', spellEntries);
@@ -353,6 +365,13 @@ export function CharacterTab({
       </ColumnBlock>
     );
   }
+  if (injuryLinesUnlocked) {
+    columnACells.push(
+      <ColumnBlock key="injuries" label={`${BUCKET_LABEL.injury}:`}>
+        <span>{injuryLinesUnlocked}</span>
+      </ColumnBlock>
+    );
+  }
   if (statQuestLinesUnlocked) {
     columnACells.push(
       <ColumnBlock key="stats-quests" label={`${BUCKET_LABEL.stat}:`}>
@@ -382,6 +401,13 @@ export function CharacterTab({
       columnACells.push(
         <ColumnBlock key="blessings-locked" label="Blessings (in progress):" faint>
           <span>{blessingLinesLocked}</span>
+        </ColumnBlock>
+      );
+    }
+    if (injuryLinesLocked) {
+      columnACells.push(
+        <ColumnBlock key="injuries-locked" label={`${BUCKET_LABEL.injury} (in progress):`} faint>
+          <span>{injuryLinesLocked}</span>
         </ColumnBlock>
       );
     }
@@ -621,6 +647,8 @@ export function CharacterTab({
         onRapidDaySimulationChange={onRapidDaySimulationChange}
         showModifierDetails={showModifierDetails}
         onShowModifierDetailsChange={onShowModifierDetailsChange}
+        showQuestChoiceEffects={showQuestChoiceEffects}
+        onShowQuestChoiceEffectsChange={onShowQuestChoiceEffectsChange}
         devUnlockAllQuests={devUnlockAllQuests}
         onDevUnlockAllQuestsChange={onDevUnlockAllQuestsChange}
         onLogout={onLogout}

@@ -17,13 +17,11 @@ export const quest023WhisperingTree = createBranchingQuest({
           id: 'whispering-tend',
           label: '[placeholder] Tend the wounded bark',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Wisdom: 1 } },
         },
         {
           id: 'whispering-track',
           label: '[placeholder] Read the tracks around it',
           completeQuest: true,
-          effects: { modifiersDelta: { RangerClass: 1, Wisdom: 1 } },
         },
       ],
     },

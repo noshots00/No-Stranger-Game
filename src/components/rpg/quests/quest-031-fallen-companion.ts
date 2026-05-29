@@ -17,7 +17,6 @@ export const quest031FallenCompanion = createBranchingQuest({
           id: 'companion-bind',
           label: '[placeholder] Bind their wound and stay until they wake',
           completeQuest: true,
-          effects: { modifiersDelta: { HealerClass: 1, Wisdom: 1 } },
         },
       ],
     },

@@ -16,19 +16,7 @@ export const quest002CStrangeEggTree = createQuestDefinition({
       id: 'tree-intro',
       type: 'message',
       text: 'This is harder than it looks...',
-      nextStepId: 'tree-continue',
-    },
-    {
-      id: 'tree-continue',
-      type: 'choice',
-      text: '',
-      choices: [
-        {
-          id: 'q-tree-continue',
-          label: 'Continue...',
-          nextStepId: 'tree-vista',
-        },
-      ],
+      nextStepId: 'tree-vista',
     },
     {
       id: 'tree-vista',

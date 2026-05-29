@@ -17,13 +17,11 @@ export const quest030CharcoalSigil = createBranchingQuest({
           id: 'sigil-erase',
           label: '[placeholder] Smudge the mark away before it is seen',
           completeQuest: true,
-          effects: { modifiersDelta: { RogueClass: 1, Dexterity: 1 } },
         },
         {
           id: 'sigil-study',
           label: '[placeholder] Copy the sigil into your notes',
           completeQuest: true,
-          effects: { modifiersDelta: { MageClass: 1, Intelligence: 1 } },
         },
       ],
     },

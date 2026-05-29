@@ -20,15 +20,7 @@ export const quest017IronwoodSwitch = createBranchingQuest({
           nextStepId: 'ironwood-outcome-lever',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              WarriorClass: 1,
-              AtlantiansRace: 1,
-              DwarfRace: 1,
-              StrengthStat: 1,
-              CourageTrait: 1,
-              Resolute: 1,
-              BashSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} threw the switch — the cart hissed onto the side rail.'],
         },
@@ -38,14 +30,7 @@ export const quest017IronwoodSwitch = createBranchingQuest({
           nextStepId: 'ironwood-outcome-still',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              MageClass: 1,
-              HighElfRace: 1,
-              RiverKingdomRace: 1,
-              IntelligenceStat: 1,
-              CautiousTrait: 1,
-              Haunted: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} let the lever lie — the cart kept its straight rail.'],
         },
@@ -55,14 +40,7 @@ export const quest017IronwoodSwitch = createBranchingQuest({
           nextStepId: 'ironwood-outcome-dive',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              RangerClass: 1,
-              WoodElfRace: 1,
-              CatfolkRace: 1,
-              DexterityStat: 1,
-              CourageTrait: 1,
-              SurvivalSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} sprinted at the ties, knife already drawn.'],
         },
@@ -72,16 +50,7 @@ export const quest017IronwoodSwitch = createBranchingQuest({
           nextStepId: 'ironwood-outcome-brace',
           completeQuest: true,
           effects: {
-            modifiersDelta: {
-              HealerClass: 1,
-              SunbornRace: 1,
-              TrollRace: 1,
-              ConstitutionStat: 1,
-              CourageTrait: 1,
-              Selfless: 1,
-              HealingSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} threw their shoulder into the wedge as the cart bore down.'],
         },

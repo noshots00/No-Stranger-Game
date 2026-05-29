@@ -1,8 +1,15 @@
-import { QUEST_FIRST_NIGHT_ID } from '@/components/rpg/constants';
+import { QUEST_DYERS_CRYPT_ID, QUEST_FIRST_NIGHT_ID } from '@/components/rpg/constants';
 import { getLevelUpLines, getRewardLines } from '../helpers';
+import { recordModifiersAfterQuestComplete } from './engine';
 import { buildFirstNightJournalSummary } from './quest-002-first-night-journal';
+import {
+  buildAbandonedShelterJournalEpilogue,
+  buildDyersCryptJournalSummary,
+} from './quest-003-dyers-crypt-journal';
 import { interpolateStepText } from './engine';
 import type { JournalLogEntry, QuestDefinition, QuestState } from './types';
+
+const QUEST_ABANDONED_SHELTER_ID = 'quest-004-abandoned-shelter';
 
 /** Join quest choice ids for `journalSummariesByChoicePath` keys (order = playthrough order). */
 export const QUEST_JOURNAL_PATH_SEP = '|';
@@ -14,10 +21,15 @@ export const QUEST_JOURNAL_PATH_SEP = '|';
 export function resolveJournalSummaryText(
   quest: QuestDefinition,
   choiceHistory: string[],
-  playerName: string
+  playerName: string,
+  flags: string[] = []
 ): string | null {
   if (quest.id === QUEST_FIRST_NIGHT_ID) {
     return interpolateStepText(buildFirstNightJournalSummary(choiceHistory), playerName);
+  }
+
+  if (quest.id === QUEST_DYERS_CRYPT_ID) {
+    return interpolateStepText(buildDyersCryptJournalSummary(choiceHistory, flags), playerName);
   }
 
   const map = quest.journalSummariesByChoicePath;
@@ -99,26 +111,46 @@ export function mergeJournalRecapOnQuestComplete(
   const wasCompleted = Boolean(prevState.progressByQuestId[quest.id]?.isCompleted);
   const isCompleted = Boolean(nextState.progressByQuestId[quest.id]?.isCompleted);
   if (wasCompleted || !isCompleted) return nextState;
-  const history = nextState.progressByQuestId[quest.id]?.choiceHistory ?? [];
-  const text = resolveJournalSummaryText(quest, history, nextState.playerName);
-  const completionRewards = collectCompletionRewardLines(prevState, nextState);
-  const existingQuestEntry = nextState.journalLog.find((row) => row.questId === quest.id);
+  const withSnapshot = recordModifiersAfterQuestComplete(nextState, quest.id);
+  const history = withSnapshot.progressByQuestId[quest.id]?.choiceHistory ?? [];
+  const text = resolveJournalSummaryText(quest, history, nextState.playerName, nextState.flags);
+  const completionRewards = collectCompletionRewardLines(prevState, withSnapshot);
+  const existingQuestEntry = withSnapshot.journalLog.find((row) => row.questId === quest.id);
+
+  let result: QuestState;
 
   if (existingQuestEntry) {
     if (text) {
-      return appendJournalRecapEntry(nextState, quest.id, text, {
+      result = appendJournalRecapEntry(withSnapshot, quest.id, text, {
         replaceText: true,
         completionRewards: completionRewards.length > 0 ? completionRewards : undefined,
       });
+    } else if (completionRewards.length === 0) {
+      result = withSnapshot;
+    } else {
+      result = appendJournalRecapEntry(withSnapshot, quest.id, '', {
+        completionRewards,
+      });
     }
-    if (completionRewards.length === 0) return nextState;
-    return appendJournalRecapEntry(nextState, quest.id, '', {
-      completionRewards,
+  } else if (!text) {
+    result = withSnapshot;
+  } else {
+    result = appendJournalRecapEntry(withSnapshot, quest.id, text, {
+      completionRewards: completionRewards.length > 0 ? completionRewards : undefined,
     });
   }
 
-  if (!text) return nextState;
-  return appendJournalRecapEntry(nextState, quest.id, text, {
-    completionRewards: completionRewards.length > 0 ? completionRewards : undefined,
-  });
+  if (quest.id === QUEST_ABANDONED_SHELTER_ID) {
+    result = appendDyersCryptShelterEpilogueIfNeeded(result);
+  }
+
+  return result;
+}
+
+function appendDyersCryptShelterEpilogueIfNeeded(state: QuestState): QuestState {
+  const cryptEntry = state.journalLog.find((row) => row.questId === QUEST_DYERS_CRYPT_ID);
+  if (!cryptEntry) return state;
+  const epilogue = buildAbandonedShelterJournalEpilogue();
+  if (cryptEntry.text.includes(epilogue)) return state;
+  return appendJournalRecapEntry(state, QUEST_DYERS_CRYPT_ID, epilogue);
 }

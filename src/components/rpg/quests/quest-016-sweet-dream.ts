@@ -8,7 +8,7 @@ export const quest016SweetDream = createBranchingQuest({
   createdAt: 17,
   toneTag: 'echo',
   startStepId: 'sweet-dream-intro',
-  availability: { requiresAnyFlags: [SWEET_DREAM_UNLOCKED_FLAG] },
+  availability: { requiresAnyFlags: [SWEET_DREAM_UNLOCKED_FLAG], minDay: 99 },
   steps: [
     {
       id: 'sweet-dream-intro',
@@ -20,15 +20,7 @@ export const quest016SweetDream = createBranchingQuest({
           label: 'Voices raised in a rose-colored dawn',
           nextStepId: 'sweet-dream-outcome-dawn',
           effects: {
-            modifiersDelta: {
-              SunbornRace: 1,
-              HealerClass: 1,
-              CharismaStat: 1,
-              Hopeful: 1,
-              CourageTrait: 1,
-              HealingSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} woke smiling—somewhere a chorus still thanked the horizon.'],
         },
@@ -37,14 +29,7 @@ export const quest016SweetDream = createBranchingQuest({
           label: 'A glade where deer breathe beside you',
           nextStepId: 'sweet-dream-outcome-glade',
           effects: {
-            modifiersDelta: {
-              WoodElfRace: 1,
-              RangerClass: 1,
-              WisdomStat: 1,
-              Peaceful: 1,
-              CautiousTrait: 1,
-              SurvivalSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} carried forest quiet into morning like a blanket.'],
         },
@@ -53,14 +38,7 @@ export const quest016SweetDream = createBranchingQuest({
           label: 'A long table and an arrow that finds the center',
           nextStepId: 'sweet-dream-outcome-feast',
           effects: {
-            modifiersDelta: {
-              HalflingRace: 1,
-              RangerClass: 1,
-              DexterityStat: 1,
-              Content: 1,
-              CourageTrait: 1,
-              ArcherySkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} tasted honey and cordial—and the target rang true.'],
         },
@@ -69,15 +47,7 @@ export const quest016SweetDream = createBranchingQuest({
           label: 'Mirrors that show you at your kindest',
           nextStepId: 'sweet-dream-outcome-hall',
           effects: {
-            modifiersDelta: {
-              HighElfRace: 1,
-              MageClass: 1,
-              IntelligenceStat: 1,
-              Serene: 1,
-              CourageTrait: 1,
-              LightSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} opened kind eyes in every reflection.'],
         },
@@ -86,15 +56,7 @@ export const quest016SweetDream = createBranchingQuest({
           label: 'Tiny lights that guide you home',
           nextStepId: 'sweet-dream-outcome-lanterns',
           effects: {
-            modifiersDelta: {
-              GnomeRace: 1,
-              MageClass: 1,
-              ConstitutionStat: 1,
-              Curious: 1,
-              CautiousTrait: 1,
-              SpiritSpell: 1,
-              SpellcastingSkill: 1,
-            },
+
           },
           worldEventLogAdd: ['{playerName} followed laughter small as bells through friendly dark.'],
         },

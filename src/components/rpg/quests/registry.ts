@@ -4,13 +4,14 @@ import { quest002BWillIStarve } from './quest-002-b-will-i-starve';
 import { quest002CStrangeEggTree } from './quest-002-c-strange-egg-tree';
 import { quest002BoarAmbush } from './quest-002-boar-ambush';
 import { quest003BMeetMerchant } from './quest-003-b-meet-merchant';
+import { quest003DyersCrypt } from './quest-003-dyers-crypt';
 import { quest003SilverLake } from './quest-003-silver-lake';
 import { quest004AbandonedShelter } from './quest-004-abandoned-shelter';
 import { quest004BTheDoor } from './quest-004-b-the-door';
-import { quest005Airship } from './quest-005-airship';
+import { quest005ForestCave } from './quest-005-forest-cave';
 import { quest005BHome } from './quest-005-b-home';
 import { quest005CWolfPeltTribute } from './quest-005-c-wolf-pelt-tribute';
-import { quest006WanderingSkeleton } from './quest-006-wandering-skeleton';
+import { quest007DayTwoDream } from './quest-007-day-two-dream';
 import { quest007GreenHand } from './quest-007-green-hand';
 import { quest008WolfAttack } from './quest-008-wolf-attack';
 import { quest009Waterfall } from './quest-009-waterfall';
@@ -49,6 +50,7 @@ import type { QuestDefinition } from './types';
 export const allQuests: QuestDefinition[] = [
   quest001Origin,
   quest002FirstNight,
+  quest003DyersCrypt,
   quest002BWillIStarve,
   quest002CStrangeEggTree,
   quest002BoarAmbush,
@@ -56,10 +58,10 @@ export const allQuests: QuestDefinition[] = [
   quest003SilverLake,
   quest004AbandonedShelter,
   quest004BTheDoor,
-  quest005Airship,
+  quest005ForestCave,
   quest005BHome,
   quest005CWolfPeltTribute,
-  quest006WanderingSkeleton,
+  quest007DayTwoDream,
   quest007GreenHand,
   quest008WolfAttack,
   quest009Waterfall,

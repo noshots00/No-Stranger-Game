@@ -45,12 +45,7 @@ export function NpcTalkScrollPanes({
                     : 'text-[var(--candle-ink-soft)]'
               }
             >
-              {entry.role === 'player' ? (
-                <>
-                  <span className="font-semibold text-[var(--candle-ink)]">You: </span>
-                  {entry.text}
-                </>
-              ) : entry.role === 'narrator' ? (
+              {entry.role === 'narrator' || entry.role === 'player' ? (
                 entry.text
               ) : (
                 <>
