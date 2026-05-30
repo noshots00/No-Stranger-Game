@@ -1,3 +1,4 @@
+import { QUEST_FOREST_CAVE_ID } from '../constants';
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
@@ -13,7 +14,7 @@ export const quest004BTheDoor = createQuestDefinition({
   startStepId: 'door-halt',
   questCardImageSide: 'right',
   isAvailable: makeQuestAvailability({
-    requiresAnyCompletedQuestIds: ['quest-002-b-will-i-starve'],
+    requiresAnyCompletedQuestIds: [QUEST_FOREST_CAVE_ID],
   }),
   journalSummaryFallback: 'Answered the voice beyond the forest door.',
   steps: [

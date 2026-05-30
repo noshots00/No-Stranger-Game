@@ -21,33 +21,33 @@ function has(history: string[], choiceId: string): boolean {
   return history.includes(choiceId);
 }
 
-/** Sunset carry-over → how the player reached the mushroom patch. */
-function buildContextClause(flags: string[]): string {
+/** Sunset carry-over → journal opener ("While following the stream,"). */
+function buildWhileFollowingLead(flags: string[]): string {
   if (flags.includes(FIRST_NIGHT_FLAG_WATER)) {
-    return 'You were following the water downstream when you found a mushroom patch.';
+    return 'While following the stream';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_TRAILS)) {
-    return 'You were following an animal trail when you found a mushroom patch.';
+    return 'While following animal tracks';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_FOOD)) {
-    return 'You were searching for food when you found a mushroom patch.';
+    return 'While searching for food';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_HIGH_GROUND)) {
-    return 'You climbed toward higher ground when you found a mushroom patch.';
+    return 'While climbing toward higher ground';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_SHELTER)) {
-    return 'You left your shelter when you found a mushroom patch.';
+    return 'While leaving your shelter';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_TREE)) {
-    return 'You climbed down from the tree when you found a mushroom patch.';
+    return 'While climbing down from the tree';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_POCKETS)) {
-    return 'You moved on through the forest when you found a mushroom patch.';
+    return 'While pushing deeper into the forest';
   }
   if (flags.includes(FIRST_NIGHT_FLAG_CALL_HELP)) {
-    return 'You pushed deeper into the forest when you found a mushroom patch.';
+    return 'While answering your own call for help';
   }
-  return 'You pressed on through the forest when you found a mushroom patch.';
+  return 'While pressing on through the forest';
 }
 
 function buildMushroomClause(history: string[], flags: string[]): string | null {
@@ -74,41 +74,43 @@ function buildMushroomClause(history: string[], flags: string[]): string | null 
   return null;
 }
 
-function buildSkeletonClause(history: string[], flags: string[]): string {
+/** Skeleton / crypt beat; `sentenceStart` = true when this opens a new sentence after a period. */
+function buildSkeletonClause(history: string[], flags: string[], sentenceStart: boolean): string {
   const discovered = flags.includes(ANCIENT_CEMETERY_DISCOVERED_FLAG);
+  const you = sentenceStart ? 'You' : 'you';
 
   if (has(history, 'skeleton-follow')) {
     if (has(history, 'skeleton-follow-inside') || has(history, 'skeleton-fight-flee') || has(history, 'skeleton-run-away-inside')) {
-      return "A skeleton shambled by, and you followed it into Dyer's Crypt before fleeing the dead rising from the earth.";
+      return `${you} encountered a skeleton and followed it into Dyer's Crypt before fleeing the dead rising from the earth.`;
     }
     if (has(history, 'skeleton-come-back-later') || has(history, 'skeleton-found-leave')) {
-      return "A skeleton shambled by, and you followed it to Dyer's Crypt, but you crept away before entering.";
+      return `${you} encountered a skeleton and followed it to Dyer's Crypt, but crept away before entering.`;
     }
-    return "A skeleton shambled by, and you followed it, discovering Dyer's Crypt.";
+    return `${you} encountered a skeleton and discovered Dyer's Crypt.`;
   }
 
   if (has(history, 'skeleton-hide') && discovered) {
     if (has(history, 'skeleton-found-enter') || has(history, 'skeleton-fight-flee') || has(history, 'skeleton-run-away-inside')) {
-      return "A skeleton shambled by; you hid until it passed, then found Dyer's Crypt and entered before fleeing the dead.";
+      return `${you} encountered a skeleton, hid until it passed, then entered Dyer's Crypt before fleeing the dead rising from the earth.`;
     }
     if (has(history, 'skeleton-found-leave')) {
-      return "A skeleton shambled by; you hid until it passed, then found Dyer's Crypt but crept away before entering.";
+      return `${you} encountered a skeleton, hid until it passed, then found Dyer's Crypt but crept away before entering.`;
     }
-    return "A skeleton shambled by; you hid until it passed, then found Dyer's Crypt nearby.";
+    return `${you} encountered a skeleton, hid until it passed, then discovered Dyer's Crypt.`;
   }
 
   if (has(history, 'skeleton-attack-flee') || has(history, 'skeleton-cast-flee')) {
     if (has(history, 'skeleton-fight-flee') || has(history, 'skeleton-run-away-inside')) {
-      return "A skeleton shambled by; you challenged it, fled, and ran straight into Dyer's Crypt before escaping the dead rising from the earth.";
+      return `${you} encountered a skeleton, challenged it, fled, and ran into Dyer's Crypt before escaping the dead rising from the earth.`;
     }
-    return "A skeleton shambled by; you challenged it, fled, and ran straight into Dyer's Crypt.";
+    return `${you} encountered a skeleton, challenged it, fled, and discovered Dyer's Crypt.`;
   }
 
   if (has(history, 'skeleton-hide')) {
-    return 'A skeleton shambled by; you hid until it passed.';
+    return `${you} encountered a skeleton and hid until it passed.`;
   }
 
-  return 'A skeleton shambled by in the woods.';
+  return `${you} encountered a skeleton in the woods.`;
 }
 
 /** Appended to the Dyer's Crypt journal when `quest-004-abandoned-shelter` completes. */
@@ -120,9 +122,15 @@ export function buildAbandonedShelterJournalEpilogue(): string {
 }
 
 export function buildDyersCryptJournalSummary(choiceHistory: string[], flags: string[]): string {
-  const parts: string[] = [buildContextClause(flags)];
+  const lead = buildWhileFollowingLead(flags);
   const mushroom = buildMushroomClause(choiceHistory, flags);
-  if (mushroom) parts.push(mushroom);
-  parts.push(buildSkeletonClause(choiceHistory, flags));
+
+  if (!mushroom) {
+    const skeleton = buildSkeletonClause(choiceHistory, flags, false);
+    return `${lead}, ${skeleton}`;
+  }
+
+  const parts: string[] = [`${lead}, you found a mushroom patch.`, mushroom];
+  parts.push(buildSkeletonClause(choiceHistory, flags, true));
   return parts.join(' ');
 }

@@ -14,7 +14,7 @@ describe("Dyer's Crypt journal", () => {
       [FIRST_NIGHT_FLAG_WATER, ANCIENT_CEMETERY_DISCOVERED_FLAG]
     );
     expect(text).toBe(
-      "You were following the water downstream when you found a mushroom patch. A skeleton shambled by, and you followed it, discovering Dyer's Crypt."
+      "While following the stream, you encountered a skeleton and discovered Dyer's Crypt."
     );
   });
 
@@ -27,8 +27,8 @@ describe("Dyer's Crypt journal", () => {
       ['skeleton-attack', 'skeleton-attack-flee'],
       [FIRST_NIGHT_FLAG_WATER, ANCIENT_CEMETERY_DISCOVERED_FLAG]
     );
-    expect(text).toContain('ran straight into');
-    expect(text).toContain("Dyer's Crypt");
+    expect(text).toContain('challenged it, fled');
+    expect(text).toContain("discovered Dyer's Crypt");
   });
 
   it('notes finding the cemetery after hiding', () => {
@@ -37,6 +37,6 @@ describe("Dyer's Crypt journal", () => {
       [FIRST_NIGHT_FLAG_WATER, ANCIENT_CEMETERY_DISCOVERED_FLAG]
     );
     expect(text).toContain('hid until it passed');
-    expect(text).toContain("found Dyer's Crypt");
+    expect(text).toContain("discovered Dyer's Crypt");
   });
 });

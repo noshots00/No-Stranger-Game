@@ -42,6 +42,7 @@ import {
   QUEST_DYERS_CRYPT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_ORIGIN_ID,
+  QUEST_004_B_THE_DOOR_ID,
   QUEST_FOREST_CAVE_ID,
   DAY_PACING_ACTIVE_FLAG,
   FOREST_CAVE_DISCOVERED_FLAG,
@@ -51,7 +52,9 @@ import {
   VALID_SAVE_LOCATIONS,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
+import { resolveCharacterCreatedAtAppVersion } from '../characterSaveVersion';
 import { questById } from './registry';
+import { resolveForestCavePrimaryKnockoutStepId } from './quest-005-forest-cave';
 import { unlockJobSlug } from '../jobs/unlockJob';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
@@ -308,7 +311,7 @@ const migrateAirshipQuestToForestCave = (args: {
     const caveProg = progressByQuestId[QUEST_FOREST_CAVE_ID];
     if (airshipProg.isCompleted || !caveProg) {
       progressByQuestId[QUEST_FOREST_CAVE_ID] = {
-        currentStepId: airshipProg.isCompleted ? 'cave-enter' : airshipProg.currentStepId,
+        currentStepId: airshipProg.isCompleted ? 'cave-close' : airshipProg.currentStepId,
         isCompleted: airshipProg.isCompleted,
         choiceHistory: Array.isArray(airshipProg.choiceHistory) ? [...airshipProg.choiceHistory] : [],
         devStepHistory: Array.isArray(airshipProg.devStepHistory) ? [...airshipProg.devStepHistory] : [],
@@ -330,6 +333,18 @@ const migrateAirshipQuestToForestCave = (args: {
 
   if (nextFlags.includes(AIRSHIP_FLAG) && !nextFlags.includes(FOREST_CAVE_DISCOVERED_FLAG)) {
     nextFlags = [...nextFlags, FOREST_CAVE_DISCOVERED_FLAG];
+  }
+
+  const caveProg = progressByQuestId[QUEST_FOREST_CAVE_ID];
+  if (caveProg) {
+    if (caveProg.isCompleted && caveProg.currentStepId === 'cave-enter') {
+      progressByQuestId[QUEST_FOREST_CAVE_ID] = { ...caveProg, currentStepId: 'cave-close' };
+    } else if (!caveProg.isCompleted && caveProg.currentStepId === 'cave-enter') {
+      progressByQuestId[QUEST_FOREST_CAVE_ID] = {
+        ...caveProg,
+        currentStepId: resolveForestCavePrimaryKnockoutStepId(nextFlags),
+      };
+    }
   }
 
   return {
@@ -531,10 +546,19 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     typeof rawCreation === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawCreation) ? rawCreation : null;
 
   const rawCreatedVer = (state as { characterCreatedAtAppVersion?: unknown }).characterCreatedAtAppVersion;
-  const characterCreatedAtAppVersion =
+  const parsedCreatedVer =
     typeof rawCreatedVer === 'string' && /^\d+\.\d+\.\d+/.test(rawCreatedVer.trim())
       ? rawCreatedVer.trim().split(/[-+]/, 1)[0]!
       : null;
+  const resolvedPlayerName =
+    typeof state.playerName === 'string' && state.playerName.trim().length > 0
+      ? state.playerName.trim()
+      : initial.playerName;
+  const characterCreatedAtAppVersion = resolveCharacterCreatedAtAppVersion({
+    playerName: resolvedPlayerName,
+    characterCreationDateEastern,
+    characterCreatedAtAppVersion: parsedCreatedVer,
+  });
 
   const rawModifiers =
     state.modifiers && typeof state.modifiers === 'object' ? (state.modifiers as ModifierMap) : initial.modifiers;
@@ -900,6 +924,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     unveiledQuestIds: migrated.unveiledQuestIds,
     progressByQuestId,
     activeQuestId: migrated.activeQuestId,
+    playerName: resolvedPlayerName,
     health,
     characterCreationDateEastern,
     characterCreatedAtAppVersion,
@@ -1043,6 +1068,38 @@ function pickMergedActiveJobSlug(relay: QuestState, local: QuestState, unlocked:
   return JOB_SLUG_EXPLORER;
 }
 
+/** Higher = further along the forest / village arc (for picking relay vs local on hydrate). */
+function questAdvanceScore(state: QuestState): number {
+  const completed = getCompletedQuestIds(state).length;
+  return completed * 1000 + state.unveiledQuestIds.length * 10 + state.lastDailyXpDay;
+}
+
+function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
+  const localAhead = questAdvanceScore(local) >= questAdvanceScore(relay);
+  const preferred = localAhead ? local : relay;
+  const dialogueSource = local.dialogueLog.length >= relay.dialogueLog.length ? local : relay;
+  const journalSource = local.journalLog.length >= relay.journalLog.length ? local : relay;
+  const playerName = local.playerName.trim() || relay.playerName.trim() || '';
+  return {
+    playerName,
+    characterCreationDateEastern:
+      local.characterCreationDateEastern ?? relay.characterCreationDateEastern,
+    characterCreatedAtAppVersion:
+      local.characterCreatedAtAppVersion ?? relay.characterCreatedAtAppVersion,
+    lastDailyXpDay: Math.max(relay.lastDailyXpDay, local.lastDailyXpDay),
+    activeQuestId: preferred.activeQuestId ?? (localAhead ? relay.activeQuestId : local.activeQuestId),
+    dialogueLog: dialogueSource.dialogueLog,
+    journalLog: journalSource.journalLog,
+    experience: Math.max(relay.experience, local.experience),
+    health: Math.max(relay.health, local.health),
+    skills: {
+      explorationXp: Math.max(relay.skills.explorationXp, local.skills.explorationXp),
+      foragingXp: Math.max(relay.skills.foragingXp, local.skills.foragingXp),
+      meleeAttackXp: Math.max(relay.skills.meleeAttackXp, local.skills.meleeAttackXp),
+    },
+  };
+}
+
 /** Union flags, unveiled ids, quest completions, and job state from relay + local saves on login. */
 export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): QuestState {
   const unlockedJobSlugs = Array.from(
@@ -1064,6 +1121,7 @@ export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): 
 
   const merged = normalizeQuestState({
     ...relay,
+    ...pickMergedCharacterFields(relay, local),
     flags: Array.from(new Set([...relay.flags, ...local.flags])),
     unveiledQuestIds: Array.from(new Set([...relay.unveiledQuestIds, ...local.unveiledQuestIds])),
     progressByQuestId: mergeQuestProgressMaps(relay.progressByQuestId, local.progressByQuestId),
@@ -1245,6 +1303,7 @@ const FOREST_AUTO_TRACK_QUEST_IDS: readonly string[] = [
   'quest-004-abandoned-shelter',
   QUEST_DAY_TWO_DREAM_ID,
   QUEST_FOREST_CAVE_ID,
+  QUEST_004_B_THE_DOOR_ID,
 ];
 
 /**

@@ -1,4 +1,8 @@
-import { QUEST_DYERS_CRYPT_ID, QUEST_FIRST_NIGHT_ID } from '@/components/rpg/constants';
+import {
+  QUEST_DYERS_CRYPT_ID,
+  QUEST_FIRST_NIGHT_ID,
+  QUEST_FOREST_CAVE_ID,
+} from '@/components/rpg/constants';
 import { getLevelUpLines, getRewardLines } from '../helpers';
 import { recordModifiersAfterQuestComplete } from './engine';
 import { buildFirstNightJournalSummary } from './quest-002-first-night-journal';
@@ -6,6 +10,7 @@ import {
   buildAbandonedShelterJournalEpilogue,
   buildDyersCryptJournalSummary,
 } from './quest-003-dyers-crypt-journal';
+import { buildForestCaveJournalSummary } from './quest-005-forest-cave-journal';
 import { interpolateStepText } from './engine';
 import type { JournalLogEntry, QuestDefinition, QuestState } from './types';
 
@@ -30,6 +35,10 @@ export function resolveJournalSummaryText(
 
   if (quest.id === QUEST_DYERS_CRYPT_ID) {
     return interpolateStepText(buildDyersCryptJournalSummary(choiceHistory, flags), playerName);
+  }
+
+  if (quest.id === QUEST_FOREST_CAVE_ID) {
+    return interpolateStepText(buildForestCaveJournalSummary(choiceHistory, flags), playerName);
   }
 
   const map = quest.journalSummariesByChoicePath;

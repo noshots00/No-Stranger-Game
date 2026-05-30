@@ -134,7 +134,7 @@ Quest 001 — The Beginning (Forest, Day 1)
   Quest 003 — Dyer's Crypt (Day 2) → 006 Skeleton → 004 Shelter → 007 Dream [Day 2 end]
     |
     v
-  Quest 005 — Airship (Day 3+)
+  Quest 005 — Forest Cave (Day 3+)
     |
     ...
     |
@@ -152,7 +152,8 @@ Quest 001 — The Beginning (Forest, Day 1)
 | 006 Wandering Skeleton | `quest-006-wandering-skeleton.ts` | After Crypt; Ancient Cemetery travel |
 | 004 Abandoned Shelter | `quest-004-abandoned-shelter.ts` | After Skeleton |
 | 007 Dream | `quest-007-day-two-dream.ts` | Fever or sweet; **main daily quest** (ends Day 2) |
-| 005 Airship | `quest-005-airship.ts` | Day 3 after Dream |
+| 005 Forest Cave | `quest-005-forest-cave.ts` | Sunset knockout + 5 moral vignettes; **main daily quest** (ends Day 3) |
+| 004b The Door | `quest-004-b-the-door.ts` | After Forest Cave; Carl at the forest door |
 
 Voice: [QUEST_COPY_STYLE.md](./QUEST_COPY_STYLE.md).
 

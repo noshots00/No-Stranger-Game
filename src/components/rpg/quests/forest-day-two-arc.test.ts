@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   FEVER_DREAM_PENDING_FLAG,
+  QUEST_004_B_THE_DOOR_ID,
   QUEST_DAY_TWO_DREAM_ID,
   QUEST_DYERS_CRYPT_ID,
   QUEST_FIRST_NIGHT_ID,
+  QUEST_FOREST_CAVE_ID,
   SWEET_DREAM_PENDING_FLAG,
 } from '../constants';
 import {
@@ -134,7 +136,19 @@ describe('manual saga unveil', () => {
         [QUEST_DAY_TWO_DREAM_ID],
         day3
       )
-    ).toEqual(['quest-005-forest-cave']);
+    ).toEqual([QUEST_FOREST_CAVE_ID]);
+  });
+
+  it('chains forest cave to The Door', () => {
+    const ctx = baseContext({ currentDay: 4, completedQuestIds: [QUEST_FOREST_CAVE_ID] });
+    expect(
+      computeNextUnveilIdsAfterCompletion(
+        QUEST_FOREST_CAVE_ID,
+        [],
+        [QUEST_FOREST_CAVE_ID],
+        ctx
+      )
+    ).toEqual([QUEST_004_B_THE_DOOR_ID]);
   });
 
   it("auto-starts Abandoned Shelter after Dyer's Crypt while first-night day roll is pending", () => {

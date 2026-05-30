@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { needsMandatoryCharacterReset } from '../characterSaveVersion';
 import {
   createInitialQuestState,
   hydrateQuestStateFromSources,
@@ -7,6 +8,8 @@ import {
 import {
   DAY_PACING_ACTIVE_FLAG,
   JOB_SLUG_MINER,
+  QUEST_DYERS_CRYPT_ID,
+  QUEST_FIRST_NIGHT_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
@@ -43,6 +46,47 @@ describe('village phase hydrate', () => {
     expect(next.currentLocation).toBe('Forest');
     expect(next.flags).toContain(DAY_PACING_ACTIVE_FLAG);
     expect(next.lastDailyXpDay).toBe(4);
+  });
+
+  it('prefers local forest progress when relay checkpoint is still at origin', () => {
+    const relay = {
+      ...createInitialQuestState(),
+      playerName: 'Aldric',
+      characterCreationDateEastern: '2026-05-01',
+      activeQuestId: 'quest-001-origin',
+      lastDailyXpDay: 1,
+      progressByQuestId: {
+        'quest-001-origin': {
+          currentStepId: 'start',
+          isCompleted: true,
+          choiceHistory: [],
+        },
+      },
+    };
+    const local = {
+      ...relay,
+      activeQuestId: QUEST_DYERS_CRYPT_ID,
+      lastDailyXpDay: 2,
+      unveiledQuestIds: [QUEST_FIRST_NIGHT_ID, QUEST_DYERS_CRYPT_ID],
+      progressByQuestId: {
+        ...relay.progressByQuestId,
+        [QUEST_FIRST_NIGHT_ID]: {
+          currentStepId: 'flavor-five',
+          isCompleted: true,
+          choiceHistory: [],
+        },
+        [QUEST_DYERS_CRYPT_ID]: {
+          currentStepId: 'dyers-intro',
+          isCompleted: false,
+          choiceHistory: [],
+        },
+      },
+    };
+    const merged = hydrateQuestStateFromSources(relay, local);
+    expect(merged.activeQuestId).toBe(QUEST_DYERS_CRYPT_ID);
+    expect(merged.lastDailyXpDay).toBe(2);
+    expect(merged.progressByQuestId[QUEST_DYERS_CRYPT_ID]?.isCompleted).toBe(false);
+    expect(needsMandatoryCharacterReset(merged)).toBe(false);
   });
 
   it('mergeQuestStateOnHydrate keeps local active job when relay lacks job fields', () => {
