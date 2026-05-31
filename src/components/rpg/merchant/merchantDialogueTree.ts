@@ -14,6 +14,7 @@ export type TranscriptEntry = {
 
 export type DialogueChoice =
   | { id: string; type: 'reply'; label: string; merchantText: string }
+  | { id: string; type: 'combat'; label: string }
   | {
       id: string;
       type: 'enterTopic';

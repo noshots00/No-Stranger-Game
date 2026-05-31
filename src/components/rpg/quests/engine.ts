@@ -835,7 +835,9 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     const completedQuestId = row.completedQuestId;
     const prevRaw = row.prevForReport;
     if (
-      (phase === 'before_report' || phase === 'after_report') &&
+      (phase === 'await_continue' ||
+        phase === 'before_report' ||
+        phase === 'after_report') &&
       typeof endingDay === 'number' &&
       typeof nextDay === 'number' &&
       typeof calendarDay === 'number' &&
@@ -847,7 +849,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     ) {
       const prev = prevRaw as Record<string, unknown>;
       playDayRollStaging = {
-        phase,
+        phase: 'await_continue',
         endingDay: Math.floor(endingDay),
         nextDay: Math.floor(nextDay),
         calendarDay: Math.floor(calendarDay),

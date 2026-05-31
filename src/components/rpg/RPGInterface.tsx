@@ -35,7 +35,7 @@ import {
   computeNextUnveilIdsAfterCompletion,
 } from '@/components/rpg/quests/quest-saga';
 import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
-import type { DialogueLogEntry, ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
+import type { ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
   APP_VERSION,
   CHARACTER_CREATION_DATE_STORAGE_KEY,
@@ -52,8 +52,6 @@ import {
   QUEST_ORIGIN_ID,
   QUEST_DYERS_CRYPT_ID,
   QUEST_003B_MEET_MERCHANT_ID,
-  QUEST_004_B_CARL_HUB_STEP_ID,
-  QUEST_004_B_THE_DOOR_ID,
   ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
@@ -75,7 +73,6 @@ import {
 } from './constants';
 import type { MobileTab } from './constants';
 import {
-  advancePlayDayRollPhase,
   applyCalendarDayCatchUp,
   applyInSessionDayAdvanceAfterMainQuest,
   isForestAutoTrackBlockedByDayRoll,
@@ -100,9 +97,7 @@ import {
   NARRATOR_RESPONSE_SPEAKER,
   PLAYER_ACTION_SPEAKER,
   QUEST_DIVIDER_SPEAKER,
-  QUEST_IMAGE_SPEAKER,
   QUEST_NARRATOR_PROMPT_SPEAKER,
-  QUEST_VISUAL_SPEAKER,
   visualDialogueEntriesForQuestStep,
 } from './dialogueFormat';
 import type { ChronicleMergedRow } from './dialogueFormat';
@@ -142,7 +137,6 @@ import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 import { GamePortraitViewport } from './GamePortraitViewport';
 import { MerchantPanel } from './merchant/MerchantPanel';
 import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
-import { CarlDoorNpcPanel } from './quests/CarlDoorNpcPanel';
 import { ArenaPanel } from './arena/ArenaPanel';
 import { useArenaTournament } from './arena/useArenaTournament';
 import { useArenaSyncPersonalRecord } from './arena/useArenaSyncPersonalRecord';
@@ -191,10 +185,6 @@ function applyMainDailyQuestCompletionIfNeeded(
     return stageInSessionDayAdvanceAfterMainQuest(prev, withFlags, rollCalendarDay, quest.id, true);
   }
   return applyInSessionDayAdvanceAfterMainQuest(prev, withFlags, rollCalendarDay, sessionOnly);
-}
-
-function shouldDeferDiscoveryUnveilOnComplete(merged: QuestState, quest: QuestDefinition): boolean {
-  return Boolean(merged.playDayRollStaging && quest.mainDailyQuest);
 }
 
 function mergeDiscoveryUnveils(
@@ -254,7 +244,7 @@ export function RPGInterface() {
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
-  const [questPopupQuestId, setQuestPopupQuestId] = useState<string | null>(null);
+  const [playSceneQuestId, setPlaySceneQuestId] = useState<string | null>(null);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [showQuestChoiceEffects, setShowQuestChoiceEffects] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
@@ -320,13 +310,13 @@ export function RPGInterface() {
   }, [useQuestPopupFallback]);
 
   useEffect(() => {
-    if (!questPopupQuestId) return;
+    if (!playSceneQuestId) return;
     const completed = getCompletedQuestIds(questState);
-    if (!completed.includes(questPopupQuestId)) return;
-    const quest = questById[questPopupQuestId];
+    if (!completed.includes(playSceneQuestId)) return;
+    const quest = questById[playSceneQuestId];
     if (quest?.locationRepeats) return;
-    setQuestPopupQuestId(null);
-  }, [questPopupQuestId, questState]);
+    setPlaySceneQuestId(null);
+  }, [playSceneQuestId, questState]);
 
   useEffect(() => {
     if (canShowGame && !hasShownGameOnce) {
@@ -343,15 +333,6 @@ export function RPGInterface() {
   activeTabRef.current = activeTab;
 
   useEffect(() => () => playFeedScroll.dispose(), [playFeedScroll]);
-
-  const handleQuestChoiceVisualPhase = useCallback(
-    (phase: 'start' | 'end') => {
-      if (phase === 'end' && activeTabRef.current === 'play') {
-        playFeedScroll.requestForceSnap();
-      }
-    },
-    [playFeedScroll]
-  );
 
   const handleDialogueScroll = useCallback(() => {
     playFeedScroll.updatePinnedFromScroll();
@@ -436,7 +417,6 @@ export function RPGInterface() {
         return next;
       });
       if (shouldOpenWellPopup) {
-        setQuestPopupQuestId(QUEST_002B_WILL_I_STARVE_ID);
         setActiveTab('play');
       }
     },
@@ -566,7 +546,7 @@ export function RPGInterface() {
         void persistQuestCheckpoint(next);
         return next;
       });
-      setQuestPopupQuestId(null);
+      setPlaySceneQuestId(null);
       setActiveTab('play');
     },
     [appendQuestOpeningDialogue, orderedQuestsForDev, setQuestState, persistQuestCheckpoint]
@@ -584,7 +564,7 @@ export function RPGInterface() {
         void persistQuestCheckpoint(next);
         return next;
       });
-      setQuestPopupQuestId(questId);
+      setPlaySceneQuestId(questId);
       setActiveTab('play');
       setDevToolsMenuOpen(false);
     },
@@ -691,16 +671,6 @@ export function RPGInterface() {
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
-  const activeQuestTranscript = useMemo((): DialogueLogEntry[] => {
-    if (!activeQuest) return [];
-    return questState.dialogueLog.filter(
-      (e) =>
-        e.sourceQuestId === activeQuest.id &&
-        e.speaker !== QUEST_IMAGE_SPEAKER &&
-        e.speaker !== QUEST_VISUAL_SPEAKER &&
-        e.speaker !== QUEST_DIVIDER_SPEAKER
-    );
-  }, [questState.dialogueLog, activeQuest]);
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
   );
@@ -737,20 +707,18 @@ export function RPGInterface() {
   const playScrollContentRevision = useMemo(
     () =>
       [
-        activeQuestTranscript.length,
         activeStep?.id ?? '',
         activeQuest?.id ?? '',
         playJournalLines.length,
         playFeedSegments.length,
-        questState.playDayRollStaging?.phase ?? '',
+        playSceneQuestId ?? '',
       ].join('|'),
     [
-      activeQuestTranscript.length,
       activeStep?.id,
       activeQuest?.id,
       playJournalLines.length,
       playFeedSegments.length,
-      questState.playDayRollStaging?.phase,
+      playSceneQuestId,
     ]
   );
   const characterNameLabel = useMemo(() => {
@@ -900,7 +868,6 @@ export function RPGInterface() {
     completedQuestIds,
     questState.unveiledQuestIds,
     questState.activeQuestId,
-    questState.playDayRollStaging?.phase,
     dayCounter,
     persistQuestCheckpoint,
     setQuestState,
@@ -1043,7 +1010,6 @@ export function RPGInterface() {
 
   const handleStepChoice = (choiceId: string) => {
     if (!activeQuest) return;
-    playFeedScroll.requestForceSnap();
     setQuestState((prev) => {
       const currentStep = getCurrentStep(prev, activeQuest);
       if (currentStep.type !== 'choice') return prev;
@@ -1093,7 +1059,7 @@ export function RPGInterface() {
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
       merged = applyQuestLevelMilestoneIfNeeded(prev, merged, activeQuest.id);
       merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
-      if (!wasCompleted && isCompleted && !shouldDeferDiscoveryUnveilOnComplete(merged, activeQuest)) {
+      if (!wasCompleted && isCompleted) {
         merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
       }
       if (!wasCompleted && isCompleted && activeQuest.id === QUEST_DYERS_CRYPT_ID) {
@@ -1101,7 +1067,7 @@ export function RPGInterface() {
       }
       void persistQuestCheckpoint(merged);
       if (!wasCompleted && isCompleted) {
-        setQuestPopupQuestId(null);
+        setPlaySceneQuestId(null);
       }
       return merged;
     });
@@ -1140,29 +1106,8 @@ export function RPGInterface() {
     });
   };
 
-  const handleAdvancePlayDayRoll = () => {
-    playFeedScroll.requestForceSnap();
-    setQuestState((prev) => {
-      const staging = prev.playDayRollStaging;
-      if (!staging) return prev;
-      const afterPhase = advancePlayDayRollPhase(prev);
-      let merged = afterPhase;
-      if (staging.phase === 'after_report') {
-        merged = mergeDiscoveryUnveils(
-          merged,
-          staging.completedQuestId,
-          resolveDisplayDay(merged, dayCounter)
-        );
-      }
-      void persistQuestCheckpoint(merged);
-      return merged;
-    });
-    playFeedScroll.scheduleSnap({ force: true });
-  };
-
   const handleAdvanceQuestMessage = () => {
     if (!activeQuest) return;
-    playFeedScroll.requestForceSnap();
     setQuestState((prev) => {
       const currentStep = getCurrentStep(prev, activeQuest);
       if (currentStep.type !== 'message') return prev;
@@ -1205,10 +1150,8 @@ export function RPGInterface() {
       merged = applyQuestLevelMilestoneIfNeeded(prev, merged, activeQuest.id);
       merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
       if (!wasCompleted && isCompleted) {
-        if (!shouldDeferDiscoveryUnveilOnComplete(merged, activeQuest)) {
-          merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
-        }
-        setQuestPopupQuestId(null);
+        merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
+        setPlaySceneQuestId(null);
       }
       void persistQuestCheckpoint(merged);
       return merged;
@@ -1217,7 +1160,6 @@ export function RPGInterface() {
 
   const handleNameSubmit = () => {
     if (!activeQuest) return;
-    playFeedScroll.requestForceSnap();
     const { nextState, error } = submitPlayerName(questState, activeQuest, nameInput);
     if (error) {
       setNameInputError(error);
@@ -1272,7 +1214,7 @@ export function RPGInterface() {
       withJournal = mergeDiscoveryUnveils(withJournal, QUEST_ORIGIN_ID, resolveDisplayDay(withJournal, dayCounter));
       setQuestState(withJournal);
       void persistQuestCheckpoint(withJournal);
-      setQuestPopupQuestId(null);
+      setPlaySceneQuestId(null);
       if (updatedState.characterCreationDateEastern) {
         if (user?.pubkey) {
           localStorage.setItem(
@@ -1323,7 +1265,7 @@ export function RPGInterface() {
     setActiveTab('play');
   };
 
-  const handleOpenQuestPopup = (questId: string) => {
+  const handleOpenQuest = (questId: string) => {
     if (questId === 'quest-001-origin' && !questState.flags.includes(ORIGIN_QUEST_OPENED_FLAG)) {
       const nextFlags = [...questState.flags, ORIGIN_QUEST_OPENED_FLAG];
       const nextState = { ...questState, flags: nextFlags };
@@ -1335,14 +1277,20 @@ export function RPGInterface() {
     } else {
       setActiveTab('play');
     }
-    setQuestPopupQuestId(questId);
+    setPlaySceneQuestId(questId);
   };
 
-  const handleCloseQuestPopup = () => {
-    setQuestPopupQuestId(null);
+  const handleCloseQuestScene = () => {
+    setPlaySceneQuestId(null);
   };
 
-  const handleAcknowledgeQuest = (_questId: string) => {};
+  const handlePrimaryNavClick = (key: MobileTab) => {
+    if (key === 'play' && activeTab === 'play' && playSceneQuestId) {
+      handleCloseQuestScene();
+      return;
+    }
+    setActiveTab(key);
+  };
 
   const handleLocationSceneAction = (actionLabel: string) => {
     const questId = SILVER_LAKE_SCENE_ACTION_QUEST[actionLabel];
@@ -1447,13 +1395,10 @@ export function RPGInterface() {
             playJournalLines={playJournalLines}
             newQuestIds={newQuestIds}
             questTitleById={questTitleById}
-            questById={questById}
             visibleQuests={visibleQuests}
             completedQuestIds={completedQuestIds}
-            onOpenQuestPopup={handleOpenQuestPopup}
-            onCloseQuestPopup={handleCloseQuestPopup}
-            questPopupQuestId={questPopupQuestId}
-            onAcknowledgeQuest={handleAcknowledgeQuest}
+            onOpenQuest={handleOpenQuest}
+            playSceneQuestId={playSceneQuestId}
             activeQuest={activeQuest ?? null}
             activeStep={activeStep ?? null}
             nameInput={nameInput}
@@ -1462,8 +1407,6 @@ export function RPGInterface() {
             onStepChoice={handleStepChoice}
             onNameSubmit={handleNameSubmit}
             onAdvanceQuestMessage={handleAdvanceQuestMessage}
-            playDayRollStaging={questState.playDayRollStaging ?? null}
-            onAdvancePlayDayRoll={handleAdvancePlayDayRoll}
             dialogueScrollRef={dialogueScrollRef}
             onDialogueScroll={handleDialogueScroll}
             visibleLocationActions={visibleLocationActions}
@@ -1472,13 +1415,13 @@ export function RPGInterface() {
             onLocationAction={handleLocationSceneAction}
             playerFlags={questState.flags}
             playerModifiers={questState.modifiers}
-            activeQuestTranscript={activeQuestTranscript}
-            useQuestPopupFallback={useQuestPopupFallback}
             questItems={questState.questItems}
             onInventoryPickSubmit={handleInventoryPickSubmit}
-            onQuestChoiceVisualPhase={handleQuestChoiceVisualPhase}
-            onSnapPlayFeedBottom={() => playFeedScroll.scheduleSnap({ force: true })}
             showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
+            playerHealth={questState.health}
+            onPlayerHealthChange={(health) =>
+              setQuestState((prev) => ({ ...prev, health: Math.max(0, Math.min(100, health)) }))
+            }
           />
         );
     }
@@ -1489,7 +1432,7 @@ export function RPGInterface() {
     <GamePortraitViewport>
     <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-1.5 px-0 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)]">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-0.5 px-0 pt-[max(0px,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom,0px)+1.65rem)]">
         {!hasShownGameOnce && !isQuestStateHydrated ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
@@ -1553,11 +1496,11 @@ export function RPGInterface() {
                   <button
                     key={item.key}
                     type="button"
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => handlePrimaryNavClick(item.key)}
                     className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
                     aria-label={item.label}
                   >
-                    <span className="text-base leading-none" aria-hidden>
+                    <span className="text-xs leading-none" aria-hidden>
                       {item.icon}
                     </span>
                   </button>
@@ -1570,16 +1513,6 @@ export function RPGInterface() {
     </GamePortraitViewport>
     {canShowGame ? (
       <>
-        <CarlDoorNpcPanel
-          open={
-            questPopupQuestId === QUEST_004_B_THE_DOOR_ID &&
-            activeStep?.id === QUEST_004_B_CARL_HUB_STEP_ID
-          }
-          onOpenChange={(next) => {
-            if (!next) handleCloseQuestPopup();
-          }}
-          onFarewell={() => handleStepChoice('carl-farewell')}
-        />
         <MerchantPanel
           open={questState.currentLocation === 'Merchant'}
           onOpenChange={handleMerchantDialogOpenChange}

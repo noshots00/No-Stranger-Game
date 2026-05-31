@@ -12,9 +12,9 @@
 
  *   "prints" (milestones, boar, etc.). No recent-window truncation — the opening arc is short.
 
- * - **Quest module (interactive):** active quest card + inline/popup choices; quest-scoped lines
+ * - **Quest module (interactive):** quest cards on the journal; tap opens Quest Scene.
 
- *   stay on `sourceQuestId` and do not mix into the ledger stream.
+ *   Quest-scoped lines stay on `sourceQuestId` for Chronicle; journal shows recaps.
 
  *
 

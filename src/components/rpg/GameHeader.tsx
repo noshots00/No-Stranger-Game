@@ -90,9 +90,9 @@ export function GameHeader({
     );
 
   return (
-    <header className="sticky top-0 z-20 w-full select-none backdrop-blur-[6px]" role="status" aria-label="Game status">
-      <div className="grid min-w-0 grid-cols-3 items-center gap-1 rounded-md border border-[var(--candle-rule)] bg-black/40 px-1.5 py-px font-serif text-[var(--candle-ink)] backdrop-blur-sm">
-        <p className="min-w-0 truncate text-left font-serif text-[0.5625rem] font-medium leading-none tracking-[0.02em] text-[var(--candle-ink)]">
+    <header className="sticky top-0 z-20 w-full select-none bg-black/40 backdrop-blur-[6px]" role="status" aria-label="Game status">
+      <div className="grid min-w-0 grid-cols-3 items-center gap-1 px-1.5 py-px font-serif text-[var(--candle-ink)]">
+        <p className="min-w-0 truncate text-left font-sans text-[9px] font-medium leading-none tracking-[0.02em] text-[var(--candle-ink)]">
           {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
         </p>
         {versionCell}
@@ -100,7 +100,7 @@ export function GameHeader({
           <DropdownMenuTrigger
             type="button"
             className={cn(
-              'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-serif text-[0.5625rem] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
+              'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
               locationIndicatorClass
             )}
             aria-label={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}

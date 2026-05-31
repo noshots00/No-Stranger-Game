@@ -20,8 +20,10 @@ export default {
 		},
 		extend: {
 			fontFamily: {
+				sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
 				cormorant: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-				serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+				display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+				serif: ['Georgia', '"Times New Roman"', 'ui-serif', 'serif'],
 				mono: ['"JetBrains Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
 			},
 			colors: {

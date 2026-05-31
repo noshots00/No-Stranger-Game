@@ -37,7 +37,7 @@ import type { CharacterScreenCornerControlsProps } from './CharacterScreenCorner
 import { CharacterAbilityTileGrid } from './CharacterAbilityTileGrid';
 import { CharacterInventoryDialog } from './CharacterInventoryDialog';
 import {
-  CHAR_ACTION_LINK,
+  CHAR_SHEET_ACTION,
   CHAR_BODY,
   CHAR_FOOTER,
   CHAR_META_FAINT,
@@ -609,7 +609,7 @@ export function CharacterTab({
           <button
             type="button"
             onClick={onOpenChronicle}
-            className={`choice-line character-sheet-action !w-fit !max-w-full !leading-none text-center ${CHAR_ACTION_LINK}`}
+            className={`${CHAR_SHEET_ACTION} !w-fit !max-w-full`}
           >
             Chronicle
           </button>

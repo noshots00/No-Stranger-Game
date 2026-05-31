@@ -75,6 +75,8 @@ type QuestStepBase = {
   id: string;
   text: string;
   completeQuest?: boolean;
+  /** Play quest scene: NPC talk UI + portrait from `getQuestScenePortraitSrc`. */
+  npcTalkId?: string;
 };
 
 export type MessageQuestStep = QuestStepBase & {
@@ -328,9 +330,9 @@ export type DayReportPrevSnapshot = Pick<
   | 'flags'
 >;
 
-/** Forest in-session day roll: Continue before report, then after report, then unveil next quest. */
+/** Forest in-session day roll: report already in log; one Continue to begin next day. */
 export type PlayDayRollStaging = {
-  phase: 'before_report' | 'after_report';
+  phase: 'await_continue';
   endingDay: number;
   nextDay: number;
   calendarDay: number;

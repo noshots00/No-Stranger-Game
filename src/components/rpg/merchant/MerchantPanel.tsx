@@ -94,8 +94,10 @@ export function MerchantPanel({
       setTranscript((prev) => [...prev, ...appendPair(choice.label, choice.merchantText)]);
       return;
     }
-    setTranscript((prev) => [...prev, ...appendPair(choice.label, choice.merchantBridge)]);
-    setActiveTopic(choice.topicId);
+    if (choice.type === 'enterTopic') {
+      setTranscript((prev) => [...prev, ...appendPair(choice.label, choice.merchantBridge)]);
+      setActiveTopic(choice.topicId);
+    }
   };
 
   const handleExitToMain = () => {

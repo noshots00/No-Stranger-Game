@@ -10,6 +10,8 @@ _TBD — Cliff to author._
 
 _TBD — Cliff to author._
 
+**In-game UI (type, panels, phone RPG shell):** see [UI_TOKENS.md](./UI_TOKENS.md).
+
 ## World shape: Districts and Locations
 
 The world is organized into **districts**. Each district contains one or more **locations**.

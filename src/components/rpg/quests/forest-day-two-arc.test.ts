@@ -170,7 +170,7 @@ describe('manual saga unveil', () => {
         },
       },
       playDayRollStaging: {
-        phase: 'before_report' as const,
+        phase: 'await_continue' as const,
         endingDay: 1,
         nextDay: 2,
         calendarDay: 1,

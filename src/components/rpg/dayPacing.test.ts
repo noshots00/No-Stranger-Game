@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { appendDialogue } from './dialogueFormat';
 import { buildDayReportDialogueLines } from './helpers';
 import {
-  advancePlayDayRollPhase,
   applyInSessionDayAdvanceAfterMainQuest,
   reconcileForestSessionDay,
+  reconcilePlayDayRollStaging,
   stageInSessionDayAdvanceAfterMainQuest,
 } from './dayPacing';
 import { QUEST_FIRST_NIGHT_ID } from './constants';
@@ -65,29 +65,49 @@ describe('Day 1 report after Sunset', () => {
     expect(body).toContain('Day 2 begins');
   });
 
-  it('staged forest day roll shows report only after first Continue', () => {
+  it('forest day roll appends report to the feed without Continue staging', () => {
     const prev = createInitialQuestState();
-    const staged = stageInSessionDayAdvanceAfterMainQuest(
+    const rolled = stageInSessionDayAdvanceAfterMainQuest(
       prev,
       { ...prev, flags: ['quest001-complete'] },
       1,
       QUEST_FIRST_NIGHT_ID,
       true
     );
-    expect(staged.playDayRollStaging?.phase).toBe('before_report');
-    expect(staged.dialogueLog.some((line) => line.text.includes('Day 1 Report'))).toBe(false);
-
-    const afterReport = advancePlayDayRollPhase(staged);
-    expect(afterReport.playDayRollStaging?.phase).toBe('after_report');
-    const body = afterReport.dialogueLog
+    expect(rolled.playDayRollStaging).toBeUndefined();
+    expect(rolled.activeQuestId).toBeNull();
+    const body = rolled.dialogueLog
       .filter((line) => line.speaker === 'Day Report')
       .map((line) => line.text)
       .join('\n');
     expect(body).toContain('Day 1 Report');
     expect(body).toContain('Day 2 begins');
+  });
 
-    const done = advancePlayDayRollPhase(afterReport);
-    expect(done.playDayRollStaging).toBeUndefined();
+  it('reconcilePlayDayRollStaging clears legacy await_continue staging', () => {
+    const prev = createInitialQuestState();
+    const legacy = {
+      ...prev,
+      flags: ['quest001-complete'],
+      playDayRollStaging: {
+        phase: 'await_continue' as const,
+        endingDay: 1,
+        nextDay: 2,
+        calendarDay: 1,
+        sessionOnly: true,
+        completedQuestId: QUEST_FIRST_NIGHT_ID,
+        prevForReport: {
+          modifiers: {},
+          skills: createInitialSkills(),
+          experience: 0,
+          flags: [],
+          questItems: [],
+          dayReportQuestItemsBaseline: [],
+        },
+      },
+    };
+    const fixed = reconcilePlayDayRollStaging(legacy);
+    expect(fixed.playDayRollStaging).toBeUndefined();
   });
 
   it('Day 2 report lists quest items gained during that day', () => {

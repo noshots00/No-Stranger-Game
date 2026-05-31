@@ -6,7 +6,7 @@
 import { publicAsset } from '@/lib/publicAsset';
 import { allQuests } from '@/components/rpg/quests/registry';
 import { LEGACY_RACE_SLUG_REWRITES, RACES } from '@/components/rpg/races';
-import type { QuestDefinition } from '@/components/rpg/quests/types';
+import type { QuestDefinition, QuestStep } from '@/components/rpg/quests/types';
 
 /** Folder under `public/art/converted/` (no spaces — reliable on static hosts). */
 const BATCH_SEGMENT = 'batch-2026-05-02_21-10-35';
@@ -186,6 +186,26 @@ export function getQuestPopupPortraitSrc(quest: QuestDefinition, stepId: string)
     getQuestStepImageSrc(quest, quest.startStepId) ??
     getQuestCardImageSrc(quest)
   );
+}
+
+/** Quest-scene NPC portraits (step `npcTalkId` → art). */
+export const NPC_PORTRAIT_BY_ID: Record<string, string> = {
+  carl: publicAsset(`${BATCH_PREFIX}/atlantian-artist.webp`),
+};
+
+export function getNpcPortraitSrc(npcTalkId: string): string {
+  return NPC_PORTRAIT_BY_ID[npcTalkId] ?? fallbackBatchPortraitSrc;
+}
+
+/** Quest scene portrait — NPC talk id wins; else step/start/card art chain. */
+export function getQuestScenePortraitSrc(quest: QuestDefinition, step: QuestStep): string {
+  if (step.npcTalkId) return getNpcPortraitSrc(step.npcTalkId);
+  return getQuestPopupPortraitSrc(quest, step.id);
+}
+
+export function getQuestScenePortraitAlt(quest: QuestDefinition, step: QuestStep): string {
+  if (step.npcTalkId === 'carl') return 'Carl';
+  return `${quest.title} scene`;
 }
 
 /** Portrait URL for the character sheet from canonical race slug; falls back when unknown / no race. */

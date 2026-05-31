@@ -29,6 +29,7 @@ export const quest004BTheDoor = createQuestDefinition({
     {
       id: 'carl-hub',
       type: 'choice',
+      npcTalkId: 'carl',
       text: '',
       choices: [
         {

@@ -31,6 +31,11 @@ function carlWelcomeLine(): string {
 /** Flat hub choices (topics are one-shot via UI state). */
 export const CARL_MAIN_CHOICES: DialogueChoice[] = [
   {
+    id: 'carl-attack',
+    type: 'combat',
+    label: 'Attack!',
+  },
+  {
     id: 'carl-ask-door',
     type: 'reply',
     label: 'Ask about the door',

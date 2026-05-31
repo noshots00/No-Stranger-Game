@@ -4,6 +4,12 @@ import { getQuestImageSrcForTitle } from './rpgArtAssignments';
 import type { DialogueVoice } from './dialogueFormat';
 import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
 import { isReportInfographicTitle } from './dialogueFormat';
+import {
+  RPG_UI_BODY,
+  RPG_UI_EMPHASIS,
+  RPG_UI_LOG_LINE,
+  RPG_UI_PROMPT,
+} from './typography/rpgUiTypography';
 
 function resolveQuestAssetUrl(src: string): string {
   const t = src.trim();
@@ -51,32 +57,24 @@ function QuestVisualBeatView({ beat }: { beat: QuestVisualBeat }) {
 const DIALOGUE_NARRATOR_CLASSES =
   'whitespace-pre-line font-serif text-[0.9375rem] leading-relaxed tracking-wide italic text-[var(--facsimile-narrator-ink)]';
 
-/** Play tab: narration reads as steady body text (choices mirror player-line chrome below). */
-const DIALOGUE_NARRATOR_PLAY_CLASSES =
-  'whitespace-pre-line font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]';
-
-const DIALOGUE_NARRATOR_PROMPT_PLAY_CLASSES =
-  'whitespace-pre-line rounded-r-md border-l-[3px] border-[var(--candle-flame)]/55 bg-black/40 py-2.5 pl-3 pr-2 font-cormorant text-lg font-semibold leading-snug tracking-wide text-[var(--candle-ink)] shadow-[inset_1px_0_0_rgba(230,161,87,0.2),0_1px_12px_rgba(0,0,0,0.3)] sm:text-xl';
-
 const DIALOGUE_NARRATOR_PROMPT_CHRONICLE_CLASSES =
   'whitespace-pre-line rounded-r-md border-l-[3px] border-[var(--candle-flame)]/55 bg-black/38 py-2.5 pl-3 pr-2 font-cormorant text-[1.0625rem] font-semibold leading-snug tracking-wide text-[var(--candle-ink)] shadow-[inset_1px_0_0_rgba(230,161,87,0.18),0_1px_10px_rgba(0,0,0,0.35)]';
 
 const DIALOGUE_PLAYER_BODY_CLASSES =
   'font-serif text-sm font-medium leading-6 text-[var(--facsimile-player-ink)]';
 
-/** Post-choice player line (Play feed). */
-export const PLAY_TAB_PLAYER_LINE_SHELL =
-  'ml-auto w-[min(92%,22rem)] border-l border-[var(--candle-flame-soft)] pl-3 text-right';
+/** Post-choice player line (Play feed) — full-width log, not chat rail. */
+export const PLAY_TAB_PLAYER_LINE_SHELL = 'w-full py-0.5 text-left';
 
-/** Quest choice rail — same width/alignment as player line, without the accent bar. */
-export const PLAY_TAB_QUEST_CHOICE_SHELL = 'ml-auto w-[min(92%,22rem)] text-right';
+/** Quest choice rail — legacy inline quest; full width on Play. */
+export const PLAY_TAB_QUEST_CHOICE_SHELL = 'w-full text-left';
 
 export const PLAY_TAB_PLAYER_LINE_TEXT =
-  'font-serif text-[0.9375rem] font-medium leading-relaxed text-[var(--candle-wax)]';
+  'font-sans text-[11px] font-medium leading-snug text-[var(--candle-wax)]';
 
 /** Same metrics as `PLAY_TAB_PLAYER_LINE_TEXT` with `!` so it wins over global `.choice-line`. */
 export const PLAY_TAB_PLAYER_LINE_TEXT_CHOICE =
-  '!font-serif !text-[0.9375rem] !font-medium !leading-snug !text-[var(--candle-wax)] !text-right';
+  '!font-sans !text-[11px] !font-medium !leading-snug !text-[var(--candle-wax)] !text-left';
 
 /** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
 export const DIALOGUE_DEV_MESSAGE_CLASSES =
@@ -91,17 +89,16 @@ export function DialogueVoiceBlock({
   lines: DialogueLogEntry[];
   presentation?: 'play' | 'chronicle';
 }) {
-  const narratorClasses =
-    presentation === 'play' ? DIALOGUE_NARRATOR_PLAY_CLASSES : DIALOGUE_NARRATOR_CLASSES;
+  const narratorClasses = presentation === 'play' ? RPG_UI_LOG_LINE : DIALOGUE_NARRATOR_CLASSES;
   const narratorPromptClasses =
-    presentation === 'play' ? DIALOGUE_NARRATOR_PROMPT_PLAY_CLASSES : DIALOGUE_NARRATOR_PROMPT_CHRONICLE_CLASSES;
+    presentation === 'play' ? RPG_UI_PROMPT : DIALOGUE_NARRATOR_PROMPT_CHRONICLE_CLASSES;
   const playerBodyClasses =
     presentation === 'play' ? PLAY_TAB_PLAYER_LINE_TEXT : DIALOGUE_PLAYER_BODY_CLASSES;
 
   if (role === 'narrator_prompt') {
     return (
       <div className="py-0.5">
-        <div className="space-y-1.5">
+        <div className={presentation === 'play' ? 'rpg-panel rounded-sm px-2 py-1.5' : 'space-y-1.5'}>
           {lines.map((line) => (
             <p key={line.id} className={narratorPromptClasses}>
               {line.text}
@@ -115,7 +112,7 @@ export function DialogueVoiceBlock({
   if (role === 'narrator') {
     return (
       <div className="py-0.5">
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {lines.map((line) => (
             <p key={line.id} className={narratorClasses}>
               {line.text}
@@ -150,20 +147,19 @@ export function DialogueVoiceBlock({
     const [titleLine, ...bodyLines] = lines;
     const hasStyledTitle = Boolean(titleLine && isReportInfographicTitle(titleLine.text));
     const reportBodyLines = hasStyledTitle ? bodyLines : lines;
-    const shellPlay =
-      'rounded-lg border border-[var(--candle-rule)] bg-black/30 px-4 py-[5px] shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
+    const shellPlay = 'rpg-panel rounded-sm px-2 py-1';
     const shellChronicle =
       'rounded-lg border border-[var(--candle-rule)] bg-[rgba(0,0,0,0.28)] px-4 py-[5px] shadow-[inset_0_0_0_1px_rgba(230,161,87,0.04)]';
     return (
       <div className="py-0">
         <div className={presentation === 'play' ? shellPlay : shellChronicle}>
           {hasStyledTitle && titleLine ? (
-            <p className="font-cormorant text-sm font-medium leading-none tracking-[0.04em] text-[var(--candle-wax)]">
-              {titleLine.text}
-            </p>
+            <p className={`${RPG_UI_EMPHASIS} text-[var(--candle-wax)]`}>{titleLine.text}</p>
           ) : null}
           {reportBodyLines.length > 0 ? (
-            <ul className="mt-[2px] list-disc space-y-0 pl-4 font-serif text-xs leading-snug text-[var(--candle-ink-soft)]">
+            <ul
+              className={`mt-0.5 list-disc space-y-0 pl-4 ${presentation === 'play' ? RPG_UI_BODY : 'font-serif text-xs leading-snug text-[var(--candle-ink-soft)]'}`}
+            >
               {reportBodyLines.map((line) => (
                 <li key={line.id}>{line.text}</li>
               ))}
@@ -201,10 +197,7 @@ export function DialogueVoiceBlock({
   }
 
   if (role === 'journal_recap') {
-    const bodyClass =
-      presentation === 'play'
-        ? 'whitespace-pre-line font-serif text-[1rem] leading-relaxed tracking-normal not-italic text-[var(--candle-ink-soft)]'
-        : 'whitespace-pre-line font-serif text-[0.9375rem] leading-relaxed text-[var(--candle-ink-soft)]';
+    const bodyClass = presentation === 'play' ? RPG_UI_LOG_LINE : DIALOGUE_NARRATOR_CLASSES;
     return (
       <div className="space-y-1 py-0.5">
         {lines.map((line) => (
@@ -223,14 +216,14 @@ export function DialogueVoiceBlock({
 
   return (
     <div className={playerShellClass}>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         {lines.map((line) => (
           <div key={line.id}>
             {line.speaker === PLAYER_ACTION_SPEAKER || line.speaker === 'You' ? (
               <p className={playerBodyClasses}>{line.text}</p>
             ) : (
               <p className={playerBodyClasses}>
-                <span className="font-medium text-[var(--facsimile-player-label)]">{line.speaker}: </span>
+                <span className="font-medium text-[var(--candle-flame-soft)]">{line.speaker}: </span>
                 {line.text}
               </p>
             )}
