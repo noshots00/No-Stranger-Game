@@ -7,6 +7,7 @@ import type {
   QuestContext,
   QuestDefinition,
   QuestImageRef,
+  MessageQuestStep,
   PlayDayRollStaging,
   QuestProgress,
   QuestState,
@@ -271,6 +272,10 @@ const LEGACY_CONTINUE_BRIDGE_STEP_REDIRECTS: Record<string, string> = {
   'tree-continue': 'tree-vista',
 };
 
+/** Mid-quest narration that only existed to force a Continue tap before the next beat. */
+export const isContinueBridgeMessageStep = (step: QuestStep): step is MessageQuestStep =>
+  step.type === 'message' && Boolean(step.nextStepId?.trim()) && !step.completeQuest;
+
 const migrateLegacyContinueBridgeSteps = <T extends {
   progressByQuestId: Record<string, QuestProgress>;
   activeQuestId: string | null;
@@ -281,8 +286,24 @@ const migrateLegacyContinueBridgeSteps = <T extends {
   const progressByQuestId = { ...args.progressByQuestId };
   for (const [questId, prog] of Object.entries(progressByQuestId)) {
     const redirect = LEGACY_CONTINUE_BRIDGE_STEP_REDIRECTS[prog.currentStepId];
-    if (!redirect) continue;
-    progressByQuestId[questId] = { ...prog, currentStepId: redirect };
+    if (redirect) progressByQuestId[questId] = { ...prog, currentStepId: redirect };
+  }
+  for (const [questId, prog] of Object.entries(progressByQuestId)) {
+    if (prog.isCompleted) continue;
+    const quest = questById[questId];
+    if (!quest) continue;
+    let stepId = prog.currentStepId;
+    let guard = 0;
+    while (guard++ < 32) {
+      const step = quest.steps[stepId];
+      if (!step || !isContinueBridgeMessageStep(step)) break;
+      const nextId = step.nextStepId?.trim();
+      if (!nextId || !quest.steps[nextId]) break;
+      stepId = nextId;
+    }
+    if (stepId !== prog.currentStepId) {
+      progressByQuestId[questId] = { ...prog, currentStepId: stepId };
+    }
   }
   return { ...args, progressByQuestId };
 };
@@ -1680,7 +1701,131 @@ const moveToStep = (
 
   nextState = applyHealthFromChoiceEffect(nextState, choice.effects);
 
-  return nextState;
+  const entryStepId = clearActive ? quest.startStepId : nextStepId;
+  nextState = autoAdvanceContinueBridgeSteps(nextState, quest);
+  return applyLastBeatResponse(nextState, quest, entryStepId);
+};
+
+/** Skip `message` steps that only bridge to the next beat (no Continue tap). */
+export const autoAdvanceContinueBridgeSteps = (
+  state: QuestState,
+  quest: QuestDefinition
+): QuestState => {
+  let next = state;
+  for (let i = 0; i < 32; i++) {
+    const step = getCurrentStep(next, quest);
+    if (!isContinueBridgeMessageStep(step)) break;
+    const advanced = advanceQuestMessage(next, quest);
+    if (!advanced) break;
+    next = advanced;
+  }
+  return next;
+};
+
+export type QuestSceneTextBands = {
+  /** Outcome / narration from the latest choice (bridge messages). */
+  response: string;
+  /** Current step prompt (e.g. hub question). */
+  prompt: string;
+};
+
+const formatBeatResponseRaw = (
+  quest: QuestDefinition,
+  startStepId: string,
+  endStepId: string
+): string =>
+  collectContinueBridgeChainTexts(quest, startStepId, endStepId)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .join('\n\n');
+
+const applyLastBeatResponse = (
+  state: QuestState,
+  quest: QuestDefinition,
+  entryStepId: string
+): QuestState => {
+  const progress = state.progressByQuestId[quest.id];
+  if (!progress) return state;
+  const finalStepId = getCurrentStep(state, quest).id;
+  const lastBeatResponse = formatBeatResponseRaw(quest, entryStepId, finalStepId);
+  return {
+    ...state,
+    progressByQuestId: {
+      ...state.progressByQuestId,
+      [quest.id]: {
+        ...progress,
+        lastBeatResponse: lastBeatResponse.length > 0 ? lastBeatResponse : undefined,
+      },
+    },
+  };
+};
+
+/** Quest scene dialogue box: latest outcome plus current step prompt. */
+export const resolveQuestSceneTextBands = (
+  quest: QuestDefinition,
+  step: QuestStep,
+  progress: QuestProgress | undefined,
+  playerName: string,
+  extras?: Record<string, string>
+): QuestSceneTextBands => {
+  const response = progress?.lastBeatResponse
+    ? interpolateStepText(progress.lastBeatResponse, playerName, extras)
+    : '';
+  let prompt = '';
+  if (step.type === 'choice' && step.text.trim().length > 0) {
+    prompt = interpolateStepText(step.text.trim(), playerName, extras);
+  } else if (step.type === 'message' && !step.nextStepId?.trim()) {
+    prompt = interpolateStepText(step.text.trim(), playerName, extras);
+  } else if (step.type === 'message' && step.completeQuest) {
+    prompt = interpolateStepText(step.text.trim(), playerName, extras);
+  }
+  if (response.length > 0 || prompt.length > 0) {
+    return { response, prompt };
+  }
+  if (step.type !== 'choice') return { response: '', prompt: '' };
+  const inbound = Object.values(quest.steps)
+    .filter(
+      (s): s is MessageQuestStep =>
+        isContinueBridgeMessageStep(s) && s.nextStepId === step.id
+    )
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const fallback = inbound
+    .map((s) => interpolateStepText(s.text.trim(), playerName, extras))
+    .filter((t) => t.length > 0)
+    .join('\n\n');
+  return { response: fallback, prompt: '' };
+};
+
+/** Combined narrative for popups and legacy callers. */
+export const resolveQuestStepNarrativeText = (
+  quest: QuestDefinition,
+  step: QuestStep,
+  playerName: string,
+  extras?: Record<string, string>,
+  progress?: QuestProgress
+): string => {
+  const { response, prompt } = resolveQuestSceneTextBands(quest, step, progress, playerName, extras);
+  return [response, prompt].filter((t) => t.length > 0).join('\n\n');
+};
+
+/** Texts of bridge `message` steps walked when advancing from `startStepId` to `endStepId`. */
+export const collectContinueBridgeChainTexts = (
+  quest: QuestDefinition,
+  startStepId: string,
+  endStepId: string
+): string[] => {
+  const texts: string[] = [];
+  let id = startStepId;
+  for (let guard = 0; guard < 32 && id !== endStepId; guard++) {
+    const step = quest.steps[id];
+    if (!step || !isContinueBridgeMessageStep(step)) break;
+    const t = step.text.trim();
+    if (t) texts.push(t);
+    const next = step.nextStepId?.trim();
+    if (!next) break;
+    id = next;
+  }
+  return texts;
 };
 
 const finalizeChoiceState = (
@@ -1993,6 +2138,9 @@ export const submitQuestInventoryPick = (
     `You threw a ${trimmed} into the well.`,
     nextState.playerName
   );
+
+  nextState = autoAdvanceContinueBridgeSteps(nextState, quest);
+  nextState = applyLastBeatResponse(nextState, quest, nextStepId);
 
   return { nextState: finalizeChoiceState(nextState, previousFlags, calendarDay) };
 };

@@ -198,6 +198,8 @@ export type QuestProgress = {
   currentStepId: string;
   isCompleted: boolean;
   choiceHistory: string[];
+  /** Narration from the most recent choice (skipped Continue bridges), for quest scene display. */
+  lastBeatResponse?: string;
   /** Prior step ids for dev back navigation (testing). */
   devStepHistory?: string[];
   /** Modifier map when this quest was first opened (dev restart / rewind). */

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { HeaderHealthBar } from './HeaderHealthBar';
 import type { TravelMenuItem } from './travelLocations';
 import {
@@ -66,6 +65,69 @@ export function GameHeader({
   onDevToolsMenuOpenChange,
   health = 100,
 }: GameHeaderProps) {
+  const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
+  const selectableDestinations = travelMenuItems.length;
+  const locationLabel = formatLocationLabel(currentLocation);
+
+  const locationControl =
+    selectableDestinations === 0 ? (
+      <span
+        className={cn(
+          'inline-flex min-w-0 max-w-full items-center justify-end truncate font-sans text-[9px] uppercase leading-none tracking-[0.14em]',
+          locationIndicatorClass
+        )}
+      >
+        {locationLabel}
+        {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+      </span>
+    ) : selectableDestinations === 1 ? (
+      <button
+        type="button"
+        onClick={() => onTravelLocationSelect(travelMenuItems[0]!.locationId)}
+        className={cn(
+          'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
+          locationIndicatorClass
+        )}
+        aria-label={locationMenuNotify ? 'Travel (new place available)' : 'Travel'}
+      >
+        <span className="truncate">{locationLabel}</span>
+        {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+      </button>
+    ) : (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          type="button"
+          className={cn(
+            'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
+            locationIndicatorClass
+          )}
+          aria-label={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}
+        >
+          <span className="truncate">{locationLabel}</span>
+          {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="z-[60] min-w-[10rem] border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)]"
+        >
+          {travelMenuItems.map((item) => (
+            <DropdownMenuItem
+              key={item.locationId}
+              onSelect={() => onTravelLocationSelect(item.locationId)}
+              className={cn(
+                'flex items-center justify-between gap-2 font-serif text-sm uppercase tracking-[0.12em] focus:bg-[var(--candle-flame)]/15',
+                item.indent ? 'pl-6' : undefined,
+                item.locationId === menuHighlight ? 'text-[var(--candle-wax)]' : 'text-[var(--candle-ink-soft)]'
+              )}
+            >
+              <span className="truncate">{item.label}</span>
+              {item.showNew ? <TravelNewDot /> : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+
   const versionCell =
     showHeaderDevTools && devToolsPanel ? (
       <DropdownMenu open={devToolsMenuOpen} onOpenChange={onDevToolsMenuOpenChange}>
@@ -96,42 +158,7 @@ export function GameHeader({
           {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
         </p>
         {versionCell}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            type="button"
-            className={cn(
-              'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
-              locationIndicatorClass
-            )}
-            aria-label={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}
-          >
-            <span className="truncate">{formatLocationLabel(currentLocation)}</span>
-            {locationMenuNotify ? <TravelNewDot className="mr-0.5" /> : null}
-            <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="z-[60] min-w-[10rem] border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)]"
-          >
-            {travelMenuItems.map((item) => {
-              const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
-              return (
-              <DropdownMenuItem
-                key={item.locationId}
-                onSelect={() => onTravelLocationSelect(item.locationId)}
-                className={cn(
-                  'flex items-center justify-between gap-2 font-serif text-sm uppercase tracking-[0.12em] focus:bg-[var(--candle-flame)]/15',
-                  item.indent ? 'pl-6' : undefined,
-                  item.locationId === menuHighlight ? 'text-[var(--candle-wax)]' : 'text-[var(--candle-ink-soft)]'
-                )}
-              >
-                <span className="truncate">{item.label}</span>
-                {item.showNew ? <TravelNewDot /> : null}
-              </DropdownMenuItem>
-            );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {locationControl}
       </div>
     </header>
   );

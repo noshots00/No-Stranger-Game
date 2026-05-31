@@ -119,13 +119,7 @@ export function buildForestTravelMenuItems(
   state: QuestState
 ): TravelMenuItem[] {
   const pings = forestTravelNotificationsPending(state);
-  const items: TravelMenuItem[] = [
-    {
-      locationId: FOREST_PARENT_LOCATION,
-      label: formatLabel(FOREST_PARENT_LOCATION),
-      showNew: pings.forest,
-    },
-  ];
+  const items: TravelMenuItem[] = [];
   if (isAncientCemeteryTravelUnlocked(state)) {
     items.push({
       locationId: ANCIENT_CEMETERY_LOCATION,

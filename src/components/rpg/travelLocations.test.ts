@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANCIENT_CEMETERY_DISCOVERED_FLAG,
   ANCIENT_CEMETERY_LOCATION,
+  FOREST_PARENT_LOCATION,
   QUEST_DYERS_CRYPT_ID,
 } from './constants';
 import { createInitialQuestState } from './quests/engine';
@@ -52,6 +53,11 @@ describe('Ancient Cemetery travel', () => {
       forestSubLocation: null,
     });
     expect(flags).toContain(ANCIENT_CEMETERY_DISCOVERED_FLAG);
+  });
+
+  it('does not list the forest parent hub as a travel row (sublocations only)', () => {
+    const items = buildForestTravelMenuItems((id) => id, createInitialQuestState());
+    expect(items.some((item) => item.locationId === FOREST_PARENT_LOCATION)).toBe(false);
   });
 
   it('repairs the discovery flag when the player hid and found the cemetery', () => {

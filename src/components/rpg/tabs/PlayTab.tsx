@@ -6,6 +6,7 @@ import type {
   JournalLogEntry,
   ModifierMap,
   QuestDefinition,
+  QuestProgress,
   QuestStep,
 } from '../quests/types';
 type PlayTabProps = {
@@ -38,6 +39,7 @@ type PlayTabProps = {
   showQuestChoiceEffects?: boolean;
   playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
+  questProgress?: QuestProgress;
 };
 
 export function PlayTab({
@@ -70,6 +72,7 @@ export function PlayTab({
   showQuestChoiceEffects = false,
   playerHealth = 100,
   onPlayerHealthChange,
+  questProgress,
 }: PlayTabProps) {
   const showQuestScene =
     Boolean(playSceneQuestId) &&
@@ -98,6 +101,7 @@ export function PlayTab({
         showQuestChoiceEffects={showQuestChoiceEffects}
         playerHealth={playerHealth}
         onPlayerHealthChange={onPlayerHealthChange}
+        questProgress={questProgress}
       />
       </div>
     );

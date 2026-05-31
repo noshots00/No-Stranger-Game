@@ -6,8 +6,15 @@ import {
   PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
 } from '../DialogueVoiceBlock';
 import { thrownItemLabelFromFlags } from '../constants';
-import { interpolateStepText } from '../quests/engine';
-import type { DialogueLogEntry, ModifierMap, QuestChoice, QuestDefinition, QuestStep } from '../quests/types';
+import { interpolateStepText, resolveQuestStepNarrativeText } from '../quests/engine';
+import type {
+  DialogueLogEntry,
+  ModifierMap,
+  QuestChoice,
+  QuestDefinition,
+  QuestProgress,
+  QuestStep,
+} from '../quests/types';
 import { NpcTalkDialog } from '../npc/NpcTalkDialog';
 import { getQuestPopupPortraitSrc, getQuestStepImageSrc } from '../rpgArtAssignments';
 import { npcTranscriptWithStepFallback } from '../quests/questPopupTranscript';
@@ -47,6 +54,7 @@ type QuestPopupProps = {
   presentation?: 'modal' | 'inline';
   /** Quest-attributed dialogue lines for this session (mirrors merchant-style transcript). */
   questTranscript: DialogueLogEntry[];
+  questProgress?: QuestProgress;
   /** Bracket visual choice transition — parent can defer instant play-feed snap (see `QUEST_TRANSITION_MS`). */
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
   /** Inline play feed: keep dialogue + options scrolled into view after layout changes. */
@@ -125,10 +133,11 @@ export function QuestPopup({
   onStepChoice,
   onNameSubmit,
   onInventoryPickSubmit,
-  onAdvanceQuestMessage,
+  onAdvanceQuestMessage: _onAdvanceQuestMessage,
   onClose,
   presentation = 'modal',
   questTranscript,
+  questProgress,
   onQuestChoiceVisualPhase,
   showQuestChoiceEffects = false,
 }: QuestPopupProps) {
@@ -141,10 +150,14 @@ export function QuestPopup({
     ? normalizePromptText(interpolateStepText(startStep.text.trim(), nameForTemplates))
     : '';
   const thrownLabel = thrownItemLabelFromFlags(playerFlags);
-  const narrativeText =
-    step.text.trim().length > 0
-      ? interpolateStepText(step.text.trim(), nameForTemplates, thrownLabel ? { thrownItem: thrownLabel } : undefined)
-      : '';
+  const narrativeExtras = thrownLabel ? { thrownItem: thrownLabel } : undefined;
+  const narrativeText = resolveQuestStepNarrativeText(
+    quest,
+    step,
+    nameForTemplates,
+    narrativeExtras,
+    questProgress
+  );
   const isLocationPopupQuest = Boolean(quest.locationPopup);
   const [inventoryPickLabel, setInventoryPickLabel] = useState('');
   useEffect(() => {
@@ -233,14 +246,8 @@ export function QuestPopup({
     }, QUEST_TRANSITION_MS);
   };
 
-  const showMessageContinue =
-    step.type === 'message' &&
-    Boolean(step.nextStepId) &&
-    !step.completeQuest &&
-    typeof onAdvanceQuestMessage === 'function';
-
   const choicePaneVisible =
-    step.type === 'choice' || step.type === 'input' || step.type === 'inventoryPick' || showMessageContinue;
+    step.type === 'choice' || step.type === 'input' || step.type === 'inventoryPick';
 
   const shellClass =
     presentation === 'modal'
@@ -313,27 +320,6 @@ export function QuestPopup({
           npcTalkLayout ? 'gap-0 px-1' : isInlinePlay ? 'gap-0 py-0 pr-0' : 'gap-0.5 py-1 pr-4'
         )}
       >
-        {showMessageContinue ? (
-          <div
-            className={cn(
-              'border-b border-[var(--candle-rule)]/80 px-1 pb-1.5',
-              npcTalkLayout ? 'space-y-1' : 'space-y-2 pb-2'
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => onAdvanceQuestMessage?.()}
-              className={
-                npcTalkLayout
-                  ? `${RPG_DIALOG_CHOICE_CLASS} text-emerald-200/90 hover:text-emerald-300`
-                  : 'choice-line w-auto border-b border-transparent py-2 text-emerald-200 hover:text-emerald-300'
-              }
-            >
-              Continue
-            </button>
-          </div>
-        ) : null}
-
         {step.type === 'choice' ? (
           <div className={cn('quest-body-layer', isInlinePlay && !npcTalkLayout ? 'space-y-0' : 'space-y-2')}>
             {showQuestChoiceEffects && step.worldEventLogAfterChoice?.length ? (

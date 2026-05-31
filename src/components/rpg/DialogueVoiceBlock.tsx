@@ -67,14 +67,14 @@ const DIALOGUE_PLAYER_BODY_CLASSES =
 export const PLAY_TAB_PLAYER_LINE_SHELL = 'w-full py-0.5 text-left';
 
 /** Quest choice rail — legacy inline quest; full width on Play. */
-export const PLAY_TAB_QUEST_CHOICE_SHELL = 'w-full text-left';
+export const PLAY_TAB_QUEST_CHOICE_SHELL = 'w-full text-center';
 
 export const PLAY_TAB_PLAYER_LINE_TEXT =
   'font-sans text-[11px] font-medium leading-snug text-[var(--candle-wax)]';
 
 /** Same metrics as `PLAY_TAB_PLAYER_LINE_TEXT` with `!` so it wins over global `.choice-line`. */
 export const PLAY_TAB_PLAYER_LINE_TEXT_CHOICE =
-  '!font-sans !text-[11px] !font-medium !leading-snug !text-[var(--candle-wax)] !text-left';
+  '!font-sans !text-[11px] !font-medium !leading-snug !text-[var(--candle-wax)] !text-center';
 
 /** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
 export const DIALOGUE_DEV_MESSAGE_CLASSES =

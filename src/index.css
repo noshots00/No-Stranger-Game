@@ -187,13 +187,18 @@
 
   /* Body: candlelit journal defaults (shadcn tokens still drive primitives) */
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply antialiased;
     min-height: 100dvh;
     font-family: "Cormorant Garamond", ui-serif, Georgia, serif;
     font-size: 1.125rem;
     line-height: 1.6;
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: var(--candle-void);
+    color: var(--candle-ink);
+  }
+
+  #root {
+    min-height: 100dvh;
+    background-color: var(--candle-void);
   }
 }
 
@@ -245,7 +250,7 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.1rem;
     padding: 0.12rem 0 calc(env(safe-area-inset-bottom, 0px) + 0.18rem);
-    background: linear-gradient(180deg, transparent, rgba(15, 12, 10, 0.92));
+    background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(6px);
   }
 
@@ -410,21 +415,20 @@
   .choice-line.play-quest-choice {
     display: block;
     width: 100%;
-    text-align: right;
+    text-align: center;
     padding: 0;
     margin: 0;
     border: none;
     border-bottom: none;
     background: transparent;
     cursor: pointer;
-    transition: color 220ms ease, opacity 900ms ease, filter 900ms ease, transform 220ms ease, text-shadow 220ms ease;
+    transition: color 220ms ease, opacity 900ms ease, filter 900ms ease, text-shadow 220ms ease;
   }
 
   .choice-line.play-quest-choice:hover,
   .choice-line.play-quest-choice:focus-visible {
     color: color-mix(in srgb, var(--candle-flame-soft) 88%, var(--candle-wax));
     text-shadow: 0 0 8px color-mix(in srgb, var(--candle-flame-soft) 36%, transparent);
-    transform: translateX(-2px);
     border-bottom: none;
     border-bottom-color: transparent;
     outline: none;
@@ -1017,6 +1021,8 @@
     position: relative;
     min-height: 0;
     overflow: hidden;
+    border-left-width: 0;
+    border-right-width: 0;
   }
 
   .quest-scene-portrait-anchor {
@@ -1044,6 +1050,22 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
   }
 
+  /* Dialogue + choices read as one strip: no seam border or inset highlight */
+  .quest-scene-text-box.rpg-panel,
+  .quest-scene-action-box.rpg-panel {
+    border-left-width: 0;
+    border-right-width: 0;
+    box-shadow: none;
+  }
+
+  .quest-scene-text-box.rpg-panel {
+    border-bottom-width: 0;
+  }
+
+  .quest-scene-action-box.rpg-panel {
+    border-top-width: 0;
+  }
+
   .quest-scene-text-box {
     min-height: 0;
     overflow-y: auto;
@@ -1056,30 +1078,60 @@
     overscroll-behavior: contain;
   }
 
+  .quest-scene-root .rpg-command-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .quest-scene-root .rpg-command-chip .rpg-command-chip-label {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .quest-scene-root .rpg-command-chip--continue {
+    text-align: center;
+  }
+
   .quest-scene-action-inner {
     min-height: 100%;
   }
 
   .quest-scene-choice-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-evenly;
+    align-items: stretch;
     row-gap: 0.125rem;
-    align-content: start;
-  }
-
-  @media (max-width: 320px) {
-    .quest-scene-choice-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    list-style: none;
+    padding: 0;
+    margin: 0;
   }
 
   .quest-scene-choice-grid > li {
+    display: flex;
+    justify-content: center;
     min-width: 0;
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .quest-scene-root .quest-scene-choice-grid .rpg-command-chip {
+    width: max-content;
+    max-width: 100%;
   }
 
   .quest-scene-choice-span-full {
-    grid-column: 1 / -1;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .quest-scene-choice-span-full .rpg-command-chip {
+    width: 100%;
   }
 
   .quest-scene-choice:active {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { thrownItemLabelFromFlags } from '../constants';
-import { interpolateStepText } from '../quests/engine';
-import type { ModifierMap, QuestChoice, QuestDefinition, QuestStep } from '../quests/types';
+import { resolveQuestSceneTextBands } from '../quests/engine';
+import type { ModifierMap, QuestChoice, QuestDefinition, QuestProgress, QuestStep } from '../quests/types';
 import { getQuestCardImageSrc, getQuestScenePortraitAlt, getQuestScenePortraitSrc } from '../rpgArtAssignments';
 import { QuestSceneNpcTalk } from './QuestSceneNpcTalk';
 import {
@@ -46,6 +46,7 @@ export type QuestSceneScreenProps = {
   showQuestChoiceEffects?: boolean;
   playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
+  questProgress?: QuestProgress;
 };
 
 export function QuestSceneScreen({
@@ -62,10 +63,11 @@ export function QuestSceneScreen({
   onStepChoice,
   onNameSubmit,
   onInventoryPickSubmit,
-  onAdvanceQuestMessage,
+  onAdvanceQuestMessage: _onAdvanceQuestMessage,
   showQuestChoiceEffects = false,
   playerHealth = 100,
   onPlayerHealthChange,
+  questProgress,
 }: QuestSceneScreenProps) {
   const [combatChrome, setCombatChrome] = useState(false);
   const handleCombatChromeChange = useCallback((active: boolean) => {
@@ -78,10 +80,14 @@ export function QuestSceneScreen({
   const isNpcTalk = Boolean(step.npcTalkId);
   const nameForTemplates = committedPlayerName.trim() || nameInput.trim();
   const thrownLabel = thrownItemLabelFromFlags(playerFlags);
-  const narrativeText =
-    step.text.trim().length > 0
-      ? interpolateStepText(step.text.trim(), nameForTemplates, thrownLabel ? { thrownItem: thrownLabel } : undefined)
-      : '';
+  const narrativeExtras = thrownLabel ? { thrownItem: thrownLabel } : undefined;
+  const { response: beatResponse, prompt: beatPrompt } = resolveQuestSceneTextBands(
+    quest,
+    step,
+    questProgress,
+    nameForTemplates,
+    narrativeExtras
+  );
 
   const [inventoryPickLabel, setInventoryPickLabel] = useState('');
 
@@ -97,27 +103,18 @@ export function QuestSceneScreen({
       ? trimmedNameInput.length >= (step.minLength ?? 2) && trimmedNameInput.length <= (step.maxLength ?? 32)
       : false;
 
-  const showMessageContinue =
-    step.type === 'message' &&
-    Boolean(step.nextStepId) &&
-    !step.completeQuest &&
-    typeof onAdvanceQuestMessage === 'function';
-
-  const textBoxClass =
-    step.type === 'choice' ? QUEST_SCENE_PROMPT : QUEST_SCENE_RESPONSE;
-
   const renderChoiceButton = (choice: QuestChoice, renderedLabel: string, isLocked: boolean) => (
     <button
       type="button"
       disabled={isLocked}
       aria-disabled={isLocked || undefined}
-      className={cn(QUEST_SCENE_CHOICE, QUEST_SCENE_CHOICE_LABEL, isLocked && 'cursor-not-allowed opacity-50')}
+      className={cn(QUEST_SCENE_CHOICE, isLocked && 'cursor-not-allowed opacity-50')}
       onClick={() => {
         if (isLocked) return;
         onStepChoice(choice.id);
       }}
     >
-      {renderedLabel}
+      <span className={QUEST_SCENE_CHOICE_LABEL}>{renderedLabel}</span>
     </button>
   );
 
@@ -125,7 +122,7 @@ export function QuestSceneScreen({
     <section
       className={cn('quest-scene-root', combatChrome && 'quest-scene-root--combat')}
     >
-      <div className="quest-scene-stage rounded-t-md border border-b-0 border-[var(--candle-rule)]">
+      <div className="quest-scene-stage rounded-t-md border border-x-0 border-b-0 border-[var(--candle-rule)]">
         <img src={backgroundSrc} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
         <div className="quest-scene-stage-gradient absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/70" aria-hidden />
         <div className="quest-scene-stage-combat-vignette absolute inset-0" aria-hidden />
@@ -154,8 +151,15 @@ export function QuestSceneScreen({
       ) : (
         <>
       <div className="quest-scene-text-box rpg-panel facsimile-scroll border-x-0 px-2.5 py-2">
-        {narrativeText.length > 0 ? (
-          <p className={cn('whitespace-pre-line', textBoxClass)}>{narrativeText}</p>
+        {beatResponse.length > 0 || beatPrompt.length > 0 ? (
+          <div className="space-y-1.5">
+            {beatResponse.length > 0 ? (
+              <p className={cn('whitespace-pre-line', QUEST_SCENE_RESPONSE)}>{beatResponse}</p>
+            ) : null}
+            {beatPrompt.length > 0 ? (
+              <p className={cn('whitespace-pre-line', QUEST_SCENE_PROMPT)}>{beatPrompt}</p>
+            ) : null}
+          </div>
         ) : (
           <p className={cn('italic opacity-60', QUEST_SCENE_META)}>…</p>
         )}
@@ -163,12 +167,6 @@ export function QuestSceneScreen({
 
       <div className="quest-scene-action-box rpg-panel facsimile-scroll px-1.5 py-1">
         <div className="quest-scene-action-inner">
-          {showMessageContinue ? (
-            <button type="button" onClick={() => onAdvanceQuestMessage?.()} className={QUEST_SCENE_CONTINUE}>
-              Continue
-            </button>
-          ) : null}
-
           {step.type === 'choice' && !step.npcTalkId ? (
             <>
               {showQuestChoiceEffects && step.worldEventLogAfterChoice?.length ? (

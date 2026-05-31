@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import {
   advanceQuestMessage,
+  collectContinueBridgeChainTexts,
   applyChoice,
   applyDirectModifiersDelta,
   ensureQuestProgress,
@@ -1020,6 +1021,8 @@ export function RPGInterface() {
       const nextStep = getCurrentStep(nextState, activeQuest);
       const qid = activeQuest.id;
       const qOpts = { sourceQuestId: qid };
+      const bridgeStartId = selectedChoice.nextStepId ?? currentStep.id;
+      const finalStepId = nextState.progressByQuestId[qid]?.currentStepId ?? bridgeStartId;
       const nextLog = [
         ...nextState.dialogueLog,
         appendDialogue(
@@ -1030,15 +1033,17 @@ export function RPGInterface() {
         ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
       ];
 
-      if (nextStep.type === 'message') {
-        const narr = interpolateQuestCopy(nextStep.text, nextState);
+      for (const raw of collectContinueBridgeChainTexts(activeQuest, bridgeStartId, finalStepId)) {
+        const narr = interpolateQuestCopy(raw, nextState);
         if (narr.trim().length > 0) {
           nextLog.push(appendDialogue(NARRATOR_RESPONSE_SPEAKER, narr, qOpts));
         }
-      } else if (
-        nextStep.type !== 'input' &&
-        nextStep.type !== 'inventoryPick' &&
-        !nextState.progressByQuestId[activeQuest.id]?.isCompleted
+      }
+
+      if (
+        nextStep.type === 'choice' &&
+        !nextState.progressByQuestId[activeQuest.id]?.isCompleted &&
+        nextStep.text.trim().length > 0
       ) {
         const narr = interpolateQuestCopy(nextStep.text, nextState);
         if (narr.trim().length > 0) {
@@ -1076,6 +1081,7 @@ export function RPGInterface() {
   const handleInventoryPickSubmit = (itemLabel: string) => {
     if (!activeQuest) return;
     setQuestState((prev) => {
+      const priorStep = getCurrentStep(prev, activeQuest);
       const { nextState, error } = submitQuestInventoryPick(
         prev,
         activeQuest,
@@ -1094,10 +1100,21 @@ export function RPGInterface() {
         ),
         ...visualDialogueEntriesForQuestStep(activeQuest, nextStep.id),
       ];
-      if (nextStep.type === 'message') {
+      const pickBridgeStart =
+        priorStep.type === 'inventoryPick' ? priorStep.nextStepId : undefined;
+      const pickFinalId = nextState.progressByQuestId[activeQuest.id]?.currentStepId ?? pickBridgeStart;
+      if (pickBridgeStart) {
+        for (const raw of collectContinueBridgeChainTexts(activeQuest, pickBridgeStart, pickFinalId)) {
+          const narr = interpolateQuestCopy(raw, nextState);
+          if (narr.trim().length > 0) {
+            nextLog.push(appendDialogue(NARRATOR_RESPONSE_SPEAKER, narr, qOpts));
+          }
+        }
+      }
+      if (nextStep.type === 'choice' && nextStep.text.trim().length > 0) {
         const narr = interpolateQuestCopy(nextStep.text, nextState);
         if (narr.trim().length > 0) {
-          nextLog.push(appendDialogue(NARRATOR_RESPONSE_SPEAKER, narr, qOpts));
+          nextLog.push(appendDialogue(QUEST_NARRATOR_PROMPT_SPEAKER, narr, qOpts));
         }
       }
       const merged: QuestState = { ...nextState, dialogueLog: nextLog };
@@ -1421,6 +1438,9 @@ export function RPGInterface() {
             playerHealth={questState.health}
             onPlayerHealthChange={(health) =>
               setQuestState((prev) => ({ ...prev, health: Math.max(0, Math.min(100, health)) }))
+            }
+            questProgress={
+              activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
             }
           />
         );
