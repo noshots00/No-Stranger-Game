@@ -782,11 +782,14 @@ export function RPGInterface() {
     setVillageProjectsOpen(false);
   }, []);
 
-  const handleReturnToForest = useCallback(() => {
-    closeVillagePanels();
-    handleTravelLocationSelect('Forest');
-    setActiveTab('play');
-  }, [closeVillagePanels, handleTravelLocationSelect]);
+  const handleVillageTravel = useCallback(
+    (locationId: string) => {
+      closeVillagePanels();
+      handleTravelLocationSelect(locationId);
+      setActiveTab('play');
+    },
+    [closeVillagePanels, handleTravelLocationSelect]
+  );
 
   const locationIndicatorClass =
     headerDisplayLocation(questState) === FOREST_PARENT_LOCATION
@@ -1457,6 +1460,8 @@ export function RPGInterface() {
         if (questState.currentLocation === 'Village') {
           return (
             <VillagePlaySurface
+              questFlags={questState.flags}
+              playerName={questState.playerName}
               onOpenArena={() => setArenaOpen(true)}
               onOpenGuildAlley={() => setGuildAlleyOpen(true)}
               onOpenTavern={() => setTavernOpen(true)}
@@ -1465,7 +1470,7 @@ export function RPGInterface() {
               onOpenCraftersCorner={() => setCraftersCornerOpen(true)}
               onOpenJobsHall={() => setJobsHallOpen(true)}
               onOpenVillageProjects={() => setVillageProjectsOpen(true)}
-              onReturnToForest={handleReturnToForest}
+              onTravelToLocation={handleVillageTravel}
             />
           );
         }

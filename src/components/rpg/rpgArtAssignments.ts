@@ -121,7 +121,7 @@ const RACE_SLUG_TO_SRC = buildRaceSlugMap();
 
 const fallbackBatchPortraitSrc = batchAsset(`${BATCH_PREFIX}/${fileAt(0)}`);
 const QUEST_TITLE_OVERRIDES: Record<string, string> = {
-  'You find yourself in the forest.': batchAsset('art/To be converted/NSWoods.jpg'),
+  'You find yourself in the forest.': batchAsset('art/converted/batch-2026-05-31_13-04-39/nswoods.webp'),
 };
 const genericQuestPlaceholderSrc = fallbackBatchPortraitSrc;
 

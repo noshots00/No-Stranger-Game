@@ -164,3 +164,21 @@ Immutable per contribution. Clients sum `amount` by `resource` for a given `p` (
 | `alt` | yes | Human-readable description |
 
 `content` is empty.
+
+## Kind 30342 — Village lot claim / build (regular)
+
+Immutable per publish. Clients merge by `lot-id`: earliest claim across all authors wins; the winning owner's latest event sets `status` (`claimed` or `built`).
+
+| Tag | Required | Description |
+|-----|----------|-------------|
+| `d` | yes | `village-lot-{lotId}` (matches village catalog lot id) |
+| `t` | yes | `village`, `village-lot` |
+| `lot-id` | yes | Catalog lot id (e.g. `town-square-lot-4`) |
+| `district-id` | yes | District slug (e.g. `town-square`) |
+| `status` | yes | `claimed` or `built` |
+| `business-name` | yes | Player-chosen business name |
+| `business-type` | yes | `tavern`, `shop`, or `workshop` |
+| `owner-name` | yes | Owner display name |
+| `alt` | yes | Human-readable description |
+
+`content` is empty. Only catalog `claimable` lots accept claims.

@@ -1,0 +1,200 @@
+import { DISCOVERED_CEMETERY_FLAG } from '../constants';
+
+export type VillagePanelId =
+  | 'arena'
+  | 'guildAlley'
+  | 'tavern'
+  | 'market'
+  | 'mayorsHut'
+  | 'craftersCorner'
+  | 'jobsHall'
+  | 'villageProjects';
+
+export type VillageLotKind = 'system' | 'claimable' | 'stub' | 'travel';
+
+export type VillageLotAction =
+  | { type: 'panel'; panel: VillagePanelId }
+  | { type: 'travel'; locationId: string }
+  | { type: 'stub' };
+
+export type VillageBusinessType = 'tavern' | 'shop' | 'workshop';
+
+export const VILLAGE_BUSINESS_TYPES: ReadonlyArray<{
+  id: VillageBusinessType;
+  label: string;
+}> = [
+  { id: 'tavern', label: 'Tavern' },
+  { id: 'shop', label: 'Shop' },
+  { id: 'workshop', label: 'Workshop' },
+];
+
+export type VillageLotDef = {
+  id: string;
+  label: string;
+  kind: VillageLotKind;
+  action?: VillageLotAction;
+  /** Quest flag required to show this lot (e.g. discovery). */
+  requiresFlag?: string;
+};
+
+export type VillageDistrictDef = {
+  id: string;
+  title: string;
+  lots: VillageLotDef[];
+};
+
+export const VILLAGE_LEAVE_DISTRICT_ID = 'leave-village';
+
+export const VILLAGE_BUILDING_DISTRICT_IDS: ReadonlySet<string> = new Set([
+  'town-square',
+  'market-row',
+  'forge-lane',
+]);
+
+export const VILLAGE_DISTRICTS: ReadonlyArray<VillageDistrictDef> = [
+  {
+    id: 'town-square',
+    title: 'Town Square',
+    lots: [
+      {
+        id: 'mayors-hut',
+        label: "Mayor's Hut",
+        kind: 'system',
+        action: { type: 'panel', panel: 'mayorsHut' },
+      },
+      {
+        id: 'town-hall',
+        label: 'Town Hall',
+        kind: 'system',
+        action: { type: 'panel', panel: 'villageProjects' },
+      },
+      {
+        id: 'market-square',
+        label: 'Market Square',
+        kind: 'stub',
+        action: { type: 'stub' },
+      },
+      {
+        id: 'jobs-hall',
+        label: 'Jobs Hall',
+        kind: 'system',
+        action: { type: 'panel', panel: 'jobsHall' },
+      },
+      {
+        id: 'tavern',
+        label: 'Tavern',
+        kind: 'system',
+        action: { type: 'panel', panel: 'tavern' },
+      },
+      {
+        id: 'guild-alley',
+        label: 'Guild Alley',
+        kind: 'system',
+        action: { type: 'panel', panel: 'guildAlley' },
+      },
+      {
+        id: 'arena',
+        label: 'Arena',
+        kind: 'system',
+        action: { type: 'panel', panel: 'arena' },
+      },
+    ],
+  },
+  {
+    id: 'market-row',
+    title: 'Market Row',
+    lots: [
+      {
+        id: 'market',
+        label: 'Market',
+        kind: 'system',
+        action: { type: 'panel', panel: 'market' },
+      },
+      {
+        id: 'market-row-lot-2',
+        label: 'Empty lot',
+        kind: 'claimable',
+      },
+    ],
+  },
+  {
+    id: 'forge-lane',
+    title: 'Forge Lane',
+    lots: [
+      {
+        id: 'crafters-corner',
+        label: "Crafter's Corner",
+        kind: 'system',
+        action: { type: 'panel', panel: 'craftersCorner' },
+      },
+      {
+        id: 'forge-lane-stub',
+        label: 'Forge Lane',
+        kind: 'stub',
+        action: { type: 'stub' },
+      },
+      {
+        id: 'forge-lane-lot-3',
+        label: 'Empty lot',
+        kind: 'claimable',
+      },
+    ],
+  },
+  {
+    id: VILLAGE_LEAVE_DISTRICT_ID,
+    title: 'Leave village',
+    lots: [
+      {
+        id: 'forest-travel',
+        label: 'Return to Forest',
+        kind: 'travel',
+        action: { type: 'travel', locationId: 'Forest' },
+      },
+      {
+        id: 'cemetery-travel',
+        label: 'Cemetery',
+        kind: 'travel',
+        action: { type: 'travel', locationId: 'Cemetery' },
+        requiresFlag: DISCOVERED_CEMETERY_FLAG,
+      },
+    ],
+  },
+];
+
+export function isVillageLotVisible(lot: VillageLotDef, flags: readonly string[]): boolean {
+  if (lot.requiresFlag && !flags.includes(lot.requiresFlag)) return false;
+  return true;
+}
+
+function filterDistrictLots(
+  district: VillageDistrictDef,
+  flags: readonly string[]
+): VillageDistrictDef | null {
+  const lots = district.lots.filter((lot) => isVillageLotVisible(lot, flags));
+  if (lots.length === 0) return null;
+  return { ...district, lots };
+}
+
+export function visibleBuildingDistricts(flags: readonly string[]): VillageDistrictDef[] {
+  return VILLAGE_DISTRICTS.filter((d) => VILLAGE_BUILDING_DISTRICT_IDS.has(d.id))
+    .map((d) => filterDistrictLots(d, flags))
+    .filter((d): d is VillageDistrictDef => d !== null);
+}
+
+export function visibleLeaveDistrict(flags: readonly string[]): VillageDistrictDef | null {
+  const leave = VILLAGE_DISTRICTS.find((d) => d.id === VILLAGE_LEAVE_DISTRICT_ID);
+  if (!leave) return null;
+  return filterDistrictLots(leave, flags);
+}
+
+export function findVillageLotById(lotId: string): { district: VillageDistrictDef; lot: VillageLotDef } | null {
+  for (const district of VILLAGE_DISTRICTS) {
+    const lot = district.lots.find((l) => l.id === lotId);
+    if (lot) return { district, lot };
+  }
+  return null;
+}
+
+export const CLAIMABLE_VILLAGE_LOT_IDS = new Set(
+  VILLAGE_DISTRICTS.flatMap((d) => d.lots.filter((l) => l.kind === 'claimable').map((l) => l.id))
+);

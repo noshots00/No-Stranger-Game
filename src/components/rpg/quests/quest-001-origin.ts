@@ -19,7 +19,7 @@ export const quest001Origin = createQuestDefinition({
       visuals: [
         {
           kind: 'image',
-          src: 'art/To be converted/NSWoods.jpg',
+          src: 'art/converted/batch-2026-05-31_13-04-39/nswoods.webp',
           alt: 'Forest',
         },
       ],

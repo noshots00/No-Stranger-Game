@@ -1,13 +1,6 @@
+import { useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { HeaderFlyout } from '../HeaderFlyout';
 import { toggleAudioMuted, useAudioMuted } from '../audio/audioMute';
 
 export type CharacterScreenCornerControlsProps = {
@@ -27,6 +20,12 @@ export type CharacterScreenCornerControlsProps = {
   onResetStory: () => void;
 };
 
+const menuItemClass =
+  'flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-left font-serif text-sm text-[var(--candle-ink)] hover:bg-black/30 hover:text-[var(--candle-wax)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--candle-flame-soft)]';
+
+const menuCheckboxClass =
+  'flex w-full cursor-pointer items-start gap-2 rounded-sm px-2 py-1.5 text-left font-serif text-sm text-[var(--candle-ink-soft)] hover:bg-black/30 hover:text-[var(--candle-ink)]';
+
 /** Mute + game/dev menu; fixed bottom-left on the Character tab only. */
 export function CharacterScreenCornerControls({
   showDevTools = false,
@@ -45,6 +44,9 @@ export function CharacterScreenCornerControls({
   onResetStory,
 }: CharacterScreenCornerControlsProps) {
   const muted = useAudioMuted();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const closeMenu = () => setMenuOpen(false);
 
   const muteButton = (
     <button
@@ -78,83 +80,104 @@ export function CharacterScreenCornerControls({
       aria-label="Character screen tools"
     >
       {muteButton}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 text-[var(--candle-ink-soft)] hover:bg-transparent hover:text-[var(--candle-ink)]"
-            aria-label="Game and developer menu"
-          >
+      <HeaderFlyout
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        align="start"
+        side="top"
+        ariaLabel="Game and developer menu"
+        panelClassName="whisper-tooltip-surface min-w-[12rem] font-serif text-sm"
+        trigger={
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--candle-ink-soft)] hover:text-[var(--candle-ink)]">
             <MoreHorizontal className="h-4 w-4" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="top" className="whisper-tooltip-surface min-w-[12rem] font-serif text-sm">
-          {showDevTools ? (
-            <>
-              <DropdownMenuItem
-                className="cursor-pointer font-serif text-[var(--candle-ink)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
-                onSelect={() => onAdvanceDay()}
-              >
-                Advance 24 hours
-              </DropdownMenuItem>
-              {onDevFiveMinuteDaysChange ? (
-                <DropdownMenuCheckboxItem
-                  className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+          </span>
+        }
+      >
+        {showDevTools ? (
+          <>
+            <button
+              type="button"
+              className={menuItemClass}
+              onClick={() => {
+                onAdvanceDay();
+                closeMenu();
+              }}
+            >
+              Advance 24 hours
+            </button>
+            {onDevFiveMinuteDaysChange ? (
+              <label className={menuCheckboxClass}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
                   checked={devFiveMinuteDays}
-                  onCheckedChange={(v) => onDevFiveMinuteDaysChange(v === true)}
-                >
-                  Set reset to every 5 minutes
-                </DropdownMenuCheckboxItem>
-              ) : null}
-              <DropdownMenuCheckboxItem
-                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                  onChange={(e) => onDevFiveMinuteDaysChange(e.target.checked)}
+                />
+                <span>Set reset to every 5 minutes</span>
+              </label>
+            ) : null}
+            <label className={menuCheckboxClass}>
+              <input
+                type="checkbox"
+                className="mt-0.5"
                 checked={rapidDaySimulation}
-                onCheckedChange={(v) => onRapidDaySimulationChange(v === true)}
-              >
-                Simulate 24 hours every 2 seconds
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                onChange={(e) => onRapidDaySimulationChange(e.target.checked)}
+              />
+              <span>Simulate 24 hours every 2 seconds</span>
+            </label>
+            <label className={menuCheckboxClass}>
+              <input
+                type="checkbox"
+                className="mt-0.5"
                 checked={showModifierDetails}
-                onCheckedChange={(v) => onShowModifierDetailsChange(v === true)}
-              >
-                Show modifier details
-              </DropdownMenuCheckboxItem>
-              {onShowQuestChoiceEffectsChange ? (
-                <DropdownMenuCheckboxItem
-                  className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                onChange={(e) => onShowModifierDetailsChange(e.target.checked)}
+              />
+              <span>Show modifier details</span>
+            </label>
+            {onShowQuestChoiceEffectsChange ? (
+              <label className={menuCheckboxClass}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
                   checked={showQuestChoiceEffects}
-                  onCheckedChange={(v) => onShowQuestChoiceEffectsChange(v === true)}
-                >
-                  Show choice modifiers &amp; flags
-                </DropdownMenuCheckboxItem>
-              ) : null}
-              <DropdownMenuCheckboxItem
-                className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
+                  onChange={(e) => onShowQuestChoiceEffectsChange(e.target.checked)}
+                />
+                <span>Show choice modifiers &amp; flags</span>
+              </label>
+            ) : null}
+            <label className={menuCheckboxClass}>
+              <input
+                type="checkbox"
+                className="mt-0.5"
                 checked={devUnlockAllQuests}
-                onCheckedChange={(v) => onDevUnlockAllQuestsChange(v === true)}
-              >
-                Show all quests
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator className="bg-[var(--candle-rule)]" />
-            </>
-          ) : null}
-          <DropdownMenuItem
-            className="cursor-pointer font-serif text-[var(--candle-ink-soft)] focus:bg-black/30 focus:text-[var(--candle-ink)]"
-            onSelect={() => onLogout()}
-          >
-            Log Out
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer font-serif text-[var(--candle-ember)] focus:bg-black/30 focus:text-[var(--candle-wax)]"
-            onSelect={() => onResetStory()}
-          >
-            Reset Progress
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                onChange={(e) => onDevUnlockAllQuestsChange(e.target.checked)}
+              />
+              <span>Show all quests</span>
+            </label>
+            <div className="my-1 h-px bg-[var(--candle-rule)]" role="separator" />
+          </>
+        ) : null}
+        <button
+          type="button"
+          className={menuItemClass}
+          onClick={() => {
+            onLogout();
+            closeMenu();
+          }}
+        >
+          Log Out
+        </button>
+        <button
+          type="button"
+          className={`${menuItemClass} text-[var(--candle-ember)] hover:text-[var(--candle-wax)]`}
+          onClick={() => {
+            onResetStory();
+            closeMenu();
+          }}
+        >
+          Reset Progress
+        </button>
+      </HeaderFlyout>
     </div>
   );
 }

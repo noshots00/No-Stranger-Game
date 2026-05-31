@@ -7,6 +7,8 @@ type HeaderFlyoutProps = {
   trigger: ReactNode;
   children: ReactNode;
   align?: 'start' | 'end' | 'center';
+  /** Panel opens above or below the trigger. */
+  side?: 'top' | 'bottom';
   panelClassName?: string;
   ariaLabel: string;
 };
@@ -18,6 +20,7 @@ export function HeaderFlyout({
   trigger,
   children,
   align = 'end',
+  side = 'bottom',
   panelClassName,
   ariaLabel,
 }: HeaderFlyoutProps) {
@@ -75,7 +78,9 @@ export function HeaderFlyout({
           role="dialog"
           aria-label={ariaLabel}
           className={cn(
-            'absolute top-[calc(100%+4px)] z-[60] min-w-[10rem] rounded-md border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-1 text-[var(--candle-ink)] shadow-md',
+            'absolute z-[60] min-w-[10rem] rounded-md border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-1 text-[var(--candle-ink)] shadow-md',
+            side === 'bottom' && 'top-[calc(100%+4px)]',
+            side === 'top' && 'bottom-[calc(100%+4px)]',
             align === 'end' && 'right-0',
             align === 'start' && 'left-0',
             align === 'center' && 'left-1/2 -translate-x-1/2',
