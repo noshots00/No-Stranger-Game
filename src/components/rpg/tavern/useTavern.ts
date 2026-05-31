@@ -66,7 +66,7 @@ export function useTavern(args: {
     mutationFn: async () => {
       args.setQuestState((prev) => {
         const next = acceptWolfHidesQuest(prev);
-        void args.persistQuestCheckpoint(next);
+        window.queueMicrotask(() => void args.persistQuestCheckpoint(next));
         return next;
       });
     },

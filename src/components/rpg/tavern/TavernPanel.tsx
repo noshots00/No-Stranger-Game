@@ -1,14 +1,8 @@
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
+import { GamePanelExpandable } from '../GamePanelExpandable';
+import { GamePanelScroll } from '../GamePanelScroll';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import { playerOwnsBounty } from './bountyMatch';
@@ -44,30 +38,23 @@ function PlayerQuestRow({
   isFulfillPending: boolean;
   isCancelPending: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const isPoster = myPubkey === quest.pubkey;
   const canFulfill = !isPoster && playerOwnsBounty(questState, quest.bounty);
   const rewardLabel = formatRewardSummary(quest);
 
   return (
-    <Collapsible
-      open={expanded}
-      onOpenChange={setExpanded}
-      className="rounded-md border border-[var(--candle-rule)]/80 bg-black/25"
-    >
-      <CollapsibleTrigger className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left font-serif text-sm text-[var(--candle-ink-soft)] hover:text-[var(--candle-wax)]">
-        <span className="flex w-full items-center justify-between gap-2">
+    <GamePanelExpandable
+      triggerClassName="flex-col items-start gap-0.5"
+      label={
+        <>
           <span className="min-w-0 truncate font-medium">{quest.title}</span>
-          <ChevronDown
-            className={cn('size-4 shrink-0 opacity-70 transition-transform', expanded && 'rotate-180')}
-            aria-hidden
-          />
-        </span>
-        <span className="text-[0.65rem] text-[var(--candle-ink-faint)]">
-          {quest.posterName} · Bounty: {quest.bounty} · Reward: {rewardLabel}
-        </span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-2 border-t border-[var(--candle-rule)]/60 px-3 py-2">
+          <span className="text-[0.65rem] text-[var(--candle-ink-faint)]">
+            {quest.posterName} · Bounty: {quest.bounty} · Reward: {rewardLabel}
+          </span>
+        </>
+      }
+    >
+      <div className="space-y-2">
         {quest.description ? (
           <p className="font-serif text-xs leading-relaxed text-[var(--candle-ink-soft)]">{quest.description}</p>
         ) : null}
@@ -101,19 +88,10 @@ function PlayerQuestRow({
                 You need the bounty item in inventory to fulfill.
               </p>
             ) : null}
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="w-full font-serif text-xs text-[var(--candle-ink-faint)]"
-              onClick={() => setExpanded(false)}
-            >
-              Cancel
-            </Button>
           </div>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </GamePanelExpandable>
   );
 }
 
@@ -125,20 +103,11 @@ export function TavernPanel({ open, onOpenChange, questState, myPubkey, tavern }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          className={cn(
-            'flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
-            'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg'
-          )}
-          onCloseAutoFocus={(e) => e.preventDefault()}
-        >
-          <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
-            <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-              Tavern
-            </DialogTitle>
-            <p className="font-serif text-xs text-[var(--candle-ink-faint)]">Side quests and player bulletin</p>
-          </DialogHeader>
+      <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Tavern" panelClassName="gap-0 p-4 pt-8">
+        <header className="shrink-0 space-y-1 px-2 text-center">
+          <GamePanelDialogTitle>Tavern</GamePanelDialogTitle>
+          <p className="font-serif text-xs text-[var(--candle-ink-faint)]">Side quests and player bulletin</p>
+        </header>
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1">
             <section className="shrink-0 space-y-2">
@@ -176,7 +145,7 @@ export function TavernPanel({ open, onOpenChange, questState, myPubkey, tavern }
               <p className="shrink-0 font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
                 Player quests
               </p>
-              <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+              <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
                 <div className="space-y-2 p-2">
                   {feedQuery.isPending ? (
                     <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">Loading…</p>
@@ -219,7 +188,7 @@ export function TavernPanel({ open, onOpenChange, questState, myPubkey, tavern }
                     ))
                   )}
                 </div>
-              </ScrollArea>
+              </GamePanelScroll>
             </section>
 
             <Button
@@ -230,9 +199,8 @@ export function TavernPanel({ open, onOpenChange, questState, myPubkey, tavern }
             >
               Post New Quest
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </GamePanelDialog>
 
       <PostQuestDialog
         open={postOpen}

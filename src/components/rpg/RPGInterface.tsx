@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
+import { useToast } from '@/hooks/useToast';
 import {
   advanceQuestMessage,
   collectContinueBridgeChainTexts,
@@ -21,6 +22,8 @@ import {
   offerNextTrackedForestQuest,
   resolveDisplayDay,
   shouldShowDayInHeader,
+  catchUpVillageQuestAfterTheDoor,
+  introduceVillageQuestAfterTheDoor,
   reconcileVillagePhaseState,
   restartQuestProgress,
   resumeLocationQuestAtStep,
@@ -53,6 +56,8 @@ import {
   QUEST_ORIGIN_ID,
   QUEST_DYERS_CRYPT_ID,
   QUEST_003B_MEET_MERCHANT_ID,
+  QUEST_004_B_THE_DOOR_ID,
+  QUEST_VILLAGE_ARRIVAL_ID,
   ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
@@ -132,6 +137,7 @@ import {
   acknowledgeTravelLocation,
   buildForestTravelMenuItems,
   forestTravelNotificationsPending,
+  hasAcknowledgedTravelLocation,
   type TravelMenuItem,
 } from './travelLocations';
 import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
@@ -209,10 +215,22 @@ function mergeDiscoveryUnveils(
           unveiledQuestIds: Array.from(new Set([...merged.unveiledQuestIds, ...add])),
         };
   const displayDay = resolveDisplayDay(withUnveils, calendarDay);
-  return offerNextTrackedForestQuest(withUnveils, getQuestContext(withUnveils, displayDay));
+  let next = offerNextTrackedForestQuest(withUnveils, getQuestContext(withUnveils, displayDay));
+  if (add.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
+    next = introduceVillageQuestAfterTheDoor(next);
+  }
+  return next;
+}
+
+function notifyVillageQuestAvailable(toast: ReturnType<typeof useToast>['toast']) {
+  toast({
+    title: 'New quest',
+    description: 'The Village — open it from your quest list.',
+  });
 }
 
 export function RPGInterface() {
+  const { toast } = useToast();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -350,36 +368,47 @@ export function RPGInterface() {
     const villageEndgame = questState.flags.includes(VILLAGE_PHASE_FLAG);
     if (villageEndgame) {
       const out: TravelMenuItem[] = [];
-      const add = (locationId: string) => {
+      const add = (locationId: string, showNew = false) => {
         if (!out.some((item) => item.locationId === locationId)) {
-          out.push({ locationId, label: formatLocationLabel(locationId) });
+          out.push({ locationId, label: formatLocationLabel(locationId), showNew });
         }
       };
-      add('Village');
+      add('Village', !hasAcknowledgedTravelLocation(questState, 'Village'));
       add('Forest');
       if (questState.flags.includes(DISCOVERED_CEMETERY_FLAG)) add('Cemetery');
       if (questState.flags.includes(DISCOVERED_QUARRY_FLAG)) add('Quarry');
       if (questState.flags.includes(DISCOVERED_MINE_FLAG)) add('Mine');
+      if (merchantTravelUnlocked) add('Merchant');
       const cur = questState.currentLocation;
       if (cur) add(cur);
       return out;
     }
-    const items = buildForestTravelMenuItems(formatLocationLabel, questState);
+    const items: TravelMenuItem[] = [
+      { locationId: FOREST_PARENT_LOCATION, label: formatLocationLabel(FOREST_PARENT_LOCATION) },
+      ...buildForestTravelMenuItems(formatLocationLabel, questState),
+    ];
     if (merchantTravelUnlocked) {
       items.push({ locationId: 'Merchant', label: formatLocationLabel('Merchant') });
     }
     const cur = questState.currentLocation;
     if (
       cur &&
-      cur !== 'Forest' &&
+      cur !== FOREST_PARENT_LOCATION &&
       cur !== OLD_WELL_LOCATION &&
       cur !== ANCIENT_CEMETERY_LOCATION &&
+      cur !== 'Merchant' &&
       !items.some((item) => item.locationId === cur)
     ) {
       items.push({ locationId: cur, label: formatLocationLabel(cur) });
     }
     return items;
   }, [formatLocationLabel, merchantTravelUnlocked, questState]);
+  const locationMenuNotify = useMemo(() => {
+    if (questState.flags.includes(VILLAGE_PHASE_FLAG)) {
+      return !hasAcknowledgedTravelLocation(questState, 'Village');
+    }
+    return forestTravelPings.header;
+  }, [forestTravelPings.header, questState]);
   const interpolateQuestCopy = useCallback((text: string, state: QuestState) => {
     const thrown = thrownItemLabelFromFlags(state.flags);
     return interpolateStepText(text, state.playerName, thrown ? { thrownItem: thrown } : undefined);
@@ -414,7 +443,9 @@ export function RPGInterface() {
             }
           }
         }
-        void persistQuestCheckpoint(next);
+        if (next !== prev) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(next));
+        }
         return next;
       });
       if (shouldOpenWellPopup) {
@@ -427,7 +458,9 @@ export function RPGInterface() {
     (delta: ModifierMap) => {
       setQuestState((prev) => {
         const next = applyDirectModifiersDelta(prev, delta);
-        void persistQuestCheckpoint(next);
+        if (next !== prev) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(next));
+        }
         return next;
       });
     },
@@ -731,17 +764,29 @@ export function RPGInterface() {
       setQuestState((prev) => {
         const next = switchActiveJob(prev, jobSlug);
         if (!next) return prev;
-        void persistQuestCheckpoint(next);
+        window.queueMicrotask(() => void persistQuestCheckpoint(next));
         return next;
       });
     },
     [setQuestState, persistQuestCheckpoint]
   );
 
+  const closeVillagePanels = useCallback(() => {
+    setArenaOpen(false);
+    setGuildAlleyOpen(false);
+    setTavernOpen(false);
+    setMarketOpen(false);
+    setMayorsHutOpen(false);
+    setCraftersCornerOpen(false);
+    setJobsHallOpen(false);
+    setVillageProjectsOpen(false);
+  }, []);
+
   const handleReturnToForest = useCallback(() => {
+    closeVillagePanels();
     handleTravelLocationSelect('Forest');
     setActiveTab('play');
-  }, [handleTravelLocationSelect]);
+  }, [closeVillagePanels, handleTravelLocationSelect]);
 
   const locationIndicatorClass =
     headerDisplayLocation(questState) === FOREST_PARENT_LOCATION
@@ -854,12 +899,15 @@ export function RPGInterface() {
           next = { ...prev, unveiledQuestIds: merged };
         }
       }
+      if (catchUp.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
+        next = introduceVillageQuestAfterTheDoor(next);
+      }
       const tracked = offerNextTrackedForestQuest(
         next,
         getQuestContext(next, resolveDisplayDay(next, dayCounter))
       );
       if (tracked === prev) return prev;
-      void persistQuestCheckpoint(tracked);
+      window.queueMicrotask(() => void persistQuestCheckpoint(tracked));
       return tracked;
     });
   }, [
@@ -880,7 +928,7 @@ export function RPGInterface() {
     setQuestState((prev) => {
       const next = reconcileForestSessionDay(prev);
       if (next === prev) return prev;
-      void persistQuestCheckpoint(next);
+      window.queueMicrotask(() => void persistQuestCheckpoint(next));
       return next;
     });
   }, [isQuestStateHydrated, isPacingResolved, showEarlyDevResetGate, persistQuestCheckpoint, setQuestState]);
@@ -889,7 +937,8 @@ export function RPGInterface() {
   useEffect(() => {
     if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
     setQuestState((prev) => {
-      const next = reconcileVillagePhaseState(prev, dayCounter);
+      let next = catchUpVillageQuestAfterTheDoor(prev);
+      next = reconcileVillagePhaseState(next, dayCounter);
       if (
         next.flags === prev.flags &&
         next.currentLocation === prev.currentLocation &&
@@ -897,13 +946,14 @@ export function RPGInterface() {
       ) {
         return prev;
       }
-      void persistQuestCheckpoint(next);
+      window.queueMicrotask(() => void persistQuestCheckpoint(next));
       return next;
     });
   }, [
     isQuestStateHydrated,
     isPacingResolved,
     dayCounter,
+    completedQuestIds,
     showEarlyDevResetGate,
     persistQuestCheckpoint,
     setQuestState,
@@ -1070,9 +1120,22 @@ export function RPGInterface() {
       if (!wasCompleted && isCompleted && activeQuest.id === QUEST_DYERS_CRYPT_ID) {
         merged = acknowledgeAncientCemeteryTravelDiscovery({ ...merged, forestSubLocation: null });
       }
+      const villageQuestUnveiled =
+        !wasCompleted &&
+        isCompleted &&
+        activeQuest.id === QUEST_004_B_THE_DOOR_ID &&
+        merged.unveiledQuestIds.includes(QUEST_VILLAGE_ARRIVAL_ID) &&
+        !prev.unveiledQuestIds.includes(QUEST_VILLAGE_ARRIVAL_ID);
       void persistQuestCheckpoint(merged);
       if (!wasCompleted && isCompleted) {
         setPlaySceneQuestId(null);
+      }
+      if (villageQuestUnveiled) {
+        window.queueMicrotask(() => {
+          notifyVillageQuestAvailable(toast);
+          setPlaySceneQuestId(QUEST_VILLAGE_ARRIVAL_ID);
+          setActiveTab('play');
+        });
       }
       return merged;
     });
@@ -1479,7 +1542,7 @@ export function RPGInterface() {
           formatLocationLabel={formatLocationLabel}
           locationIndicatorClass={locationIndicatorClass}
           travelMenuItems={travelMenuItems}
-          locationMenuNotify={forestTravelPings.header}
+          locationMenuNotify={locationMenuNotify}
           onTravelLocationSelect={handleTravelLocationSelect}
           showHeaderDevTools={showHeaderDevTools}
           devToolsPanel={headerDevPanel}
@@ -1529,71 +1592,89 @@ export function RPGInterface() {
             : null}
         </nav>
       </div>
+      {canShowGame ? (
+        <>
+          {questState.currentLocation === 'Merchant' ? (
+            <MerchantPanel
+              open
+              onOpenChange={handleMerchantDialogOpenChange}
+              walletCopper={walletCopper}
+              itemCounts={merchantItemCounts}
+              onApplyModifiers={handleMerchantApplyModifiers}
+            />
+          ) : null}
+          {arenaOpen ? (
+            <ArenaPanel
+              open
+              onOpenChange={setArenaOpen}
+              questState={questState}
+              myPubkey={user?.pubkey}
+              tournament={arenaTournament}
+            />
+          ) : null}
+          {guildAlleyOpen ? (
+            <GuildAlleyPanel
+              open
+              onOpenChange={setGuildAlleyOpen}
+              myPubkey={user?.pubkey}
+              guildAlley={guildAlley}
+            />
+          ) : null}
+          {tavernOpen ? (
+            <TavernPanel
+              open
+              onOpenChange={setTavernOpen}
+              questState={questState}
+              myPubkey={user?.pubkey}
+              tavern={tavern}
+            />
+          ) : null}
+          {marketOpen ? (
+            <MarketPanel
+              open
+              onOpenChange={setMarketOpen}
+              questState={questState}
+              myPubkey={user?.pubkey}
+              market={market}
+              onApplyModifiers={handleMerchantApplyModifiers}
+            />
+          ) : null}
+          {craftersCornerOpen ? (
+            <CraftersCornerPanel
+              open
+              onOpenChange={setCraftersCornerOpen}
+              questState={questState}
+              onApplyModifiers={handleMerchantApplyModifiers}
+            />
+          ) : null}
+          {mayorsHutOpen ? (
+            <MayorsHutPanel
+              open
+              onOpenChange={setMayorsHutOpen}
+              myPubkey={user?.pubkey}
+              mayorsHut={mayorsHut}
+            />
+          ) : null}
+          {jobsHallOpen ? (
+            <JobsHallPanel
+              open
+              onOpenChange={setJobsHallOpen}
+              questState={questState}
+              onSwitchJob={handleJobsSwitch}
+            />
+          ) : null}
+          {villageProjectsOpen ? (
+            <VillageProjectsPanel
+              open
+              onOpenChange={setVillageProjectsOpen}
+              questState={questState}
+              villageProjects={villageProjects}
+            />
+          ) : null}
+        </>
+      ) : null}
     </main>
     </GamePortraitViewport>
-    {canShowGame ? (
-      <>
-        <MerchantPanel
-          open={questState.currentLocation === 'Merchant'}
-          onOpenChange={handleMerchantDialogOpenChange}
-          walletCopper={walletCopper}
-          itemCounts={merchantItemCounts}
-          onApplyModifiers={handleMerchantApplyModifiers}
-        />
-        <ArenaPanel
-          open={arenaOpen}
-          onOpenChange={setArenaOpen}
-          questState={questState}
-          myPubkey={user?.pubkey}
-          tournament={arenaTournament}
-        />
-        <GuildAlleyPanel
-          open={guildAlleyOpen}
-          onOpenChange={setGuildAlleyOpen}
-          myPubkey={user?.pubkey}
-          guildAlley={guildAlley}
-        />
-        <TavernPanel
-          open={tavernOpen}
-          onOpenChange={setTavernOpen}
-          questState={questState}
-          myPubkey={user?.pubkey}
-          tavern={tavern}
-        />
-        <MarketPanel
-          open={marketOpen}
-          onOpenChange={setMarketOpen}
-          questState={questState}
-          myPubkey={user?.pubkey}
-          market={market}
-          onApplyModifiers={handleMerchantApplyModifiers}
-        />
-        <CraftersCornerPanel
-          open={craftersCornerOpen}
-          onOpenChange={setCraftersCornerOpen}
-          questState={questState}
-          onApplyModifiers={handleMerchantApplyModifiers}
-        />
-        <MayorsHutPanel
-          open={mayorsHutOpen}
-          onOpenChange={setMayorsHutOpen}
-          myPubkey={user?.pubkey}
-          mayorsHut={mayorsHut}
-        />
-        <JobsHallPanel
-          open={jobsHallOpen}
-          onOpenChange={setJobsHallOpen}
-          questState={questState}
-          onSwitchJob={handleJobsSwitch}
-        />
-        <VillageProjectsPanel
-          open={villageProjectsOpen}
-          onOpenChange={setVillageProjectsOpen}
-          questState={questState}
-          villageProjects={villageProjects}
-        />
-      </>
-    ) : null}
     </>
   );
 }

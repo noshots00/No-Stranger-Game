@@ -29,7 +29,7 @@ export function useArenaSyncPersonalRecord(args: {
       const next = mergeArenaMatchesIntoQuestState(prev, fresh, myPubkey);
       if (next === prev) return prev;
       for (const m of fresh) mergedIdsRef.current.add(m.eventId);
-      void persistQuestCheckpoint(next);
+      window.queueMicrotask(() => void persistQuestCheckpoint(next));
       return next;
     });
   }, [enabled, matches, myPubkey, setQuestState, persistQuestCheckpoint]);

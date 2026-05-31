@@ -1,12 +1,7 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { HeaderHealthBar } from './HeaderHealthBar';
+import { HeaderFlyout } from './HeaderFlyout';
 import type { TravelMenuItem } from './travelLocations';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 function TravelNewDot({ className }: { className?: string }) {
@@ -23,28 +18,19 @@ function TravelNewDot({ className }: { className?: string }) {
 
 type GameHeaderProps = {
   dayCounter: number;
-  /** When false, header shows `preVillageDayLabel` instead of the calendar day. */
   dayPacingActive?: boolean;
-  /** Shown left of header when `dayPacingActive` is false (creation arc / forest binge). */
   preVillageDayLabel?: string;
-  /** Shown in the header (parent hub — e.g. The Forest, not Old Well). */
   currentLocation: string;
-  /** Highlights the active row in the travel menu (may be a forest sub-location). */
   travelMenuHighlightLocation?: string;
-  /** Maps persisted location id to header/travel menu label (storage stays canonical). */
   formatLocationLabel?: (location: string) => string;
   locationIndicatorClass: string;
-  /** Forest hub + optional sub-locations and other travel destinations. */
   travelMenuItems: readonly TravelMenuItem[];
-  /** Pings on the header location control until required menu entries are acknowledged. */
   locationMenuNotify?: boolean;
   onTravelLocationSelect: (location: string) => void;
-  /** When set, version label opens a scrollable dev panel (`devToolsPanel`). */
   showHeaderDevTools?: boolean;
   devToolsPanel?: ReactNode;
   devToolsMenuOpen?: boolean;
   onDevToolsMenuOpenChange?: (open: boolean) => void;
-  /** Player health 0–100 (center header HP bar). */
   health?: number;
 };
 
@@ -61,13 +47,26 @@ export function GameHeader({
   onTravelLocationSelect,
   showHeaderDevTools = false,
   devToolsPanel,
-  devToolsMenuOpen,
+  devToolsMenuOpen = false,
   onDevToolsMenuOpenChange,
   health = 100,
 }: GameHeaderProps) {
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
   const selectableDestinations = travelMenuItems.length;
   const locationLabel = formatLocationLabel(currentLocation);
+
+  const locationTrigger = (
+    <span
+      className={cn(
+        'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate font-sans text-[9px] uppercase leading-none tracking-[0.14em]',
+        locationIndicatorClass
+      )}
+    >
+      <span className="truncate">{locationLabel}</span>
+      {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+    </span>
+  );
 
   const locationControl =
     selectableDestinations === 0 ? (
@@ -83,70 +82,64 @@ export function GameHeader({
     ) : selectableDestinations === 1 ? (
       <button
         type="button"
-        onClick={() => onTravelLocationSelect(travelMenuItems[0]!.locationId)}
+        onClick={() => {
+          const dest = travelMenuItems[0]?.locationId;
+          if (dest) onTravelLocationSelect(dest);
+        }}
         className={cn(
           'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
           locationIndicatorClass
         )}
         aria-label={locationMenuNotify ? 'Travel (new place available)' : 'Travel'}
       >
-        <span className="truncate">{locationLabel}</span>
-        {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+        {locationTrigger}
       </button>
     ) : (
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          type="button"
-          className={cn(
-            'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
-            locationIndicatorClass
-          )}
-          aria-label={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}
-        >
-          <span className="truncate">{locationLabel}</span>
-          {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="z-[60] min-w-[10rem] border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)]"
-        >
+      <HeaderFlyout
+        open={locationMenuOpen}
+        onOpenChange={setLocationMenuOpen}
+        ariaLabel={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}
+        align="end"
+        trigger={locationTrigger}
+      >
+        <ul className="flex flex-col gap-0.5 p-0.5">
           {travelMenuItems.map((item) => (
-            <DropdownMenuItem
-              key={item.locationId}
-              onSelect={() => onTravelLocationSelect(item.locationId)}
-              className={cn(
-                'flex items-center justify-between gap-2 font-serif text-sm uppercase tracking-[0.12em] focus:bg-[var(--candle-flame)]/15',
-                item.indent ? 'pl-6' : undefined,
-                item.locationId === menuHighlight ? 'text-[var(--candle-wax)]' : 'text-[var(--candle-ink-soft)]'
-              )}
-            >
-              <span className="truncate">{item.label}</span>
-              {item.showNew ? <TravelNewDot /> : null}
-            </DropdownMenuItem>
+            <li key={item.locationId}>
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 font-serif text-sm uppercase tracking-[0.12em] hover:bg-[var(--candle-flame)]/15',
+                  item.indent ? 'pl-4' : undefined,
+                  item.locationId === menuHighlight
+                    ? 'text-[var(--candle-wax)]'
+                    : 'text-[var(--candle-ink-soft)]'
+                )}
+                onClick={() => {
+                  onTravelLocationSelect(item.locationId);
+                  setLocationMenuOpen(false);
+                }}
+              >
+                <span className="truncate text-left">{item.label}</span>
+                {item.showNew ? <TravelNewDot /> : null}
+              </button>
+            </li>
           ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </ul>
+      </HeaderFlyout>
     );
 
   const versionCell =
     showHeaderDevTools && devToolsPanel ? (
-      <DropdownMenu open={devToolsMenuOpen} onOpenChange={onDevToolsMenuOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="mx-auto block w-full max-w-[4.75rem] rounded-sm bg-transparent p-0 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
-            aria-label={`Health ${health}; open developer tools`}
-          >
-            <HeaderHealthBar health={health} hideMeterSemantics />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="center"
-          className="z-[60] max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-2 text-[var(--candle-ink)]"
-        >
-          {devToolsPanel}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <HeaderFlyout
+        open={devToolsMenuOpen}
+        onOpenChange={(open) => onDevToolsMenuOpenChange?.(open)}
+        ariaLabel={`Health ${health}; open developer tools`}
+        align="center"
+        panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
+        trigger={<HeaderHealthBar health={health} hideMeterSemantics className="cursor-pointer" />}
+      >
+        {devToolsPanel}
+      </HeaderFlyout>
     ) : (
       <HeaderHealthBar health={health} className="px-0.5" />
     );
@@ -158,7 +151,7 @@ export function GameHeader({
           {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
         </p>
         {versionCell}
-        {locationControl}
+        <div className="flex min-w-0 justify-end">{locationControl}</div>
       </div>
     </header>
   );

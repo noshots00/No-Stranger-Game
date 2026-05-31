@@ -1,15 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
+import { GamePanelExpandable } from '../GamePanelExpandable';
+import { GamePanelScroll } from '../GamePanelScroll';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { getCombatRating } from './combatRating';
 import { formatArenaFightLine, createEmptyArenaRecord } from './arenaRecord';
@@ -41,18 +34,9 @@ function BracketRow({
   match?: ArenaMatchResult;
   defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
-
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border border-[var(--candle-rule)]/80 bg-black/25">
-      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left font-serif text-sm text-[var(--candle-ink-soft)] hover:text-[var(--candle-wax)]">
-        <span className="min-w-0 truncate">{label}</span>
-        <ChevronDown
-          className={cn('size-4 shrink-0 opacity-70 transition-transform', open && 'rotate-180')}
-          aria-hidden
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-[var(--candle-rule)]/60 px-3 py-2 font-serif text-xs leading-relaxed text-[var(--candle-ink-faint)]">
+    <GamePanelExpandable label={<span className="truncate">{label}</span>} defaultOpen={defaultOpen}>
+      <div className="font-serif text-xs leading-relaxed text-[var(--candle-ink-faint)]">
         {match ? (
           <>
             <p className="text-[var(--candle-ink-soft)]">{match.summary}</p>
@@ -63,8 +47,8 @@ function BracketRow({
         ) : (
           <p>Waiting for an opponent to register…</p>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </GamePanelExpandable>
   );
 }
 
@@ -95,6 +79,7 @@ function tournamentRows(
 }
 
 export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournament }: ArenaPanelProps) {
+  const [arenaTab, setArenaTab] = useState<'tournament' | 'stats'>('tournament');
   const combatRating = getCombatRating(questState);
   const arenaRecord: ArenaRecord = questState.arenaRecord ?? createEmptyArenaRecord();
   const { feed, feedQuery, register, invalidateFeed } = tournament;
@@ -109,49 +94,50 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
   const personalFights = arenaRecord.fights;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          'flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
-          'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg'
-        )}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="shrink-0 space-y-1 px-6 text-center sm:text-center">
-          <div className="flex justify-end">
-            <VillageFeedRefreshButton
-              isFetching={feedQuery.isFetching}
-              onRefresh={() => void invalidateFeed()}
-            />
-          </div>
-          <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-            Arena
-          </DialogTitle>
-          <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
-            Combat rating {combatRating}
-          </p>
-        </DialogHeader>
+    <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Arena" panelClassName="gap-0 p-4 pt-8">
+      <header className="shrink-0 space-y-1 px-2 text-center">
+        <div className="flex justify-end pr-8">
+          <VillageFeedRefreshButton
+            isFetching={feedQuery.isFetching}
+            onRefresh={() => void invalidateFeed()}
+          />
+        </div>
+        <GamePanelDialogTitle>Arena</GamePanelDialogTitle>
+        <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
+          Combat rating {combatRating}
+        </p>
+      </header>
 
-        <Tabs defaultValue="tournament" className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1">
-          <TabsList className="grid w-full shrink-0 grid-cols-2 border border-[var(--candle-rule)] bg-black/30">
-            <TabsTrigger
-              value="tournament"
-              className="font-serif text-xs uppercase tracking-[0.12em] data-[state=active]:bg-[var(--candle-flame)]/15"
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1">
+          <div className="grid w-full shrink-0 grid-cols-2 gap-1 rounded-md border border-[var(--candle-rule)] bg-black/30 p-1">
+            <button
+              type="button"
+              className={cn(
+                'rounded-sm px-2 py-1.5 font-serif text-xs uppercase tracking-[0.12em]',
+                arenaTab === 'tournament'
+                  ? 'bg-[var(--candle-flame)]/15 text-[var(--candle-wax)]'
+                  : 'text-[var(--candle-ink-soft)]'
+              )}
+              onClick={() => setArenaTab('tournament')}
             >
               Tournament
-            </TabsTrigger>
-            <TabsTrigger
-              value="stats"
-              className="font-serif text-xs uppercase tracking-[0.12em] data-[state=active]:bg-[var(--candle-flame)]/15"
+            </button>
+            <button
+              type="button"
+              className={cn(
+                'rounded-sm px-2 py-1.5 font-serif text-xs uppercase tracking-[0.12em]',
+                arenaTab === 'stats'
+                  ? 'bg-[var(--candle-flame)]/15 text-[var(--candle-wax)]'
+                  : 'text-[var(--candle-ink-soft)]'
+              )}
+              onClick={() => setArenaTab('stats')}
             >
               Stats
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
 
-          <TabsContent
-            value="tournament"
-            className="mt-0 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden outline-none data-[state=inactive]:hidden"
-          >
+          {arenaTab === 'tournament' ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             <Button
               type="button"
               className="shrink-0 font-serif uppercase tracking-[0.1em]"
@@ -173,7 +159,7 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
               </p>
             ) : null}
 
-            <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+            <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
               <div className="space-y-2 p-2">
                 {feedQuery.isPending && rows.length === 0 ? (
                   <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
@@ -189,13 +175,10 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
                   <BracketRow key={row.key} label={row.label} match={row.match} defaultOpen={i === 0} />
                 ))}
               </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent
-            value="stats"
-            className="mt-0 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden outline-none data-[state=inactive]:hidden"
-          >
+            </GamePanelScroll>
+          </div>
+          ) : (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             <div className="shrink-0 rounded-md border border-[var(--candle-rule)] bg-black/30 px-4 py-3 text-center">
               <p className="font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
                 Record
@@ -204,7 +187,7 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
                 {arenaRecord.wins}–{arenaRecord.losses}
               </p>
             </div>
-            <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+            <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
               <div className="space-y-2 p-2">
                 {personalFights.length === 0 ? (
                   <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
@@ -231,10 +214,10 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
                   ))
                 )}
               </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+            </GamePanelScroll>
+          </div>
+          )}
+        </div>
+    </GamePanelDialog>
   );
 }

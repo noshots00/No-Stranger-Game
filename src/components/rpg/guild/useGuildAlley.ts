@@ -97,7 +97,7 @@ export function useGuildAlley(args: {
     (next: GuildMembership | null) => {
       args.setQuestState((prev) => {
         const state = { ...prev, guildMembership: next };
-        void args.persistQuestCheckpoint(state);
+        window.queueMicrotask(() => void args.persistQuestCheckpoint(state));
         return state;
       });
     },

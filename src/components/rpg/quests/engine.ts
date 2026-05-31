@@ -1084,11 +1084,18 @@ function mergeResourceMaps(
   return out;
 }
 
-function pickMergedActiveJobSlug(relay: QuestState, local: QuestState, unlocked: string[]): string {
+function pickMergedActiveJobSlug(relay: QuestState, local: QuestState, unlocked: string[]): string | null {
   for (const slug of [local.activeJobSlug, relay.activeJobSlug]) {
-    if (typeof slug === 'string' && slug.length > 0 && unlocked.includes(slug)) return slug;
+    if (
+      typeof slug === 'string' &&
+      slug.length > 0 &&
+      slug !== JOB_SLUG_EXPLORER &&
+      unlocked.includes(slug)
+    ) {
+      return slug;
+    }
   }
-  return JOB_SLUG_EXPLORER;
+  return null;
 }
 
 /** Higher = further along the forest / village arc (for picking relay vs local on hydrate). */
@@ -1127,8 +1134,7 @@ function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
 export function mergeQuestStateOnHydrate(relay: QuestState, local: QuestState): QuestState {
   const unlockedJobSlugs = Array.from(
     new Set([...(relay.unlockedJobSlugs ?? []), ...(local.unlockedJobSlugs ?? [])])
-  );
-  if (!unlockedJobSlugs.includes(JOB_SLUG_EXPLORER)) unlockedJobSlugs.push(JOB_SLUG_EXPLORER);
+  ).filter((slug) => slug !== JOB_SLUG_EXPLORER);
 
   const currentLocation = VALID_SAVE_LOCATIONS.has(local.currentLocation)
     ? local.currentLocation
@@ -1214,6 +1220,34 @@ export const applyDayPacingActivation = (
   return { ...state, lastDailyXpDay: day };
 };
 
+/** Unveils and starts The Village quest after The Door (travel unlocks when that quest completes). */
+export function introduceVillageQuestAfterTheDoor(state: QuestState): QuestState {
+  const quest = questById[QUEST_VILLAGE_ARRIVAL_ID];
+  if (!quest) return state;
+  if (getCompletedQuestIds(state).includes(QUEST_VILLAGE_ARRIVAL_ID)) return state;
+
+  let next = state;
+  if (!next.unveiledQuestIds.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
+    next = {
+      ...next,
+      unveiledQuestIds: [...next.unveiledQuestIds, QUEST_VILLAGE_ARRIVAL_ID],
+    };
+  }
+  const progress = next.progressByQuestId[QUEST_VILLAGE_ARRIVAL_ID];
+  if (!progress || progress.isCompleted) {
+    next = startQuest(ensureQuestProgress(next, quest), quest);
+  }
+  return next;
+}
+
+/** Saves that finished The Door before The Village quest was unveiled. */
+export function catchUpVillageQuestAfterTheDoor(state: QuestState): QuestState {
+  if (getCompletedQuestIds(state).includes(QUEST_VILLAGE_ARRIVAL_ID)) return state;
+  if (!getCompletedQuestIds(state).includes(QUEST_004_B_THE_DOOR_ID)) return state;
+  if (state.unveiledQuestIds.includes(QUEST_VILLAGE_ARRIVAL_ID)) return state;
+  return introduceVillageQuestAfterTheDoor(state);
+}
+
 export function reconcileVillagePhaseState(state: QuestState, calendarDay?: number): QuestState {
   const completed = new Set(getCompletedQuestIds(state));
   const hasVillageQuest = completed.has(QUEST_VILLAGE_ARRIVAL_ID);
@@ -1231,13 +1265,15 @@ export function reconcileVillagePhaseState(state: QuestState, calendarDay?: numb
     ? state.currentLocation
     : 'Village';
 
-  const unlocked = new Set(state.unlockedJobSlugs ?? []);
-  if (!unlocked.has(JOB_SLUG_EXPLORER)) unlocked.add(JOB_SLUG_EXPLORER);
-  const unlockedJobSlugs = Array.from(unlocked);
+  const unlockedJobSlugs = (state.unlockedJobSlugs ?? []).filter(
+    (slug) => slug !== JOB_SLUG_EXPLORER
+  );
   const activeJobSlug =
-    state.activeJobSlug && unlockedJobSlugs.includes(state.activeJobSlug)
+    state.activeJobSlug &&
+    state.activeJobSlug !== JOB_SLUG_EXPLORER &&
+    unlockedJobSlugs.includes(state.activeJobSlug)
       ? state.activeJobSlug
-      : JOB_SLUG_EXPLORER;
+      : null;
 
   let next: QuestState = {
     ...state,
@@ -1774,9 +1810,7 @@ export const resolveQuestSceneTextBands = (
   let prompt = '';
   if (step.type === 'choice' && step.text.trim().length > 0) {
     prompt = interpolateStepText(step.text.trim(), playerName, extras);
-  } else if (step.type === 'message' && !step.nextStepId?.trim()) {
-    prompt = interpolateStepText(step.text.trim(), playerName, extras);
-  } else if (step.type === 'message' && step.completeQuest) {
+  } else if (step.type === 'message' && step.text.trim().length > 0) {
     prompt = interpolateStepText(step.text.trim(), playerName, extras);
   }
   if (response.length > 0 || prompt.length > 0) {
@@ -1966,7 +2000,9 @@ export const advanceQuestMessage = (state: QuestState, quest: QuestDefinition): 
   if (completesHere && nextStep.type === 'message') {
     nextState = applyMessageStepEffects(nextState, nextStep.effects);
   }
-  return finalizeChoiceState(nextState, previousFlags);
+  const entryStepId = progress.currentStepId;
+  nextState = finalizeChoiceState(nextState, previousFlags);
+  return applyLastBeatResponse(nextState, quest, entryStepId);
 };
 
 export const applyChoice = (

@@ -1,15 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
+import { GamePanelExpandable } from '../GamePanelExpandable';
+import { GamePanelScroll } from '../GamePanelScroll';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import { GUILD_CREATE_COST_GOLD } from './guildEconomy';
@@ -42,22 +35,9 @@ function GuildListRow({
   onJoin: () => void;
   isJoinPending: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
-    <Collapsible
-      open={expanded}
-      onOpenChange={setExpanded}
-      className="rounded-md border border-[var(--candle-rule)]/80 bg-black/25"
-    >
-      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left font-serif text-sm text-[var(--candle-ink-soft)] hover:text-[var(--candle-wax)]">
-        <span className="min-w-0 truncate">{guild.name}</span>
-        <ChevronDown
-          className={cn('size-4 shrink-0 opacity-70 transition-transform', expanded && 'rotate-180')}
-          aria-hidden
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-2 border-t border-[var(--candle-rule)]/60 px-3 py-2">
+    <GamePanelExpandable label={<span className="truncate">{guild.name}</span>}>
+      <div className="space-y-2">
         <p className="font-serif text-xs text-[var(--candle-ink-faint)]">Leader: {guild.leaderName}</p>
         <Button
           type="button"
@@ -71,8 +51,8 @@ function GuildListRow({
         {joinReason ? (
           <p className="text-center font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">{joinReason}</p>
         ) : null}
-      </CollapsibleContent>
-    </Collapsible>
+      </div>
+    </GamePanelExpandable>
   );
 }
 
@@ -98,7 +78,7 @@ function GuildMembersTab({
       </div>
       <div className="min-h-0 flex-1 space-y-2">
         <p className="font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">Members</p>
-        <ScrollArea className="h-[min(40vh,16rem)] rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+        <GamePanelScroll className="h-[min(40vh,16rem)] rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
           <ul className="space-y-2 p-2">
             {members.length === 0 ? (
               <li className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">No members yet.</li>
@@ -128,7 +108,7 @@ function GuildMembersTab({
               ))
             )}
           </ul>
-        </ScrollArea>
+        </GamePanelScroll>
       </div>
       <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
         <Button
@@ -216,47 +196,36 @@ export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: Gu
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          className={cn(
-            'flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
-            'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg'
-          )}
-          onCloseAutoFocus={(e) => e.preventDefault()}
-        >
-          <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
-            <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-              Guild Alley
-            </DialogTitle>
-          </DialogHeader>
+      <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Guild Alley" panelClassName="gap-0 p-4 pt-8">
+        <GamePanelDialogTitle className="px-2">Guild Alley</GamePanelDialogTitle>
 
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1"
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1">
+          <div
+            className={cn(
+              'grid h-auto w-full shrink-0 gap-1 rounded-md border border-[var(--candle-rule)] bg-black/30 p-1',
+              tabValues.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
+            )}
           >
-            <TabsList
-              className={cn(
-                'grid h-auto w-full shrink-0 gap-1 border border-[var(--candle-rule)] bg-black/30 p-1',
-                tabValues.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
-              )}
-            >
-              {tabValues.map((t) => (
-                <TabsTrigger
-                  key={t.value}
-                  value={t.value}
-                  className="truncate font-serif text-[0.65rem] uppercase tracking-[0.1em] data-[state=active]:bg-[var(--candle-flame)]/15 sm:text-xs"
-                >
-                  {t.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            {tabValues.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                className={cn(
+                  'truncate rounded-sm px-2 py-1.5 font-serif text-[0.65rem] uppercase tracking-[0.1em] sm:text-xs',
+                  activeTab === t.value
+                    ? 'bg-[var(--candle-flame)]/15 text-[var(--candle-wax)]'
+                    : 'text-[var(--candle-ink-soft)]'
+                )}
+                onClick={() => setActiveTab(t.value)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-            <TabsContent
-              value="alley"
-              className="mt-0 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden outline-none data-[state=inactive]:hidden"
-            >
-              <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+          {activeTab === 'alley' ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+              <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
                 <div className="space-y-2 p-2">
                   {feedQuery.isPending ? (
                     <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
@@ -301,9 +270,9 @@ export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: Gu
                     })
                   )}
                 </div>
-              </ScrollArea>
+              </GamePanelScroll>
 
-              {joinError && activeTab === 'alley' ? (
+              {joinError ? (
                 <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{joinError}</p>
               ) : null}
 
@@ -320,36 +289,31 @@ export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: Gu
                   Need {GUILD_CREATE_COST_GOLD} gold to found a guild.
                 </p>
               ) : null}
-            </TabsContent>
-
-            {membership && memberGuildDef ? (
-              <TabsContent
-                value={`guild-${memberGuildDef.slug}`}
-                className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden outline-none data-[state=inactive]:hidden"
-              >
-                <GuildMembersTab
-                  guild={memberGuildDef}
-                  members={guildTabMembers}
-                  canLeave={hasActiveMembership && membership.guildSlug === memberGuildDef.slug}
-                  onElectLeader={() =>
-                    toast({ title: 'Elect new leader', description: 'Not implemented yet.' })
-                  }
-                  onLeave={() =>
-                    leaveGuild.mutate(undefined, {
-                      onError: (err) =>
-                        toast({
-                          title: 'Could not leave',
-                          description: err instanceof Error ? err.message : 'Try again.',
-                        }),
-                    })
-                  }
-                  isLeavePending={leaveGuild.isPending}
-                />
-              </TabsContent>
-            ) : null}
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+            </div>
+          ) : membership && memberGuildDef ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <GuildMembersTab
+                guild={memberGuildDef}
+                members={guildTabMembers}
+                canLeave={hasActiveMembership && membership.guildSlug === memberGuildDef.slug}
+                onElectLeader={() =>
+                  toast({ title: 'Elect new leader', description: 'Not implemented yet.' })
+                }
+                onLeave={() =>
+                  leaveGuild.mutate(undefined, {
+                    onError: (err) =>
+                      toast({
+                        title: 'Could not leave',
+                        description: err instanceof Error ? err.message : 'Try again.',
+                      }),
+                  })
+                }
+                isLeavePending={leaveGuild.isPending}
+              />
+            </div>
+          ) : null}
+        </div>
+      </GamePanelDialog>
 
       <CreateGuildNameDialog
         open={createDialogOpen}

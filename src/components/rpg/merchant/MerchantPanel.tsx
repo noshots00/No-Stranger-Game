@@ -13,6 +13,11 @@ import { formatCoinShort, splitCopperIntoCoins } from '@/components/rpg/helpers'
 import { publicAsset } from '@/lib/publicAsset';
 import { cn } from '@/lib/utils';
 import { NpcTalkScrollPanes } from '@/components/rpg/npc/NpcTalkScrollPanes';
+import {
+  RPG_CHOICE_STACK,
+  RPG_COMMAND_CHIP,
+  RPG_COMMAND_CHIP_LABEL,
+} from '@/components/rpg/typography/rpgUiTypography';
 import { NPC_DIALOG_CONTENT_MOTION } from '@/components/rpg/npc/npcDialogMotion';
 import {
   MERCHANT_GOLD_STIPEND_DELTA,
@@ -180,32 +185,34 @@ export function MerchantPanel({
                   npcSpeakerLabel="Merchant"
                   logAriaLabel="Conversation with the merchant"
                 >
-                  {topicChoices.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleChoice(c)}
-                      className="choice-line text-left text-[0.9rem]"
-                    >
-                      {c.label}
+                  <div className={RPG_CHOICE_STACK}>
+                    {topicChoices.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleChoice(c)}
+                        className={RPG_COMMAND_CHIP}
+                      >
+                        <span className={RPG_COMMAND_CHIP_LABEL}>{c.label}</span>
+                      </button>
+                    ))}
+                    {activeTopic !== 'main' ? (
+                      <button
+                        type="button"
+                        onClick={handleExitToMain}
+                        className={cn(RPG_COMMAND_CHIP, 'border-t border-[var(--candle-rule)]/60 pt-2')}
+                      >
+                        <span className={cn(RPG_COMMAND_CHIP_LABEL, 'text-[var(--candle-ink-faint)]')}>
+                          {EXIT_TO_MAIN_LABEL}
+                        </span>
+                      </button>
+                    ) : null}
+                    <button type="button" onClick={handleStipend} className={RPG_COMMAND_CHIP}>
+                      <span className={cn(RPG_COMMAND_CHIP_LABEL, 'font-medium text-[var(--candle-wax)]')}>
+                        {STIPEND_PLAYER_LINE}
+                      </span>
                     </button>
-                  ))}
-                  {activeTopic !== 'main' ? (
-                    <button
-                      type="button"
-                      onClick={handleExitToMain}
-                      className="choice-line border-t border-[var(--candle-rule)]/60 pt-2 text-left text-[0.88rem] text-[var(--candle-ink-faint)]"
-                    >
-                      {EXIT_TO_MAIN_LABEL}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={handleStipend}
-                    className="choice-line text-left text-[0.95rem] font-medium text-[var(--candle-wax)]"
-                  >
-                    {STIPEND_PLAYER_LINE}
-                  </button>
+                  </div>
                 </NpcTalkScrollPanes>
               </TabsContent>
 

@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
+import { GamePanelScroll } from '../GamePanelScroll';
 import { useToast } from '@/hooks/useToast';
 import { canCraft, craftModifierDelta, listCrafterMaterials } from './craftingEngine';
 import { CRAFT_RECIPES } from './craftingConfig';
@@ -45,24 +39,15 @@ export function CraftersCornerPanel({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          'flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
-          'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg'
-        )}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
-          <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-            Crafter&apos;s Corner
-          </DialogTitle>
-          <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
-            Raw and crafting materials in your pack
-          </p>
-        </DialogHeader>
+    <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Crafter's Corner" panelClassName="gap-0 p-4 pt-8">
+      <header className="shrink-0 space-y-1 px-2 text-center">
+        <GamePanelDialogTitle>Crafter&apos;s Corner</GamePanelDialogTitle>
+        <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
+          Raw and crafting materials in your pack
+        </p>
+      </header>
 
-        <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+        <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
           {materials.length === 0 ? (
             <p className="px-3 py-8 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
               No materials yet. Buy raw ore at the Market, then return here to craft.
@@ -130,8 +115,7 @@ export function CraftersCornerPanel({
               })}
             </ul>
           )}
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </GamePanelScroll>
+    </GamePanelDialog>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { thrownItemLabelFromFlags } from '../constants';
-import { resolveQuestSceneTextBands } from '../quests/engine';
+import { isContinueBridgeMessageStep, resolveQuestSceneTextBands } from '../quests/engine';
 import type { ModifierMap, QuestChoice, QuestDefinition, QuestProgress, QuestStep } from '../quests/types';
 import { getQuestCardImageSrc, getQuestScenePortraitAlt, getQuestScenePortraitSrc } from '../rpgArtAssignments';
 import { QuestSceneNpcTalk } from './QuestSceneNpcTalk';
@@ -63,7 +63,7 @@ export function QuestSceneScreen({
   onStepChoice,
   onNameSubmit,
   onInventoryPickSubmit,
-  onAdvanceQuestMessage: _onAdvanceQuestMessage,
+  onAdvanceQuestMessage,
   showQuestChoiceEffects = false,
   playerHealth = 100,
   onPlayerHealthChange,
@@ -204,6 +204,12 @@ export function QuestSceneScreen({
                 })}
               </ul>
             </>
+          ) : null}
+
+          {step.type === 'message' && isContinueBridgeMessageStep(step) && onAdvanceQuestMessage ? (
+            <button type="button" onClick={onAdvanceQuestMessage} className={QUEST_SCENE_CONTINUE}>
+              Continue
+            </button>
           ) : null}
 
           {step.type === 'inventoryPick' && showQuestChoiceEffects && step.effects ? (

@@ -9,9 +9,9 @@ import {
 } from '../constants';
 import { QuestCardHeader } from './QuestCardHeader';
 import {
+  RPG_CHOICE_GRID,
   RPG_COMMAND_CHIP,
   RPG_COMMAND_CHIP_LABEL,
-  RPG_COMMAND_GRID,
   RPG_UI_BODY,
   RPG_UI_EMPHASIS,
 } from '../typography/rpgUiTypography';
@@ -33,6 +33,8 @@ export type JournalScreenProps = {
   visibleLocationActions: string[];
   playerFlags: string[];
   onLocationAction?: (actionLabel: string) => void;
+  /** Extra classes on the root section. */
+  className?: string;
 };
 
 export function JournalScreen({
@@ -48,6 +50,7 @@ export function JournalScreen({
   visibleLocationActions,
   playerFlags,
   onLocationAction,
+  className,
 }: JournalScreenProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
     const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
@@ -119,8 +122,27 @@ export function JournalScreen({
       ? 'Welcome to No Stranger Game'
       : defaultBriefing;
 
+  const locationActionsBlock =
+    visibleLocationActions.length > 0 ? (
+      <div className="space-y-1.5 border-t border-[var(--candle-rule)] pt-2">
+        <ul className={RPG_CHOICE_GRID}>
+          {visibleLocationActions.map((action) => (
+            <li key={action}>
+              <button
+                type="button"
+                onClick={() => onLocationAction?.(action)}
+                className={cn(RPG_COMMAND_CHIP, 'min-h-[var(--rpg-command-min-h)]')}
+              >
+                <span className={RPG_COMMAND_CHIP_LABEL}>{action}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
   return (
-    <section className="relative flex h-full flex-col gap-1.5">
+    <section className={cn('relative flex h-full min-h-0 flex-col gap-1.5', className)}>
       <div
         ref={dialogueScrollRef}
         onScroll={onDialogueScroll}
@@ -210,22 +232,7 @@ export function JournalScreen({
         </div>
       </div>
 
-      {visibleLocationActions.length > 0 ? (
-        <div className="space-y-1.5 border-t border-[var(--candle-rule)] pt-2">
-          <div className={RPG_COMMAND_GRID}>
-            {visibleLocationActions.map((action) => (
-              <button
-                key={action}
-                type="button"
-                onClick={() => onLocationAction?.(action)}
-                className={cn(RPG_COMMAND_CHIP, RPG_COMMAND_CHIP_LABEL, 'min-h-[var(--rpg-command-min-h)]')}
-              >
-                {action}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {locationActionsBlock}
     </section>
   );
 }

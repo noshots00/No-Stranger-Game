@@ -59,7 +59,7 @@ export function useMarket(args: {
     setQuestState((prev) => {
       const next = reconcileSellerPayouts(prev, feedQuery.data.allListings, myPubkey);
       if (next === prev) return prev;
-      void persistQuestCheckpoint(next);
+      window.queueMicrotask(() => void persistQuestCheckpoint(next));
       return next;
     });
   }, [enabled, myPubkey, feedQuery.data, setQuestState, persistQuestCheckpoint]);

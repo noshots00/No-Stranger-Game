@@ -1,11 +1,6 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { GamePanelScroll } from '../GamePanelScroll';
 import type { useVillageProjects } from './useVillageProjects';
 import type { VillageProjectResource } from './constants';
 
@@ -37,14 +32,14 @@ export function VillageProjectsPanel({
   const resources = questState.resources ?? {};
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(90vh,640px)] border-[var(--candle-rule)] bg-[var(--candle-hearth)] font-serif text-[var(--candle-ink)]">
-        <DialogHeader>
-          <DialogTitle className="font-cormorant text-xl text-[var(--candle-wax)]">
-            Village Projects
-          </DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="max-h-[min(70vh,520px)] pr-3">
+    <GamePanelDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      ariaLabel="Village Projects"
+      panelClassName="h-auto max-h-[min(90vh,640px)]"
+    >
+      <GamePanelDialogTitle>Village Projects</GamePanelDialogTitle>
+      <GamePanelScroll className="min-h-0 flex-1 pr-3">
           <div className="space-y-4 text-sm">
             {def ? (
               <div className="rounded-md border border-[var(--candle-flame-soft)]/30 bg-black/20 px-3 py-2">
@@ -117,8 +112,7 @@ export function VillageProjectsPanel({
               </Button>
             </div>
           </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </GamePanelScroll>
+    </GamePanelDialog>
   );
 }

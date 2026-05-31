@@ -62,7 +62,7 @@ export function QuestsTab({
       <button
         type="button"
         onClick={() => onTrackQuest(quest.id)}
-        className="choice-line ml-3 inline-block py-2 text-sky-300 hover:text-sky-200"
+        className="rpg-font-ui ml-3 inline-block py-2 text-[14px] font-medium text-[var(--candle-wax)] hover:text-[var(--candle-ink)]"
       >
         {trackButtonLabel}
       </button>

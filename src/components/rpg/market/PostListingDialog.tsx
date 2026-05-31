@@ -66,8 +66,12 @@ export function PostListingDialog({
   const pricePreview = buildPrice();
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)] sm:max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={false}>
+      <DialogContent
+        className="z-[70] max-h-[90dvh] overflow-y-auto border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)] sm:max-w-md"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="font-cormorant text-lg text-[var(--candle-wax)]">List item for sale</DialogTitle>
         </DialogHeader>

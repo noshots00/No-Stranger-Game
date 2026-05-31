@@ -107,17 +107,22 @@
     /* RPG UI tokens — see docs/design/UI_TOKENS.md */
     --rpg-font-ui: "Source Sans 3", system-ui, sans-serif;
     --rpg-font-display: "Cormorant Garamond", Georgia, serif;
-    --rpg-text-caption: 9px;
-    --rpg-text-ui: 10px;
-    --rpg-text-body: 11px;
-    --rpg-text-emphasis: 12px;
-    --rpg-text-display: 14px;
-    --rpg-text-command: 10px;
+    --rpg-text-caption: 12px;
+    --rpg-text-ui: 13px;
+    --rpg-text-body: 17px;
+    --rpg-text-meta: 14px;
+    --rpg-text-emphasis: 16px;
+    --rpg-text-display: 15px;
+    --rpg-text-command: 14px;
     --rpg-panel-border: var(--candle-rule);
     --rpg-panel-bg: rgba(0, 0, 0, 0.45);
     --rpg-command-min-h: 36px;
     --rpg-command-ink: rgba(167, 243, 208, 0.92);
     --rpg-command-ink-hover: rgba(167, 243, 208, 1);
+
+    --rpg-coin-gold: #e8c06a;
+    --rpg-coin-silver: #b8c4d0;
+    --rpg-coin-copper: #c87842;
   }
 
   /* When the .dark class is present, these variables replace :root values. */
@@ -210,6 +215,8 @@
     min-height: 100dvh;
     width: 100%;
     overflow-x: hidden;
+    -webkit-font-smoothing: auto;
+    text-rendering: geometricPrecision;
     background:
       radial-gradient(
         circle var(--candle-radius) at var(--candle-x) var(--candle-y),
@@ -852,6 +859,18 @@
     font-weight: 400;
   }
 
+  .rpg-coin-gold {
+    color: var(--rpg-coin-gold);
+  }
+
+  .rpg-coin-silver {
+    color: var(--rpg-coin-silver);
+  }
+
+  .rpg-coin-copper {
+    color: var(--rpg-coin-copper);
+  }
+
   /* RPG shell primitives — docs/design/UI_TOKENS.md */
   .rpg-panel {
     border: 1px solid var(--rpg-panel-border);
@@ -879,16 +898,19 @@
   }
 
   .rpg-command-chip {
-    display: block;
-    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: max-content;
+    max-width: 100%;
     min-height: 0;
-    text-align: left;
+    text-align: center;
     font-family: var(--rpg-font-ui);
     font-weight: 400;
     font-size: var(--rpg-text-command);
     line-height: 1.3;
     letter-spacing: 0.01em;
-    padding: 0.125rem 0.25rem;
+    padding: 0.2rem 0.35rem;
     color: var(--rpg-command-ink);
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid color-mix(in srgb, var(--candle-rule) 50%, transparent);
@@ -915,24 +937,15 @@
   }
 
   .rpg-command-chip--continue {
-    font-size: 11px;
+    font-size: 15px;
     padding: 0.25rem 0.375rem;
-    grid-column: 1 / -1;
-  }
-
-  .rpg-command-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 0.25rem;
-    row-gap: 0.125rem;
-    align-content: start;
-  }
-
-  .rpg-command-grid > * {
-    min-width: 0;
   }
 
   .rpg-command-chip-label {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    text-align: center;
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -940,13 +953,61 @@
     line-clamp: 2;
   }
 
+  .rpg-choice-grid,
+  .quest-scene-choice-grid {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-evenly;
+    align-items: stretch;
+    row-gap: 0.125rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .rpg-choice-grid > li,
+  .quest-scene-choice-grid > li {
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .rpg-choice-grid .rpg-command-chip,
+  .quest-scene-choice-grid .rpg-command-chip {
+    width: max-content;
+    max-width: 100%;
+  }
+
+  .rpg-choice-span-full,
+  .quest-scene-choice-span-full {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .rpg-choice-span-full .rpg-command-chip,
+  .quest-scene-choice-span-full .rpg-command-chip {
+    width: 100%;
+  }
+
+  .rpg-choice-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    width: 100%;
+  }
+
+  .rpg-choice-stack .rpg-command-chip {
+    width: 100%;
+  }
+
   /* Quest Scene: fixed row heights so portrait never rides up/down on step changes */
   .quest-scene-root {
-    --rpg-text-command: 12px;
-    --quest-scene-text-h: clamp(9rem, 34dvh, 12.5rem);
-    --quest-scene-action-h: clamp(3.75rem, 15.5dvh, 5.5rem);
-    -webkit-font-smoothing: auto;
-    text-rendering: geometricPrecision;
+    --quest-scene-text-h: clamp(10.5rem, 37dvh, 14.5rem);
+    --quest-scene-action-h: clamp(4.25rem, 17dvh, 6.25rem);
     display: grid;
     grid-template-rows: minmax(0, 1fr) var(--quest-scene-text-h) var(--quest-scene-action-h);
     height: 100%;
@@ -1091,69 +1152,8 @@
     overscroll-behavior: contain;
   }
 
-  .quest-scene-root .rpg-log-line {
-    font-size: 14px;
-  }
-
-  .quest-scene-root .rpg-command-chip {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 0.2rem 0.35rem;
-  }
-
-  .quest-scene-root .rpg-command-chip--continue {
-    font-size: 13px;
-  }
-
-  .quest-scene-root .rpg-command-chip .rpg-command-chip-label {
-    flex: 1;
-    min-width: 0;
-    width: 100%;
-    text-align: center;
-  }
-
-  .quest-scene-root .rpg-command-chip--continue {
-    text-align: center;
-  }
-
   .quest-scene-action-inner {
     min-height: 100%;
-  }
-
-  .quest-scene-choice-grid {
-    display: flex;
-    flex-wrap: wrap;
-    width: 100%;
-    justify-content: space-evenly;
-    align-items: stretch;
-    row-gap: 0.125rem;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .quest-scene-choice-grid > li {
-    display: flex;
-    justify-content: center;
-    min-width: 0;
-    max-width: 100%;
-    flex: 0 0 auto;
-  }
-
-  .quest-scene-root .quest-scene-choice-grid .rpg-command-chip {
-    width: max-content;
-    max-width: 100%;
-  }
-
-  .quest-scene-choice-span-full {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-
-  .quest-scene-choice-span-full .rpg-command-chip {
-    width: 100%;
   }
 
   .quest-scene-choice:active {

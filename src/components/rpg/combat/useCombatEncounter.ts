@@ -31,6 +31,8 @@ type UseCombatEncounterOptions = {
   playerHealth: number;
   onPlayerHealthChange?: (health: number) => void;
   onCombatChromeChange?: (active: boolean) => void;
+  /** Fires once when enemy HP reaches zero (before returning to talk). */
+  onVictory?: () => void;
 };
 
 export function useCombatEncounter({
@@ -38,6 +40,7 @@ export function useCombatEncounter({
   playerHealth,
   onPlayerHealthChange,
   onCombatChromeChange,
+  onVictory,
 }: UseCombatEncounterOptions) {
   const def = getCombatEncounter(encounterId);
   const [phase, setPhase] = useState<CombatPhase>('talk');
@@ -65,6 +68,7 @@ export function useCombatEncounter({
   const scheduleVictoryReturn = useCallback(() => {
     if (endingRef.current) return;
     endingRef.current = true;
+    window.setTimeout(() => onVictory?.(), 0);
     setCombatLog((prev) => [
       ...prev,
       ...def.victoryLines.map((text) => ({
@@ -74,7 +78,7 @@ export function useCombatEncounter({
       })),
     ]);
     window.setTimeout(() => finishCombat(), VICTORY_RETURN_MS);
-  }, [def.victoryLines, finishCombat]);
+  }, [def.victoryLines, finishCombat, onVictory]);
 
   const startCombat = useCallback(() => {
     if (phase !== 'talk') return;
@@ -132,7 +136,8 @@ export function useCombatEncounter({
         const nextHp = Math.max(0, hp - PLAYER_STRIKE_DAMAGE);
         if (nextHp <= 0) {
           window.clearInterval(timer);
-          scheduleVictoryReturn();
+          // Defer victory hooks — never call parent setState from inside this updater.
+          window.setTimeout(() => scheduleVictoryReturn(), 0);
         }
         return nextHp;
       });

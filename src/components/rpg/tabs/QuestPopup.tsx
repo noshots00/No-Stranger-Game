@@ -1,10 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import {
-  DIALOGUE_DEV_MESSAGE_CLASSES,
-  PLAY_TAB_QUEST_CHOICE_SHELL,
-  PLAY_TAB_PLAYER_LINE_TEXT_CHOICE,
-} from '../DialogueVoiceBlock';
 import { thrownItemLabelFromFlags } from '../constants';
 import { interpolateStepText, resolveQuestStepNarrativeText } from '../quests/engine';
 import type {
@@ -21,8 +16,10 @@ import { npcTranscriptWithStepFallback } from '../quests/questPopupTranscript';
 import {
   RPG_DIALOG_BODY,
   RPG_DIALOG_CHOICE_CLASS,
+  RPG_DIALOG_CHOICE_LABEL,
   RPG_DIALOG_META,
 } from '../typography/rpgDialogTypography';
+import { RPG_CHOICE_GRID, RPG_CHOICE_STACK, RPG_UI_META, RPG_UI_PROMPT } from '../typography/rpgUiTypography';
 import {
   NARRATOR_RESPONSE_SPEAKER,
   PLAYER_ACTION_SPEAKER,
@@ -112,12 +109,10 @@ function transcriptDisplayRole(
 const QUEST_POPUP_PROMPT_LINE_CLASSES =
   'rounded-r-md border-l-[3px] border-[var(--candle-flame)]/55 bg-black/45 py-2.5 pl-3 pr-2 font-cormorant text-lg font-semibold leading-snug tracking-wide text-[var(--candle-ink)] shadow-[inset_1px_0_0_rgba(230,161,87,0.2),0_1px_12px_rgba(0,0,0,0.35)] sm:text-xl';
 
-const QUEST_POPUP_RESPONSE_LINE_CLASSES =
-  'font-serif text-sm italic leading-relaxed text-[var(--candle-ink-soft)]';
+const QUEST_POPUP_RESPONSE_LINE_CLASSES = `${RPG_DIALOG_BODY} italic`;
 
-/** Inline (Play tab): keep quest prompts lightweight (no bubble). */
-const QUEST_POPUP_PROMPT_LINE_INLINE_CLASSES =
-  'whitespace-pre-line font-serif text-[0.9375rem] leading-snug text-[var(--candle-ink-soft)]';
+/** Inline (Play tab): same prompt scale as quest scene. */
+const QUEST_POPUP_PROMPT_LINE_INLINE_CLASSES = `whitespace-pre-line ${RPG_UI_PROMPT}`;
 
 export function QuestPopup({
   quest,
@@ -332,26 +327,22 @@ export function QuestPopup({
               </div>
             ) : null}
             {departingStep && departingStep.id !== step.id && departingStep.type === 'choice' ? (
-              <div className="quest-body-depart space-y-2">
-                <ul className="space-y-0">
+              <div className="quest-body-depart">
+                <ul className={npcTalkLayout ? RPG_CHOICE_STACK : RPG_CHOICE_GRID}>
                   {departingStep.choices.filter((choice) => choiceIsVisible(choice, playerFlagSet)).map((choice) => (
-                    <li key={`depart-${choice.id}`} className="py-0.5">
-                      <div className={PLAY_TAB_QUEST_CHOICE_SHELL}>
-                        <span
-                          className={`choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} !text-[0.8125rem] sm:!text-[0.875rem]`}
-                        >
-                          {choice.label}
-                        </span>
-                      </div>
+                    <li key={`depart-${choice.id}`}>
+                      <button type="button" disabled className={RPG_DIALOG_CHOICE_CLASS}>
+                        <span className={RPG_DIALOG_CHOICE_LABEL}>{choice.label}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
               </div>
             ) : null}
             {showOriginStartHint ? (
-              <p className={cn(DIALOGUE_DEV_MESSAGE_CLASSES, 'px-1')}>Select a line below to continue.</p>
+              <p className={cn(RPG_UI_META, 'px-1')}>Select a line below to continue.</p>
             ) : null}
-            <ul className="quest-body-arrive space-y-0">
+            <ul className={cn('quest-body-arrive', npcTalkLayout ? RPG_CHOICE_STACK : RPG_CHOICE_GRID)}>
               {step.choices.filter((choice) => choiceIsVisible(choice, playerFlagSet)).map((choice) => {
                 const isPending = pendingChoiceId !== null;
                 const isChosen = pendingChoiceId === choice.id;
@@ -370,51 +361,27 @@ export function QuestPopup({
                       byEmptyQuestItems: lockedByEmptyQuestItems,
                     })}`
                   : choice.label;
-                const choiceButtonClass = npcTalkLayout
-                  ? `${RPG_DIALOG_CHOICE_CLASS} ${isFading ? 'choice-fade-out' : ''} ${
-                      isChosen ? 'choice-selected-flash' : ''
-                    } ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`
-                  : `choice-line play-quest-choice ${PLAY_TAB_PLAYER_LINE_TEXT_CHOICE} !text-[0.8125rem] sm:!text-[0.875rem] ${
-                      isFading ? 'choice-fade-out' : ''
-                    } ${isChosen ? 'choice-selected-flash' : ''} ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`;
+                const choiceButtonClass = cn(
+                  RPG_DIALOG_CHOICE_CLASS,
+                  isFading && 'choice-fade-out',
+                  isChosen && 'choice-selected-flash',
+                  isLocked && 'cursor-not-allowed opacity-50'
+                );
                 return (
-                  <li
-                    key={choice.id}
-                    className={npcTalkLayout || isInlinePlay ? 'py-0' : 'py-0.5'}
-                  >
-                    {npcTalkLayout ? (
-                      <div>
-                        <button
-                          type="button"
-                          disabled={isPending || isLocked}
-                          aria-disabled={isLocked || undefined}
-                          className={choiceButtonClass}
-                          onClick={() => {
-                            if (isLocked) return;
-                            handleChoiceClick(choice.id);
-                          }}
-                        >
-                          {renderedLabel}
-                        </button>
-                        {showQuestChoiceEffects ? <QuestChoiceEffectsHint choice={choice} /> : null}
-                      </div>
-                    ) : (
-                      <div className={PLAY_TAB_QUEST_CHOICE_SHELL}>
-                        <button
-                          type="button"
-                          disabled={isPending || isLocked}
-                          aria-disabled={isLocked || undefined}
-                          className={choiceButtonClass}
-                          onClick={() => {
-                            if (isLocked) return;
-                            handleChoiceClick(choice.id);
-                          }}
-                        >
-                          {renderedLabel}
-                        </button>
-                        {showQuestChoiceEffects ? <QuestChoiceEffectsHint choice={choice} /> : null}
-                      </div>
-                    )}
+                  <li key={choice.id}>
+                    <button
+                      type="button"
+                      disabled={isPending || isLocked}
+                      aria-disabled={isLocked || undefined}
+                      className={choiceButtonClass}
+                      onClick={() => {
+                        if (isLocked) return;
+                        handleChoiceClick(choice.id);
+                      }}
+                    >
+                      <span className={RPG_DIALOG_CHOICE_LABEL}>{renderedLabel}</span>
+                    </button>
+                    {showQuestChoiceEffects ? <QuestChoiceEffectsHint choice={choice} /> : null}
                   </li>
                 );
               })}

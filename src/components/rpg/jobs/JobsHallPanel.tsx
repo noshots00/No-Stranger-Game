@@ -1,11 +1,6 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
+import { GamePanelScroll } from '../GamePanelScroll';
 import { JOB_REGISTRY } from './registry';
 import type { QuestState } from '../quests/types';
 
@@ -29,12 +24,14 @@ export function JobsHallPanel({
   const resourceEntries = Object.entries(questState.resources ?? {}).filter(([, n]) => n > 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(90vh,640px)] border-[var(--candle-rule)] bg-[var(--candle-hearth)] font-serif text-[var(--candle-ink)]">
-        <DialogHeader>
-          <DialogTitle className="font-cormorant text-xl text-[var(--candle-wax)]">Jobs Hall</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="max-h-[min(70vh,520px)] pr-3">
+    <GamePanelDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      ariaLabel="Jobs Hall"
+      panelClassName="h-auto max-h-[min(90vh,640px)]"
+    >
+      <GamePanelDialogTitle>Jobs Hall</GamePanelDialogTitle>
+      <GamePanelScroll className="min-h-0 flex-1 pr-3">
           <div className="space-y-4 text-sm">
             <p className="text-[var(--candle-ink-soft)]">
               Your profession stays active until you switch. Choose once, and it remains selected.
@@ -108,8 +105,7 @@ export function JobsHallPanel({
               </div>
             ) : null}
           </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </GamePanelScroll>
+    </GamePanelDialog>
   );
 }

@@ -212,6 +212,7 @@ export const VALID_SAVE_LOCATIONS = new Set<string>([
 export const LOCATION_LABEL_DISPLAY: Readonly<Record<string, string>> = {
   Village: 'VILLAGE',
   Forest: 'THE FOREST',
+  Merchant: 'MERCHANT',
   'Old Well': 'OLD WELL',
   'Ancient Cemetery': 'ANCIENT CEMETERY',
   Cemetery: 'CEMETERY',

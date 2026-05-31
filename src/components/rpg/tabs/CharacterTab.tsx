@@ -4,10 +4,11 @@ import {
   CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE,
   getCharacterLevel,
   getLevelFromXp,
+  resolveDisplayDay,
 } from '../quests/engine';
+import { CoinAmountDisplay } from '../CoinAmountDisplay';
 import {
   buildInventoryEntries,
-  formatCoinShort,
   formatInjurySheetLines,
   formatModifierKeyForCharacterSheet,
   formatOrganicSlugForDisplay,
@@ -25,7 +26,12 @@ import {
   type CharacterAbilityTileData,
 } from '../helpers';
 import { JOB_REGISTRY } from '../jobs/registry';
-import { characterStats, CLASS_UNLOCK_POINTS, INJURY_SHEET_UNLOCK_POINTS } from '../constants';
+import {
+  characterStats,
+  CLASS_UNLOCK_POINTS,
+  INJURY_SHEET_UNLOCK_POINTS,
+  JOB_SLUG_EXPLORER,
+} from '../constants';
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
 import { formatUnlockedTraitsLine } from '../traitSheet';
@@ -47,6 +53,7 @@ import {
   CHAR_STAT_LABEL,
   CHAR_STAT_TABLE,
   CHAR_STAT_VALUE,
+  CHAR_PROFILE_META,
   CHAR_SUBTITLE,
 } from './characterSheetTypography';
 
@@ -66,6 +73,8 @@ type CharacterTabProps = {
 
 /** Profile placeholder until guild titles ship. */
 const PROFILE_TITLE_PLACEHOLDER = 'Guild Leader';
+/** Profile placeholder until guild membership ships. */
+const PROFILE_GUILD_PLACEHOLDER = 'House Dyer';
 
 function getActiveGuildName(questState: QuestState): string | null {
   const membership = questState.guildMembership;
@@ -171,16 +180,15 @@ function buildUnifiedSkillsText(
   return segments.length > 0 ? segments.join(', ') : null;
 }
 
-function formatProfileDaysLabel(dayCounter: number, dayPacingActive: boolean): string {
-  if (!dayPacingActive) return '— Days';
-  return dayCounter === 1 ? '1 Day' : `${dayCounter} Days`;
+function formatProfileDayLabel(questState: QuestState, calendarDay: number): string {
+  return `Day ${resolveDisplayDay(questState, calendarDay)}`;
 }
 
 export function CharacterTab({
   questState,
   userPubkey,
   dayCounter,
-  dayPacingActive = true,
+  dayPacingActive: _dayPacingActive = true,
   guildDisplayName,
   kindredSpirits,
   onOpenChronicle,
@@ -207,12 +215,15 @@ export function CharacterTab({
   const race = getRaceDefinition(questState.assignedRaceSlug);
   const profileNpub = userPubkey ? nip19.npubEncode(userPubkey) : null;
   const copperTotal = getCopperFromModifiers(questState.modifiers);
-  const coinLabel = formatCoinShort(splitCopperIntoCoins(copperTotal));
+  const coinSplit = splitCopperIntoCoins(copperTotal);
 
-  const activeJob = questState.activeJobSlug
-    ? JOB_REGISTRY[questState.activeJobSlug]
-    : undefined;
-  const activeGuildName = guildDisplayName ?? getActiveGuildName(questState);
+  const profileJobSlug =
+    questState.activeJobSlug && questState.activeJobSlug !== JOB_SLUG_EXPLORER
+      ? questState.activeJobSlug
+      : null;
+  const activeJob = profileJobSlug ? JOB_REGISTRY[profileJobSlug] : undefined;
+  const activeGuildName =
+    guildDisplayName ?? getActiveGuildName(questState) ?? PROFILE_GUILD_PLACEHOLDER;
 
   const raceMiddle =
     race?.displayName ??
@@ -480,7 +491,7 @@ export function CharacterTab({
       <div className="facsimile-scroll-dialogue-inner facsimile-scroll-dialogue-inner--character min-w-0">
         <div className="mx-auto w-full min-w-0 max-w-md space-y-2.5">
         <div className="py-0.5">
-          <div className="mx-auto flex w-fit items-center gap-3">
+          <div className="character-profile-card mx-auto flex w-fit items-center gap-3 rounded-md border border-[var(--candle-flame-soft)] p-1">
             <img
                 src={getRacePortraitSrc(questState.assignedRaceSlug)}
                 alt="Character portrait"
@@ -500,40 +511,28 @@ export function CharacterTab({
                     Level {characterLevel} {raceMiddle} {characterClass}
                   </p>
                 </div>
-                <div className={`mt-0.5 grid grid-cols-2 gap-x-3 gap-y-1 ${CHAR_BODY}`}>
-                  <div className="flex min-w-0 flex-col gap-1 text-left">
-                    <p className={`block ${CHAR_META_VALUE}`}>
-                      {formatProfileDaysLabel(dayCounter, dayPacingActive)}
+                <div className={`mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 ${CHAR_PROFILE_META}`}>
+                  <div className="flex min-w-0 flex-col gap-0.5 text-left">
+                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>
+                      {formatProfileDayLabel(questState, dayCounter)}
                     </p>
-                    <p className={`block ${CHAR_META_VALUE}`}>
+                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>
                       {activeJob ? `${activeJob.displayName} Lv 1` : 'Unemployed'}
                     </p>
-                    <p className="block">
+                    <p className="block leading-tight">
                       <span className={CHAR_META_LABEL}>Coin: </span>
-                      <span
-                        className={`font-mono ${copperTotal > 0 ? CHAR_META_VALUE : CHAR_META_FAINT}`}
-                      >
-                        {coinLabel}
-                      </span>
+                      <CoinAmountDisplay split={coinSplit} />
                     </p>
                   </div>
-                  <div className="flex min-w-0 flex-col gap-1 text-left">
-                    <p className="block">
-                      <span className={CHAR_META_LABEL}>Guild: </span>
-                      {activeGuildName ? (
-                        <span className={CHAR_META_VALUE}>{activeGuildName}</span>
-                      ) : (
-                        <span className={CHAR_META_FAINT}>—</span>
-                      )}
-                    </p>
-                    <p className="block">
-                      <span className={CHAR_META_LABEL}>Title: </span>
-                      <span className={CHAR_META_VALUE}>{PROFILE_TITLE_PLACEHOLDER}</span>
-                    </p>
-                    <p className="block">
+                  <div className="flex min-w-0 flex-col gap-0.5 text-left">
+                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>{activeGuildName}</p>
+                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>{PROFILE_TITLE_PLACEHOLDER}</p>
+                    <p className="block leading-tight">
                       <span className={CHAR_META_LABEL}>Kindred: </span>
                       {userPubkey != null && kindredSpirits !== undefined ? (
-                        <span className={`font-mono ${CHAR_META_VALUE}`}>{kindredSpirits}</span>
+                        <span className={`font-mono ${CHAR_META_VALUE}`}>
+                          {kindredSpirits}
+                        </span>
                       ) : (
                         <span className={CHAR_META_FAINT}>—</span>
                       )}

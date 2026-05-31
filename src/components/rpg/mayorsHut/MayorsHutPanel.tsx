@@ -1,11 +1,6 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { GamePanelScroll } from '../GamePanelScroll';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import type { useMayorsHut } from './useMayorsHut';
@@ -34,24 +29,15 @@ export function MayorsHutPanel({ open, onOpenChange, myPubkey, mayorsHut }: Mayo
   const isVotePending = castVote.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          'flex !flex-col gap-0 overflow-hidden border border-[var(--candle-rule)] bg-[var(--candle-hearth)] p-4 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
-          'h-[95dvh] max-h-[95dvh] min-h-0 w-[min(95vw,430px)] max-w-none sm:rounded-lg'
-        )}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="shrink-0 space-y-1 px-4 text-center sm:text-center">
-          <div className="flex justify-end">
-            <VillageFeedRefreshButton
-              isFetching={feedQuery.isFetching}
-              onRefresh={() => void invalidateFeed()}
-            />
-          </div>
-          <DialogTitle className="font-cormorant text-xl font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-            Mayor&apos;s Hut
-          </DialogTitle>
+    <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Mayor's Hut" panelClassName="gap-0 p-4 pt-8">
+      <header className="shrink-0 space-y-1 px-2 text-center">
+        <div className="flex justify-end pr-8">
+          <VillageFeedRefreshButton
+            isFetching={feedQuery.isFetching}
+            onRefresh={() => void invalidateFeed()}
+          />
+        </div>
+        <GamePanelDialogTitle>Mayor&apos;s Hut</GamePanelDialogTitle>
           <p className="font-serif text-sm text-[var(--candle-wax)]">
             Mayor: <span className="font-semibold">{election.mayorName}</span>
           </p>
@@ -64,14 +50,14 @@ export function MayorsHutPanel({ open, onOpenChange, myPubkey, mayorsHut }: Mayo
               Placeholder until a candidate leads the vote
             </p>
           )}
-        </DialogHeader>
+      </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1">
           <p className="shrink-0 px-2 font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
             Vote for mayor
           </p>
 
-          <ScrollArea className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+          <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
             {feedQuery.isPending ? (
               <p className="py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">Loading…</p>
             ) : election.activeCandidates.length === 0 ? (
@@ -131,7 +117,7 @@ export function MayorsHutPanel({ open, onOpenChange, myPubkey, mayorsHut }: Mayo
                 })}
               </ul>
             )}
-          </ScrollArea>
+          </GamePanelScroll>
 
           <div className="shrink-0 space-y-2">
             {myActiveCandidacy ? (
@@ -175,8 +161,7 @@ export function MayorsHutPanel({ open, onOpenChange, myPubkey, mayorsHut }: Mayo
               </Button>
             )}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </GamePanelDialog>
   );
 }

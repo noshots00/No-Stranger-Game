@@ -108,7 +108,7 @@ export function useVillageProjects(args: {
         const resources = { ...(prev.resources ?? {}) };
         resources[input.resource] = Math.max(0, (resources[input.resource] ?? 0) - input.amount);
         const next = { ...prev, resources };
-        void args.persistQuestCheckpoint(next);
+        window.queueMicrotask(() => void args.persistQuestCheckpoint(next));
         return next;
       });
       invalidateFeed();

@@ -31,8 +31,12 @@ export function CreateGuildNameDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)] sm:max-w-sm">
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={false}>
+      <DialogContent
+        className="z-[70] border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)] sm:max-w-sm"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="font-cormorant text-lg text-[var(--candle-wax)]">Name your guild</DialogTitle>
         </DialogHeader>

@@ -4,17 +4,17 @@ Canonical design brief and token reference for the in-game UI. Code mirrors this
 
 ## Emotional target
 
-**Peak Boutique old-school RPG (phone portrait):** Folktale fantasy content in a **menu-driven, panel-based** shell—curated warmth (candle palette, art, facsimile scroll), **dense and thumb-first**, designed for ~430px portrait—not a desktop layout squeezed, and not a visual novel reader.
+**Peak Boutique old-school RPG (phone portrait):** Folktale fantasy content in a **menu-driven, panel-based** shell—curated warmth (candle palette, art, facsimile scroll), **readable and thumb-first**, designed for ~430px portrait—not a desktop layout squeezed, and not a visual novel reader.
 
 ## Anti-goals (do not ship)
 
 | Visual novel habit | Use instead |
 |--------------------|-------------|
-| Full-width 16px+ serif prose stream | Compact **log lines** (11px sans) |
-| Cormorant prompt boxes with left accent bars | **Panel header** (12px sans semibold) inside `.rpg-panel` |
-| Choices as long underlined sentences | **Command chips** (`.rpg-command-chip`) in a 2–3 column grid |
-| Right-rail “chat fiction” width for all play text | Full-width log; chips in grid |
-| Serif/Cormorant on every label | **Inter** for UI; Cormorant only on `.rpg-display` |
+| Full-width 16px+ serif prose stream | **Source Sans 3** log lines (17px) in `.rpg-panel` |
+| Cormorant prompt boxes with left accent bars | **Panel prompt** (`RPG_UI_PROMPT`, 18px medium) |
+| Choices as long underlined sentences | **Command chips** (`.rpg-command-chip`, 14px) in `.rpg-choice-grid` |
+| Right-rail “chat fiction” width for all play text | Full-width log; chips spaced `space-evenly` |
+| Serif/Cormorant on every label | **Source Sans 3** for UI; Cormorant only on `.rpg-display` / rare titles |
 
 ## Phone portrait rules
 
@@ -40,14 +40,17 @@ Keep existing candle / facsimile variables in [`src/index.css`](../../src/index.
 
 | Role | px | Face | Tailwind / class |
 |------|-----|------|------------------|
-| caption | 9 | Inter | `RPG_UI_CAPTION` |
-| ui | 10 | Inter | `RPG_UI_UI` |
-| body | 11 | Inter | `RPG_UI_BODY`, `.rpg-log-line` |
-| emphasis | 12 | Inter semibold | `RPG_UI_EMPHASIS` |
-| display | 14–15 | Cormorant | `RPG_UI_DISPLAY`, `.rpg-display` |
-| command | 10–11 | Inter | `RPG_COMMAND_CHIP`, `RPG_COMMAND_CONTINUE` |
+| caption | 12 | Source Sans 3 | `RPG_UI_CAPTION` |
+| ui | 13 | Source Sans 3 | `RPG_UI_UI` |
+| meta | 14 | Source Sans 3 | `RPG_UI_META` |
+| body | 17 | Source Sans 3 | `RPG_UI_BODY`, `.rpg-log-line` |
+| emphasis | 16 | Source Sans 3 medium | `RPG_UI_EMPHASIS` |
+| prompt | 18 | Source Sans 3 medium | `RPG_UI_PROMPT` |
+| display | 15 | Cormorant | `RPG_UI_DISPLAY`, `.rpg-display` |
+| command | 14 | Source Sans 3 | `RPG_COMMAND_CHIP` |
+| continue | 15 | Source Sans 3 | `RPG_COMMAND_CONTINUE` |
 
-**Fonts:** Inter Variable (`font-sans`) for UI; Cormorant (`font-cormorant` / `.rpg-display`) for rare titles only.
+**Fonts:** Source Sans 3 (static 400/500 via `@fontsource/source-sans-3`) for all RPG UI; `font-sans` in Tailwind maps to the same stack. Cormorant (`font-cormorant` / `.rpg-display`) for rare titles only. `.candlelit-shell` uses subpixel-friendly smoothing (`-webkit-font-smoothing: auto`).
 
 ## Layout tokens
 
@@ -56,38 +59,30 @@ Keep existing candle / facsimile variables in [`src/index.css`](../../src/index.
 | `--rpg-panel-border` | `var(--candle-rule)` | Menu windows |
 | `--rpg-panel-bg` | `rgba(0,0,0,0.45)` | Dialogue / action panels |
 | `--rpg-command-min-h` | `36px` | Location command buttons |
-| Command grid | 3 columns; 2 below 320px | Quest scene, journal location actions |
+| `.rpg-choice-grid` | flex, `space-evenly` | Quest scene, journal locations, inline quest popup |
+| `.rpg-choice-stack` | flex column, full-width chips | NPC / merchant talk panes |
 
 ## Components
 
 ### `.rpg-panel`
 
-RPG menu window: border + dark fill + subtle inset highlight. Use on quest text/action boxes, compact report shells on Play.
+RPG menu window: border + dark fill. Quest scene text/action panels omit the inner seam (no bottom/top border between bands).
 
 ### `.rpg-command-chip`
 
-Canonical choice / command control (replaces VN `.choice-line` on Tier A). Emerald command text, rounded border, compact padding. Quest scene grid items use this class.
+Canonical choice / command control. Emerald ink, centered label in `<span class="rpg-command-chip-label">`. Width `max-content` in grids; full width in stacks.
 
 ### `.rpg-log-line`
 
-Journal and play narrator body: 11px sans, tight leading, no italic novel styling.
+Narrator / transcript body: 17px Source Sans 3, `letter-spacing: 0.012em`.
 
 ### `.rpg-display`
 
-Cormorant one-liner for quest card title overlay (and optional display-only titles).
+Cormorant one-liner for quest card title overlay.
 
-### Quest scene combat (Tier A)
+### Quest scene combat
 
-In-quest battles reuse the same three-row quest scene grid; add `.quest-scene-root--combat` on the root for chrome swap (no layout reflow).
-
-| Class | Role |
-|-------|------|
-| `.quest-scene-root--combat` | Enables red stage vignette + hostile portrait frame |
-| `.rpg-combat-hp-track` / `.rpg-combat-hp-fill--player` / `--enemy` | Thin HP bars in the action band |
-| `.rpg-combat-log` | Combat transcript band (`aria-live="polite"`) |
-| `.rpg-command-chip--danger` | Hostile command (e.g. Attack!) |
-
-Code: [`src/components/rpg/combat/`](../../src/components/rpg/combat/) (`QuestSceneCombat`, `useCombatEncounter`, `combatEncounters`).
+Same three-row grid; `.quest-scene-root--combat` for chrome swap. See combat classes in prior spec.
 
 ## Surface inventory
 
@@ -95,28 +90,26 @@ Code: [`src/components/rpg/combat/`](../../src/components/rpg/combat/) (`QuestSc
 
 | Surface | Files |
 |---------|--------|
-| Quest scene | `quest-scene/QuestSceneScreen.tsx`, `QuestSceneNpcTalk.tsx`, `combat/QuestSceneCombat.tsx`, `rpgArtAssignments.ts` |
-| Journal + play feed | `journal/JournalScreen.tsx`, `journal/QuestCardHeader.tsx`, `DialogueVoiceBlock.tsx` |
-| Character | `tabs/CharacterTab.tsx`, `tabs/characterSheetTypography.ts` |
-| Shell | `GameHeader.tsx`, `RPGInterface.tsx` (nav already compact) |
+| Quest scene | `quest-scene/*`, `combat/QuestSceneCombat.tsx` |
+| Journal + play feed | `journal/JournalScreen.tsx`, `DialogueVoiceBlock.tsx` |
+| Character | `tabs/CharacterTab.tsx`, `characterSheetTypography.ts` |
+| NPC talk | `npc/NpcTalkDialog.tsx`, `merchant/MerchantPanel.tsx` |
+| Quest popup (inline / modal) | `tabs/QuestPopup.tsx` |
+| Shell | `GameHeader.tsx`, `RPGInterface.tsx` |
 
 ### Tier B (follow-up)
 
-Apply `.rpg-command-chip` + sans body; do not expand scope without a pass plan:
-
-- `npc/NpcTalkDialog.tsx`, `.choice-line.npc-dialog-choice`
-- `tabs/QuestPopup.tsx`
-- Village: `market/`, `tavern/`, `guild/`, `arena/`, `mayorsHut/`, etc.
-- `TitleScreen.tsx`, login chrome
+Village panels (`market/`, `tavern/`, etc.) still mix `font-serif` chrome—migrate to `rpg-font-ui` on dialogue passes.
 
 ## Migration
 
-- **Prefer** `.rpg-command-chip` + `rpgUiTypography` on Play and quest scene.
-- **Keep** global `.choice-line` for Tier B until swept; do not grow new `.choice-line` usages on Tier A.
+- **Prefer** `rpgUiTypography` + `.rpg-command-chip` + `.rpg-choice-grid` / `.rpg-choice-stack`.
+- **Do not** add new `.choice-line` usages on Tier A.
+- Quest scene tokens (`QUEST_SCENE_*`) are aliases of global `RPG_UI_*`.
 
 ## Success check (manual, phone)
 
-- Quest scene: ~6 short choices in ~3 rows; dialogue smaller than old VN prompt.
-- Journal: log reads as ticker, not novel; location actions match quest chips.
-- Character: status-screen density, sans labels, mono stat numbers.
-- Chronicle presentation may stay slightly more “facsimile” than Play—intentional.
+- Quest scene + Play feed: dialogue 17px, prompts 18px, chips 14px, evenly spaced choices.
+- Journal location actions match quest chips.
+- Merchant / Carl talk: stacked full-width chips, same type scale.
+- Character tab: sans labels; mono stays on stat numbers only.

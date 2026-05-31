@@ -5,12 +5,15 @@
 import { RPG_COMMAND_CHIP, RPG_UI_BODY, RPG_UI_CAPTION, RPG_UI_EMPHASIS, RPG_UI_UI } from '../typography/rpgUiTypography';
 
 /** Tier 1: player name (status screen) */
-export const CHAR_NAME = `${RPG_UI_EMPHASIS} text-[14px] text-[var(--candle-ink)]`;
+export const CHAR_NAME = `${RPG_UI_EMPHASIS} text-[var(--candle-ink)]`;
 
 /** Tier 3: level · race · class */
 export const CHAR_SUBTITLE = RPG_UI_UI;
 
-/** Tier 4: profile meta + traits/skills body */
+/** Profile card: days, profession, coin, guild, title, kindred */
+export const CHAR_PROFILE_META = RPG_UI_UI;
+
+/** Tier 4: traits/skills / modifier columns */
 export const CHAR_BODY = RPG_UI_BODY;
 
 export const CHAR_META_LABEL = 'text-[var(--candle-ink-soft)]';
@@ -20,7 +23,7 @@ export const CHAR_META_VALUE = 'text-[var(--candle-ink)]';
 export const CHAR_META_FAINT = 'text-[var(--candle-ink-faint)]';
 
 /** Primary attribute table */
-export const CHAR_STAT_TABLE = 'font-sans text-[10px] leading-tight text-[var(--candle-ink-soft)]';
+export const CHAR_STAT_TABLE = `${RPG_UI_UI} leading-tight`;
 
 /** Tier 5: primary attribute captions */
 export const CHAR_STAT_LABEL = `${RPG_UI_CAPTION} break-words uppercase tracking-[0.08em]`;
@@ -31,7 +34,7 @@ export const CHAR_STAT_VALUE =
 
 /** Ability tile labels */
 export const CHAR_TILE_NAME =
-  'line-clamp-2 font-sans text-[10px] font-medium uppercase leading-none tracking-[0.04em]';
+  `line-clamp-2 ${RPG_UI_CAPTION} font-medium uppercase leading-none tracking-[0.04em]`;
 
 export const CHAR_TILE_LEVEL = 'mt-px font-mono text-[9px] tabular-nums leading-none';
 

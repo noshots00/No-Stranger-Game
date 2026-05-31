@@ -118,6 +118,13 @@ export function computeNextUnveilIdsAfterCompletion(
         if (unveilEligible(q, context)) return [nextId];
       }
     }
+    if (completedQuestId === QUEST_004_B_THE_DOOR_ID) {
+      const villageId = QUEST_VILLAGE_ARRIVAL_ID;
+      if (!completed.has(villageId) && !unveiled.has(villageId)) {
+        const q = questById[villageId];
+        if (unveilEligible(q, context)) return [villageId];
+      }
+    }
     return [];
   }
   const unveiled = new Set(unveiledQuestIds);
@@ -193,14 +200,16 @@ export function pickNextSideQuestToUnveilOnDayRoll(
   return null;
 }
 
-/** On login: surface village arrival when Silver Lake reflection is already complete. */
+/** On login: surface village arrival when The Door is already complete. */
 export function catchUpVillageUnveilId(
   unveiledQuestIds: readonly string[],
   completedQuestIds: readonly string[],
   context: QuestContext
 ): string | null {
-  if (MANUAL_QUEST_GATING) return null;
-  if (!completedQuestIds.includes(QUEST_018_SILVER_LAKE_REFLECTION_ID)) return null;
+  const doorDone = completedQuestIds.includes(QUEST_004_B_THE_DOOR_ID);
+  const silverLakeDone = completedQuestIds.includes(QUEST_018_SILVER_LAKE_REFLECTION_ID);
+  if (!doorDone && !silverLakeDone) return null;
+  if (MANUAL_QUEST_GATING && !doorDone) return null;
   const villageId = QUEST_VILLAGE_ARRIVAL_ID;
   if (completedQuestIds.includes(villageId)) return null;
   if (unveiledQuestIds.includes(villageId)) return null;
@@ -225,6 +234,7 @@ export function catchUpManualSagaUnveilIds(
     ['quest-004-abandoned-shelter', QUEST_DAY_TWO_DREAM_ID],
     [QUEST_DAY_TWO_DREAM_ID, QUEST_FOREST_CAVE_ID],
     [QUEST_FOREST_CAVE_ID, QUEST_004_B_THE_DOOR_ID],
+    [QUEST_004_B_THE_DOOR_ID, QUEST_VILLAGE_ARRIVAL_ID],
   ] as const;
   for (const [prevId, nextId] of chain) {
     if (!completed.has(prevId)) continue;

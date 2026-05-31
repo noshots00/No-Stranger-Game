@@ -8,6 +8,7 @@ type UseCarlDoorTalkOptions = {
   playerHealth: number;
   onPlayerHealthChange?: (health: number) => void;
   onCombatChromeChange?: (active: boolean) => void;
+  onCombatVictory?: () => void;
 };
 
 export function useCarlDoorTalk({
@@ -15,6 +16,7 @@ export function useCarlDoorTalk({
   playerHealth,
   onPlayerHealthChange,
   onCombatChromeChange,
+  onCombatVictory,
 }: UseCarlDoorTalkOptions) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [askedDoor, setAskedDoor] = useState(false);
@@ -31,6 +33,7 @@ export function useCarlDoorTalk({
     playerHealth,
     onPlayerHealthChange,
     onCombatChromeChange,
+    onVictory: onCombatVictory,
   });
 
   const combat = { isCombatMode, startCombat, resetCombat, ...combatRest };
