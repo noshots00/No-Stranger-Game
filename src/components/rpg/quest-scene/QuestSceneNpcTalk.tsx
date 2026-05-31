@@ -8,8 +8,9 @@ import {
   QUEST_SCENE_CHOICE_LABEL,
   QUEST_SCENE_CONTINUE,
   QUEST_SCENE_META,
+  QUEST_SCENE_RESPONSE,
 } from '../typography/rpgDialogTypography';
-import { RPG_UI_BODY, RPG_UI_LOG_LINE } from '../typography/rpgUiTypography';
+import { RPG_UI_LOG_LINE } from '../typography/rpgUiTypography';
 import { useCarlDoorTalk } from './useCarlDoorTalk';
 
 type QuestSceneNpcTalkProps = {
@@ -92,8 +93,8 @@ function QuestSceneCarlTalk({
               key={entry.id}
               className={cn(
                 entry.role === 'narrator' && `${RPG_UI_LOG_LINE} italic text-[var(--candle-ink-faint)]`,
-                entry.role === 'player' && `${RPG_UI_BODY} text-[var(--candle-wax)]`,
-                entry.role === 'merchant' && RPG_UI_BODY
+                entry.role === 'player' && `${QUEST_SCENE_RESPONSE} text-[var(--candle-wax)]`,
+                entry.role === 'merchant' && QUEST_SCENE_RESPONSE
               )}
             >
               {entry.role === 'merchant' ? (

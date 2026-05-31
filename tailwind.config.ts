@@ -20,7 +20,7 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
+				sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
 				cormorant: ['"Cormorant Garamond"', 'Georgia', 'serif'],
 				display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
 				serif: ['Georgia', '"Times New Roman"', 'ui-serif', 'serif'],

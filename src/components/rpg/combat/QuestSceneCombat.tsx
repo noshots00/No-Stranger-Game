@@ -1,7 +1,11 @@
 import type { RefObject } from 'react';
 import { cn } from '@/lib/utils';
-import { QUEST_SCENE_CONTINUE } from '../typography/rpgDialogTypography';
-import { RPG_UI_BODY, RPG_UI_CAPTION, RPG_UI_EMPHASIS, RPG_UI_LOG_LINE } from '../typography/rpgUiTypography';
+import {
+  QUEST_SCENE_CONTINUE,
+  QUEST_SCENE_META,
+  QUEST_SCENE_RESPONSE,
+} from '../typography/rpgDialogTypography';
+import { RPG_UI_EMPHASIS, RPG_UI_LOG_LINE } from '../typography/rpgUiTypography';
 import type { CombatLogLine } from './combatLog';
 
 type QuestSceneCombatProps = {
@@ -36,8 +40,8 @@ function CombatHpBar({
   return (
     <div className="min-w-0 flex-1">
       <div className="mb-0.5 flex items-baseline justify-between gap-1">
-        <span className={RPG_UI_CAPTION}>{label}</span>
-        <span className={RPG_UI_CAPTION}>
+        <span className={QUEST_SCENE_META}>{label}</span>
+        <span className={QUEST_SCENE_META}>
           {current}/{max}
         </span>
       </div>
@@ -86,8 +90,8 @@ export function QuestSceneCombat({
               key={entry.id}
               className={cn(
                 entry.tone === 'narrator' && `${RPG_UI_LOG_LINE} italic text-[var(--candle-ink-faint)]`,
-                entry.tone === 'player' && `${RPG_UI_BODY} text-[var(--candle-wax)]`,
-                entry.tone === 'enemy' && RPG_UI_BODY
+                entry.tone === 'player' && `${QUEST_SCENE_RESPONSE} text-[var(--candle-wax)]`,
+                entry.tone === 'enemy' && QUEST_SCENE_RESPONSE
               )}
             >
               {entry.tone === 'enemy' ? (
