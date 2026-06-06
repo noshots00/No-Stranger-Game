@@ -3,11 +3,13 @@ import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 import type { ChronicleSegment } from '../dialogueFormat';
+import type { useTavern } from '../tavern/useTavern';
 import type {
   JournalLogEntry,
   ModifierMap,
   QuestDefinition,
   QuestProgress,
+  QuestState,
   QuestStep,
 } from '../quests/types';
 import { VillageDistrictList } from './VillageDistrictList';
@@ -54,6 +56,10 @@ type VillagePlaySurfaceProps = {
   onOpenTownHall: () => void;
   onOpenCraftersCorner: () => void;
   onTravelToLocation: (locationId: string) => void;
+  tavernOpen?: boolean;
+  onCloseTavern?: () => void;
+  questState?: QuestState;
+  tavern?: ReturnType<typeof useTavern>;
 };
 
 export function VillagePlaySurface({
@@ -94,6 +100,10 @@ export function VillagePlaySurface({
   onOpenTownHall,
   onOpenCraftersCorner,
   onTravelToLocation,
+  tavernOpen = false,
+  onCloseTavern,
+  questState,
+  tavern,
 }: VillagePlaySurfaceProps) {
   const { user } = useCurrentUser();
   const displayName = playerName.trim() || 'Stranger';
@@ -143,25 +153,11 @@ export function VillagePlaySurface({
     />
   );
 
-  const showQuestScene =
-    Boolean(playSceneQuestId) &&
-    Boolean(activeQuest) &&
-    Boolean(activeStep) &&
-    activeQuest?.id === playSceneQuestId;
-
   return (
     <section
       className="relative isolate flex h-full min-h-0 flex-1 flex-col overflow-hidden px-1"
       aria-label="Village hub"
     >
-      {!showQuestScene ? (
-        <header className="shrink-0 pb-1.5 pt-0.5 text-center">
-          <h2 className="font-cormorant text-base font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
-            Strange Village
-          </h2>
-        </header>
-      ) : null}
-
       <VillagePlayTab
         districtsPane={districtsPane}
         playFeedSegments={playFeedSegments}
@@ -193,6 +189,11 @@ export function VillagePlaySurface({
         playerHealth={playerHealth}
         onPlayerHealthChange={onPlayerHealthChange}
         questProgress={questProgress}
+        tavernOpen={tavernOpen}
+        onCloseTavern={onCloseTavern}
+        questState={questState}
+        myPubkey={user?.pubkey}
+        tavern={tavern}
       />
     </section>
   );

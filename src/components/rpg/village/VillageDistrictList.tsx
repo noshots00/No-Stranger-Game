@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
 import { NewDot } from '../NewDot';
+import { RPG_CHOICE_GRID, RPG_COMMAND_CHIP } from '../typography/rpgUiTypography';
 
 import type { VillageLotOccupancyView } from './villageLotNostr';
 import {
@@ -45,9 +47,6 @@ type VillageDistrictListProps = {
 
 type ClaimDialogState = { lotId: string; districtTitle: string } | null;
 type BuildDialogState = { lotId: string; businessName: string } | null;
-
-const lotButtonClass =
-  'block min-w-0 w-full rounded-md border border-transparent px-2 py-1.5 text-left font-sans text-[13px] leading-snug text-[var(--candle-wax)] transition-colors hover:border-[var(--candle-rule)]/60 hover:bg-black/20 hover:text-[var(--candle-flame-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--candle-flame-soft)] disabled:cursor-default disabled:opacity-70';
 
 function lotDisplayName(lot: VillageLotDef, occupancy: VillageLotOccupancyView | undefined): string {
   if (occupancy) return occupancy.businessName;
@@ -98,15 +97,20 @@ function VillageLotRow({
       myPubkey && occupancy && occupancy.ownerPubkey === myPubkey && occupancy.status === 'claimed'
     );
 
+  const chipClass = cn(
+    RPG_COMMAND_CHIP,
+    lot.kind === 'system' && 'village-location-chip--featured'
+  );
+
   if (clickable) {
     return (
       <button
         type="button"
-        className={lotButtonClass}
+        className={chipClass}
         disabled={isOwnerBuild && isBuildPending}
         onClick={() => onLotClick(lot, district, occupancy)}
       >
-        <span className="inline-flex min-w-0 items-center gap-1">
+        <span className="inline-flex max-w-full items-center gap-1 whitespace-nowrap">
           <span className="truncate">{displayName}</span>
           {lot.id === 'town-hall' && townHallPing ? <NewDot /> : null}
         </span>
@@ -115,8 +119,8 @@ function VillageLotRow({
   }
 
   return (
-    <span className="block rounded-md px-2 py-1.5 font-sans text-[13px] leading-snug text-[var(--candle-ink-soft)]">
-      {displayName}
+    <span className={cn(chipClass, 'village-location-chip--muted')} aria-disabled>
+      <span className="whitespace-nowrap">{displayName}</span>
     </span>
   );
 }
@@ -226,12 +230,9 @@ export function VillageDistrictList({
 
   return (
     <>
-      <ul
-        className="m-0 grid list-none grid-cols-2 gap-x-2 gap-y-1 p-0 sm:grid-cols-3"
-        role="list"
-      >
+      <ul className={cn(RPG_CHOICE_GRID, 'village-location-cloud')} role="list">
         {buildingLots.map(({ lot, district }) => (
-          <li key={lot.id} className="min-w-0">
+          <li key={lot.id}>
             <VillageLotRow
               lot={lot}
               district={district}

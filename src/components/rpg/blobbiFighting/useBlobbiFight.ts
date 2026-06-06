@@ -104,6 +104,7 @@ export function useBlobbiFight(args: {
   enabled: boolean;
   myPubkey: string | undefined;
   ownerName: string;
+  onAfterFeedRefresh?: () => void;
 }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -190,7 +191,8 @@ export function useBlobbiFight(args: {
     if (result.data) {
       await tryResolvePendingMatch(result.data);
     }
-  }, [feedQuery, tryResolvePendingMatch]);
+    args.onAfterFeedRefresh?.();
+  }, [feedQuery, tryResolvePendingMatch, args.onAfterFeedRefresh]);
 
   const register = useMutation({
     mutationFn: async (selectedBlobbi: BlobbiSnapshot) => {

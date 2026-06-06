@@ -18,6 +18,13 @@ export function acceptWolfHidesQuest(state: QuestState): QuestState {
   return { ...state, flags };
 }
 
+export function cancelWolfHidesQuest(state: QuestState): QuestState {
+  return {
+    ...state,
+    flags: state.flags.filter((flag) => flag !== WOLF_HIDES_DAILY_FLAG),
+  };
+}
+
 /** Grant hides for days since last grant while the side quest is active. */
 export function applyWolfHideDailyGrants(
   state: QuestState,

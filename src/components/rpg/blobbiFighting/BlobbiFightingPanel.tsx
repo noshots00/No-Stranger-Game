@@ -1,76 +1,68 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { GamePanelExpandable } from '../GamePanelExpandable';
 import { GamePanelScroll } from '../GamePanelScroll';
 import { Button } from '@/components/ui/button';
-import { PanelUpdateButton } from '../PanelUpdateButton';
 import { cn } from '@/lib/utils';
 import { pubkeysEqual } from '@/lib/nostrPubkey';
-import type {
-  BlobbiFightMatchResult,
-  BlobbiFightOpenRegistration,
+import { computeBlobbiArenaRecord } from './blobbiCareerNostr';
+import { BlobbiProfileCard } from './BlobbiProfileCard';
+import { FightMatchSummary, FightMatchVersusLabel } from './FightMatchDisplay';
+import {
+  matchInvolvesOwner,
+  myFighterInMatch,
+  type BlobbiFightMatchResult,
+  type BlobbiFightOpenRegistration,
 } from './blobbiFightNostr';
 import type { BlobbiSnapshot } from './blobbiStateNostr';
 import type { useBlobbiFight } from './useBlobbiFight';
+import type { useBlobbiFightMemories } from './useBlobbiFightMemories';
 import type { usePlayerBlobbis } from './usePlayerBlobbis';
+
 type BlobbiFightingPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   myPubkey: string | undefined;
   playerBlobbis: ReturnType<typeof usePlayerBlobbis>;
   blobbiFight: ReturnType<typeof useBlobbiFight>;
+  blobbiFightMemories: ReturnType<typeof useBlobbiFightMemories>;
 };
 
-const REGISTERING_ELLIPSIS = ['.', '..', '...', '..'] as const;
-const REGISTERING_ELLIPSIS_MS = 400;
-
-function useAnimatedEllipsis(active: boolean): string {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (!active) {
-      setIndex(0);
-      return;
-    }
-    const id = window.setInterval(() => {
-      setIndex((prev) => (prev + 1) % REGISTERING_ELLIPSIS.length);
-    }, REGISTERING_ELLIPSIS_MS);
-    return () => window.clearInterval(id);
-  }, [active]);
-
-  return REGISTERING_ELLIPSIS[active ? index : 0] ?? '.';
-}
-
-function formatMatchTime(atMs: number): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(
-    new Date(atMs)
-  );
-}
-
 function BracketRow({
-  label,
   match,
   defaultOpen,
+  myPubkey,
+  myBlobbi,
 }: {
-  label: string;
   match?: BlobbiFightMatchResult;
   defaultOpen?: boolean;
+  myPubkey?: string;
+  myBlobbi?: BlobbiSnapshot;
 }) {
+  const myBlobbiId =
+    match && myPubkey && matchInvolvesOwner(match, myPubkey)
+      ? myFighterInMatch(match, myPubkey)?.blobbiId
+      : undefined;
+  const showFightLink = Boolean(match && myBlobbiId);
+
+  const label = match ? (
+    <FightMatchVersusLabel match={match} myBlobbi={myBlobbi} />
+  ) : (
+    <span className="truncate font-serif text-xs">Waiting…</span>
+  );
+
   return (
-    <GamePanelExpandable label={<span className="truncate">{label}</span>} defaultOpen={defaultOpen}>
-      <div className="font-serif text-xs leading-relaxed text-[var(--candle-ink-faint)]">
-        {match ? (
-          <>
-            <p className="text-[var(--candle-ink-soft)]">{match.summary}</p>
-            <p className="mt-1">
-              Winner odds ~{Math.round(match.winProbabilityForWinner * 100)}% ·{' '}
-              {formatMatchTime(match.atMs)}
-            </p>
-          </>
-        ) : (
-          <p>Waiting for an opponent…</p>
-        )}
-      </div>
+    <GamePanelExpandable
+      label={label}
+      defaultOpen={defaultOpen}
+      triggerClassName="px-2 py-1.5 text-xs"
+      className="border-[var(--candle-rule)]/50"
+    >
+      {match ? (
+        <FightMatchSummary match={match} myBlobbi={myBlobbi} showFightLink={showFightLink} />
+      ) : (
+        <p className="font-serif text-[0.7rem] text-[var(--candle-ink-faint)]">Waiting…</p>
+      )}
     </GamePanelExpandable>
   );
 }
@@ -94,51 +86,11 @@ function fightBoardRows(
     if (matchedRegistrationIds.has(open.eventId)) continue;
     rows.push({
       key: open.eventId,
-      label: `${open.blobbiName} (${open.ownerName}, waiting…)`,
+      label: `${open.blobbiName} · ${open.ownerName} (queue)`,
     });
   }
 
   return rows;
-}
-
-function BlobbiCard({
-  blobbi,
-  selected,
-  onSelect,
-}: {
-  blobbi: BlobbiSnapshot;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        'w-full rounded-md border px-3 py-2 text-left transition-colors',
-        selected
-          ? 'border-[var(--candle-flame)]/60 bg-[var(--candle-flame)]/10'
-          : 'border-[var(--candle-rule)]/50 bg-black/25 hover:bg-black/35'
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-block h-4 w-4 shrink-0 rounded-full border border-white/20"
-          style={{ backgroundColor: blobbi.baseColor ?? '#888' }}
-          aria-hidden
-        />
-        <span className="font-cormorant text-base font-semibold text-[var(--candle-wax)]">
-          {blobbi.displayName}
-        </span>
-        <span className="font-serif text-[0.65rem] uppercase tracking-[0.1em] text-[var(--candle-ink-faint)]">
-          {blobbi.stage}
-        </span>
-      </div>
-      <p className="mt-1 font-serif text-xs text-[var(--candle-ink-faint)]">
-        HP {blobbi.health} · Happiness {blobbi.happiness} · Energy {blobbi.energy}
-      </p>
-    </button>
-  );
 }
 
 export function BlobbiFightingPanel({
@@ -147,15 +99,23 @@ export function BlobbiFightingPanel({
   myPubkey,
   playerBlobbis,
   blobbiFight,
+  blobbiFightMemories,
 }: BlobbiFightingPanelProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const { blobbis, query: blobbisQuery } = playerBlobbis;
   const { feed, feedQuery, register, refreshFeed, isResolvingMatch } = blobbiFight;
+  const { memories } = blobbiFightMemories;
 
-  const selectedBlobbi = useMemo(
-    () => blobbis.find((b) => b.id === selectedId),
-    [blobbis, selectedId]
-  );
+  const myBlobbi = blobbis[0];
+
+  const arenaRecord = useMemo(() => {
+    if (!myBlobbi || !myPubkey) return { wins: 0, losses: 0 };
+    return computeBlobbiArenaRecord({
+      blobbiId: myBlobbi.id,
+      matches: feed.matches,
+      memories,
+      myPubkey,
+    });
+  }, [myBlobbi, myPubkey, feed.matches, memories]);
 
   const registerError =
     register.error instanceof Error
@@ -163,8 +123,6 @@ export function BlobbiFightingPanel({
       : register.isError
         ? 'Matchmaking failed.'
         : null;
-
-  const registeringEllipsis = useAnimatedEllipsis(register.isPending);
 
   const rows = useMemo(
     () => fightBoardRows(feed.openRegistrations, feed.matches),
@@ -179,132 +137,150 @@ export function BlobbiFightingPanel({
         : 'lost'
       : null;
 
+  const statusLine = (() => {
+    if (registerError) return registerError;
+    if (isResolvingMatch) return 'Pairing fighters…';
+    if (register.isPending) return 'Joining queue…';
+    if (register.isSuccess && register.data?.action === 'matched') {
+      return 'Match found — tap Update fights to refresh the board.';
+    }
+    if (feed.myOpen || (register.isSuccess && register.data?.action === 'queued')) {
+      return 'In queue — tap Update when another fighter is waiting.';
+    }
+    if (!feedQuery.isFetched) return 'Tap Update to load fights from relays.';
+    return null;
+  })();
+
+  const boardEmpty = !feedQuery.isFetching && rows.length === 0;
+  const boardMessage = feedQuery.isFetching
+    ? 'Loading…'
+    : !feedQuery.isFetched
+      ? 'Tap Update below.'
+      : 'No fights yet. Tap Find match.';
+
   return (
     <GamePanelDialog
       open={open}
       onOpenChange={onOpenChange}
       ariaLabel="Blobbi Fighting"
-      panelClassName="gap-0 p-4 pt-8"
+      panelClassName="gap-0 p-3 pt-7"
     >
-      <header className="shrink-0 space-y-1 px-2 text-center">
-        <GamePanelDialogTitle>Blobbi Fighting</GamePanelDialogTitle>
-        <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
-          Pit your Ditto Blobbis against other villagers.
-        </p>
+      <header className="shrink-0 text-center">
+        <GamePanelDialogTitle className="text-lg tracking-[0.04em]">
+          Blobbi Fighting
+        </GamePanelDialogTitle>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1">
-        <div className="shrink-0 space-y-2">
-          <p className="font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
-            Your Blobbis
+      <div className="mt-1 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        {blobbisQuery.isPending ? (
+          <p className="shrink-0 px-1 text-center font-serif text-[0.7rem] text-[var(--candle-ink-faint)]">
+            Loading Blobbi…
           </p>
-          <GamePanelScroll className="max-h-36 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
-            <div className="space-y-2 p-2">
-              {blobbisQuery.isPending ? (
-                <p className="py-2 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                  Loading Blobbis…
+        ) : null}
+        {!blobbisQuery.isPending && !myBlobbi ? (
+          <p className="shrink-0 px-1 text-center font-serif text-[0.7rem] leading-snug text-[var(--candle-ink-faint)]">
+            No Blobbis on Ditto yet.
+          </p>
+        ) : null}
+        {myBlobbi ? (
+          <div className="shrink-0 px-0.5">
+            <BlobbiProfileCard blobbi={myBlobbi} arenaRecord={arenaRecord} />
+          </div>
+        ) : null}
+
+        {statusLine ? (
+          <p
+            className={cn(
+              'shrink-0 px-1 text-center font-serif text-[0.7rem] leading-snug',
+              registerError ? 'text-red-300/90' : 'text-[var(--candle-ink-faint)]'
+            )}
+          >
+            {statusLine}
+          </p>
+        ) : null}
+
+        {myLatestMatch && !feed.myOpen && myMatchOutcome ? (
+          <div className="shrink-0 px-1 text-center">
+            <p className="font-serif text-[0.7rem] text-[var(--candle-ink-faint)]">
+              <span className="text-[var(--candle-ink-soft)]">
+                {myMatchOutcome === 'won' ? 'Victory' : 'Defeat'}
+              </span>
+            </p>
+            <FightMatchSummary
+              match={myLatestMatch}
+              myBlobbi={myBlobbi}
+              showFightLink={Boolean(myPubkey && matchInvolvesOwner(myLatestMatch, myPubkey))}
+            />
+          </div>
+        ) : null}
+
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+          <p className="shrink-0 px-0.5 font-serif text-[0.6rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
+            Fight board
+          </p>
+          <GamePanelScroll className="min-h-0 flex-1 rounded border border-[var(--candle-rule)]/60 bg-black/20">
+            <div className="space-y-1 p-1.5">
+              {boardEmpty ? (
+                <p className="py-3 text-center font-serif text-[0.7rem] text-[var(--candle-ink-faint)]">
+                  {boardMessage}
                 </p>
               ) : null}
-              {!blobbisQuery.isPending && blobbis.length === 0 ? (
-                <p className="py-2 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                  No Blobbis found. Adopt and care for a Blobbi on Ditto, then return here.
-                </p>
-              ) : null}
-              {blobbis.map((blobbi) => (
-                <BlobbiCard
-                  key={blobbi.id}
-                  blobbi={blobbi}
-                  selected={selectedId === blobbi.id}
-                  onSelect={() => setSelectedId(blobbi.id)}
-                />
-              ))}
+              {rows.map((row, i) =>
+                row.match ? (
+                  <BracketRow
+                    key={row.key}
+                    match={row.match}
+                    defaultOpen={i === 0}
+                    myPubkey={myPubkey}
+                    myBlobbi={myBlobbi}
+                  />
+                ) : (
+                  <GamePanelExpandable
+                    key={row.key}
+                    label={<span className="truncate font-serif text-xs">{row.label}</span>}
+                    defaultOpen={i === 0}
+                    triggerClassName="px-2 py-1.5 text-xs"
+                    className="border-[var(--candle-rule)]/50"
+                  >
+                    <p className="font-serif text-[0.7rem] text-[var(--candle-ink-faint)]">
+                      Waiting…
+                    </p>
+                  </GamePanelExpandable>
+                )
+              )}
             </div>
           </GamePanelScroll>
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+        <div className="shrink-0 grid grid-cols-2 gap-1.5 border-t border-[var(--candle-rule)]/40 pt-2">
           <Button
             type="button"
-            className="flex-1 font-serif uppercase tracking-[0.1em]"
+            size="sm"
+            className="h-8 font-serif text-[0.65rem] uppercase tracking-[0.08em]"
             disabled={
               !myPubkey ||
-              !selectedBlobbi ||
+              !myBlobbi ||
               register.isPending ||
               isResolvingMatch ||
               Boolean(feed.myOpen)
             }
             onClick={() => {
-              if (selectedBlobbi) register.mutate(selectedBlobbi);
+              if (myBlobbi) register.mutate(myBlobbi);
             }}
           >
-            {register.isPending || isResolvingMatch
-              ? `Pairing${registeringEllipsis}`
-              : feed.myOpen
-                ? 'Waiting for opponent…'
-                : 'Find a match'}
+            {feed.myOpen ? 'Waiting…' : 'Find match'}
           </Button>
           <Button
             type="button"
+            size="sm"
             variant="outline"
-            className="flex-1 font-serif uppercase tracking-[0.1em]"
-            onClick={() => onOpenChange(false)}
+            className="h-8 font-serif text-[0.65rem] uppercase tracking-[0.08em]"
+            disabled={feedQuery.isFetching || isResolvingMatch}
+            onClick={() => void refreshFeed()}
           >
-            Return to village
+            {feedQuery.isFetching || isResolvingMatch ? 'Updating…' : 'Update fights'}
           </Button>
         </div>
-
-        {registerError ? (
-          <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{registerError}</p>
-        ) : null}
-        {feed.myOpen ? (
-          <p className="shrink-0 text-center font-serif text-xs italic text-[var(--candle-ink-faint)]">
-            {isResolvingMatch
-              ? 'Opponent found — resolving the fight…'
-              : 'You are in the queue. Tap Update fights when another fighter is waiting.'}
-          </p>
-        ) : null}
-        {myLatestMatch && !feed.myOpen ? (
-          <div className="shrink-0 rounded-md border border-[var(--candle-flame)]/30 bg-[var(--candle-flame)]/10 px-3 py-2 text-center">
-            <p className="font-cormorant text-sm text-[var(--candle-wax)]">
-              {myMatchOutcome === 'won' ? 'Victory!' : 'Defeat'}
-            </p>
-            <p className="font-serif text-xs text-[var(--candle-ink-soft)]">{myLatestMatch.summary}</p>
-          </div>
-        ) : null}
-
-        <PanelUpdateButton
-          label="Update fights"
-          onClick={() => void refreshFeed()}
-          isFetching={feedQuery.isFetching || isResolvingMatch}
-          showLedgerHint={!feedQuery.isFetched}
-        />
-
-        <p className="shrink-0 text-center font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
-          Fight results are saved as Blobbi biography memories on Nostr.
-        </p>
-
-        <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
-          <div className="space-y-2 p-2">
-            {feedQuery.isFetching && rows.length === 0 ? (
-              <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                Loading fight board…
-              </p>
-            ) : null}
-            {!feedQuery.isFetching && !feedQuery.isFetched && rows.length === 0 ? (
-              <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                Tap Update fights to load the queue and results.
-              </p>
-            ) : null}
-            {feedQuery.isFetched && !feedQuery.isFetching && rows.length === 0 ? (
-              <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                No fights yet. Select a Blobbi and find a match.
-              </p>
-            ) : null}
-            {rows.map((row, i) => (
-              <BracketRow key={row.key} label={row.label} match={row.match} defaultOpen={i === 0} />
-            ))}
-          </div>
-        </GamePanelScroll>
       </div>
     </GamePanelDialog>
   );

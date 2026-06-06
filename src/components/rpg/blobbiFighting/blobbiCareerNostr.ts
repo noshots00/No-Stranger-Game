@@ -1,5 +1,11 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { pubkeysEqual } from '@/lib/nostrPubkey';
+import {
+  matchInvolvesOwner,
+  myFighterInMatch,
+  type BlobbiFightMatchResult,
+} from './blobbiFightNostr';
 import {
   BLOBBI_FIGHT_LOCATION,
   BLOBBI_FIGHT_MEMORY_QUERY_LIMIT,
@@ -59,7 +65,49 @@ export function hasFightMemoryForMatch(
   nsgMatchId: string,
   blobbiId: string
 ): boolean {
-  return memories.some((m) => m.nsgMatchId === nsgMatchId && m.blobbiId === blobbiId);
+  return findFightMemoryForMatch(memories, nsgMatchId, blobbiId) !== undefined;
+}
+
+export function findFightMemoryForMatch(
+  memories: readonly BlobbiFightMemory[],
+  nsgMatchId: string,
+  blobbiId: string
+): BlobbiFightMemory | undefined {
+  return memories.find((m) => m.nsgMatchId === nsgMatchId && m.blobbiId === blobbiId);
+}
+
+export type BlobbiArenaRecord = { wins: number; losses: number };
+
+export function computeBlobbiArenaRecord(args: {
+  blobbiId: string;
+  matches: readonly BlobbiFightMatchResult[];
+  memories: readonly BlobbiFightMemory[];
+  myPubkey: string;
+}): BlobbiArenaRecord {
+  const { blobbiId, matches, memories, myPubkey } = args;
+  let wins = 0;
+  let losses = 0;
+
+  for (const memory of memories) {
+    if (memory.blobbiId !== blobbiId) continue;
+    if (memory.achievement === 'arena_victory') wins += 1;
+    else losses += 1;
+  }
+
+  const memoryMatchIds = new Set(
+    memories.filter((m) => m.blobbiId === blobbiId).map((m) => m.nsgMatchId)
+  );
+
+  for (const match of matches) {
+    if (!matchInvolvesOwner(match, myPubkey)) continue;
+    const me = myFighterInMatch(match, myPubkey);
+    if (!me || me.blobbiId !== blobbiId) continue;
+    if (memoryMatchIds.has(match.eventId)) continue;
+    if (pubkeysEqual(match.winnerOwnerPubkey, myPubkey)) wins += 1;
+    else losses += 1;
+  }
+
+  return { wins, losses };
 }
 
 export function buildFightMemoryDraft(args: {

@@ -161,10 +161,10 @@ import { useArenaTournament } from './arena/useArenaTournament';
 import { useArenaSyncPersonalRecord } from './arena/useArenaSyncPersonalRecord';
 import { BlobbiFightingPanel } from './blobbiFighting/BlobbiFightingPanel';
 import { useBlobbiFight } from './blobbiFighting/useBlobbiFight';
+import { useBlobbiFightMemories } from './blobbiFighting/useBlobbiFightMemories';
 import { useBlobbiSyncFightMemories } from './blobbiFighting/useBlobbiSyncFightMemories';
 import { usePlayerBlobbis } from './blobbiFighting/usePlayerBlobbis';
 import { useGuildAlley } from './guild/useGuildAlley';
-import { TavernPanel } from './tavern/TavernPanel';
 import { useTavern } from './tavern/useTavern';
 import { MarketPanel } from './market/MarketPanel';
 import { useMarket } from './market/useMarket';
@@ -302,8 +302,15 @@ export function RPGInterface() {
   const { logout } = useLoginActions();
   const navigate = useNavigate();
 
-  const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestStateAndSync, restoreQuestCheckpoint } =
-    useQuestState();
+  const {
+    questState,
+    getQuestState,
+    setQuestState,
+    isQuestStateHydrated,
+    persistQuestCheckpoint,
+    resetQuestStateAndSync,
+    restoreQuestCheckpoint,
+  } = useQuestState();
   const {
     creationDateEastern,
     dayCounter,
@@ -359,16 +366,24 @@ export function RPGInterface() {
     pubkey: user?.pubkey,
   });
 
+  const blobbiFightMemories = useBlobbiFightMemories({
+    enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
+    myPubkey: user?.pubkey,
+  });
+
   const blobbiFight = useBlobbiFight({
     enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
     myPubkey: user?.pubkey,
     ownerName: questState.playerName,
+    onAfterFeedRefresh: blobbiFightMemories.refreshMemories,
   });
 
   useBlobbiSyncFightMemories({
     enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
     matches: blobbiFight.feed.matches,
     myPubkey: user?.pubkey,
+    memories: blobbiFightMemories.memories,
+    onMemoryPublished: blobbiFightMemories.refreshMemories,
   });
 
   useArenaSyncPersonalRecord({
@@ -578,6 +593,7 @@ export function RPGInterface() {
     enabled: tavernOpen && canShowGame,
     questState,
     myPubkey: user?.pubkey,
+    getQuestState,
     setQuestState,
     persistQuestCheckpoint,
   });
@@ -1753,6 +1769,10 @@ export function RPGInterface() {
               onOpenTownHall={() => setTownHallOpen(true)}
               onOpenCraftersCorner={() => setCraftersCornerOpen(true)}
               onTravelToLocation={handleVillageTravel}
+              tavernOpen={tavernOpen}
+              onCloseTavern={() => setTavernOpen(false)}
+              questState={questState}
+              tavern={tavern}
             />
           );
         }
@@ -1802,7 +1822,7 @@ export function RPGInterface() {
     <GamePortraitViewport>
     <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-0.5 px-0 pt-[max(0px,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom,0px)+1.65rem)]">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-0.5 px-0 pt-[max(0px,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom,0px)+var(--rpg-bottom-nav-clearance,2.5rem))]">
         {!hasShownGameOnce && !isQuestStateHydrated ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
@@ -1914,15 +1934,7 @@ export function RPGInterface() {
               myPubkey={user?.pubkey}
               playerBlobbis={playerBlobbis}
               blobbiFight={blobbiFight}
-            />
-          ) : null}
-          {tavernOpen ? (
-            <TavernPanel
-              open
-              onOpenChange={setTavernOpen}
-              questState={questState}
-              myPubkey={user?.pubkey}
-              tavern={tavern}
+              blobbiFightMemories={blobbiFightMemories}
             />
           ) : null}
           {marketOpen ? (

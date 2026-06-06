@@ -210,6 +210,8 @@
 @layer utilities {
   /* --- Candlelit shell (full viewport, vignette, slow glow flicker) --- */
   .candlelit-shell {
+    /* Nav strip: top pad + button min-height + bottom pad + small buffer */
+    --rpg-bottom-nav-clearance: calc(0.15rem + 1.75rem + 0.225rem + 0.5rem);
     position: relative;
     isolation: isolate;
     min-height: 100dvh;
@@ -964,6 +966,31 @@
     list-style: none;
     padding: 0;
     margin: 0;
+  }
+
+  /* Village hub: compact chip cloud (catalog-driven; wraps as locations are added/removed) */
+  .village-location-cloud {
+    justify-content: center;
+    row-gap: 0.0625rem;
+    column-gap: 0.3rem;
+  }
+
+  .village-location-chip--featured {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .village-location-chip--muted {
+    cursor: default;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .village-location-chip--muted:hover,
+  .village-location-chip--muted:focus-visible {
+    color: var(--rpg-command-ink);
+    border-color: color-mix(in srgb, var(--candle-rule) 50%, transparent);
+    background: rgba(0, 0, 0, 0.3);
   }
 
   .rpg-choice-grid > li,

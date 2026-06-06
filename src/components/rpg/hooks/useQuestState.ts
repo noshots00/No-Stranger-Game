@@ -194,8 +194,11 @@ export function useQuestState() {
     [nostr, questStateStorageKey, user, cancelScheduledRelayPublish]
   );
 
+  const getQuestState = useCallback(() => questStateRef.current, []);
+
   return {
     questState,
+    getQuestState,
     setQuestState,
     isQuestStateHydrated,
     persistQuestCheckpoint,

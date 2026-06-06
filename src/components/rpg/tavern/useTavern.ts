@@ -1,9 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { acceptWolfHidesQuest } from './wolfHidesDaily';
 import {
   applyFulfillBountyDeduction,
   applyFulfillRewardGrant,
@@ -36,13 +35,18 @@ async function fetchTavernFeed(
   return { openQuests, allQuests };
 }
 
+const UNPUBLISHED_ESCROW_RECOVERY_MS = 25_000;
+
 export function useTavern(args: {
   enabled: boolean;
   questState: QuestState;
   myPubkey: string | undefined;
+  getQuestState: () => QuestState;
   setQuestState: React.Dispatch<React.SetStateAction<QuestState>>;
   persistQuestCheckpoint: (state: QuestState) => void | Promise<void>;
 }) {
+  const { enabled, myPubkey, getQuestState, setQuestState, persistQuestCheckpoint } = args;
+
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -50,7 +54,7 @@ export function useTavern(args: {
   const feedQuery = useQuery({
     queryKey: TAVERN_FEED_KEY,
     queryFn: () => fetchTavernFeed(nostr),
-    enabled: args.enabled,
+    enabled,
     staleTime: Infinity,
   });
 
@@ -60,15 +64,42 @@ export function useTavern(args: {
     void queryClient.invalidateQueries({ queryKey: TAVERN_FEED_KEY });
   }, [queryClient]);
 
-  const acceptWolfHides = useMutation({
-    mutationFn: async () => {
-      args.setQuestState((prev) => {
-        const next = acceptWolfHidesQuest(prev);
-        window.queueMicrotask(() => void args.persistQuestCheckpoint(next));
+  const publishedQuestIdsRef = useRef(new Set<string>());
+
+  /** Refund escrow rows that never appeared on relays (e.g. after a failed publish). */
+  useEffect(() => {
+    if (!enabled || !feedQuery.isFetched || !myPubkey) return;
+
+    const timer = window.setTimeout(() => {
+      const myQuestIds = new Set(
+        feed.allQuests.filter((q) => q.pubkey === myPubkey).map((q) => q.questId)
+      );
+      for (const id of publishedQuestIdsRef.current) myQuestIds.add(id);
+
+      const escrowIds = Object.keys(getQuestState().tavernEscrowByQuestId ?? {});
+      const orphans = escrowIds.filter((id) => !myQuestIds.has(id));
+      if (orphans.length === 0) return;
+
+      setQuestState((prev) => {
+        let next = prev;
+        for (const id of orphans) next = refundEscrow(next, id);
+        if (next === prev) return prev;
+        void persistQuestCheckpoint(next);
         return next;
       });
-    },
-  });
+    }, UNPUBLISHED_ESCROW_RECOVERY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    enabled,
+    myPubkey,
+    getQuestState,
+    setQuestState,
+    persistQuestCheckpoint,
+    feed.allQuests,
+    feedQuery.isFetched,
+    feedQuery.dataUpdatedAt,
+  ]);
 
   const postQuest = useMutation({
     mutationFn: async (input: {
@@ -77,48 +108,42 @@ export function useTavern(args: {
       bounty: string;
       rewards: PostRewardInput;
     }) => {
-      if (!args.myPubkey) throw new Error('You must be logged in to post a quest.');
+      if (!myPubkey) throw new Error('You must be logged in to post a quest.');
 
       const questId = newPlayerQuestId();
-      const escrowOutcome = {
-        error: null as string | null,
-        next: null as QuestState | null,
-        posterName: 'Stranger',
-      };
+      const beforePost = getQuestState();
+      const posterName = beforePost.playerName.trim() || 'Stranger';
+      const escrowResult = applyPostEscrow(beforePost, questId, input.rewards);
+      if ('error' in escrowResult) throw new Error(escrowResult.error);
 
-      args.setQuestState((prev) => {
-        escrowOutcome.posterName = prev.playerName.trim() || 'Stranger';
-        const escrowResult = applyPostEscrow(prev, questId, input.rewards);
-        if ('error' in escrowResult) {
-          escrowOutcome.error = escrowResult.error;
-          return prev;
-        }
-        escrowOutcome.next = escrowResult.state;
-        return escrowResult.state;
-      });
-
-      if (escrowOutcome.error) throw new Error(escrowOutcome.error);
-      if (!escrowOutcome.next) throw new Error('Failed to escrow reward.');
-      const nextState = escrowOutcome.next;
-      const posterName = escrowOutcome.posterName;
+      const nextState = escrowResult.state;
+      setQuestState(nextState);
 
       const gold = input.rewards.goldAmount ?? 0;
-      await publish(
-        buildPlayerQuestDraft({
-          questId,
-          title: input.title.trim(),
-          description: input.description.trim(),
-          bounty: input.bounty.trim(),
-          posterName,
-          rewardGold: gold,
-          rewardItemLabel: input.rewards.questItemLabel,
-          rewardItemKey: input.rewards.modifierItemKey,
-          rewardItemQty: input.rewards.modifierItemQty ?? 1,
-          status: 'open',
-        })
-      );
+      try {
+        await publish(
+          buildPlayerQuestDraft({
+            questId,
+            title: input.title.trim(),
+            description: input.description.trim(),
+            bounty: input.bounty.trim(),
+            posterName,
+            rewardGold: gold,
+            rewardItemLabel: input.rewards.questItemLabel,
+            rewardItemKey: input.rewards.modifierItemKey,
+            rewardItemQty: input.rewards.modifierItemQty ?? 1,
+            status: 'open',
+          })
+        );
+      } catch (error) {
+        const refunded = refundEscrow(nextState, questId);
+        setQuestState(refunded);
+        await persistQuestCheckpoint(refunded);
+        throw error;
+      }
 
-      void args.persistQuestCheckpoint(nextState);
+      publishedQuestIdsRef.current.add(questId);
+      await persistQuestCheckpoint(nextState);
       return questId;
     },
     onSuccess: () => invalidateFeed(),
@@ -126,16 +151,12 @@ export function useTavern(args: {
 
   const cancelQuest = useMutation({
     mutationFn: async (quest: PlayerQuestView) => {
-      if (!args.myPubkey || quest.pubkey !== args.myPubkey) {
+      if (!myPubkey || quest.pubkey !== myPubkey) {
         throw new Error('Only the poster can cancel this quest.');
       }
-      const cancelOutcome = { next: null as QuestState | null };
-      args.setQuestState((prev) => {
-        cancelOutcome.next = refundEscrow(prev, quest.questId);
-        return cancelOutcome.next;
-      });
-      if (!cancelOutcome.next) throw new Error('Failed to cancel quest.');
-      void args.persistQuestCheckpoint(cancelOutcome.next);
+      const refunded = refundEscrow(getQuestState(), quest.questId);
+      setQuestState(refunded);
+      await persistQuestCheckpoint(refunded);
       await publish(
         buildPlayerQuestDraft({
           questId: quest.questId,
@@ -156,22 +177,14 @@ export function useTavern(args: {
 
   const fulfillQuest = useMutation({
     mutationFn: async (quest: PlayerQuestView) => {
-      if (!args.myPubkey) throw new Error('You must be logged in to fulfill a quest.');
-      if (quest.pubkey === args.myPubkey) throw new Error('You cannot fulfill your own quest.');
+      if (!myPubkey) throw new Error('You must be logged in to fulfill a quest.');
+      if (quest.pubkey === myPubkey) throw new Error('You cannot fulfill your own quest.');
 
-      const fulfillOutcome = { error: null as string | null, next: null as QuestState | null };
-      args.setQuestState((prev) => {
-        const bountyResult = applyFulfillBountyDeduction(prev, quest.bounty);
-        if ('error' in bountyResult) {
-          fulfillOutcome.error = bountyResult.error;
-          return prev;
-        }
-        fulfillOutcome.next = applyFulfillRewardGrant(bountyResult.state, quest);
-        return fulfillOutcome.next;
-      });
-      if (fulfillOutcome.error) throw new Error(fulfillOutcome.error);
-      if (!fulfillOutcome.next) throw new Error('Failed to fulfill quest.');
-      const next = fulfillOutcome.next;
+      const beforeFulfill = getQuestState();
+      const bountyResult = applyFulfillBountyDeduction(beforeFulfill, quest.bounty);
+      if ('error' in bountyResult) throw new Error(bountyResult.error);
+      const next = applyFulfillRewardGrant(bountyResult.state, quest);
+      setQuestState(next);
 
       const fulfillerName = next.playerName.trim() || 'Stranger';
       await publish(
@@ -186,12 +199,12 @@ export function useTavern(args: {
           rewardItemKey: quest.rewardItemKey || undefined,
           rewardItemQty: quest.rewardItemQty || undefined,
           status: 'fulfilled',
-          fulfillerPubkey: args.myPubkey,
+          fulfillerPubkey: myPubkey,
           fulfillerName,
         })
       );
 
-      void args.persistQuestCheckpoint(next);
+      await persistQuestCheckpoint(next);
     },
     onSuccess: () => invalidateFeed(),
   });
@@ -199,7 +212,6 @@ export function useTavern(args: {
   return {
     feedQuery,
     feed,
-    acceptWolfHides,
     postQuest,
     cancelQuest,
     fulfillQuest,

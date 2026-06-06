@@ -168,22 +168,27 @@ export function openRegistrationToFighter(
   };
 }
 
+/** Open queue row is stale once this owner fought in a match at or after they queued. */
+export function isOpenRegistrationSupersededByMatch(
+  open: BlobbiFightOpenRegistration,
+  matches: readonly BlobbiFightMatchResult[]
+): boolean {
+  const queuedAtMs = open.createdAt * 1000;
+  return matches.some(
+    (match) => matchInvolvesOwner(match, open.pubkey) && match.atMs >= queuedAtMs
+  );
+}
+
 export function listActiveOpenRegistrations(
   events: readonly NostrEvent[],
   consumedIds: ReadonlySet<string>,
   matches: readonly BlobbiFightMatchResult[] = []
 ): BlobbiFightOpenRegistration[] {
-  const matchedOwnerPubkeys = new Set<string>();
-  for (const match of matches) {
-    matchedOwnerPubkeys.add(normalizePubkeyHex(match.fighterA.ownerPubkey));
-    matchedOwnerPubkeys.add(normalizePubkeyHex(match.fighterB.ownerPubkey));
-  }
-
   const byPubkey = new Map<string, BlobbiFightOpenRegistration>();
   for (const event of events) {
     const row = parseBlobbiFightOpenRegistration(event);
     if (!row || consumedIds.has(row.eventId)) continue;
-    if (matchedOwnerPubkeys.has(normalizePubkeyHex(row.pubkey))) continue;
+    if (isOpenRegistrationSupersededByMatch(row, matches)) continue;
     const prev = byPubkey.get(row.pubkey);
     if (!prev || row.createdAt >= prev.createdAt) byPubkey.set(row.pubkey, row);
   }

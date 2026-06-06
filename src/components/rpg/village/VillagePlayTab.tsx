@@ -2,12 +2,15 @@ import type { ReactNode, RefObject } from 'react';
 
 import { JournalScreen } from '../journal/JournalScreen';
 import { QuestSceneScreen } from '../quest-scene/QuestSceneScreen';
+import { TavernScreen } from '../tavern/TavernScreen';
+import type { useTavern } from '../tavern/useTavern';
 import type { ChronicleSegment } from '../dialogueFormat';
 import type {
   JournalLogEntry,
   ModifierMap,
   QuestDefinition,
   QuestProgress,
+  QuestState,
   QuestStep,
 } from '../quests/types';
 
@@ -42,6 +45,11 @@ type VillagePlayTabProps = {
   playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
+  tavernOpen?: boolean;
+  onCloseTavern?: () => void;
+  questState?: QuestState;
+  myPubkey?: string;
+  tavern?: ReturnType<typeof useTavern>;
 };
 
 export function VillagePlayTab({
@@ -75,6 +83,11 @@ export function VillagePlayTab({
   playerHealth = 100,
   onPlayerHealthChange,
   questProgress,
+  tavernOpen = false,
+  onCloseTavern,
+  questState,
+  myPubkey,
+  tavern,
 }: VillagePlayTabProps) {
   const showQuestScene =
     Boolean(playSceneQuestId) &&
@@ -113,25 +126,37 @@ export function VillagePlayTab({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 shrink-0 overflow-hidden">{districtsPane}</div>
-      <div
-        className="mt-2 shrink-0 border-t border-[var(--candle-rule)]/40"
-        role="separator"
-        aria-hidden
-      />
-      <JournalScreen
-        className="min-h-0 flex-1 pt-1.5"
-        playFeedSegments={playFeedSegments}
-        playJournalLines={playJournalLines}
-        newQuestIds={newQuestIds}
-        questTitleById={questTitleById}
-        visibleQuests={villageJournalQuests}
-        completedQuestIds={completedQuestIds}
-        onOpenQuest={onOpenQuest}
-        dialogueScrollRef={dialogueScrollRef}
-        onDialogueScroll={onDialogueScroll}
-        visibleLocationActions={[]}
-        playerFlags={playerFlags}
-      />
+      {!tavernOpen ? (
+        <div
+          className="mt-2 shrink-0 border-t border-[var(--candle-rule)]/40"
+          role="separator"
+          aria-hidden
+        />
+      ) : null}
+      {tavernOpen && questState && tavern && onCloseTavern ? (
+        <TavernScreen
+          className="min-h-0 flex-1 pt-1.5"
+          questState={questState}
+          myPubkey={myPubkey}
+          tavern={tavern}
+          onClose={onCloseTavern}
+        />
+      ) : (
+        <JournalScreen
+          className="min-h-0 flex-1 pt-1.5"
+          playFeedSegments={playFeedSegments}
+          playJournalLines={playJournalLines}
+          newQuestIds={newQuestIds}
+          questTitleById={questTitleById}
+          visibleQuests={villageJournalQuests}
+          completedQuestIds={completedQuestIds}
+          onOpenQuest={onOpenQuest}
+          dialogueScrollRef={dialogueScrollRef}
+          onDialogueScroll={onDialogueScroll}
+          visibleLocationActions={[]}
+          playerFlags={playerFlags}
+        />
+      )}
     </div>
   );
 }
