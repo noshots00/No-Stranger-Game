@@ -46,6 +46,14 @@ export const RPG_COMMAND_CONTINUE = 'rpg-command-chip rpg-command-chip--continue
 /** Horizontal command row — equal edge/between spacing (quest scene, journal locations) */
 export const RPG_CHOICE_GRID = 'rpg-choice-grid';
 
+/** Full-width location hero — 16:7 banner (quest scene art, non-village). */
+export const RPG_SCENE_BANNER =
+  'aspect-[16/7] w-full overflow-hidden rounded-md border border-[var(--candle-rule)] shadow-[0_8px_28px_rgba(0,0,0,0.4)]';
+
+/** Compact village hub strip — location cloud + inline location screens. */
+export const RPG_VILLAGE_HUB_BANNER =
+  'h-[4.75rem] w-full overflow-hidden rounded-md border border-[var(--candle-rule)] shadow-[0_4px_16px_rgba(0,0,0,0.35)]';
+
 /** Vertical command stack — NPC / merchant talk panes */
 export const RPG_CHOICE_STACK = 'rpg-choice-stack';
 

@@ -1097,20 +1097,15 @@ There is an important distinction between **writing new tests** and **running ex
 
 ### Running Tests (Executing the Test Suite)
 
-Use a **fast-feedback default**. Do not run heavyweight validation unless risk or user request justifies it.
+**Maintainer policy:** Do **not** run `npm run check`, `npm run test:quick`, or `npm run verify` after routine coding unless the user explicitly asks or the change is seriously high-risk (see `.cursor/rules/validation-sparing.mdc`).
 
 **When to run:**
 
-- **During iteration**: Do **not** run `npm run check` after every edit—only when iterating on TypeScript-affecting files and usually **once per batch** before commit.
-- **Docs/markdown/rules-only changes**: **Skip** `npm run check` unless tooling files changed.
-- **Before finishing code tasks**: One `npm run check` when `*.ts`/`*.tsx`/etc. were modified; skip if the task was docs-only.
-- Use `npm run test:quick` only when behavior changed in tested areas.
-- **Run full `npm run verify` only when**:
-  - the user explicitly asks for full verification,
-  - making release-critical changes,
-  - touching build tooling, dependency graph, or test infrastructure,
-  - doing broad/high-risk refactors where full-suite confidence is needed.
-- **Skip duplicate runs**: if a relevant validation already passed and no related files changed, do not rerun.
+- **Default**: **skip** all validation commands.
+- **Run `npm run check` only when** the user explicitly asks, or the change is seriously high-risk (tooling, deps, broad refactors, release-critical work).
+- **Run `npm run test:quick` only when** the user asks or requested test confidence on behavior you changed under coverage.
+- **Run `npm run verify` only when** the user explicitly asks, or release/tooling/high-risk scenarios they care about.
+- **Never** run check “to finish the task” on small UI/logic edits.
 
 **Script intent:**
 - `npm run check`: fast typecheck + cached lint
@@ -1148,27 +1143,24 @@ describe('MyComponent', () => {
 
 ## Validating Your Changes
 
-Validate proportional to risk. Default to fast checks; escalate only when needed.
+**Maintainer policy: default is skip.** Do not run validation commands after routine work.
 
-**Your task is not finished until** appropriate validation for the change scope is complete:
-- low/medium-risk edits: `npm run check`
-- high-risk/release/tooling edits: `npm run verify`
+**Run validation only when:**
 
-### Validation Priority Order
+- The user **explicitly asks**, or
+- The change is **seriously high-risk** (tooling, dependencies, large refactors, release-critical) — see `.cursor/rules/validation-sparing.mdc`.
 
-Use this order **when choosing what to run** (not as an excuse to run everything repeatedly):
+**Do not treat “task complete” as a reason to run `npm run check`.** Small and medium game/UI edits do not need it.
 
-1. **Default**: `npm run check`
-2. **Targeted confidence**: `npm run test:quick` when behavior changed and tests likely cover it
-3. **Full gate**: `npm run verify` only for explicitly requested or high-risk scenarios
+### If the user asks for validation
 
-**Minimum Requirements before finishing:**
-- **`npm run check`**: required only when you changed files that affect typecheck/lint (see `.cursor/rules/validation-sparing.mdc`). Docs-only / markdown-only tasks: **no check required** unless the user asks.
-- `npm run verify` passes when the task matches the full-gate triggers above.
-- Fix critical issues that would break CI or the app.
-- Create a git commit when your changes are complete and validated.
+1. **`npm run check`** — when they ask for check/lint/types, or for serious TS/tooling changes they requested verification on.
+2. **`npm run test:quick`** — when they ask or want test confidence on covered behavior.
+3. **`npm run verify`** — when they ask for full gate or release verification.
 
-The goal is confidence **without** paying the full suite cost on every tiny change.
+Fix critical issues that would obviously break the app if you notice them without running the full suite. Create a git commit when your changes are complete **only if the user asked for a commit** — validation is not a prerequisite for every task.
+
+The maintainer runs checks locally when they want them.
 
 ### Using Git
 

@@ -1,28 +1,39 @@
 ---
-description: Minimize npm run check / eslint / tsc — run only when justified
+description: Do NOT run npm run check by default — maintainer policy; only serious changes or explicit ask
 alwaysApply: true
 ---
 
-# Validation: run sparingly (save time & compute)
+# Validation: default is **skip** (maintainer policy)
 
-## Do **not** run `npm run check` when
+**The maintainer does not want agents running `npm run check`, `npm run test:quick`, or `npm run verify` after routine coding.** They have asked repeatedly. Treat “skip validation” as the default for every session.
 
-- Changes are **docs/markdown only** (`*.md`, `docs/**`, `.agents/**`), **Cursor rules** (`.cursor/rules/**`), image/assets, or copy-only edits that do not touch build tooling.
+## Do **not** run `npm run check` (unless a bullet below says otherwise)
+
+- **Any routine game/UI work**: small edits, one-file fixes, conditionals, styling, copy, new components, quest tweaks, village/tavern layout, etc.
+- Changes are **docs/markdown only**, **Cursor rules**, **image/assets**, or copy-only with no build tooling.
 - The user’s request is **read-only** (explain, review, plan) with **no file edits**.
-- You already ran `npm run check` **successfully in this session** on the **same working tree** and no further `*.ts` / `*.tsx` / `*.js` / `*.jsx` / eslint-ts config files changed since.
+- You already ran check **successfully in this session** on the same working tree and nothing relevant changed since.
+- **When in doubt: skip.** Do not “be helpful” by running check.
 
-## Run `npm run check` **once** when
+## Run `npm run check` **only** when
 
-- You modified **any** of: `src/**` or `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `package.json` (deps/scripts), `tsconfig*.json`, `eslint.config.*`, `vite.config.*`, or anything that affects typecheck/lint — **at the end of that coding batch**, not after every single save.
+1. The user **explicitly asks** (e.g. “run check”, “verify”, “make sure CI passes”), **or**
+2. The change is **serious / high-risk**, for example:
+   - build tooling, `package.json` deps/scripts, `tsconfig`, eslint/vite config
+   - broad refactors across many files or shared types/APIs
+   - release-critical or CI-breaking risk the user called out
+   - you genuinely cannot ship without typecheck (e.g. complex generic/types work) **and** the user would care — still prefer asking first if unsure
 
-## Escalation
+## Escalation (even rarer)
 
-- **`npm run test:quick`**: only if behavior changed under test coverage and you need extra confidence.
-- **`npm run verify`**: only if the user asks, or AGENTS.md full-gate triggers (release/tooling/high-risk).
+- **`npm run test:quick`**: only if the user asks **or** you changed behavior under existing tests and they asked for test confidence.
+- **`npm run verify`**: only if the user explicitly asks, or release/tooling/high-risk per above.
 
-## Anti-patterns
+## Anti-patterns (do not do these)
 
-- Running check **twice** without new code edits.
-- Running check after **only** bumping `package.json` version with **no** TS changes (skip).
+- Running check **after every TS touch** or “to finish the task”.
+- Running check **twice** without new edits.
+- Running check after **only** bumping `package.json` version.
+- Backgrounding check “because the rules said to” on a trivial diff.
 
-When in doubt: **skip check** for low-risk/doc-only work; run **one** check before commit when code changed.
+**Summary:** Skip check unless the user asked or the change is seriously risky. The maintainer will run checks locally when they want them.

@@ -2,8 +2,16 @@ import { useCallback, useMemo, useState, type RefObject } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
+import type { useArenaTournament } from '../arena/useArenaTournament';
+import type { useBlobbiFight } from '../blobbiFighting/useBlobbiFight';
+import type { useBlobbiFightMemories } from '../blobbiFighting/useBlobbiFightMemories';
+import type { usePlayerBlobbis } from '../blobbiFighting/usePlayerBlobbis';
 import type { ChronicleSegment } from '../dialogueFormat';
+import type { useGuildAlley } from '../guild/useGuildAlley';
+import type { useMayorsHut } from '../mayorsHut/useMayorsHut';
+import type { useMarket } from '../market/useMarket';
 import type { useTavern } from '../tavern/useTavern';
+import type { useVillageProjects } from '../villageProjects/useVillageProjects';
 import type {
   JournalLogEntry,
   ModifierMap,
@@ -49,17 +57,24 @@ type VillagePlaySurfaceProps = {
   playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
-  onOpenArena: () => void;
-  onOpenBlobbiFighting: () => void;
-  onOpenTavern: () => void;
-  onOpenMarket: () => void;
-  onOpenTownHall: () => void;
-  onOpenCraftersCorner: () => void;
+  activeVillagePanel: VillagePanelId | null;
+  onOpenVillagePanel: (panel: VillagePanelId) => void;
+  onCloseVillagePanel: () => void;
+  questState: QuestState;
+  tavern: ReturnType<typeof useTavern>;
+  arenaTournament: ReturnType<typeof useArenaTournament>;
+  market: ReturnType<typeof useMarket>;
+  mayorsHut: ReturnType<typeof useMayorsHut>;
+  villageProjects: ReturnType<typeof useVillageProjects>;
+  guildAlley: ReturnType<typeof useGuildAlley>;
+  playerBlobbis: ReturnType<typeof usePlayerBlobbis>;
+  blobbiFight: ReturnType<typeof useBlobbiFight>;
+  blobbiFightMemories: ReturnType<typeof useBlobbiFightMemories>;
+  onApplyModifiers: (delta: ModifierMap) => void;
+  onSwitchJob: (jobSlug: string) => void;
+  onMayorVoteRecorded?: () => void;
+  onMayorVoteRetracted?: () => void;
   onTravelToLocation: (locationId: string) => void;
-  tavernOpen?: boolean;
-  onCloseTavern?: () => void;
-  questState?: QuestState;
-  tavern?: ReturnType<typeof useTavern>;
 };
 
 export function VillagePlaySurface({
@@ -93,17 +108,24 @@ export function VillagePlaySurface({
   playerHealth = 100,
   onPlayerHealthChange,
   questProgress,
-  onOpenArena,
-  onOpenBlobbiFighting,
-  onOpenTavern,
-  onOpenMarket,
-  onOpenTownHall,
-  onOpenCraftersCorner,
-  onTravelToLocation,
-  tavernOpen = false,
-  onCloseTavern,
+  activeVillagePanel,
+  onOpenVillagePanel,
+  onCloseVillagePanel,
   questState,
   tavern,
+  arenaTournament,
+  market,
+  mayorsHut,
+  villageProjects,
+  guildAlley,
+  playerBlobbis,
+  blobbiFight,
+  blobbiFightMemories,
+  onApplyModifiers,
+  onSwitchJob,
+  onMayorVoteRecorded,
+  onMayorVoteRetracted,
+  onTravelToLocation,
 }: VillagePlaySurfaceProps) {
   const { user } = useCurrentUser();
   const displayName = playerName.trim() || 'Stranger';
@@ -121,18 +143,6 @@ export function VillagePlaySurface({
   const emptyLots = useMemo(() => new Map<string, VillageLotOccupancyView>(), []);
   const occupancyByLotId = occupancyFromFeed ?? emptyLots;
 
-  const onOpenPanel = useCallback(
-    (panel: VillagePanelId) => {
-      if (panel === 'arena') onOpenArena();
-      else if (panel === 'blobbiFighting') onOpenBlobbiFighting();
-      else if (panel === 'tavern') onOpenTavern();
-      else if (panel === 'market') onOpenMarket();
-      else if (panel === 'townHall') onOpenTownHall();
-      else if (panel === 'craftersCorner') onOpenCraftersCorner();
-    },
-    [onOpenArena, onOpenBlobbiFighting, onOpenTavern, onOpenMarket, onOpenTownHall, onOpenCraftersCorner]
-  );
-
   const districtsPane = (
     <VillageDistrictList
       questFlags={questFlags}
@@ -146,7 +156,7 @@ export function VillagePlaySurface({
       onBuildLot={async (lotId) => {
         await buildLot.mutateAsync({ lotId });
       }}
-      onOpenPanel={onOpenPanel}
+      onOpenPanel={onOpenVillagePanel}
       onTravelToLocation={onTravelToLocation}
       onRequestLotsFeed={requestLotsFeed}
       townHallPing={townHallPing}
@@ -189,11 +199,23 @@ export function VillagePlaySurface({
         playerHealth={playerHealth}
         onPlayerHealthChange={onPlayerHealthChange}
         questProgress={questProgress}
-        tavernOpen={tavernOpen}
-        onCloseTavern={onCloseTavern}
+        activeVillagePanel={activeVillagePanel}
+        onCloseVillagePanel={onCloseVillagePanel}
         questState={questState}
         myPubkey={user?.pubkey}
         tavern={tavern}
+        arenaTournament={arenaTournament}
+        market={market}
+        mayorsHut={mayorsHut}
+        villageProjects={villageProjects}
+        guildAlley={guildAlley}
+        playerBlobbis={playerBlobbis}
+        blobbiFight={blobbiFight}
+        blobbiFightMemories={blobbiFightMemories}
+        onApplyModifiers={onApplyModifiers}
+        onSwitchJob={onSwitchJob}
+        onMayorVoteRecorded={onMayorVoteRecorded}
+        onMayorVoteRetracted={onMayorVoteRetracted}
       />
     </section>
   );

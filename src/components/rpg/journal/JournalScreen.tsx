@@ -26,6 +26,8 @@ export type JournalScreenProps = {
   newQuestIds: readonly string[];
   questTitleById: Record<string, string>;
   visibleQuests: QuestDefinition[];
+  /** Tracked beat — always show its card when incomplete, even if unveil list lagged. */
+  activeQuest?: QuestDefinition | null;
   completedQuestIds: string[];
   onOpenQuest: (questId: string) => void;
   dialogueScrollRef: RefObject<HTMLDivElement | null>;
@@ -43,6 +45,7 @@ export function JournalScreen({
   newQuestIds,
   questTitleById,
   visibleQuests,
+  activeQuest = null,
   completedQuestIds,
   onOpenQuest,
   dialogueScrollRef,
@@ -111,10 +114,17 @@ export function JournalScreen({
   }, [playFeedSegments, playJournalLines]);
 
   const completedQuestIdSet = useMemo(() => new Set(completedQuestIds), [completedQuestIds]);
-  const questCardRows = useMemo(
-    () => visibleQuests.filter((q) => !completedQuestIdSet.has(q.id)),
-    [visibleQuests, completedQuestIdSet]
-  );
+  const questCardRows = useMemo(() => {
+    const incomplete = visibleQuests.filter((q) => !completedQuestIdSet.has(q.id));
+    if (
+      activeQuest &&
+      !completedQuestIdSet.has(activeQuest.id) &&
+      !incomplete.some((q) => q.id === activeQuest.id)
+    ) {
+      return [activeQuest, ...incomplete];
+    }
+    return incomplete;
+  }, [visibleQuests, completedQuestIdSet, activeQuest]);
 
   const hasOpenedOriginQuest = playerFlags.includes(ORIGIN_QUEST_OPENED_FLAG);
   const resolveQuestBriefing = (questId: string, defaultBriefing: string): string =>

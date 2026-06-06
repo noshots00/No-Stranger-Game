@@ -6,6 +6,12 @@ import { PanelUpdateButton } from '../PanelUpdateButton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
+import { RPG_UI_CAPTION, RPG_UI_META, RPG_UI_UI } from '../typography/rpgUiTypography';
+import {
+  VillageActionChip,
+  VillageActionRow,
+  VillageActionRowItem,
+} from '../village/VillageActionChip';
 import { GUILD_CREATE_COST_GOLD } from './guildEconomy';
 import { DEFAULT_GUILD } from './defaultGuild';
 import { CreateGuildNameDialog } from './CreateGuildNameDialog';
@@ -29,29 +35,39 @@ function GuildListRow({
   joinReason,
   onJoin,
   isJoinPending,
+  embedded = false,
 }: {
   guild: GuildDefinitionView;
   joinDisabled: boolean;
   joinReason?: string;
   onJoin: () => void;
   isJoinPending: boolean;
+  embedded?: boolean;
 }) {
   return (
     <GamePanelExpandable label={<span className="truncate">{guild.name}</span>}>
-      <div className="space-y-2">
-        <p className="font-serif text-xs text-[var(--candle-ink-faint)]">Leader: {guild.leaderName}</p>
-        <Button
-          type="button"
-          size="sm"
-          className="w-full font-serif text-xs uppercase tracking-[0.1em]"
-          disabled={joinDisabled || isJoinPending}
-          onClick={onJoin}
-        >
-          {isJoinPending ? 'Joining…' : 'Join'}
-        </Button>
-        {joinReason ? (
-          <p className="text-center font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">{joinReason}</p>
-        ) : null}
+      <div className="space-y-1">
+        <p className={RPG_UI_CAPTION}>Leader: {guild.leaderName}</p>
+        {embedded ? (
+          <VillageActionRow>
+            <VillageActionRowItem>
+              <VillageActionChip disabled={joinDisabled || isJoinPending} onClick={onJoin}>
+                {isJoinPending ? 'Joining…' : 'Join'}
+              </VillageActionChip>
+            </VillageActionRowItem>
+          </VillageActionRow>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            className="w-full font-serif text-xs uppercase tracking-[0.1em]"
+            disabled={joinDisabled || isJoinPending}
+            onClick={onJoin}
+          >
+            {isJoinPending ? 'Joining…' : 'Join'}
+          </Button>
+        )}
+        {joinReason ? <p className={cn(RPG_UI_CAPTION, 'text-center')}>{joinReason}</p> : null}
       </div>
     </GamePanelExpandable>
   );
@@ -64,6 +80,7 @@ function GuildMembersTab({
   onElectLeader,
   onLeave,
   isLeavePending,
+  embedded = false,
 }: {
   guild: GuildDefinitionView;
   members: GuildMemberRow[];
@@ -71,65 +88,84 @@ function GuildMembersTab({
   onElectLeader: () => void;
   onLeave: () => void;
   isLeavePending: boolean;
+  embedded?: boolean;
 }) {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="shrink-0 space-y-1 rounded-md border border-[var(--candle-rule)]/80 bg-black/25 px-3 py-2">
-        <p className="font-serif text-sm text-[var(--candle-wax)]">Leader: {guild.leaderName}</p>
-      </div>
-      <div className="min-h-0 flex-1 space-y-2">
-        <p className="font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">Members</p>
-        <GamePanelScroll className="h-[min(40vh,16rem)] rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
-          <ul className="space-y-2 p-2">
-            {members.length === 0 ? (
-              <li className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">No members yet.</li>
+  const memberList = (
+    <ul className="space-y-1 p-2">
+      {members.length === 0 ? (
+        <li className={cn(RPG_UI_META, 'py-2 text-center')}>No members yet.</li>
+      ) : (
+        members.map((m) => (
+          <li
+            key={m.pubkey}
+            className={cn(RPG_UI_UI, m.status === 'left' && 'text-[var(--candle-ink-faint)]')}
+          >
+            {m.status === 'left' ? (
+              <>
+                <span className="line-through">{m.name}</span>
+                {' — Left on '}
+                {formatGuildDate(m.leftAtSec ?? m.joinedAtSec)}
+              </>
             ) : (
-              members.map((m) => (
-                <li
-                  key={m.pubkey}
-                  className={cn(
-                    'font-serif text-sm text-[var(--candle-ink-soft)]',
-                    m.status === 'left' && 'text-[var(--candle-ink-faint)]'
-                  )}
-                >
-                  {m.status === 'left' ? (
-                    <>
-                      <span className="line-through">{m.name}</span>
-                      {' — Left on '}
-                      {formatGuildDate(m.leftAtSec ?? m.joinedAtSec)}
-                    </>
-                  ) : (
-                    <>
-                      {m.name}
-                      {' — joined '}
-                      {formatGuildDate(m.joinedAtSec)}
-                    </>
-                  )}
-                </li>
-              ))
+              <>
+                {m.name}
+                {' — joined '}
+                {formatGuildDate(m.joinedAtSec)}
+              </>
             )}
-          </ul>
-        </GamePanelScroll>
+          </li>
+        ))
+      )}
+    </ul>
+  );
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="shrink-0 rounded-md border border-[var(--candle-rule)]/80 bg-black/25 px-2 py-1.5">
+        <p className={cn(RPG_UI_UI, 'text-[var(--candle-wax)]')}>Leader: {guild.leaderName}</p>
       </div>
-      <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1 font-serif text-xs uppercase tracking-[0.08em]"
-          onClick={onElectLeader}
-        >
-          Elect new leader
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1 font-serif text-xs uppercase tracking-[0.08em]"
-          disabled={!canLeave || isLeavePending}
-          onClick={onLeave}
-        >
-          {isLeavePending ? 'Leaving…' : 'Leave Guild'}
-        </Button>
+      <div className="min-h-0 flex-1 space-y-1">
+        <p className={cn(RPG_UI_CAPTION, 'uppercase tracking-[0.14em]')}>Members</p>
+        {embedded ? (
+          memberList
+        ) : (
+          <GamePanelScroll className="h-[min(40vh,16rem)] rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+            {memberList}
+          </GamePanelScroll>
+        )}
       </div>
+      {embedded ? (
+        <VillageActionRow>
+          <VillageActionRowItem>
+            <VillageActionChip onClick={onElectLeader}>Elect new leader</VillageActionChip>
+          </VillageActionRowItem>
+          <VillageActionRowItem>
+            <VillageActionChip disabled={!canLeave || isLeavePending} onClick={onLeave}>
+              {isLeavePending ? 'Leaving…' : 'Leave Guild'}
+            </VillageActionChip>
+          </VillageActionRowItem>
+        </VillageActionRow>
+      ) : (
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 font-serif text-xs uppercase tracking-[0.08em]"
+            onClick={onElectLeader}
+          >
+            Elect new leader
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 font-serif text-xs uppercase tracking-[0.08em]"
+            disabled={!canLeave || isLeavePending}
+            onClick={onLeave}
+          >
+            {isLeavePending ? 'Leaving…' : 'Leave Guild'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -203,6 +239,53 @@ export function GuildAlleyContent({
     return tabs;
   }, [membership, memberGuildDef]);
 
+  const guildListBody =
+    feedQuery.isFetching ? (
+      <p className={cn(RPG_UI_META, 'py-2 text-center')}>Updating…</p>
+    ) : !feedQuery.isFetched ? (
+      <p className={cn(RPG_UI_META, 'py-2 text-center')}>
+        Tap Update guilds to load guild roster from the village ledger.
+      </p>
+    ) : (
+      feed.guilds.map((guild) => {
+        const members = feed.membersBySlug[guild.slug] ?? [];
+        const iAmActive = myPubkey
+          ? members.some((m) => m.pubkey === myPubkey && m.status === 'active')
+          : false;
+        const joinDisabled =
+          !myPubkey ||
+          (hasActiveMembership && myActiveMembershipSlug !== guild.slug) ||
+          iAmActive;
+        let joinReason: string | undefined;
+        if (hasActiveMembership && myActiveMembershipSlug !== guild.slug) {
+          joinReason = 'Leave your current guild first.';
+        } else if (iAmActive) {
+          joinReason = 'You are already a member.';
+        }
+
+        return (
+          <GuildListRow
+            key={guild.slug}
+            guild={guild}
+            joinDisabled={joinDisabled}
+            joinReason={joinReason}
+            isJoinPending={joinGuild.isPending}
+            embedded={embedded}
+            onJoin={() =>
+              joinGuild.mutate(guild, {
+                onSuccess: () => setActiveTab(`guild-${guild.slug}`),
+                onError: (err) =>
+                  toast({
+                    title: 'Could not join',
+                    description: err instanceof Error ? err.message : 'Try again.',
+                  }),
+              })
+            }
+          />
+        );
+      })
+    );
+
   return (
     <>
       <div className={cn('flex min-h-0 flex-col gap-2 overflow-hidden', embedded ? '' : 'flex-1 px-1')}>
@@ -217,7 +300,7 @@ export function GuildAlleyContent({
               key={t.value}
               type="button"
               className={cn(
-                'truncate rounded-sm px-2 py-1.5 font-serif text-[0.65rem] uppercase tracking-[0.1em] sm:text-xs',
+                'truncate rounded-sm px-2 py-0.5 rpg-font-ui text-[12px] uppercase tracking-[0.1em]',
                 activeTab === t.value
                   ? 'bg-[var(--candle-flame)]/15 text-[var(--candle-wax)]'
                   : 'text-[var(--candle-ink-soft)]'
@@ -230,83 +313,49 @@ export function GuildAlleyContent({
         </div>
 
         {activeTab === 'alley' ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
             <PanelUpdateButton
               label="Update guilds"
               onClick={() => refreshFeed()}
               isFetching={feedQuery.isFetching}
               showLedgerHint={!feedQuery.isFetched}
+              variant={embedded ? 'chip' : 'full'}
             />
-            <GamePanelScroll
-              className={cn(
-                'min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20',
-                embedded && 'max-h-[min(36vh,280px)]'
+            <div className={cn(embedded ? 'space-y-1' : 'min-h-0 flex-1')}>
+              {embedded ? guildListBody : (
+                <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+                  <div className="space-y-1 p-2">{guildListBody}</div>
+                </GamePanelScroll>
               )}
-            >
-              <div className="space-y-2 p-2">
-                {feedQuery.isFetching ? (
-                  <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                    Updating…
-                  </p>
-                ) : !feedQuery.isFetched ? (
-                  <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                    Tap Update guilds to load guild roster from the village ledger.
-                  </p>
-                ) : (
-                  feed.guilds.map((guild) => {
-                    const members = feed.membersBySlug[guild.slug] ?? [];
-                    const iAmActive = myPubkey
-                      ? members.some((m) => m.pubkey === myPubkey && m.status === 'active')
-                      : false;
-                    const joinDisabled =
-                      !myPubkey ||
-                      (hasActiveMembership && myActiveMembershipSlug !== guild.slug) ||
-                      iAmActive;
-                    let joinReason: string | undefined;
-                    if (hasActiveMembership && myActiveMembershipSlug !== guild.slug) {
-                      joinReason = 'Leave your current guild first.';
-                    } else if (iAmActive) {
-                      joinReason = 'You are already a member.';
-                    }
-
-                    return (
-                      <GuildListRow
-                        key={guild.slug}
-                        guild={guild}
-                        joinDisabled={joinDisabled}
-                        joinReason={joinReason}
-                        isJoinPending={joinGuild.isPending}
-                        onJoin={() =>
-                          joinGuild.mutate(guild, {
-                            onSuccess: () => setActiveTab(`guild-${guild.slug}`),
-                            onError: (err) =>
-                              toast({
-                                title: 'Could not join',
-                                description: err instanceof Error ? err.message : 'Try again.',
-                              }),
-                          })
-                        }
-                      />
-                    );
-                  })
-                )}
-              </div>
-            </GamePanelScroll>
+            </div>
 
             {joinError ? (
-              <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{joinError}</p>
+              <p className="shrink-0 text-center text-xs text-red-300/90">{joinError}</p>
             ) : null}
 
-            <Button
-              type="button"
-              className="shrink-0 font-serif uppercase tracking-[0.1em]"
-              disabled={!myPubkey || !canAffordCreate || createGuild.isPending}
-              onClick={handleCreateClick}
-            >
-              Create Guild ({GUILD_CREATE_COST_GOLD}G)
-            </Button>
+            {embedded ? (
+              <VillageActionRow>
+                <VillageActionRowItem>
+                  <VillageActionChip
+                    disabled={!myPubkey || !canAffordCreate || createGuild.isPending}
+                    onClick={handleCreateClick}
+                  >
+                    Create Guild ({GUILD_CREATE_COST_GOLD}G)
+                  </VillageActionChip>
+                </VillageActionRowItem>
+              </VillageActionRow>
+            ) : (
+              <Button
+                type="button"
+                className="shrink-0 font-serif uppercase tracking-[0.1em]"
+                disabled={!myPubkey || !canAffordCreate || createGuild.isPending}
+                onClick={handleCreateClick}
+              >
+                Create Guild ({GUILD_CREATE_COST_GOLD}G)
+              </Button>
+            )}
             {!canAffordCreate ? (
-              <p className="text-center font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
+              <p className={cn(RPG_UI_CAPTION, 'text-center')}>
                 Need {GUILD_CREATE_COST_GOLD} gold to found a guild.
               </p>
             ) : null}
@@ -317,6 +366,7 @@ export function GuildAlleyContent({
               guild={memberGuildDef}
               members={guildTabMembers}
               canLeave={hasActiveMembership && membership.guildSlug === memberGuildDef.slug}
+              embedded={embedded}
               onElectLeader={() =>
                 toast({ title: 'Elect new leader', description: 'Not implemented yet.' })
               }

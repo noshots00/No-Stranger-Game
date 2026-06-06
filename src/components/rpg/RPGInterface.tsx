@@ -156,17 +156,14 @@ import { EarlyDevCharacterResetGate } from './EarlyDevCharacterResetGate';
 import { GamePortraitViewport } from './GamePortraitViewport';
 import { MerchantPanel } from './merchant/MerchantPanel';
 import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
-import { ArenaPanel } from './arena/ArenaPanel';
 import { useArenaTournament } from './arena/useArenaTournament';
 import { useArenaSyncPersonalRecord } from './arena/useArenaSyncPersonalRecord';
-import { BlobbiFightingPanel } from './blobbiFighting/BlobbiFightingPanel';
 import { useBlobbiFight } from './blobbiFighting/useBlobbiFight';
 import { useBlobbiFightMemories } from './blobbiFighting/useBlobbiFightMemories';
 import { useBlobbiSyncFightMemories } from './blobbiFighting/useBlobbiSyncFightMemories';
 import { usePlayerBlobbis } from './blobbiFighting/usePlayerBlobbis';
 import { useGuildAlley } from './guild/useGuildAlley';
 import { useTavern } from './tavern/useTavern';
-import { MarketPanel } from './market/MarketPanel';
 import { useMarket } from './market/useMarket';
 import { useMayorsHut } from './mayorsHut/useMayorsHut';
 import { switchActiveJob } from './jobs/applyJobAction';
@@ -176,9 +173,8 @@ import {
   isTownHallTutorialContinueChoice,
   townHallTutorialPingPending,
 } from './village/villageTutorialQuests';
-import { TownHallPanel } from './village/townHall/TownHallPanel';
+import type { VillagePanelId } from './village/villageCatalog';
 import { useVillageProjects } from './villageProjects/useVillageProjects';
-import { CraftersCornerPanel } from './crafter/CraftersCornerPanel';
 
 /**
  * Session guard for ledger loading overlay.
@@ -334,19 +330,16 @@ export function RPGInterface() {
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
   const [playSceneQuestId, setPlaySceneQuestId] = useState<string | null>(null);
+  /** Play-tab New badges clear once the player opens that quest card. */
+  const [acknowledgedNewQuestIds, setAcknowledgedNewQuestIds] = useState<string[]>([]);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
   const [showQuestChoiceEffects, setShowQuestChoiceEffects] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
-  const [arenaOpen, setArenaOpen] = useState(false);
-  const [blobbiFightingOpen, setBlobbiFightingOpen] = useState(false);
-  const [tavernOpen, setTavernOpen] = useState(false);
-  const [marketOpen, setMarketOpen] = useState(false);
-  const [craftersCornerOpen, setCraftersCornerOpen] = useState(false);
-  const [townHallOpen, setTownHallOpen] = useState(false);
+  const [activeVillagePanel, setActiveVillagePanel] = useState<VillagePanelId | null>(null);
   const townHallPing = useMemo(
-    () => townHallTutorialPingPending(questState) && !townHallOpen,
-    [questState, townHallOpen]
+    () => townHallTutorialPingPending(questState) && activeVillagePanel !== 'townHall',
+    [questState, activeVillagePanel]
   );
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
@@ -356,30 +349,30 @@ export function RPGInterface() {
   });
 
   const arenaTournament = useArenaTournament({
-    enabled: arenaOpen && canShowGame,
+    enabled: activeVillagePanel === 'arena' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
   });
 
   const playerBlobbis = usePlayerBlobbis({
-    enabled: blobbiFightingOpen && canShowGame,
+    enabled: activeVillagePanel === 'blobbiFighting' && canShowGame,
     pubkey: user?.pubkey,
   });
 
   const blobbiFightMemories = useBlobbiFightMemories({
-    enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
+    enabled: activeVillagePanel === 'blobbiFighting' && canShowGame && Boolean(user?.pubkey),
     myPubkey: user?.pubkey,
   });
 
   const blobbiFight = useBlobbiFight({
-    enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
+    enabled: activeVillagePanel === 'blobbiFighting' && canShowGame && Boolean(user?.pubkey),
     myPubkey: user?.pubkey,
     ownerName: questState.playerName,
     onAfterFeedRefresh: blobbiFightMemories.refreshMemories,
   });
 
   useBlobbiSyncFightMemories({
-    enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
+    enabled: activeVillagePanel === 'blobbiFighting' && canShowGame && Boolean(user?.pubkey),
     matches: blobbiFight.feed.matches,
     myPubkey: user?.pubkey,
     memories: blobbiFightMemories.memories,
@@ -429,6 +422,14 @@ export function RPGInterface() {
   useEffect(() => {
     localStorage.setItem(DEV_USE_QUEST_POPUP_STORAGE_KEY, useQuestPopupFallback ? '1' : '0');
   }, [useQuestPopupFallback]);
+
+  useEffect(() => {
+    setAcknowledgedNewQuestIds([]);
+  }, [user?.pubkey]);
+
+  useEffect(() => {
+    setAcknowledgedNewQuestIds([]);
+  }, [dayCounter]);
 
   useEffect(() => {
     if (!playSceneQuestId) return;
@@ -570,7 +571,7 @@ export function RPGInterface() {
   );
 
   const guildAlley = useGuildAlley({
-    enabled: townHallOpen && canShowGame,
+    enabled: activeVillagePanel === 'townHall' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     setQuestState,
@@ -590,7 +591,7 @@ export function RPGInterface() {
   }, [questState.guildMembership, guildAlley.myActiveMembershipSlug, guildAlley.feed.guilds]);
 
   const tavern = useTavern({
-    enabled: tavernOpen && canShowGame,
+    enabled: activeVillagePanel === 'tavern' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     getQuestState,
@@ -599,7 +600,7 @@ export function RPGInterface() {
   });
 
   const market = useMarket({
-    enabled: marketOpen && canShowGame,
+    enabled: activeVillagePanel === 'market' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     setQuestState,
@@ -607,13 +608,13 @@ export function RPGInterface() {
   });
 
   const mayorsHut = useMayorsHut({
-    enabled: townHallOpen && canShowGame,
+    enabled: activeVillagePanel === 'townHall' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
   });
 
   const villageProjects = useVillageProjects({
-    enabled: townHallOpen && canShowGame,
+    enabled: activeVillagePanel === 'townHall' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     election: mayorsHut.election,
@@ -889,19 +890,28 @@ export function RPGInterface() {
     () => getVillageJournalQuests(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
     [questContext, questState.unveiledQuestIds, devUnlockAllQuests]
   );
-  /** Incomplete visible quests keep the New badge until completed. */
-  const newQuestIds = useMemo(
-    () => visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id)).map((quest) => quest.id),
-    [visibleQuests, completedQuestIds]
-  );
-  const villageNewQuestIds = useMemo(
-    () =>
-      villageJournalQuests
-        .filter((quest) => !completedQuestIds.includes(quest.id))
-        .map((quest) => quest.id),
-    [villageJournalQuests, completedQuestIds]
-  );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
+  const buildNewQuestIds = useCallback(
+    (quests: QuestDefinition[]) => {
+      const completedSet = new Set(completedQuestIds);
+      const ackSet = new Set(acknowledgedNewQuestIds);
+      const ids = new Set<string>();
+      for (const quest of quests) {
+        if (!completedSet.has(quest.id) && !ackSet.has(quest.id)) ids.add(quest.id);
+      }
+      if (activeQuest && !completedSet.has(activeQuest.id) && !ackSet.has(activeQuest.id)) {
+        ids.add(activeQuest.id);
+      }
+      return [...ids];
+    },
+    [completedQuestIds, acknowledgedNewQuestIds, activeQuest]
+  );
+  /** Unveiled, incomplete quests the player has not opened yet. */
+  const newQuestIds = useMemo(() => buildNewQuestIds(visibleQuests), [buildNewQuestIds, visibleQuests]);
+  const villageNewQuestIds = useMemo(
+    () => buildNewQuestIds(villageJournalQuests),
+    [buildNewQuestIds, villageJournalQuests]
+  );
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
@@ -1030,12 +1040,7 @@ export function RPGInterface() {
   }, [setQuestState, persistQuestCheckpoint]);
 
   const closeVillagePanels = useCallback(() => {
-    setArenaOpen(false);
-    setBlobbiFightingOpen(false);
-    setTavernOpen(false);
-    setMarketOpen(false);
-    setCraftersCornerOpen(false);
-    setTownHallOpen(false);
+    setActiveVillagePanel(null);
   }, []);
 
   const handleVillageTravel = useCallback(
@@ -1617,6 +1622,7 @@ export function RPGInterface() {
   };
 
   const handleOpenQuest = (questId: string) => {
+    setAcknowledgedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
     if (questId === 'quest-001-origin' && !questState.flags.includes(ORIGIN_QUEST_OPENED_FLAG)) {
       const nextFlags = [...questState.flags, ORIGIN_QUEST_OPENED_FLAG];
       const nextState = { ...questState, flags: nextFlags };
@@ -1762,17 +1768,24 @@ export function RPGInterface() {
               questProgress={
                 activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
               }
-              onOpenArena={() => setArenaOpen(true)}
-              onOpenBlobbiFighting={() => setBlobbiFightingOpen(true)}
-              onOpenTavern={() => setTavernOpen(true)}
-              onOpenMarket={() => setMarketOpen(true)}
-              onOpenTownHall={() => setTownHallOpen(true)}
-              onOpenCraftersCorner={() => setCraftersCornerOpen(true)}
+              activeVillagePanel={activeVillagePanel}
+              onOpenVillagePanel={setActiveVillagePanel}
+              onCloseVillagePanel={closeVillagePanels}
               onTravelToLocation={handleVillageTravel}
-              tavernOpen={tavernOpen}
-              onCloseTavern={() => setTavernOpen(false)}
               questState={questState}
               tavern={tavern}
+              arenaTournament={arenaTournament}
+              market={market}
+              mayorsHut={mayorsHut}
+              villageProjects={villageProjects}
+              guildAlley={guildAlley}
+              playerBlobbis={playerBlobbis}
+              blobbiFight={blobbiFight}
+              blobbiFightMemories={blobbiFightMemories}
+              onApplyModifiers={handleMerchantApplyModifiers}
+              onSwitchJob={handleJobsSwitch}
+              onMayorVoteRecorded={handleMayorVoteRecorded}
+              onMayorVoteRetracted={handleMayorVoteRetracted}
             />
           );
         }
@@ -1916,57 +1929,6 @@ export function RPGInterface() {
               walletCopper={walletCopper}
               itemCounts={merchantItemCounts}
               onApplyModifiers={handleMerchantApplyModifiers}
-            />
-          ) : null}
-          {arenaOpen ? (
-            <ArenaPanel
-              open
-              onOpenChange={setArenaOpen}
-              questState={questState}
-              myPubkey={user?.pubkey}
-              tournament={arenaTournament}
-            />
-          ) : null}
-          {blobbiFightingOpen ? (
-            <BlobbiFightingPanel
-              open
-              onOpenChange={setBlobbiFightingOpen}
-              myPubkey={user?.pubkey}
-              playerBlobbis={playerBlobbis}
-              blobbiFight={blobbiFight}
-              blobbiFightMemories={blobbiFightMemories}
-            />
-          ) : null}
-          {marketOpen ? (
-            <MarketPanel
-              open
-              onOpenChange={setMarketOpen}
-              questState={questState}
-              myPubkey={user?.pubkey}
-              market={market}
-              onApplyModifiers={handleMerchantApplyModifiers}
-            />
-          ) : null}
-          {craftersCornerOpen ? (
-            <CraftersCornerPanel
-              open
-              onOpenChange={setCraftersCornerOpen}
-              questState={questState}
-              onApplyModifiers={handleMerchantApplyModifiers}
-            />
-          ) : null}
-          {townHallOpen ? (
-            <TownHallPanel
-              open
-              onOpenChange={setTownHallOpen}
-              myPubkey={user?.pubkey}
-              mayorsHut={mayorsHut}
-              villageProjects={villageProjects}
-              guildAlley={guildAlley}
-              questState={questState}
-              onSwitchJob={handleJobsSwitch}
-              onMayorVoteRecorded={handleMayorVoteRecorded}
-              onMayorVoteRetracted={handleMayorVoteRetracted}
             />
           ) : null}
         </>

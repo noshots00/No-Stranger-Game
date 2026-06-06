@@ -548,6 +548,9 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     unveiledQuestIds = Array.from(
       new Set(rawUnveiled.filter((s): s is string => typeof s === 'string' && s.length > 0))
     );
+    if (unveiledQuestIds.length === 0 && state.progressByQuestId && Object.keys(state.progressByQuestId).length > 0) {
+      unveiledQuestIds = Object.keys(state.progressByQuestId);
+    }
   } else if (state.progressByQuestId && Object.keys(state.progressByQuestId).length > 0) {
     /**
      * Legacy save (no unveil tracking yet, but has quest progress) — mark every quest
@@ -557,6 +560,12 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     unveiledQuestIds = Object.keys(state.progressByQuestId);
   } else {
     unveiledQuestIds = initial.unveiledQuestIds;
+  }
+
+  const rawActiveForUnveil =
+    typeof state.activeQuestId === 'string' && state.activeQuestId.length > 0 ? state.activeQuestId : null;
+  if (rawActiveForUnveil && !unveiledQuestIds.includes(rawActiveForUnveil)) {
+    unveiledQuestIds = [...unveiledQuestIds, rawActiveForUnveil];
   }
 
   const rawHealth = (state as { health?: unknown }).health;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export const CLIFFBURY_VILLAGE_MAP_SRC = '/art/environments/cliffbury-village-map.png';
+import { VILLAGE_MAP_SRC } from './villageArt';
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
@@ -28,12 +28,14 @@ type VillageMapViewerProps = {
   alt?: string;
   /** Decorative thumbnail (~¼ height); disables flex growth and pan hint. */
   compact?: boolean;
+  src?: string;
 };
 
 export function VillageMapViewer({
   className,
   alt = 'Strange Village map',
   compact = false,
+  src = VILLAGE_MAP_SRC,
 }: VillageMapViewerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
@@ -290,7 +292,7 @@ export function VillageMapViewer({
           >
             {mapMaxW > 0 && mapMaxH > 0 ? (
               <img
-                src={CLIFFBURY_VILLAGE_MAP_SRC}
+                src={src}
                 alt=""
                 draggable={false}
                 className="block object-contain"

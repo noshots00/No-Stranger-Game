@@ -3,6 +3,12 @@ import { Button } from '@/components/ui/button';
 import { GamePanelScroll } from '../GamePanelScroll';
 import { PanelUpdateButton } from '../PanelUpdateButton';
 import { cn } from '@/lib/utils';
+import { RPG_UI_CAPTION, RPG_UI_META, RPG_UI_UI } from '../typography/rpgUiTypography';
+import {
+  VillageActionChip,
+  VillageActionRow,
+  VillageActionRowItem,
+} from '../village/VillageActionChip';
 import type { useMayorsHut } from './useMayorsHut';
 
 type MayorsHutContentProps = {
@@ -46,7 +52,27 @@ export function MayorsHutContent({
           ? 'Vote failed. Try again.'
           : null;
 
-  const registrationBlock = (
+  const registrationBlock = embedded ? (
+    <VillageActionRow>
+      <VillageActionRowItem>
+        {myActiveCandidacy ? (
+          <VillageActionChip
+            disabled={!myPubkey || candidacyPending}
+            onClick={() => withdrawFromElection.mutate()}
+          >
+            {withdrawFromElection.isPending ? 'Withdrawing…' : 'Withdraw from election'}
+          </VillageActionChip>
+        ) : (
+          <VillageActionChip
+            disabled={!myPubkey || candidacyPending}
+            onClick={() => runForMayor.mutate()}
+          >
+            {runForMayor.isPending ? 'Entering race…' : 'Run for mayor'}
+          </VillageActionChip>
+        )}
+      </VillageActionRowItem>
+    </VillageActionRow>
+  ) : (
     <div className="shrink-0 space-y-2">
       {myActiveCandidacy ? (
         <Button
@@ -71,30 +97,93 @@ export function MayorsHutContent({
     </div>
   );
 
+  const ballotList = (
+    <ul className="list-none space-y-0 px-1 py-1">
+      {election.activeCandidates.map((candidate) => {
+        const votes = election.voteCountByCandidate[candidate.pubkey] ?? 0;
+        const checked = myVote?.candidatePubkey === candidate.pubkey;
+        const isSelf = myPubkey === candidate.pubkey;
+
+        return (
+          <li
+            key={candidate.pubkey}
+            className="border-b border-[var(--candle-rule)]/40 py-1 last:border-b-0"
+          >
+            <label
+              className={cn(
+                'flex touch-manipulation items-start gap-2',
+                RPG_UI_UI,
+                (!myPubkey || votePending || (!checked && voteUiLocked)) &&
+                  'cursor-not-allowed opacity-60'
+              )}
+            >
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-[var(--candle-flame)]"
+                checked={checked}
+                disabled={!myPubkey || votePending || (!checked && voteUiLocked)}
+                onChange={() => {
+                  if (!myPubkey || votePending) return;
+                  if (checked) {
+                    retractVote.mutate(undefined, {
+                      onSuccess: () => onVoteRetracted?.(),
+                    });
+                    return;
+                  }
+                  if (voteUiLocked || myVote) return;
+                  castVote.mutate(candidate.pubkey, {
+                    onSuccess: () => onVoteRecorded?.(),
+                  });
+                }}
+              />
+              <span className="min-w-0 flex-1 text-[var(--candle-ink-soft)]">
+                <span className="text-[var(--candle-wax)]">{candidate.name}</span>
+                <span className="text-[var(--candle-ink-faint)]">
+                  {' '}
+                  · {votes} vote{votes === 1 ? '' : 's'}
+                  {isSelf ? ' (you)' : ''}
+                </span>
+              </span>
+            </label>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const ballotBody =
+    feedQuery.isFetching ? (
+      <p className={cn(RPG_UI_META, 'py-3 text-center')}>Updating…</p>
+    ) : !feedQuery.isFetched ? (
+      <p className={cn(RPG_UI_META, 'px-1 py-3 text-center')}>
+        Tap Update ballot to load candidates and votes.
+      </p>
+    ) : election.activeCandidates.length === 0 ? (
+      <p className={cn(RPG_UI_META, 'px-1 py-3 text-center')}>No candidates yet.</p>
+    ) : (
+      ballotList
+    );
+
   return (
-    <div className={embedded ? 'space-y-3' : 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1'}>
+    <div className={embedded ? 'space-y-1' : 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1'}>
       {!embedded ? (
         <header className="shrink-0 space-y-1 px-2 text-center">
           <GamePanelDialogTitle>Mayor&apos;s Hut</GamePanelDialogTitle>
-          <p className="font-serif text-sm text-[var(--candle-wax)]">
-            Mayor: <span className="font-semibold">{election.mayorName}</span>
+          <p className={RPG_UI_UI}>
+            Mayor: <span className="font-medium text-[var(--candle-wax)]">{election.mayorName}</span>
           </p>
           {!election.isPlaceholderMayor ? (
-            <p className="font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
-              Elected by village vote
-            </p>
+            <p className={RPG_UI_CAPTION}>Elected by village vote</p>
           ) : (
-            <p className="font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
-              Placeholder until a candidate leads the vote
-            </p>
+            <p className={RPG_UI_CAPTION}>Placeholder until a candidate leads the vote</p>
           )}
         </header>
       ) : (
         <div>
-          <p className="font-serif text-sm text-[var(--candle-wax)]">
-            Mayor: <span className="font-semibold">{election.mayorName}</span>
+          <p className={RPG_UI_UI}>
+            Mayor: <span className="font-medium text-[var(--candle-wax)]">{election.mayorName}</span>
           </p>
-          <p className="font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
+          <p className={RPG_UI_CAPTION}>
             {election.isPlaceholderMayor
               ? 'Placeholder until a candidate leads the vote'
               : 'Elected by village vote'}
@@ -107,92 +196,30 @@ export function MayorsHutContent({
         onClick={() => refreshFeed()}
         isFetching={feedQuery.isFetching}
         showLedgerHint={!feedQuery.isFetched}
+        variant={embedded ? 'chip' : 'full'}
       />
 
       {registrationBlock}
 
       {voteError ? (
-        <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{voteError}</p>
+        <p className="shrink-0 text-center text-xs text-red-300/90">{voteError}</p>
       ) : null}
 
       <p
         className={cn(
-          'font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]',
+          RPG_UI_CAPTION,
+          'uppercase tracking-[0.14em]',
           embedded ? 'shrink-0' : 'shrink-0 px-2'
         )}
       >
         Ballot
       </p>
 
-      <GamePanelScroll
-        className={cn(
-          'min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20',
-          embedded && 'max-h-[min(36vh,280px)]'
-        )}
-      >
-        {feedQuery.isFetching ? (
-          <p className="py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">Updating…</p>
-        ) : !feedQuery.isFetched ? (
-          <p className="px-3 py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-            Tap Update ballot to load candidates and votes.
-          </p>
-        ) : election.activeCandidates.length === 0 ? (
-          <p className="px-3 py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-            No candidates yet.
-          </p>
-        ) : (
-          <ul className="list-none space-y-0 px-2 py-2">
-            {election.activeCandidates.map((candidate) => {
-              const votes = election.voteCountByCandidate[candidate.pubkey] ?? 0;
-              const checked = myVote?.candidatePubkey === candidate.pubkey;
-              const isSelf = myPubkey === candidate.pubkey;
-
-              return (
-                <li
-                  key={candidate.pubkey}
-                  className="border-b border-[var(--candle-rule)]/40 py-2 last:border-b-0"
-                >
-                  <label
-                    className={cn(
-                      'flex touch-manipulation items-start gap-2 font-serif text-sm',
-                      (!myPubkey || votePending || (!checked && voteUiLocked)) &&
-                        'cursor-not-allowed opacity-60'
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 accent-[var(--candle-flame)]"
-                      checked={checked}
-                      disabled={!myPubkey || votePending || (!checked && voteUiLocked)}
-                      onChange={() => {
-                        if (!myPubkey || votePending) return;
-                        if (checked) {
-                          retractVote.mutate(undefined, {
-                            onSuccess: () => onVoteRetracted?.(),
-                          });
-                          return;
-                        }
-                        if (voteUiLocked || myVote) return;
-                        castVote.mutate(candidate.pubkey, {
-                          onSuccess: () => onVoteRecorded?.(),
-                        });
-                      }}
-                    />
-                    <span className="min-w-0 flex-1 text-[var(--candle-ink-soft)]">
-                      <span className="text-[var(--candle-wax)]">{candidate.name}</span>
-                      <span className="text-[var(--candle-ink-faint)]">
-                        {' '}
-                        · {votes} vote{votes === 1 ? '' : 's'}
-                        {isSelf ? ' (you)' : ''}
-                      </span>
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </GamePanelScroll>
+      {embedded ? ballotBody : (
+        <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+          {ballotBody}
+        </GamePanelScroll>
+      )}
     </div>
   );
 }

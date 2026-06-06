@@ -114,6 +114,7 @@ export function PlayTab({
       newQuestIds={newQuestIds}
       questTitleById={questTitleById}
       visibleQuests={visibleQuests}
+      activeQuest={activeQuest}
       completedQuestIds={completedQuestIds}
       onOpenQuest={onOpenQuest}
       dialogueScrollRef={dialogueScrollRef}

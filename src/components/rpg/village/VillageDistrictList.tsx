@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
 import { NewDot } from '../NewDot';
-import { RPG_CHOICE_GRID, RPG_COMMAND_CHIP } from '../typography/rpgUiTypography';
+import { RPG_CHOICE_GRID, RPG_COMMAND_CHIP, RPG_VILLAGE_HUB_BANNER } from '../typography/rpgUiTypography';
 
+import { VILLAGE_MAP_SRC } from './villageArt';
 import type { VillageLotOccupancyView } from './villageLotNostr';
 import {
   VILLAGE_BUSINESS_TYPES,
@@ -125,7 +126,6 @@ function VillageLotRow({
   );
 }
 
-
 export function VillageDistrictList({
   questFlags,
   myPubkey,
@@ -230,21 +230,26 @@ export function VillageDistrictList({
 
   return (
     <>
-      <ul className={cn(RPG_CHOICE_GRID, 'village-location-cloud')} role="list">
-        {buildingLots.map(({ lot, district }) => (
-          <li key={lot.id}>
-            <VillageLotRow
-              lot={lot}
-              district={district}
-              occupancy={occupancyByLotId.get(lot.id)}
-              myPubkey={myPubkey}
-              isBuildPending={isBuildPending}
-              townHallPing={townHallPing}
-              onLotClick={handleLotClick}
-            />
-          </li>
-        ))}
-      </ul>
+      <div className="px-0.5">
+        <div className={cn('village-location-cloud-panel', RPG_VILLAGE_HUB_BANNER)}>
+          <img src={VILLAGE_MAP_SRC} alt="" className="village-location-cloud-panel__art" />
+          <ul className={cn(RPG_CHOICE_GRID, 'village-location-cloud')} role="list">
+            {buildingLots.map(({ lot, district }) => (
+              <li key={lot.id}>
+                <VillageLotRow
+                  lot={lot}
+                  district={district}
+                  occupancy={occupancyByLotId.get(lot.id)}
+                  myPubkey={myPubkey}
+                  isBuildPending={isBuildPending}
+                  townHallPing={townHallPing}
+                  onLotClick={handleLotClick}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
       <Dialog
         open={claimDialog !== null}
