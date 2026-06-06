@@ -1,5 +1,6 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
+import { normalizePubkeyHex, pubkeysEqual } from '@/lib/nostrPubkey';
 import {
   BLOBBI_FIGHT_COMMUNITY_TAG,
   BLOBBI_FIGHT_MATCH_TAG,
@@ -154,14 +155,35 @@ export function getConsumedRegistrationIds(
   return new Set(matches.map((m) => m.registrationEventId));
 }
 
+export function openRegistrationToFighter(
+  open: BlobbiFightOpenRegistration
+): BlobbiFighterSnapshot {
+  return {
+    ownerPubkey: open.pubkey,
+    ownerName: open.ownerName,
+    blobbiId: open.blobbiId,
+    blobbiName: open.blobbiName,
+    stage: open.stage,
+    health: Math.max(1, open.health),
+  };
+}
+
 export function listActiveOpenRegistrations(
   events: readonly NostrEvent[],
-  consumedIds: ReadonlySet<string>
+  consumedIds: ReadonlySet<string>,
+  matches: readonly BlobbiFightMatchResult[] = []
 ): BlobbiFightOpenRegistration[] {
+  const matchedOwnerPubkeys = new Set<string>();
+  for (const match of matches) {
+    matchedOwnerPubkeys.add(normalizePubkeyHex(match.fighterA.ownerPubkey));
+    matchedOwnerPubkeys.add(normalizePubkeyHex(match.fighterB.ownerPubkey));
+  }
+
   const byPubkey = new Map<string, BlobbiFightOpenRegistration>();
   for (const event of events) {
     const row = parseBlobbiFightOpenRegistration(event);
     if (!row || consumedIds.has(row.eventId)) continue;
+    if (matchedOwnerPubkeys.has(normalizePubkeyHex(row.pubkey))) continue;
     const prev = byPubkey.get(row.pubkey);
     if (!prev || row.createdAt >= prev.createdAt) byPubkey.set(row.pubkey, row);
   }
@@ -172,14 +194,45 @@ export function findMyOpenRegistration(
   openList: readonly BlobbiFightOpenRegistration[],
   myPubkey: string
 ): BlobbiFightOpenRegistration | undefined {
-  return openList.find((r) => r.pubkey === myPubkey);
+  return openList.find((r) => pubkeysEqual(r.pubkey, myPubkey));
 }
 
 export function findOldestOpponentOpen(
   openList: readonly BlobbiFightOpenRegistration[],
   myPubkey: string
 ): BlobbiFightOpenRegistration | undefined {
-  return openList.find((r) => r.pubkey !== myPubkey);
+  return openList.find((r) => !pubkeysEqual(r.pubkey, myPubkey));
+}
+
+/** True when this client should publish the match (joiner), not the earlier waiter. */
+export function shouldInitiateBlobbiMatch(
+  myOpen: BlobbiFightOpenRegistration,
+  opponentOpen: BlobbiFightOpenRegistration
+): boolean {
+  if (myOpen.createdAt > opponentOpen.createdAt) return true;
+  if (myOpen.createdAt < opponentOpen.createdAt) return false;
+  return normalizePubkeyHex(myOpen.pubkey) > normalizePubkeyHex(opponentOpen.pubkey);
+}
+
+export function matchAlreadyExistsBetween(
+  matches: readonly BlobbiFightMatchResult[],
+  pubkeyA: string,
+  pubkeyB: string
+): boolean {
+  const a = normalizePubkeyHex(pubkeyA);
+  const b = normalizePubkeyHex(pubkeyB);
+  return matches.some((match) => {
+    const ma = normalizePubkeyHex(match.fighterA.ownerPubkey);
+    const mb = normalizePubkeyHex(match.fighterB.ownerPubkey);
+    return (ma === a && mb === b) || (ma === b && mb === a);
+  });
+}
+
+export function findMyLatestMatch(
+  matches: readonly BlobbiFightMatchResult[],
+  myPubkey: string
+): BlobbiFightMatchResult | undefined {
+  return matches.find((match) => matchInvolvesOwner(match, myPubkey));
 }
 
 export function buildOpenRegistrationDraft(args: {
@@ -249,7 +302,8 @@ export function buildMatchResultDraft(args: {
 
 export function matchInvolvesOwner(match: BlobbiFightMatchResult, ownerPubkey: string): boolean {
   return (
-    match.fighterA.ownerPubkey === ownerPubkey || match.fighterB.ownerPubkey === ownerPubkey
+    pubkeysEqual(match.fighterA.ownerPubkey, ownerPubkey) ||
+    pubkeysEqual(match.fighterB.ownerPubkey, ownerPubkey)
   );
 }
 
@@ -257,8 +311,8 @@ export function myFighterInMatch(
   match: BlobbiFightMatchResult,
   ownerPubkey: string
 ): BlobbiFighterSnapshot | undefined {
-  if (match.fighterA.ownerPubkey === ownerPubkey) return match.fighterA;
-  if (match.fighterB.ownerPubkey === ownerPubkey) return match.fighterB;
+  if (pubkeysEqual(match.fighterA.ownerPubkey, ownerPubkey)) return match.fighterA;
+  if (pubkeysEqual(match.fighterB.ownerPubkey, ownerPubkey)) return match.fighterB;
   return undefined;
 }
 
@@ -266,7 +320,7 @@ export function opponentFighterInMatch(
   match: BlobbiFightMatchResult,
   ownerPubkey: string
 ): BlobbiFighterSnapshot | undefined {
-  if (match.fighterA.ownerPubkey === ownerPubkey) return match.fighterB;
-  if (match.fighterB.ownerPubkey === ownerPubkey) return match.fighterA;
+  if (pubkeysEqual(match.fighterA.ownerPubkey, ownerPubkey)) return match.fighterB;
+  if (pubkeysEqual(match.fighterB.ownerPubkey, ownerPubkey)) return match.fighterA;
   return undefined;
 }

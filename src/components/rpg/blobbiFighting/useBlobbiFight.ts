@@ -1,34 +1,39 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { pubkeysEqual } from '@/lib/nostrPubkey';
 
 import { buildFightMemoryDraft } from './blobbiCareerNostr';
+import { buildFightMemoryContent } from './blobbiCombat';
 import {
-  blobbiToFighter,
-  buildFightMemoryContent,
-  buildMatchSummaryContent,
-  getWinProbability,
-  rollBlobbiWinner,
-} from './blobbiCombat';
+  publishBlobbiMatchFromBlobbi,
+  publishBlobbiMatchFromOpenRegistration,
+} from './blobbiMatchResolve';
 import {
   blobbiFightMatchFilter,
   blobbiFightOpenFilter,
-  buildMatchResultDraft,
   buildOpenRegistrationDraft,
+  findMyLatestMatch,
   findMyOpenRegistration,
   findOldestOpponentOpen,
   getConsumedRegistrationIds,
   listActiveOpenRegistrations,
+  matchAlreadyExistsBetween,
   myFighterInMatch,
   opponentFighterInMatch,
   parseBlobbiFightMatchResult,
+  shouldInitiateBlobbiMatch,
   type BlobbiFightMatchResult,
   type BlobbiFightOpenRegistration,
 } from './blobbiFightNostr';
 import type { BlobbiSnapshot } from './blobbiStateNostr';
-import { BLOBBI_RELAY_SETTLE_MS } from './constants';
+import {
+  BLOBBI_RELAY_SETTLE_MS,
+  NSG_BLOBBI_FIGHT_MATCH_KIND,
+  NSG_BLOBBI_FIGHT_OPEN_KIND,
+} from './constants';
 
 const BLOBBI_FIGHT_FEED_KEY = ['blobbi-fight-feed'] as const;
 
@@ -43,18 +48,19 @@ export type BlobbiFightFeed = {
   matches: BlobbiFightMatchResult[];
   consumedRegistrationIds: Set<string>;
   myOpen?: BlobbiFightOpenRegistration;
+  myLatestMatch?: BlobbiFightMatchResult;
 };
 
 async function fetchBlobbiFightFeed(nostr: {
   query: (filters: import('@nostrify/nostrify').NostrFilter[]) => Promise<unknown[]>;
-}): Promise<BlobbiFightFeed> {
+}): Promise<Omit<BlobbiFightFeed, 'myOpen' | 'myLatestMatch'>> {
   const allEvents = (await nostr.query([
     blobbiFightOpenFilter(),
     blobbiFightMatchFilter(),
   ])) as import('@nostrify/nostrify').NostrEvent[];
 
-  const openEvents = allEvents.filter(e => e.kind === 10005); // NSG_BLOBBI_FIGHT_OPEN_KIND
-  const matchEvents = allEvents.filter(e => e.kind === 10006); // NSG_BLOBBI_FIGHT_MATCH_KIND
+  const openEvents = allEvents.filter((e) => e.kind === NSG_BLOBBI_FIGHT_OPEN_KIND);
+  const matchEvents = allEvents.filter((e) => e.kind === NSG_BLOBBI_FIGHT_MATCH_KIND);
 
   const matches = matchEvents
     .map(parseBlobbiFightMatchResult)
@@ -64,7 +70,8 @@ async function fetchBlobbiFightFeed(nostr: {
   const consumedRegistrationIds = getConsumedRegistrationIds(matches);
   const openRegistrations = listActiveOpenRegistrations(
     openEvents,
-    consumedRegistrationIds
+    consumedRegistrationIds,
+    matches
   );
 
   return { openRegistrations, matches, consumedRegistrationIds };
@@ -79,7 +86,7 @@ export async function publishFightMemoryForMatch(args: {
   const opponent = opponentFighterInMatch(args.match, args.myPubkey);
   if (!me || !opponent) return;
 
-  const won = args.match.winnerOwnerPubkey === args.myPubkey;
+  const won = pubkeysEqual(args.match.winnerOwnerPubkey, args.myPubkey);
   await args.publish(
     buildFightMemoryDraft({
       blobbiId: me.blobbiId,
@@ -102,12 +109,17 @@ export function useBlobbiFight(args: {
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
   const queryClient = useQueryClient();
+  const resolveInFlightRef = useRef(false);
+  const [isResolvingMatch, setIsResolvingMatch] = useState(false);
 
   const feedQuery = useQuery({
     queryKey: BLOBBI_FIGHT_FEED_KEY,
     queryFn: () => fetchBlobbiFightFeed(nostr),
-    enabled: args.enabled,
+    enabled: false,
     staleTime: Infinity,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const feed = useMemo((): BlobbiFightFeed => {
@@ -119,12 +131,66 @@ export function useBlobbiFight(args: {
     const myOpen = args.myPubkey
       ? findMyOpenRegistration(base.openRegistrations, args.myPubkey)
       : undefined;
-    return { ...base, myOpen };
+    const myLatestMatch = args.myPubkey
+      ? findMyLatestMatch(base.matches, args.myPubkey)
+      : undefined;
+    return { ...base, myOpen, myLatestMatch };
   }, [feedQuery.data, args.myPubkey]);
 
-  const invalidateFeed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: BLOBBI_FIGHT_FEED_KEY });
-  }, [queryClient]);
+  const completeMatch = useCallback(
+    async (parsedMatch: BlobbiFightMatchResult | null, myPubkey: string) => {
+      if (parsedMatch) {
+        await publishFightMemoryForMatch({
+          publish,
+          match: parsedMatch,
+          myPubkey,
+        });
+      }
+      await relaySettleDelay();
+    },
+    [publish]
+  );
+
+  const tryResolvePendingMatch = useCallback(
+    async (rawFeed: Omit<BlobbiFightFeed, 'myOpen' | 'myLatestMatch'>) => {
+      if (!user?.pubkey || resolveInFlightRef.current) return;
+
+      const myOpen = findMyOpenRegistration(rawFeed.openRegistrations, user.pubkey);
+      if (!myOpen) return;
+
+      const opponent = findOldestOpponentOpen(rawFeed.openRegistrations, user.pubkey);
+      if (!opponent) return;
+
+      if (matchAlreadyExistsBetween(rawFeed.matches, user.pubkey, opponent.pubkey)) return;
+      if (!shouldInitiateBlobbiMatch(myOpen, opponent)) return;
+
+      resolveInFlightRef.current = true;
+      setIsResolvingMatch(true);
+      try {
+        const parsedMatch = await publishBlobbiMatchFromOpenRegistration({
+          publish,
+          opponent,
+          myOpen,
+          myPubkey: user.pubkey,
+        });
+        await completeMatch(parsedMatch, user.pubkey);
+      } catch (error) {
+        console.warn('Blobbi match resolve failed.', error);
+      } finally {
+        resolveInFlightRef.current = false;
+        setIsResolvingMatch(false);
+        void queryClient.invalidateQueries({ queryKey: BLOBBI_FIGHT_FEED_KEY });
+      }
+    },
+    [user?.pubkey, completeMatch, publish, queryClient]
+  );
+
+  const refreshFeed = useCallback(async () => {
+    const result = await feedQuery.refetch();
+    if (result.data) {
+      await tryResolvePendingMatch(result.data);
+    }
+  }, [feedQuery, tryResolvePendingMatch]);
 
   const register = useMutation({
     mutationFn: async (selectedBlobbi: BlobbiSnapshot) => {
@@ -132,7 +198,6 @@ export function useBlobbiFight(args: {
       if (!selectedBlobbi) throw new Error('Select a Blobbi first.');
 
       const playerName = args.ownerName.trim() || 'Stranger';
-      const me = blobbiToFighter(selectedBlobbi, user.pubkey, playerName);
 
       const latest = await fetchBlobbiFightFeed(nostr);
       const myOpen = findMyOpenRegistration(latest.openRegistrations, user.pubkey);
@@ -140,72 +205,45 @@ export function useBlobbiFight(args: {
 
       const opponent = findOldestOpponentOpen(latest.openRegistrations, user.pubkey);
       if (opponent) {
-        const opponentFighter = {
-          ownerPubkey: opponent.pubkey,
-          ownerName: opponent.ownerName,
-          blobbiId: opponent.blobbiId,
-          blobbiName: opponent.blobbiName,
-          stage: opponent.stage,
-          health: Math.max(1, opponent.health),
-        };
-        const fighterA = opponentFighter;
-        const fighterB = me;
-        const winnerOwnerPubkey = rollBlobbiWinner(fighterA, fighterB);
-        const winnerFighter = winnerOwnerPubkey === fighterA.ownerPubkey ? fighterA : fighterB;
-        const loserFighter = winnerOwnerPubkey === fighterA.ownerPubkey ? fighterB : fighterA;
-        const prob = getWinProbability(winnerFighter.health, loserFighter.health);
-        const summary = buildMatchSummaryContent(
-          winnerFighter.blobbiName,
-          loserFighter.blobbiName,
-          winnerFighter.health,
-          loserFighter.health,
-          prob
-        );
-
-        const matchDraft = buildMatchResultDraft({
-          fighterA,
-          fighterB: me,
-          winnerOwnerPubkey,
-          registrationEventId: opponent.eventId,
-          summary,
-          winProbabilityForWinner: prob,
-        });
-        const matchEvent = await publish(matchDraft);
-
-        const parsedMatch = parseBlobbiFightMatchResult(
-          matchEvent as import('@nostrify/nostrify').NostrEvent
-        );
-        if (parsedMatch) {
-          await publishFightMemoryForMatch({
-            publish,
-            match: parsedMatch,
-            myPubkey: user.pubkey,
-          });
+        if (matchAlreadyExistsBetween(latest.matches, user.pubkey, opponent.pubkey)) {
+          await relaySettleDelay();
+          return { action: 'matched' as const };
         }
 
-        await relaySettleDelay();
+        const parsedMatch = await publishBlobbiMatchFromBlobbi({
+          publish,
+          opponent,
+          selectedBlobbi,
+          myPubkey: user.pubkey,
+          playerName,
+        });
+        await completeMatch(parsedMatch, user.pubkey);
         return { action: 'matched' as const };
       }
 
+      const me = selectedBlobbi;
       await publish(
         buildOpenRegistrationDraft({
           ownerName: playerName,
-          blobbiId: me.blobbiId,
-          blobbiName: me.blobbiName,
+          blobbiId: me.id,
+          blobbiName: me.displayName,
           stage: me.stage,
-          health: me.health,
+          health: Math.max(1, me.health),
         })
       );
       await relaySettleDelay();
       return { action: 'queued' as const };
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => {
+      void refreshFeed();
+    },
   });
 
   return {
     feedQuery,
     feed,
     register,
-    invalidateFeed,
+    refreshFeed,
+    isResolvingMatch,
   };
 }
