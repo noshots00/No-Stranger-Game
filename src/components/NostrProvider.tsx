@@ -56,6 +56,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     pool.current = new NPool({
       open(url: string) {
         return new NRelay1(url, {
+          // NRelay1 default is 30s — too aggressive for village idle (probe timeouts).
+          // `false` kept sockets open forever and amplified reconnect/rate-limit storms.
+          idleTimeout: 120_000,
           // NIP-42: Respond to relay AUTH challenges by signing a kind
           // 22242 ephemeral event with the current user's signer.
           auth: async (challenge: string) => {
@@ -99,7 +102,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
         return [...allRelays];
       },
-      eoseTimeout: 200,
+      eoseTimeout: 2_000,
     });
 
     const inner = pool.current;

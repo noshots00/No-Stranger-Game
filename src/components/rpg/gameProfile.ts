@@ -4,6 +4,7 @@ import { normalizeQuestState } from '@/components/rpg/quests/engine';
 import { canPersistQuestCheckpoint } from '@/components/rpg/quests/questSaveGuard';
 import type { QuestState } from '@/components/rpg/quests/types';
 import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
+import { publishGameRelayEvent, type GameRelayEventPool } from '@/lib/publishGameRelayEvent';
 
 /**
  * Kind 10031 — character creation anchor for No Stranger Game.
@@ -19,9 +20,8 @@ export const NSG_QUEST_STATE_D_TAG = 'quest-state';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-type NostrClient = {
-  query: (filters: NostrFilter[]) => Promise<NostrEvent[]>;
-  event: (event: NostrEvent) => Promise<unknown>;
+type NostrClient = GameRelayEventPool & {
+  query: (filters: NostrFilter[], opts?: { signal?: AbortSignal }) => Promise<NostrEvent[]>;
 };
 
 type Signer = {
@@ -222,7 +222,7 @@ export async function publishCharacterCreation(
   };
 
   const event = await signer.signEvent(draft);
-  await nostr.event(event);
+  await publishGameRelayEvent(nostr, event);
 }
 
 /**
@@ -299,7 +299,7 @@ export async function publishQuestStateSnapshot(
   };
 
   const event = await signer.signEvent(draft);
-  await nostr.event(event);
+  await publishGameRelayEvent(nostr, event);
   return savedAtMs;
 }
 
@@ -341,5 +341,5 @@ export async function publishMergedProfileDisplayName(
   };
 
   const event = await signer.signEvent(draft);
-  await nostr.event(event);
+  await publishGameRelayEvent(nostr, event);
 }

@@ -104,7 +104,8 @@ No ban list, no admin pubkey, no remote rollback.
 ### 6.1 Configuration (implemented v0.5.148+)
 
 - **Primary:** `wss://relay.ditto.pub` · **Backup:** `wss://relay.dreamith.to` ([`src/lib/gameRelays.ts`](../../src/lib/gameRelays.ts)).
-- **Reads:** `nostr.query()` uses [`queryGameRelays`](../../src/lib/queryGameRelays.ts) — parallel query per relay (3s timeout), merge with primary winning replaceable rows ([`mergeRelayQueryResults`](../../src/lib/mergeRelayQueryResults.ts)).
+- **Reads:** `nostr.query()` uses [`queryGameRelays`](../../src/lib/queryGameRelays.ts) — parallel query per relay (6s timeout), merge with primary winning replaceable rows ([`mergeRelayQueryResults`](../../src/lib/mergeRelayQueryResults.ts)).
+- **Idle sockets:** game relays use `NRelay1` with `idleTimeout: 120_000` (nostrify default 30s was too aggressive; `false` kept sockets open and amplified reconnect storms).
 - **Writes:** `eventRouter` still publishes to **every** relay with `write: true`.
 - **Chat:** `useChatRoom` polls every **2s** via merged `nostr.query`; sends with `nostr.event` (both writes).
 - **Village panels:** Mayor, Arena, Market have manual **Update** (still **20s** auto-poll while open).

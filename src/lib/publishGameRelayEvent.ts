@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { GAME_RELAY_BACKUP_URL, GAME_RELAY_PRIMARY_URL } from '@/lib/gameRelays';
 import { recordRelayInteraction } from '@/lib/relayInteractionLog';
+import { isRelayTransportFailure } from '@/lib/recycleGameRelay';
 
 const DEFAULT_PUBLISH_TIMEOUT_MS = 5_000;
 
@@ -11,8 +12,7 @@ export type GameRelayEventPool = {
 };
 
 function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === 'AbortError') return true;
-  return error instanceof Error && /aborted|abort/i.test(error.message);
+  return isRelayTransportFailure(error);
 }
 
 /** Map low-level relay abort/timeouts to player-facing copy. */

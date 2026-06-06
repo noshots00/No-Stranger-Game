@@ -28,10 +28,12 @@ async function queryOneRelay(
   pool: GameRelayQueryPool,
   url: string,
   filters: NostrFilter[],
-  signal: AbortSignal
+  parentSignal: AbortSignal | undefined,
+  timeoutMs: number
 ): Promise<NostrEvent[]> {
   const started = performance.now();
   const filterSummary = summarizeNostrFilters(filters);
+  const signal = relayQuerySignal(parentSignal, timeoutMs);
   try {
     const events = await pool.relay(url).query(filters, { signal });
     recordRelayInteraction({
@@ -63,18 +65,8 @@ export async function queryGameRelays(
 ): Promise<NostrEvent[]> {
   const timeoutMs = opts?.timeoutMs ?? GAME_RELAY_QUERY_TIMEOUT_MS;
   const [primary, backup] = await Promise.all([
-    queryOneRelay(
-      pool,
-      GAME_RELAY_PRIMARY_URL,
-      filters,
-      relayQuerySignal(opts?.signal, timeoutMs)
-    ),
-    queryOneRelay(
-      pool,
-      GAME_RELAY_BACKUP_URL,
-      filters,
-      relayQuerySignal(opts?.signal, timeoutMs)
-    ),
+    queryOneRelay(pool, GAME_RELAY_PRIMARY_URL, filters, opts?.signal, timeoutMs),
+    queryOneRelay(pool, GAME_RELAY_BACKUP_URL, filters, opts?.signal, timeoutMs),
   ]);
   return filterValidCommunityEvents(mergeRelayQueryResults(primary, backup));
 }
