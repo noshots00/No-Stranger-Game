@@ -24,8 +24,9 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@investor/*": ["./sites/investor/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "sites/investor", "vite.config.investor.ts"]
 }

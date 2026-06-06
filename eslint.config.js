@@ -8,7 +8,7 @@ import htmlParser from "@html-eslint/parser";
 import customRules from "./eslint-rules/index.js";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "dist-investor"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -69,6 +69,12 @@ export default tseslint.config(
       ],
       "custom/no-inline-script": "error",
       "custom/require-webmanifest": "error",
+    },
+  },
+  {
+    files: ["sites/investor/**/*.html"],
+    rules: {
+      "custom/require-webmanifest": "off",
     },
   }
 );
