@@ -1,5 +1,6 @@
 import { FadeIn } from "@investor/components/FadeIn";
 import { SectionShell } from "@investor/components/SectionShell";
+import { publicAsset } from "@investor/lib/publicAsset";
 
 const STEPS = [
   {
@@ -47,7 +48,7 @@ export function ExperienceSection() {
               </div>
               <figure className="overflow-hidden rounded-xl border border-[var(--candle-rule)]">
                 <img
-                  src={step.art}
+                  src={publicAsset(step.art)}
                   alt={step.artAlt}
                   className="aspect-[4/3] w-full object-cover"
                   width={800}
