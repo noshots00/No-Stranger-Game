@@ -1,6 +1,7 @@
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { Button } from '@/components/ui/button';
 import { GamePanelScroll } from '../GamePanelScroll';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import { cn } from '@/lib/utils';
 import type { useMayorsHut } from './useMayorsHut';
 
@@ -30,6 +31,7 @@ export function MayorsHutContent({
     withdrawFromElection,
     castVote,
     retractVote,
+    refreshFeed,
   } = mayorsHut;
 
   const candidacyPending = runForMayor.isPending || withdrawFromElection.isPending;
@@ -100,6 +102,13 @@ export function MayorsHutContent({
         </div>
       )}
 
+      <PanelUpdateButton
+        label="Update ballot"
+        onClick={() => refreshFeed()}
+        isFetching={feedQuery.isFetching}
+        showLedgerHint={!feedQuery.isFetched}
+      />
+
       {registrationBlock}
 
       {voteError ? (
@@ -121,8 +130,12 @@ export function MayorsHutContent({
           embedded && 'max-h-[min(36vh,280px)]'
         )}
       >
-        {feedQuery.isPending ? (
-          <p className="py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">Loading…</p>
+        {feedQuery.isFetching ? (
+          <p className="py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">Updating…</p>
+        ) : !feedQuery.isFetched ? (
+          <p className="px-3 py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
+            Tap Update ballot to load candidates and votes.
+          </p>
         ) : election.activeCandidates.length === 0 ? (
           <p className="px-3 py-6 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
             No candidates yet.

@@ -102,15 +102,15 @@ export function useChatRoom({ groupId, enabled = true }: UseChatRoomOptions): Ch
 
     queryFn: async () => {
 
-      const [modern, legacy] = await Promise.all([
+      const events = await queryGameRelays(nostr, [
 
-        queryGameRelays(nostr, [{ kinds: [GAME_CHAT_MESSAGE_KIND], '#h': [groupId], limit: CHAT_QUERY_LIMIT }]),
+        { kinds: [GAME_CHAT_MESSAGE_KIND], '#h': [groupId], limit: CHAT_QUERY_LIMIT },
 
-        queryGameRelays(nostr, [{ kinds: [LEGACY_GAME_CHAT_KIND], '#t': [groupId], limit: CHAT_QUERY_LIMIT }]),
+        { kinds: [LEGACY_GAME_CHAT_KIND], '#t': [groupId], limit: CHAT_QUERY_LIMIT }
 
       ]);
 
-      return mergeChatEvents(modern, legacy);
+      return mergeChatEvents(events, []);
 
     },
 

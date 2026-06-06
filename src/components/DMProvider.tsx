@@ -997,6 +997,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
       nip4SubscriptionRef.current.close();
     }
 
+    const controller = new AbortController();
+
     try {
       let subscriptionSince = sinceTimestamp || Math.floor(Date.now() / 1000);
       if (!sinceTimestamp && lastSync.nip4) {
@@ -1008,7 +1010,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
         { kinds: [4], authors: [user.pubkey], since: subscriptionSince }
       ];
 
-      const subscription = nostr.req(filters);
+      const subscription = nostr.req(filters, { signal: controller.signal });
       let isActive = true;
 
       (async () => {
@@ -1020,7 +1022,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
             }
           }
         } catch (error) {
-          if (isActive) {
+          if (isActive && error instanceof Error && error.name !== 'AbortError') {
             console.error('[DM] NIP-4 subscription error:', error);
           }
         }
@@ -1029,6 +1031,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
       nip4SubscriptionRef.current = {
         close: () => {
           isActive = false;
+          controller.abort();
         }
       };
 
@@ -1047,6 +1050,8 @@ export function DMProvider({ children, config }: DMProviderProps) {
       nip17SubscriptionRef.current.close();
     }
 
+    const controller = new AbortController();
+
     try {
       let subscriptionSince = sinceTimestamp || Math.floor(Date.now() / 1000);
       if (!sinceTimestamp && lastSync.nip17) {
@@ -1064,7 +1069,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
         since: subscriptionSince,
       }];
 
-      const subscription = nostr.req(filters);
+      const subscription = nostr.req(filters, { signal: controller.signal });
       let isActive = true;
 
       (async () => {
@@ -1076,7 +1081,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
             }
           }
         } catch (error) {
-          if (isActive) {
+          if (isActive && error instanceof Error && error.name !== 'AbortError') {
             console.error('[DM] NIP-17 subscription error:', error);
           }
         }
@@ -1085,6 +1090,7 @@ export function DMProvider({ children, config }: DMProviderProps) {
       nip17SubscriptionRef.current = {
         close: () => {
           isActive = false;
+          controller.abort();
         }
       };
 

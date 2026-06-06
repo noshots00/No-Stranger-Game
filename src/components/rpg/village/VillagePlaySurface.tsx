@@ -35,6 +35,8 @@ type VillagePlaySurfaceProps = {
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
   onAdvanceQuestMessage?: () => void;
+  onDismissQuestScene?: () => void;
+  townHallPing?: boolean;
   dialogueScrollRef: RefObject<HTMLDivElement | null>;
   onDialogueScroll: () => void;
   showOriginStartHint: boolean;
@@ -73,6 +75,8 @@ export function VillagePlaySurface({
   onStepChoice,
   onNameSubmit,
   onAdvanceQuestMessage,
+  onDismissQuestScene,
+  townHallPing = false,
   dialogueScrollRef,
   onDialogueScroll,
   showOriginStartHint,
@@ -135,6 +139,7 @@ export function VillagePlaySurface({
       onOpenPanel={onOpenPanel}
       onTravelToLocation={onTravelToLocation}
       onRequestLotsFeed={requestLotsFeed}
+      townHallPing={townHallPing}
     />
   );
 
@@ -175,6 +180,7 @@ export function VillagePlaySurface({
         onStepChoice={onStepChoice}
         onNameSubmit={onNameSubmit}
         onAdvanceQuestMessage={onAdvanceQuestMessage}
+        onDismissQuestScene={onDismissQuestScene}
         dialogueScrollRef={dialogueScrollRef}
         onDialogueScroll={onDialogueScroll}
         showOriginStartHint={showOriginStartHint}

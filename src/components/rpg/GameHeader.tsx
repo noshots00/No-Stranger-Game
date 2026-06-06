@@ -1,20 +1,12 @@
-import { useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { HeaderHealthBar } from './HeaderHealthBar';
 import { HeaderFlyout } from './HeaderFlyout';
+import { NewDot } from './NewDot';
 import type { TravelMenuItem } from './travelLocations';
 import { cn } from '@/lib/utils';
 
-function TravelNewDot({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        'size-1.5 shrink-0 rounded-full bg-[var(--candle-flame-soft)] shadow-[0_0_6px_rgba(230,161,87,0.55)]',
-        className
-      )}
-      aria-hidden
-    />
-  );
-}
+const DEV_TOOLS_UNLOCK_TAP_COUNT = 5;
+const DEV_TOOLS_UNLOCK_WINDOW_MS = 2000;
 
 type GameHeaderProps = {
   dayCounter: number;
@@ -31,6 +23,7 @@ type GameHeaderProps = {
   devToolsPanel?: ReactNode;
   devToolsMenuOpen?: boolean;
   onDevToolsMenuOpenChange?: (open: boolean) => void;
+  onEnableDevTools?: () => void;
   health?: number;
 };
 
@@ -49,9 +42,27 @@ export function GameHeader({
   devToolsPanel,
   devToolsMenuOpen = false,
   onDevToolsMenuOpenChange,
+  onEnableDevTools,
   health = 100,
 }: GameHeaderProps) {
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const devUnlockTapCountRef = useRef(0);
+  const devUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDevUnlockTap = useCallback(() => {
+    if (showHeaderDevTools || !onEnableDevTools) return;
+    devUnlockTapCountRef.current += 1;
+    if (devUnlockTimerRef.current) clearTimeout(devUnlockTimerRef.current);
+    if (devUnlockTapCountRef.current >= DEV_TOOLS_UNLOCK_TAP_COUNT) {
+      devUnlockTapCountRef.current = 0;
+      onEnableDevTools();
+      return;
+    }
+    devUnlockTimerRef.current = setTimeout(() => {
+      devUnlockTapCountRef.current = 0;
+      devUnlockTimerRef.current = null;
+    }, DEV_TOOLS_UNLOCK_WINDOW_MS);
+  }, [onEnableDevTools, showHeaderDevTools]);
   const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
   const selectableDestinations = travelMenuItems.length;
   const locationLabel = formatLocationLabel(currentLocation);
@@ -64,7 +75,7 @@ export function GameHeader({
       )}
     >
       <span className="truncate">{locationLabel}</span>
-      {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+      {locationMenuNotify ? <NewDot className="ml-0.5" /> : null}
     </span>
   );
 
@@ -77,7 +88,7 @@ export function GameHeader({
         )}
       >
         {locationLabel}
-        {locationMenuNotify ? <TravelNewDot className="ml-0.5" /> : null}
+        {locationMenuNotify ? <NewDot className="ml-0.5" /> : null}
       </span>
     ) : selectableDestinations === 1 ? (
       <button
@@ -120,7 +131,7 @@ export function GameHeader({
                 }}
               >
                 <span className="truncate text-left">{item.label}</span>
-                {item.showNew ? <TravelNewDot /> : null}
+                {item.showNew ? <NewDot /> : null}
               </button>
             </li>
           ))}
@@ -141,7 +152,14 @@ export function GameHeader({
         {devToolsPanel}
       </HeaderFlyout>
     ) : (
-      <HeaderHealthBar health={health} className="px-0.5" />
+      <button
+        type="button"
+        className="mx-auto block w-full max-w-[4.75rem] rounded-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
+        aria-label="Health and version"
+        onClick={handleDevUnlockTap}
+      >
+        <HeaderHealthBar health={health} hideMeterSemantics className="px-0.5" />
+      </button>
     );
 
   return (

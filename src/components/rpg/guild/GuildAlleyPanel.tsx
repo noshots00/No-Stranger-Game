@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { GamePanelExpandable } from '../GamePanelExpandable';
 import { GamePanelScroll } from '../GamePanelScroll';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
@@ -156,6 +157,7 @@ export function GuildAlleyContent({
     joinGuild,
     leaveGuild,
     createGuild,
+    refreshFeed,
   } = guildAlley;
 
   const memberGuildDef = useMemo(() => {
@@ -229,6 +231,12 @@ export function GuildAlleyContent({
 
         {activeTab === 'alley' ? (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+            <PanelUpdateButton
+              label="Update guilds"
+              onClick={() => refreshFeed()}
+              isFetching={feedQuery.isFetching}
+              showLedgerHint={!feedQuery.isFetched}
+            />
             <GamePanelScroll
               className={cn(
                 'min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20',
@@ -236,9 +244,13 @@ export function GuildAlleyContent({
               )}
             >
               <div className="space-y-2 p-2">
-                {feedQuery.isPending ? (
+                {feedQuery.isFetching ? (
                   <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                    Loading guilds…
+                    Updating…
+                  </p>
+                ) : !feedQuery.isFetched ? (
+                  <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
+                    Tap Update guilds to load guild roster from the village ledger.
                   </p>
                 ) : (
                   feed.guilds.map((guild) => {

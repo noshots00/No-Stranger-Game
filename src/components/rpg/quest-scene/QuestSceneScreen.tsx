@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { thrownItemLabelFromFlags } from '../constants';
 import { isContinueBridgeMessageStep, resolveQuestSceneTextBands } from '../quests/engine';
+import { isTownHallTutorialAwaitStep } from '../village/villageTutorialQuests';
 import type { ModifierMap, QuestChoice, QuestDefinition, QuestProgress, QuestStep } from '../quests/types';
 import { getQuestCardImageSrc, getQuestScenePortraitAlt, getQuestScenePortraitSrc } from '../rpgArtAssignments';
 import { QuestSceneNpcTalk } from './QuestSceneNpcTalk';
@@ -43,6 +44,7 @@ export type QuestSceneScreenProps = {
   onNameSubmit: () => void;
   onInventoryPickSubmit?: (itemLabel: string) => void;
   onAdvanceQuestMessage?: () => void;
+  onDismissQuestScene?: () => void;
   showQuestChoiceEffects?: boolean;
   playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
@@ -64,6 +66,7 @@ export function QuestSceneScreen({
   onNameSubmit,
   onInventoryPickSubmit,
   onAdvanceQuestMessage,
+  onDismissQuestScene,
   showQuestChoiceEffects = false,
   playerHealth = 100,
   onPlayerHealthChange,
@@ -209,6 +212,14 @@ export function QuestSceneScreen({
           {step.type === 'message' && isContinueBridgeMessageStep(step) && onAdvanceQuestMessage ? (
             <button type="button" onClick={onAdvanceQuestMessage} className={QUEST_SCENE_CONTINUE}>
               Continue
+            </button>
+          ) : null}
+
+          {step.type === 'message' &&
+          isTownHallTutorialAwaitStep(quest.id, step.id) &&
+          onDismissQuestScene ? (
+            <button type="button" onClick={onDismissQuestScene} className={QUEST_SCENE_CONTINUE}>
+              Okay
             </button>
           ) : null}
 

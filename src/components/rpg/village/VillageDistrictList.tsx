@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
+import { NewDot } from '../NewDot';
 
 import type { VillageLotOccupancyView } from './villageLotNostr';
 import {
@@ -38,6 +39,8 @@ type VillageDistrictListProps = {
   onTravelToLocation: (locationId: string) => void;
   /** First village-lot interaction — defers relay feed until the player engages. */
   onRequestLotsFeed?: () => void;
+  /** Tutorial ping on Town Hall lot (Pick a job / Mayor quests). */
+  townHallPing?: boolean;
 };
 
 type ClaimDialogState = { lotId: string; districtTitle: string } | null;
@@ -72,6 +75,7 @@ function VillageLotRow({
   occupancy,
   myPubkey,
   isBuildPending,
+  townHallPing,
   onLotClick,
 }: {
   lot: VillageLotDef;
@@ -79,6 +83,7 @@ function VillageLotRow({
   occupancy: VillageLotOccupancyView | undefined;
   myPubkey: string | undefined;
   isBuildPending: boolean;
+  townHallPing: boolean;
   onLotClick: (
     lot: VillageLotDef,
     district: VillageDistrictDef,
@@ -101,7 +106,10 @@ function VillageLotRow({
         disabled={isOwnerBuild && isBuildPending}
         onClick={() => onLotClick(lot, district, occupancy)}
       >
-        {displayName}
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <span className="truncate">{displayName}</span>
+          {lot.id === 'town-hall' && townHallPing ? <NewDot /> : null}
+        </span>
       </button>
     );
   }
@@ -125,6 +133,7 @@ export function VillageDistrictList({
   onOpenPanel,
   onTravelToLocation,
   onRequestLotsFeed,
+  townHallPing = false,
 }: VillageDistrictListProps) {
   const { toast } = useToast();
   const buildingLots = useMemo(
@@ -229,6 +238,7 @@ export function VillageDistrictList({
               occupancy={occupancyByLotId.get(lot.id)}
               myPubkey={myPubkey}
               isBuildPending={isBuildPending}
+              townHallPing={townHallPing}
               onLotClick={handleLotClick}
             />
           </li>

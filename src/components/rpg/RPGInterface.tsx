@@ -172,6 +172,10 @@ import { useMayorsHut } from './mayorsHut/useMayorsHut';
 import { switchActiveJob } from './jobs/applyJobAction';
 import { getJobDefinition } from './jobs/registry';
 import { getVillageJournalQuests } from './village/villageJournal';
+import {
+  isTownHallTutorialContinueChoice,
+  townHallTutorialPingPending,
+} from './village/villageTutorialQuests';
 import { TownHallPanel } from './village/townHall/TownHallPanel';
 import { useVillageProjects } from './villageProjects/useVillageProjects';
 import { CraftersCornerPanel } from './crafter/CraftersCornerPanel';
@@ -333,6 +337,10 @@ export function RPGInterface() {
   const [marketOpen, setMarketOpen] = useState(false);
   const [craftersCornerOpen, setCraftersCornerOpen] = useState(false);
   const [townHallOpen, setTownHallOpen] = useState(false);
+  const townHallPing = useMemo(
+    () => townHallTutorialPingPending(questState) && !townHallOpen,
+    [questState, townHallOpen]
+  );
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
   const socialQueriesEnabled = activeTab === 'social' && canShowGame;
@@ -547,7 +555,7 @@ export function RPGInterface() {
   );
 
   const guildAlley = useGuildAlley({
-    enabled: (townHallOpen || activeTab === 'character') && canShowGame,
+    enabled: townHallOpen && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     setQuestState,
@@ -618,8 +626,21 @@ export function RPGInterface() {
     }
   }, []);
   useEffect(() => {
+    try {
+      if (devHeaderToolsFromStorage) {
+        localStorage.setItem(DEV_HEADER_TOOLS_STORAGE_KEY, '1');
+      }
+    } catch {
+      /* private / blocked storage */
+    }
+  }, [devHeaderToolsFromStorage]);
+  useEffect(() => {
     localStorage.setItem(DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY, showRelayStatusOverlay ? '1' : '0');
   }, [showRelayStatusOverlay]);
+  const handleEnableDevTools = useCallback(() => {
+    setDevHeaderToolsFromStorage(true);
+    toast({ title: 'Developer tools enabled' });
+  }, [toast]);
   const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
   const showRelayHealthOverlay = showHeaderDevTools && showRelayStatusOverlay;
   const relayHealthQuery = useGameRelayHealth();
@@ -1293,6 +1314,7 @@ export function RPGInterface() {
 
   const handleStepChoice = (choiceId: string) => {
     if (!activeQuest) return;
+    const dismissQuestScene = isTownHallTutorialContinueChoice(activeQuest.id, choiceId);
     setQuestState((prev) => {
       const currentStep = getCurrentStep(prev, activeQuest);
       if (currentStep.type !== 'choice') return prev;
@@ -1371,6 +1393,7 @@ export function RPGInterface() {
       }
       return merged;
     });
+    if (dismissQuestScene) setPlaySceneQuestId(null);
   };
 
   const handleInventoryPickSubmit = (itemLabel: string) => {
@@ -1707,6 +1730,8 @@ export function RPGInterface() {
               onStepChoice={handleStepChoice}
               onNameSubmit={handleNameSubmit}
               onAdvanceQuestMessage={handleAdvanceQuestMessage}
+              onDismissQuestScene={handleCloseQuestScene}
+              townHallPing={townHallPing}
               dialogueScrollRef={dialogueScrollRef}
               onDialogueScroll={handleDialogueScroll}
               showOriginStartHint={showOriginStartHint}
@@ -1810,6 +1835,7 @@ export function RPGInterface() {
           devToolsPanel={headerDevPanel}
           devToolsMenuOpen={devToolsMenuOpen}
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
+          onEnableDevTools={handleEnableDevTools}
           health={questState.health}
         />
         {showRelayHealthOverlay ? (
@@ -1852,7 +1878,7 @@ export function RPGInterface() {
                     className={`candlelit-nav-btn relative ${item.isPrimary ? 'is-primary' : ''} ${isActive ? 'is-active' : ''}`}
                     aria-label={item.label}
                   >
-                    <span className="text-xs leading-none" aria-hidden>
+                    <span className="text-sm leading-none" aria-hidden>
                       {item.icon}
                     </span>
                   </button>

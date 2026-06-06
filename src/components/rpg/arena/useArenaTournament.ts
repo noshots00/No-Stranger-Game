@@ -19,6 +19,7 @@ import {
 } from './arenaNostr';
 import { buildMatchSummaryContent, winProbabilityForWinner } from './arenaRecord';
 import type { QuestState } from '../quests/types';
+import { NSG_ARENA_MATCH_KIND, NSG_ARENA_OPEN_KIND } from './constants';
 
 const ARENA_FEED_KEY = ['arena-tournament-feed'] as const;
 
@@ -29,20 +30,23 @@ export type ArenaTournamentFeed = {
   myOpen?: ArenaOpenRegistration;
 };
 
-async function fetchArenaFeed(nostr: { query: (f: ReturnType<typeof arenaOpenFilter>[]) => Promise<unknown[]> }): Promise<ArenaTournamentFeed> {
-  const [openEvents, matchEvents] = await Promise.all([
-    nostr.query([arenaOpenFilter()]),
-    nostr.query([arenaMatchFilter()]),
-  ]);
+async function fetchArenaFeed(nostr: { query: (filters: import('@nostrify/nostrify').NostrFilter[]) => Promise<unknown[]> }): Promise<ArenaTournamentFeed> {
+  const allEvents = (await nostr.query([
+    arenaOpenFilter(),
+    arenaMatchFilter(),
+  ])) as import('@nostrify/nostrify').NostrEvent[];
 
-  const matches = (matchEvents as import('@nostrify/nostrify').NostrEvent[])
+  const openEvents = allEvents.filter(e => e.kind === NSG_ARENA_OPEN_KIND);
+  const matchEvents = allEvents.filter(e => e.kind === NSG_ARENA_MATCH_KIND);
+
+  const matches = matchEvents
     .map(parseArenaMatchResult)
     .filter((m): m is ArenaMatchResult => m !== null)
     .sort((a, b) => b.atMs - a.atMs);
 
   const consumedRegistrationIds = getConsumedRegistrationIds(matches);
   const openRegistrations = listActiveOpenRegistrations(
-    openEvents as import('@nostrify/nostrify').NostrEvent[],
+    openEvents,
     consumedRegistrationIds
   );
 

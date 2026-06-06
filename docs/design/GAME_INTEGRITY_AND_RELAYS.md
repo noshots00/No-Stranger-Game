@@ -91,7 +91,7 @@ Cannot rewrite another user’s kind **10032** without their private key. Econom
 | Feature | Where | Gated? |
 |---------|--------|--------|
 | Story checkpoints, mark quest complete | Header (version label panel) | `import.meta.env.DEV` **or** `localStorage` `nsg:dev-header-tools=1` |
-| Advance day, 5-min days, rapid day sim, show all quests, modifier details | Character tab ⋯ menu | **Always on** in production today (`showDevTools`) |
+| Advance day, 5-min days, rapid day sim, show all quests, modifier details | Character tab ⋯ menu | `import.meta.env.DEV` **or** `localStorage` `nsg:dev-header-tools=1` (5-tap version bar unlock on production) |
 | Reset progress | Character tab ⋯ | Everyone |
 | Mandatory reset for saves &lt; app `0.5.36` | Block screen | Automatic |
 

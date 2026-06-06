@@ -23,7 +23,7 @@ export const quest040PickAJob = createQuestDefinition({
       choices: [
         {
           id: 'go-jobs-hall',
-          label: 'Go to Town Hall',
+          label: 'Continue',
           nextStepId: 'await-profession',
         },
       ],

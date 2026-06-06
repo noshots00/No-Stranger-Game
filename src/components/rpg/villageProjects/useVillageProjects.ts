@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import type { QuestState } from '../quests/types';
@@ -29,7 +29,6 @@ export function useVillageProjects(args: {
 }) {
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
-  const queryClient = useQueryClient();
 
   const mayorPubkey = args.election.isPlaceholderMayor ? null : args.election.mayorPubkey;
   const isMayor = Boolean(args.myPubkey && mayorPubkey && args.myPubkey === mayorPubkey);
@@ -48,16 +47,19 @@ export function useVillageProjects(args: {
       ])) as NostrEvent[];
       return buildVillageProjectProgress(defEvents, contributionEvents);
     },
-    enabled: args.enabled,
+    enabled: false,
     staleTime: Infinity,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const progress = feedQuery.data ?? buildVillageProjectProgress([], []);
   const displayName = args.questState.playerName.trim() || 'Stranger';
 
-  const invalidateFeed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: VILLAGE_PROJECTS_FEED_KEY });
-  }, [queryClient]);
+  const refreshFeed = useCallback(() => {
+    void feedQuery.refetch();
+  }, [feedQuery]);
 
   const catalogById = useMemo(() => {
     const m = new Map<string, (typeof VILLAGE_PROJECT_CATALOG)[number]>();
@@ -79,7 +81,7 @@ export function useVillageProjects(args: {
         })
       );
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => refreshFeed(),
   });
 
   const contribute = useMutation({
@@ -109,7 +111,7 @@ export function useVillageProjects(args: {
         window.queueMicrotask(() => void args.persistQuestCheckpoint(next));
         return next;
       });
-      invalidateFeed();
+      refreshFeed();
     },
   });
 
@@ -121,6 +123,7 @@ export function useVillageProjects(args: {
     mayorPubkey,
     setActiveProject,
     contribute,
-    invalidateFeed,
+    refreshFeed,
+    invalidateFeed: refreshFeed,
   };
 }

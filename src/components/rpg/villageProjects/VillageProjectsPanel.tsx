@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { formatResourceLabel } from '../helpers';
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { GamePanelScroll } from '../GamePanelScroll';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import type { QuestState } from '../quests/types';
 import type { useVillageProjects } from './useVillageProjects';
 import type { VillageProjectResource } from './constants';
@@ -22,7 +23,8 @@ type VillageProjectsContentProps = {
 };
 
 export function VillageProjectsContent({ questState, villageProjects }: VillageProjectsContentProps) {
-  const { progress, catalog, isMayor, setActiveProject, contribute } = villageProjects;
+  const { feedQuery, progress, catalog, isMayor, setActiveProject, contribute, refreshFeed } =
+    villageProjects;
   const def = progress.definition;
   const resources = questState.resources ?? {};
   const goalResources = def
@@ -31,7 +33,20 @@ export function VillageProjectsContent({ questState, villageProjects }: VillageP
 
   return (
     <div className="space-y-4 text-sm">
-      {def ? (
+      <PanelUpdateButton
+        label="Update projects"
+        onClick={() => refreshFeed()}
+        isFetching={feedQuery.isFetching}
+        showLedgerHint={!feedQuery.isFetched}
+      />
+
+      {feedQuery.isFetching ? (
+        <p className="text-center font-serif text-sm text-[var(--candle-ink-faint)]">Updating…</p>
+      ) : !feedQuery.isFetched ? (
+        <p className="text-[var(--candle-ink-soft)]">
+          Tap Update projects to load the mayor&apos;s active build from the village ledger.
+        </p>
+      ) : def ? (
         <div className="rounded-md border border-[var(--candle-flame-soft)]/30 bg-black/20 px-3 py-2">
           <p className="font-semibold text-[var(--candle-wax)]">{def.title}</p>
           <p className="mt-1 text-xs text-[var(--candle-ink-soft)]">{def.description}</p>

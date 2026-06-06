@@ -46,21 +46,24 @@ export type BlobbiFightFeed = {
 };
 
 async function fetchBlobbiFightFeed(nostr: {
-  query: (f: ReturnType<typeof blobbiFightOpenFilter>[]) => Promise<unknown[]>;
+  query: (filters: import('@nostrify/nostrify').NostrFilter[]) => Promise<unknown[]>;
 }): Promise<BlobbiFightFeed> {
-  const [openEvents, matchEvents] = await Promise.all([
-    nostr.query([blobbiFightOpenFilter()]),
-    nostr.query([blobbiFightMatchFilter()]),
-  ]);
+  const allEvents = (await nostr.query([
+    blobbiFightOpenFilter(),
+    blobbiFightMatchFilter(),
+  ])) as import('@nostrify/nostrify').NostrEvent[];
 
-  const matches = (matchEvents as import('@nostrify/nostrify').NostrEvent[])
+  const openEvents = allEvents.filter(e => e.kind === 10005); // NSG_BLOBBI_FIGHT_OPEN_KIND
+  const matchEvents = allEvents.filter(e => e.kind === 10006); // NSG_BLOBBI_FIGHT_MATCH_KIND
+
+  const matches = matchEvents
     .map(parseBlobbiFightMatchResult)
     .filter((m): m is BlobbiFightMatchResult => m !== null)
     .sort((a, b) => b.atMs - a.atMs);
 
   const consumedRegistrationIds = getConsumedRegistrationIds(matches);
   const openRegistrations = listActiveOpenRegistrations(
-    openEvents as import('@nostrify/nostrify').NostrEvent[],
+    openEvents,
     consumedRegistrationIds
   );
 

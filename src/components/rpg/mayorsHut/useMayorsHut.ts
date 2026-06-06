@@ -76,10 +76,6 @@ export function useMayorsHut(args: {
     []
   );
 
-  const refreshFeed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: MAYORS_HUT_FEED_KEY });
-  }, [queryClient]);
-
   const feedQuery = useQuery({
     queryKey: MAYORS_HUT_FEED_KEY,
     queryFn: async () => {
@@ -90,10 +86,16 @@ export function useMayorsHut(args: {
       }
       return snapshot;
     },
-    enabled: args.enabled,
+    enabled: false,
     staleTime: Infinity,
     retry: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
+
+  const refreshFeed = useCallback(() => {
+    void feedQuery.refetch();
+  }, [feedQuery]);
 
   const election = feedQuery.data ?? buildMayorElectionSnapshot([], []);
 

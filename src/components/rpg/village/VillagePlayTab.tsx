@@ -29,6 +29,7 @@ type VillagePlayTabProps = {
   onStepChoice: (choiceId: string) => void;
   onNameSubmit: () => void;
   onAdvanceQuestMessage?: () => void;
+  onDismissQuestScene?: () => void;
   dialogueScrollRef: RefObject<HTMLDivElement | null>;
   onDialogueScroll: () => void;
   showOriginStartHint: boolean;
@@ -61,6 +62,7 @@ export function VillagePlayTab({
   onStepChoice,
   onNameSubmit,
   onAdvanceQuestMessage,
+  onDismissQuestScene,
   dialogueScrollRef,
   onDialogueScroll,
   showOriginStartHint,
@@ -98,6 +100,7 @@ export function VillagePlayTab({
           onNameSubmit={onNameSubmit}
           onInventoryPickSubmit={onInventoryPickSubmit}
           onAdvanceQuestMessage={onAdvanceQuestMessage}
+          onDismissQuestScene={onDismissQuestScene}
           showQuestChoiceEffects={showQuestChoiceEffects}
           playerHealth={playerHealth}
           onPlayerHealthChange={onPlayerHealthChange}

@@ -107,9 +107,11 @@ A running inventory of every feature in No Stranger Game. One section per featur
 - Merges dialogue + world events for reading in a modal.
 - [ChronicleTab.tsx](../../src/components/rpg/tabs/ChronicleTab.tsx), grouping in [dialogueFormat.ts](../../src/components/rpg/dialogueFormat.ts).
 
-## Developer / debug tools (Vite dev only)
+## Developer / debug tools
 
-- Exposed from [GameHeader.tsx](../../src/components/rpg/GameHeader.tsx) game menu when `import.meta.env.DEV`:
+- Gated to `import.meta.env.DEV` **or** `localStorage` key `nsg:dev-header-tools=1`.
+- **Production unlock:** tap the center version/HP bar **5 times within 2 seconds** to enable dev tools (persists across sessions).
+- Exposed from [GameHeader.tsx](../../src/components/rpg/GameHeader.tsx) version panel when enabled:
   - **Advance 24 hours** — shifts dev virtual clock (`devDayOffsetMs`).
   - **5-minute game days** — Eastern pacing uses 5-minute slots instead of calendar days ([easternGameTime.ts](../../src/lib/easternGameTime.ts)).
   - **Rapid day simulation** — auto-advance virtual clock every 2s ([useDayCounter.ts](../../src/components/rpg/hooks/useDayCounter.ts)).

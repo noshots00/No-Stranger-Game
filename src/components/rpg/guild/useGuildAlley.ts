@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import type { GuildMembership, ModifierMap, QuestState } from '../quests/types';
@@ -70,7 +70,6 @@ export function useGuildAlley(args: {
 }) {
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
-  const queryClient = useQueryClient();
 
   const membership = args.questState.guildMembership ?? null;
   const hasActiveMembership = membership !== null && membership.leftAtMs === undefined;
@@ -81,15 +80,18 @@ export function useGuildAlley(args: {
       const initial = await fetchGuildFeed(nostr);
       return initial;
     },
-    enabled: args.enabled,
+    enabled: false,
     staleTime: Infinity,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const feed = feedQuery.data ?? { guilds: [DEFAULT_GUILD], membersBySlug: {} };
 
-  const invalidateFeed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: GUILD_FEED_KEY });
-  }, [queryClient]);
+  const refreshFeed = useCallback(() => {
+    void feedQuery.refetch();
+  }, [feedQuery]);
 
   const setMembership = useCallback(
     (next: GuildMembership | null) => {
@@ -129,7 +131,7 @@ export function useGuildAlley(args: {
       });
       return guild;
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => refreshFeed(),
   });
 
   const leaveGuild = useMutation({
@@ -153,7 +155,7 @@ export function useGuildAlley(args: {
         leftAtMs: leftAtSec * 1000,
       });
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => refreshFeed(),
   });
 
   const createGuild = useMutation({
@@ -199,7 +201,7 @@ export function useGuildAlley(args: {
 
       return { slug, name: trimmed };
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => refreshFeed(),
   });
 
   const myActiveMembershipSlug = useMemo(() => {
@@ -223,6 +225,7 @@ export function useGuildAlley(args: {
     joinGuild,
     leaveGuild,
     createGuild,
-    invalidateFeed,
+    refreshFeed,
+    invalidateFeed: refreshFeed,
   };
 }
