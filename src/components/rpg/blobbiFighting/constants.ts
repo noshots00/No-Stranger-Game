@@ -24,3 +24,6 @@ export const BLOBBI_FIGHT_MEMORY_QUERY_LIMIT = 40;
 
 /** Poll interval while Blobbi Fighting dialog is open (ms). */
 export const BLOBBI_FIGHT_FEED_STALE_MS = 20_000;
+
+/** Wait after publish before refetching fight feed so relays can index the event. */
+export const BLOBBI_RELAY_SETTLE_MS = 1500;

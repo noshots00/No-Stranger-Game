@@ -28,7 +28,15 @@ import {
   type BlobbiFightOpenRegistration,
 } from './blobbiFightNostr';
 import type { BlobbiSnapshot } from './blobbiStateNostr';
+import { BLOBBI_RELAY_SETTLE_MS } from './constants';
+
 const BLOBBI_FIGHT_FEED_KEY = ['blobbi-fight-feed'] as const;
+
+function relaySettleDelay(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, BLOBBI_RELAY_SETTLE_MS);
+  });
+}
 
 export type BlobbiFightFeed = {
   openRegistrations: BlobbiFightOpenRegistration[];
@@ -172,6 +180,7 @@ export function useBlobbiFight(args: {
           });
         }
 
+        await relaySettleDelay();
         return { action: 'matched' as const };
       }
 
@@ -184,6 +193,7 @@ export function useBlobbiFight(args: {
           health: me.health,
         })
       );
+      await relaySettleDelay();
       return { action: 'queued' as const };
     },
     onSuccess: () => invalidateFeed(),

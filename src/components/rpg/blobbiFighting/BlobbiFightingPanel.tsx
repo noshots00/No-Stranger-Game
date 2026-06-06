@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { GamePanelExpandable } from '../GamePanelExpandable';
 import { GamePanelScroll } from '../GamePanelScroll';
@@ -18,6 +18,26 @@ type BlobbiFightingPanelProps = {
   playerBlobbis: ReturnType<typeof usePlayerBlobbis>;
   blobbiFight: ReturnType<typeof useBlobbiFight>;
 };
+
+const REGISTERING_ELLIPSIS = ['.', '..', '...', '..'] as const;
+const REGISTERING_ELLIPSIS_MS = 400;
+
+function useAnimatedEllipsis(active: boolean): string {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!active) {
+      setIndex(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setIndex((prev) => (prev + 1) % REGISTERING_ELLIPSIS.length);
+    }, REGISTERING_ELLIPSIS_MS);
+    return () => window.clearInterval(id);
+  }, [active]);
+
+  return REGISTERING_ELLIPSIS[active ? index : 0] ?? '.';
+}
 
 function formatMatchTime(atMs: number): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(
@@ -142,6 +162,8 @@ export function BlobbiFightingPanel({
         ? 'Matchmaking failed.'
         : null;
 
+  const registeringEllipsis = useAnimatedEllipsis(register.isPending);
+
   const rows = useMemo(
     () => fightBoardRows(feed.openRegistrations, feed.matches),
     [feed.openRegistrations, feed.matches]
@@ -205,7 +227,7 @@ export function BlobbiFightingPanel({
             }}
           >
             {register.isPending
-              ? 'Finding match…'
+              ? `Registering${registeringEllipsis}`
               : feed.myOpen
                 ? 'Waiting for opponent…'
                 : 'Find a match'}
