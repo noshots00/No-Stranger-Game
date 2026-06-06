@@ -11,13 +11,14 @@ import { getRaceDefinition } from '../races';
 import { questStateHasRememberedName } from '../helpers';
 import { normalizePubkeyHex } from '@/lib/nostrPubkey';
 
-export function useSocialQueries() {
+export function useSocialQueries(args: { enabled: boolean }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
+  const panelActive = args.enabled;
 
   const socialQuery = useQuery({
     queryKey: ['rpg-social-presence', user?.pubkey ?? 'anonymous'],
-    enabled: Boolean(user),
+    enabled: panelActive && Boolean(user),
     queryFn: async () => {
       const loginEvents = await nostr.query([
         {
@@ -80,6 +81,7 @@ export function useSocialQueries() {
 
   const socialActivityQuery = useQuery({
     queryKey: ['rpg-social-activity', 'remembered-name', NSG_QUEST_STATE_KIND, NSG_QUEST_STATE_D_TAG],
+    enabled: panelActive,
     staleTime: 60_000,
     queryFn: async () => {
       const checkpoints = await nostr.query([
@@ -129,7 +131,7 @@ export function useSocialQueries() {
 
   const socialKindredSignalsQuery = useQuery({
     queryKey: ['rpg-social-kindred-signals', user?.pubkey ?? '', kindredPubkeysKey],
-    enabled: Boolean(user) && socialQuery.isSuccess,
+    enabled: panelActive && Boolean(user) && socialQuery.isSuccess,
     staleTime: 60_000,
     queryFn: async () => {
       const kindredPubkeys = [...(socialQuery.data?.kindredPubkeys ?? [])];
@@ -181,7 +183,7 @@ export function useSocialQueries() {
   // checkpoint payload, since chat events only carry pubkeys.
   const lobbyNamesQuery = useQuery({
     queryKey: ['rpg-lobby-names', socialStats.kindredPubkeys.join('|')],
-    enabled: socialStats.kindredPubkeys.length > 0,
+    enabled: panelActive && socialStats.kindredPubkeys.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
       const authors = socialStats.kindredPubkeys;

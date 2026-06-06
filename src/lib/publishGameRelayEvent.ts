@@ -1,5 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { GAME_RELAY_BACKUP_URL, GAME_RELAY_PRIMARY_URL } from '@/lib/gameRelays';
+import { recordRelayInteraction } from '@/lib/relayInteractionLog';
 
 const DEFAULT_PUBLISH_TIMEOUT_MS = 5_000;
 
@@ -33,11 +34,30 @@ export async function publishGameRelayEvent(
   const relayUrls = [GAME_RELAY_PRIMARY_URL, GAME_RELAY_BACKUP_URL];
 
   const results = await Promise.allSettled(
-    relayUrls.map((url) => {
+    relayUrls.map(async (url) => {
+      const started = performance.now();
       const perRelaySignal = opts?.signal
         ? AbortSignal.any([opts.signal, AbortSignal.timeout(timeoutMs)])
         : AbortSignal.timeout(timeoutMs);
-      return pool.relay(url).event(event, { signal: perRelaySignal });
+      try {
+        await pool.relay(url).event(event, { signal: perRelaySignal });
+        recordRelayInteraction({
+          operation: 'publish',
+          relayUrl: url,
+          ok: true,
+          latencyMs: performance.now() - started,
+          detail: `kind:${event.kind}`,
+        });
+      } catch (error) {
+        recordRelayInteraction({
+          operation: 'publish',
+          relayUrl: url,
+          ok: false,
+          latencyMs: performance.now() - started,
+          detail: `kind:${event.kind} · ${isAbortError(error) ? 'timeout' : error instanceof Error ? error.message : 'publish failed'}`,
+        });
+        throw error;
+      }
     })
   );
 

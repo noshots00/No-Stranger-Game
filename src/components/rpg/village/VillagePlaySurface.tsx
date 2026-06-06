@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type RefObject } from 'react';
+import { useCallback, useMemo, useState, type RefObject } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -11,7 +11,6 @@ import type {
   QuestStep,
 } from '../quests/types';
 import { VillageDistrictList } from './VillageDistrictList';
-import { VillageFeedRefreshButton } from './VillageFeedRefreshButton';
 import { VillagePlayTab } from './VillagePlayTab';
 import type { VillagePanelId } from './villageCatalog';
 import type { VillageLotOccupancyView } from './villageLotNostr';
@@ -47,6 +46,7 @@ type VillagePlaySurfaceProps = {
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
   onOpenArena: () => void;
+  onOpenBlobbiFighting: () => void;
   onOpenTavern: () => void;
   onOpenMarket: () => void;
   onOpenTownHall: () => void;
@@ -84,6 +84,7 @@ export function VillagePlaySurface({
   onPlayerHealthChange,
   questProgress,
   onOpenArena,
+  onOpenBlobbiFighting,
   onOpenTavern,
   onOpenMarket,
   onOpenTownHall,
@@ -92,13 +93,16 @@ export function VillagePlaySurface({
 }: VillagePlaySurfaceProps) {
   const { user } = useCurrentUser();
   const displayName = playerName.trim() || 'Stranger';
+  const [lotsFeedEnabled, setLotsFeedEnabled] = useState(false);
+  const requestLotsFeed = useCallback(() => {
+    setLotsFeedEnabled(true);
+  }, []);
 
-  const { feedQuery, occupancyByLotId: occupancyFromFeed, claimLot, buildLot, invalidateFeed } =
-    useVillageLots({
-      enabled: true,
-      ownerName: displayName,
-      myPubkey: user?.pubkey,
-    });
+  const { occupancyByLotId: occupancyFromFeed, claimLot, buildLot } = useVillageLots({
+    enabled: lotsFeedEnabled,
+    ownerName: displayName,
+    myPubkey: user?.pubkey,
+  });
 
   const emptyLots = useMemo(() => new Map<string, VillageLotOccupancyView>(), []);
   const occupancyByLotId = occupancyFromFeed ?? emptyLots;
@@ -106,12 +110,13 @@ export function VillagePlaySurface({
   const onOpenPanel = useCallback(
     (panel: VillagePanelId) => {
       if (panel === 'arena') onOpenArena();
+      else if (panel === 'blobbiFighting') onOpenBlobbiFighting();
       else if (panel === 'tavern') onOpenTavern();
       else if (panel === 'market') onOpenMarket();
       else if (panel === 'townHall') onOpenTownHall();
       else if (panel === 'craftersCorner') onOpenCraftersCorner();
     },
-    [onOpenArena, onOpenTavern, onOpenMarket, onOpenTownHall, onOpenCraftersCorner]
+    [onOpenArena, onOpenBlobbiFighting, onOpenTavern, onOpenMarket, onOpenTownHall, onOpenCraftersCorner]
   );
 
   const districtsPane = (
@@ -129,6 +134,7 @@ export function VillagePlaySurface({
       }}
       onOpenPanel={onOpenPanel}
       onTravelToLocation={onTravelToLocation}
+      onRequestLotsFeed={requestLotsFeed}
     />
   );
 
@@ -144,16 +150,10 @@ export function VillagePlaySurface({
       aria-label="Village hub"
     >
       {!showQuestScene ? (
-        <header className="relative shrink-0 pb-1.5 pt-0.5">
-          <h2 className="text-center font-cormorant text-base font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
+        <header className="shrink-0 pb-1.5 pt-0.5 text-center">
+          <h2 className="font-cormorant text-base font-semibold tracking-[0.06em] text-[var(--candle-wax)]">
             Strange Village
           </h2>
-          <div className="absolute right-0 top-0.5">
-            <VillageFeedRefreshButton
-              isFetching={feedQuery.isFetching}
-              onRefresh={() => void invalidateFeed()}
-            />
-          </div>
         </header>
       ) : null}
 

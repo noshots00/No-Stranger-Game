@@ -18,7 +18,6 @@ import {
   type ArenaOpenRegistration,
 } from './arenaNostr';
 import { buildMatchSummaryContent, winProbabilityForWinner } from './arenaRecord';
-import { ARENA_FEED_STALE_MS } from './constants';
 import type { QuestState } from '../quests/types';
 
 const ARENA_FEED_KEY = ['arena-tournament-feed'] as const;
@@ -68,8 +67,7 @@ export function useArenaTournament(args: {
     queryKey: ARENA_FEED_KEY,
     queryFn: () => fetchArenaFeed(nostr),
     enabled: args.enabled,
-    staleTime: ARENA_FEED_STALE_MS,
-    refetchInterval: args.enabled ? ARENA_FEED_STALE_MS : false,
+    staleTime: Infinity,
   });
 
   const feed = useMemo((): ArenaTournamentFeed & { myOpen?: ArenaOpenRegistration } => {

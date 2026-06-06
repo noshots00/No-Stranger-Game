@@ -3,10 +3,10 @@ import { fromZonedTime } from 'date-fns-tz';
 
 import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 
-/** Shared village kinds (30333–30342) plus arena match results (10050). */
+/** Shared village kinds (30333–30343) plus arena/blobbi match results (10050, 10051). */
 export const COMMUNITY_EVENT_KIND_MIN = 30333;
-export const COMMUNITY_EVENT_KIND_MAX = 30342;
-export const COMMUNITY_EVENT_EXTRA_KINDS = new Set<number>([10050]);
+export const COMMUNITY_EVENT_KIND_MAX = 30343;
+export const COMMUNITY_EVENT_EXTRA_KINDS = new Set<number>([10050, 10051]);
 
 /**
  * Multiplayer events with `created_at` strictly before this instant are ignored by the client.

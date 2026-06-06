@@ -12,7 +12,6 @@ import {
   newMarketListingId,
   type MarketListingView,
 } from './marketListingNostr';
-import { MARKET_FEED_STALE_MS } from './constants';
 import type { QuestState } from '../quests/types';
 
 const MARKET_FEED_KEY = ['market-listings'] as const;
@@ -46,8 +45,7 @@ export function useMarket(args: {
     queryKey: MARKET_FEED_KEY,
     queryFn: () => fetchMarketFeed(nostr),
     enabled: args.enabled,
-    staleTime: MARKET_FEED_STALE_MS,
-    refetchInterval: args.enabled ? MARKET_FEED_STALE_MS : false,
+    staleTime: Infinity,
   });
 
   const feed = feedQuery.data ?? { openListings: [], allListings: [] };

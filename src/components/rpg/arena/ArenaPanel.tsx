@@ -9,8 +9,6 @@ import { formatArenaFightLine, createEmptyArenaRecord } from './arenaRecord';
 import type { ArenaMatchResult, ArenaOpenRegistration } from './arenaNostr';
 import type { useArenaTournament } from './useArenaTournament';
 import type { ArenaRecord, QuestState } from '../quests/types';
-import { VillageFeedRefreshButton } from '../village/VillageFeedRefreshButton';
-
 type ArenaPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -82,7 +80,7 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
   const [arenaTab, setArenaTab] = useState<'tournament' | 'stats'>('tournament');
   const combatRating = getCombatRating(questState);
   const arenaRecord: ArenaRecord = questState.arenaRecord ?? createEmptyArenaRecord();
-  const { feed, feedQuery, register, invalidateFeed } = tournament;
+  const { feed, feedQuery, register } = tournament;
   const registerError =
     register.error instanceof Error ? register.error.message : register.isError ? 'Registration failed.' : null;
 
@@ -96,12 +94,6 @@ export function ArenaPanel({ open, onOpenChange, questState, myPubkey, tournamen
   return (
     <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Arena" panelClassName="gap-0 p-4 pt-8">
       <header className="shrink-0 space-y-1 px-2 text-center">
-        <div className="flex justify-end pr-8">
-          <VillageFeedRefreshButton
-            isFetching={feedQuery.isFetching}
-            onRefresh={() => void invalidateFeed()}
-          />
-        </div>
         <GamePanelDialogTitle>Arena</GamePanelDialogTitle>
         <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
           Combat rating {combatRating}

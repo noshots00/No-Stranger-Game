@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { GamePanelScroll } from '../GamePanelScroll';
 import { cn } from '@/lib/utils';
 import type { useMayorsHut } from './useMayorsHut';
-import { VillageFeedRefreshButton } from '../village/VillageFeedRefreshButton';
 
 type MayorsHutContentProps = {
   myPubkey: string | undefined;
@@ -31,12 +30,19 @@ export function MayorsHutContent({
     withdrawFromElection,
     castVote,
     retractVote,
-    refreshFeed,
   } = mayorsHut;
 
   const candidacyPending = runForMayor.isPending || withdrawFromElection.isPending;
   const votePending = castVote.isPending || retractVote.isPending;
   const voteUiLocked = voteGesturesBlocked || candidacyPending;
+  const voteError =
+    castVote.error instanceof Error
+      ? castVote.error.message
+      : retractVote.error instanceof Error
+        ? retractVote.error.message
+        : castVote.isError || retractVote.isError
+          ? 'Vote failed. Try again.'
+          : null;
 
   const registrationBlock = (
     <div className="shrink-0 space-y-2">
@@ -67,12 +73,6 @@ export function MayorsHutContent({
     <div className={embedded ? 'space-y-3' : 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-1'}>
       {!embedded ? (
         <header className="shrink-0 space-y-1 px-2 text-center">
-          <div className="flex justify-end pr-8">
-            <VillageFeedRefreshButton
-              isFetching={feedQuery.isFetching}
-              onRefresh={() => void refreshFeed()}
-            />
-          </div>
           <GamePanelDialogTitle>Mayor&apos;s Hut</GamePanelDialogTitle>
           <p className="font-serif text-sm text-[var(--candle-wax)]">
             Mayor: <span className="font-semibold">{election.mayorName}</span>
@@ -88,25 +88,23 @@ export function MayorsHutContent({
           )}
         </header>
       ) : (
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-serif text-sm text-[var(--candle-wax)]">
-              Mayor: <span className="font-semibold">{election.mayorName}</span>
-            </p>
-            <p className="font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
-              {election.isPlaceholderMayor
-                ? 'Placeholder until a candidate leads the vote'
-                : 'Elected by village vote'}
-            </p>
-          </div>
-          <VillageFeedRefreshButton
-            isFetching={feedQuery.isFetching}
-            onRefresh={() => void refreshFeed()}
-          />
+        <div>
+          <p className="font-serif text-sm text-[var(--candle-wax)]">
+            Mayor: <span className="font-semibold">{election.mayorName}</span>
+          </p>
+          <p className="font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
+            {election.isPlaceholderMayor
+              ? 'Placeholder until a candidate leads the vote'
+              : 'Elected by village vote'}
+          </p>
         </div>
       )}
 
       {registrationBlock}
+
+      {voteError ? (
+        <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{voteError}</p>
+      ) : null}
 
       <p
         className={cn(

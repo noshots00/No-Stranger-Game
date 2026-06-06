@@ -11,7 +11,6 @@ import { VILLAGE_MARKET_SUPPLIES, villageSupplyBuyDelta } from './villageSupplie
 import type { MarketListingView } from './marketListingNostr';
 import type { useMarket } from './useMarket';
 import type { ModifierMap, QuestState } from '../quests/types';
-import { VillageFeedRefreshButton } from '../village/VillageFeedRefreshButton';
 
 type MarketPanelProps = {
   open: boolean;
@@ -98,19 +97,13 @@ export function MarketPanel({
 }: MarketPanelProps) {
   const { toast } = useToast();
   const [postOpen, setPostOpen] = useState(false);
-  const { feed, feedQuery, postListing, cancelListing, buyListing, invalidateFeed } = market;
+  const { feed, feedQuery, postListing, cancelListing, buyListing } = market;
   const walletCopper = getCopperFromModifiers(questState.modifiers);
 
   return (
     <>
       <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Market" panelClassName="gap-0 p-4 pt-8">
         <header className="shrink-0 space-y-1 px-2 text-center">
-          <div className="flex justify-end pr-8">
-            <VillageFeedRefreshButton
-              isFetching={feedQuery.isFetching}
-              onRefresh={() => void invalidateFeed()}
-            />
-          </div>
           <GamePanelDialogTitle>Market</GamePanelDialogTitle>
           <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
             Listings newest first · you have{' '}

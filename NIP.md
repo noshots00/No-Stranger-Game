@@ -2,7 +2,7 @@
 
 ## Client community epoch
 
-The browser client ignores shared multiplayer kinds when `created_at` is before **`COMMUNITY_EVENT_EPOCH_YMD`** (Eastern midnight), configured in [`src/lib/communityEventEpoch.ts`](src/lib/communityEventEpoch.ts). Covered kinds: **30333–30342** (village, mayor, market, guild, etc.) and **10050** (arena match results). Older relay data remains public but does not affect shared UI or arena stats. Bump that date to reset shared multiplayer state for all players on the next release.
+The browser client ignores shared multiplayer kinds when `created_at` is before **`COMMUNITY_EVENT_EPOCH_YMD`** (Eastern midnight), configured in [`src/lib/communityEventEpoch.ts`](src/lib/communityEventEpoch.ts). Covered kinds: **30333–30343** (village, mayor, market, guild, blobbi fighting, etc.) and **10050** / **10051** (arena and blobbi match results). Older relay data remains public but does not affect shared UI or arena stats. Bump that date to reset shared multiplayer state for all players on the next release.
 
 ## Kind 30333 — Arena open registration (addressable)
 
@@ -33,6 +33,41 @@ Immutable result when a matcher pairs with an open registration.
 | `alt` | yes | Human-readable description |
 
 `content` holds a short summary line for UI.
+
+## Kind 30343 — Blobbi Fighting open registration (addressable)
+
+Replaceable per author with `d` tag `blobbi-fight-open`. One active queue slot per player.
+
+| Tag | Required | Description |
+|-----|----------|-------------|
+| `d` | yes | `blobbi-fight-open` |
+| `t` | yes | `no-stranger-game`, `blobbi-fight-open` (relay filter) |
+| `owner-name` | yes | In-game owner display name |
+| `blobbi-id` | yes | Blobbi `d` tag from kind 31124 |
+| `blobbi-name` | yes | Blobbi display name |
+| `stage` | yes | Life stage at registration |
+| `health` | yes | Health stat at registration |
+| `alt` | yes | Human-readable description |
+
+`content` is empty.
+
+## Kind 10051 — Blobbi Fighting match result (regular)
+
+Immutable result when a matcher pairs with an open registration.
+
+| Tag | Required | Description |
+|-----|----------|-------------|
+| `t` | yes | `no-stranger-game`, `blobbi-fight-match` |
+| `e` | yes | Registration event id consumed |
+| `winner-owner` | yes | Winning owner pubkey (hex) |
+| `owner-a`, `n-a`, `blobbi-a-id`, `blobbi-a-name`, `stage-a`, `hp-a` | yes | Fighter A owner, name, blobbi id/name, stage, health |
+| `owner-b`, `n-b`, `blobbi-b-id`, `blobbi-b-name`, `stage-b`, `hp-b` | yes | Fighter B owner, name, blobbi id/name, stage, health |
+| `win-pct` | yes | Winner's win chance × 100 (integer) |
+| `alt` | yes | Human-readable description |
+
+`content` holds a short summary line for UI.
+
+Fight career milestones for Ditto Blobbi clients use **kind 14921** (`record_type: memory`, `achievement: arena_victory|arena_defeat`) — not defined in this NIP; see Blobbi NIP-BB.
 
 ## Kind 30334 — Guild definition (addressable)
 

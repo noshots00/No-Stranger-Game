@@ -7,7 +7,6 @@ import type { QuestState } from '../quests/types';
 import type { MayorElectionSnapshot } from '../mayorsHut/mayorElectionNostr';
 import {
   VILLAGE_PROJECT_CATALOG,
-  VILLAGE_PROJECT_FEED_STALE_MS,
   type VillageProjectResource,
 } from './constants';
 import {
@@ -50,8 +49,7 @@ export function useVillageProjects(args: {
       return buildVillageProjectProgress(defEvents, contributionEvents);
     },
     enabled: args.enabled,
-    staleTime: VILLAGE_PROJECT_FEED_STALE_MS,
-    refetchInterval: args.enabled ? VILLAGE_PROJECT_FEED_STALE_MS : false,
+    staleTime: Infinity,
   });
 
   const progress = feedQuery.data ?? buildVillageProjectProgress([], []);

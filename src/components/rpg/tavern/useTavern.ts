@@ -18,7 +18,6 @@ import {
   playerQuestFilter,
   type PlayerQuestView,
 } from './playerQuestNostr';
-import { TAVERN_FEED_STALE_MS } from './constants';
 import type { QuestState } from '../quests/types';
 
 const TAVERN_FEED_KEY = ['tavern-player-quests'] as const;
@@ -52,8 +51,7 @@ export function useTavern(args: {
     queryKey: TAVERN_FEED_KEY,
     queryFn: () => fetchTavernFeed(nostr),
     enabled: args.enabled,
-    staleTime: TAVERN_FEED_STALE_MS,
-    refetchInterval: args.enabled ? TAVERN_FEED_STALE_MS : false,
+    staleTime: Infinity,
   });
 
   const feed = feedQuery.data ?? { openQuests: [], allQuests: [] };

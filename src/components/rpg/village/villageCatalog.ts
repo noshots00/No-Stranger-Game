@@ -2,6 +2,7 @@ import { DISCOVERED_CEMETERY_FLAG } from '../constants';
 
 export type VillagePanelId =
   | 'arena'
+  | 'blobbiFighting'
   | 'tavern'
   | 'market'
   | 'townHall'
@@ -64,6 +65,12 @@ export const VILLAGE_DISTRICTS: ReadonlyArray<VillageDistrictDef> = [
         label: 'Arena',
         kind: 'system',
         action: { type: 'panel', panel: 'arena' },
+      },
+      {
+        id: 'blobbi-fighting',
+        label: 'Blobbi Fighting',
+        kind: 'system',
+        action: { type: 'panel', panel: 'blobbiFighting' },
       },
     ],
   },

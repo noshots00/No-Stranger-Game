@@ -12,7 +12,7 @@ import {
   mayorVoteFilter,
   type MayorElectionSnapshot,
 } from './mayorElectionNostr';
-import { MAYORS_HUT_FEED_STALE_MS, NSG_MAYOR_CANDIDATE_KIND, NSG_MAYOR_VOTE_KIND } from './constants';
+import { NSG_MAYOR_CANDIDATE_KIND, NSG_MAYOR_VOTE_KIND } from './constants';
 import type { QuestState } from '../quests/types';
 
 const MAYORS_HUT_FEED_KEY = ['mayors-hut-election'] as const;
@@ -56,6 +56,8 @@ export function useMayorsHut(args: {
   const [voteGesturesBlocked, setVoteGesturesBlocked] = useState(false);
   const unblockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const displayName = args.questState.playerName.trim() || 'Stranger';
+
   const blockVoteGesturesBriefly = useCallback(() => {
     voteGesturesBlockedRef.current = true;
     setVoteGesturesBlocked(true);
@@ -74,19 +76,23 @@ export function useMayorsHut(args: {
     []
   );
 
+  const refreshFeed = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: MAYORS_HUT_FEED_KEY });
+  }, [queryClient]);
+
   const feedQuery = useQuery({
     queryKey: MAYORS_HUT_FEED_KEY,
     queryFn: async () => {
       const prev = queryClient.getQueryData<MayorElectionSnapshot>(MAYORS_HUT_FEED_KEY);
       const snapshot = await fetchMayorElection(nostr);
       if (shouldRejectEmptyElectionRefresh(prev, snapshot)) {
-        throw new Error('Could not refresh election data from relays.');
+        return prev ?? snapshot;
       }
       return snapshot;
     },
     enabled: args.enabled,
-    staleTime: MAYORS_HUT_FEED_STALE_MS,
-    refetchInterval: args.enabled ? MAYORS_HUT_FEED_STALE_MS : false,
+    staleTime: Infinity,
+    retry: false,
   });
 
   const election = feedQuery.data ?? buildMayorElectionSnapshot([], []);
@@ -102,10 +108,6 @@ export function useMayorsHut(args: {
     [election.votes, args.myPubkey]
   );
 
-  const refreshFeed = useCallback(() => feedQuery.refetch(), [feedQuery]);
-
-  const displayName = args.questState.playerName.trim() || 'Stranger';
-
   const runForMayor = useMutation({
     mutationFn: async () => {
       if (!args.myPubkey) throw new Error('You must be logged in to run for mayor.');
@@ -119,7 +121,7 @@ export function useMayorsHut(args: {
     onMutate: () => blockVoteGesturesBriefly(),
     onSuccess: () => {
       blockVoteGesturesBriefly();
-      void refreshFeed();
+      refreshFeed();
     },
   });
 
@@ -136,7 +138,7 @@ export function useMayorsHut(args: {
     onMutate: () => blockVoteGesturesBriefly(),
     onSuccess: () => {
       blockVoteGesturesBriefly();
-      void refreshFeed();
+      refreshFeed();
     },
   });
 
@@ -153,7 +155,7 @@ export function useMayorsHut(args: {
         })
       );
     },
-    onSuccess: () => void refreshFeed(),
+    onSuccess: () => refreshFeed(),
   });
 
   const retractVote = useMutation({
@@ -165,7 +167,7 @@ export function useMayorsHut(args: {
         })
       );
     },
-    onSuccess: () => void refreshFeed(),
+    onSuccess: () => refreshFeed(),
   });
 
   return {

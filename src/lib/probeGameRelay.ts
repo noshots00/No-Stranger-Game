@@ -4,6 +4,7 @@ import {
   GAME_RELAY_QUERY_TIMEOUT_MS,
   GAME_RELAY_URLS,
 } from '@/lib/gameRelays';
+import { recordRelayInteraction } from '@/lib/relayInteractionLog';
 
 const PROBE_FILTER: NostrFilter = { kinds: [1], limit: 1 };
 
@@ -38,7 +39,6 @@ function relayRole(url: string): 'primary' | 'backup' {
   return url === GAME_RELAY_PRIMARY_URL ? 'primary' : 'backup';
 }
 
-/** Probe one game relay with the same query path the client uses in play. */
 export async function probeGameRelay(
   pool: GameRelayProbePool,
   url: string,
@@ -47,16 +47,31 @@ export async function probeGameRelay(
   const started = performance.now();
   try {
     await pool.relay(url).query([PROBE_FILTER], { signal: AbortSignal.timeout(timeoutMs) });
+    const latencyMs = Math.round(performance.now() - started);
+    recordRelayInteraction({
+      operation: 'probe',
+      relayUrl: url,
+      ok: true,
+      latencyMs,
+      detail: 'health probe',
+    });
     return {
       url,
       role: relayRole(url),
       status: 'up',
-      latencyMs: Math.round(performance.now() - started),
+      latencyMs,
       detail: null,
     };
   } catch (error) {
     const latencyMs = Math.round(performance.now() - started);
     if (isAbortError(error)) {
+      recordRelayInteraction({
+        operation: 'probe',
+        relayUrl: url,
+        ok: false,
+        latencyMs,
+        detail: `health probe · timeout ${timeoutMs}ms`,
+      });
       return {
         url,
         role: relayRole(url),
@@ -65,12 +80,20 @@ export async function probeGameRelay(
         detail: `No response within ${timeoutMs}ms`,
       };
     }
+    const detail = error instanceof Error ? error.message : 'Connection failed';
+    recordRelayInteraction({
+      operation: 'probe',
+      relayUrl: url,
+      ok: false,
+      latencyMs,
+      detail: `health probe · ${detail}`,
+    });
     return {
       url,
       role: relayRole(url),
       status: 'down',
       latencyMs,
-      detail: error instanceof Error ? error.message : 'Connection failed',
+      detail,
     };
   }
 }

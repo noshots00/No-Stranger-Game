@@ -3,7 +3,6 @@ import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { VILLAGE_LOT_FEED_STALE_MS } from './constants';
 import type { VillageBusinessType } from './villageCatalog';
 import { findVillageLotById } from './villageCatalog';
 import {
@@ -32,8 +31,7 @@ export function useVillageLots(args: {
       return mergeVillageLotState(events);
     },
     enabled: args.enabled,
-    staleTime: VILLAGE_LOT_FEED_STALE_MS,
-    refetchInterval: args.enabled ? VILLAGE_LOT_FEED_STALE_MS : false,
+    staleTime: Infinity,
   });
 
   const occupancyByLotId: Map<string, VillageLotOccupancyView> =

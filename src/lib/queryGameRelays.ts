@@ -6,6 +6,7 @@ import {
 } from '@/lib/gameRelays';
 import { mergeRelayQueryResults } from '@/lib/mergeRelayQueryResults';
 import { filterValidCommunityEvents } from '@/lib/communityEventEpoch';
+import { recordRelayInteraction, summarizeNostrFilters } from '@/lib/relayInteractionLog';
 
 export type GameRelayQueryPool = {
   relay: (url: string) => {
@@ -18,15 +19,38 @@ function relayQuerySignal(parent: AbortSignal | undefined, timeoutMs: number): A
   return parent ? AbortSignal.any([parent, timeout]) : timeout;
 }
 
+function queryErrorDetail(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'AbortError') return 'timeout';
+  return error instanceof Error ? error.message : 'query failed';
+}
+
 async function queryOneRelay(
   pool: GameRelayQueryPool,
   url: string,
   filters: NostrFilter[],
   signal: AbortSignal
 ): Promise<NostrEvent[]> {
+  const started = performance.now();
+  const filterSummary = summarizeNostrFilters(filters);
   try {
-    return await pool.relay(url).query(filters, { signal });
-  } catch {
+    const events = await pool.relay(url).query(filters, { signal });
+    recordRelayInteraction({
+      operation: 'query',
+      relayUrl: url,
+      ok: true,
+      latencyMs: performance.now() - started,
+      detail: filterSummary,
+      eventCount: events.length,
+    });
+    return events;
+  } catch (error) {
+    recordRelayInteraction({
+      operation: 'query',
+      relayUrl: url,
+      ok: false,
+      latencyMs: performance.now() - started,
+      detail: `${filterSummary} · ${queryErrorDetail(error)}`,
+    });
     return [];
   }
 }

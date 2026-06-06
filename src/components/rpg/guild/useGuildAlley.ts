@@ -10,7 +10,6 @@ import {
   GUILD_CREATE_COST_GOLD,
   hasAtLeastGold,
 } from './guildEconomy';
-import { GUILD_FEED_STALE_MS } from './constants';
 import {
   buildGuildDefDraft,
   buildMembershipDraft,
@@ -83,8 +82,7 @@ export function useGuildAlley(args: {
       return initial;
     },
     enabled: args.enabled,
-    staleTime: GUILD_FEED_STALE_MS,
-    refetchInterval: args.enabled ? GUILD_FEED_STALE_MS : false,
+    staleTime: Infinity,
   });
 
   const feed = feedQuery.data ?? { guilds: [DEFAULT_GUILD], membersBySlug: {} };

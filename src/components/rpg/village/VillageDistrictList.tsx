@@ -36,6 +36,8 @@ type VillageDistrictListProps = {
   onBuildLot: (lotId: string) => Promise<void>;
   onOpenPanel: (panel: VillagePanelId) => void;
   onTravelToLocation: (locationId: string) => void;
+  /** First village-lot interaction — defers relay feed until the player engages. */
+  onRequestLotsFeed?: () => void;
 };
 
 type ClaimDialogState = { lotId: string; districtTitle: string } | null;
@@ -122,6 +124,7 @@ export function VillageDistrictList({
   onBuildLot,
   onOpenPanel,
   onTravelToLocation,
+  onRequestLotsFeed,
 }: VillageDistrictListProps) {
   const { toast } = useToast();
   const buildingLots = useMemo(
@@ -150,6 +153,7 @@ export function VillageDistrictList({
       district: VillageDistrictDef,
       occupancy: VillageLotOccupancyView | undefined
     ) => {
+      onRequestLotsFeed?.();
       if (lot.kind === 'claimable') {
         if (!occupancy) {
           if (!myPubkey) {
@@ -174,7 +178,7 @@ export function VillageDistrictList({
       else if (lot.action.type === 'travel') onTravelToLocation(lot.action.locationId);
       else onStubVisit(lot.label);
     },
-    [myPubkey, onOpenPanel, onStubVisit, onTravelToLocation, toast]
+    [myPubkey, onOpenPanel, onRequestLotsFeed, onStubVisit, onTravelToLocation, toast]
   );
 
   const submitClaim = async () => {

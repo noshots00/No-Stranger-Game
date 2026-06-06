@@ -2,6 +2,10 @@
 
 The living index for No Stranger Game design and reference docs.
 
+## Sharable Deck
+
+- **[Sharable Deck](./SHARABLE_DECK.md)** — concise, normie-facing overview of the game and what’s playable today. Share this with friends or collaborators who don’t need code or Nostr jargon.
+
 ## LLM context bundle
 
 - **[LLM Paste](./LLM_PASTE.md)** — single file to copy into another LLM when brainstorming (features, main quest, races, classes, modifier rules). Update when design docs change.

@@ -159,6 +159,10 @@ import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
 import { ArenaPanel } from './arena/ArenaPanel';
 import { useArenaTournament } from './arena/useArenaTournament';
 import { useArenaSyncPersonalRecord } from './arena/useArenaSyncPersonalRecord';
+import { BlobbiFightingPanel } from './blobbiFighting/BlobbiFightingPanel';
+import { useBlobbiFight } from './blobbiFighting/useBlobbiFight';
+import { useBlobbiSyncFightMemories } from './blobbiFighting/useBlobbiSyncFightMemories';
+import { usePlayerBlobbis } from './blobbiFighting/usePlayerBlobbis';
 import { useGuildAlley } from './guild/useGuildAlley';
 import { TavernPanel } from './tavern/TavernPanel';
 import { useTavern } from './tavern/useTavern';
@@ -315,8 +319,6 @@ export function RPGInterface() {
     active: !showEarlyDevResetGate,
     src: publicAsset('audio/music/SoaveSiaII.mp3'),
   });
-  const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries();
-
   const [activeTab, setActiveTab] = useState<MobileTab>('play');
   const [nameInput, setNameInput] = useState('');
   const [nameInputError, setNameInputError] = useState<string | null>(null);
@@ -326,15 +328,38 @@ export function RPGInterface() {
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
   const [arenaOpen, setArenaOpen] = useState(false);
+  const [blobbiFightingOpen, setBlobbiFightingOpen] = useState(false);
   const [tavernOpen, setTavernOpen] = useState(false);
   const [marketOpen, setMarketOpen] = useState(false);
   const [craftersCornerOpen, setCraftersCornerOpen] = useState(false);
   const [townHallOpen, setTownHallOpen] = useState(false);
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
+  const socialQueriesEnabled = activeTab === 'social' && canShowGame;
+  const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries({
+    enabled: socialQueriesEnabled,
+  });
+
   const arenaTournament = useArenaTournament({
     enabled: arenaOpen && canShowGame,
     questState,
+    myPubkey: user?.pubkey,
+  });
+
+  const playerBlobbis = usePlayerBlobbis({
+    enabled: blobbiFightingOpen && canShowGame,
+    pubkey: user?.pubkey,
+  });
+
+  const blobbiFight = useBlobbiFight({
+    enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
+    myPubkey: user?.pubkey,
+    ownerName: questState.playerName,
+  });
+
+  useBlobbiSyncFightMemories({
+    enabled: blobbiFightingOpen && canShowGame && Boolean(user?.pubkey),
+    matches: blobbiFight.feed.matches,
     myPubkey: user?.pubkey,
   });
 
@@ -596,8 +621,8 @@ export function RPGInterface() {
     localStorage.setItem(DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY, showRelayStatusOverlay ? '1' : '0');
   }, [showRelayStatusOverlay]);
   const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
-  const relayHealthEnabled = showHeaderDevTools && showRelayStatusOverlay && canShowGame;
-  const relayHealthQuery = useGameRelayHealth(relayHealthEnabled);
+  const showRelayHealthOverlay = showHeaderDevTools && showRelayStatusOverlay;
+  const relayHealthQuery = useGameRelayHealth();
   const [devToolsMenuOpen, setDevToolsMenuOpen] = useState(false);
 
   const orderedQuestsForDev = useMemo(() => {
@@ -969,6 +994,7 @@ export function RPGInterface() {
 
   const closeVillagePanels = useCallback(() => {
     setArenaOpen(false);
+    setBlobbiFightingOpen(false);
     setTavernOpen(false);
     setMarketOpen(false);
     setCraftersCornerOpen(false);
@@ -1073,10 +1099,9 @@ export function RPGInterface() {
   // Catch-up: unveil the next saga step and auto-track it when an older save is stuck after a day report.
   useEffect(() => {
     if (!isQuestStateHydrated || !isPacingResolved || showEarlyDevResetGate) return;
-    const hasProgress = Object.keys(questState.progressByQuestId).length > 0;
-    if (!hasProgress) return;
 
     setQuestState((prev) => {
+      if (Object.keys(prev.progressByQuestId).length === 0) return prev;
       if (isForestAutoTrackBlockedByDayRoll(prev)) return prev;
       const completed = getCompletedQuestIds(prev);
       const ctx = getQuestContext(prev, resolveDisplayDay(prev, dayCounter));
@@ -1697,6 +1722,7 @@ export function RPGInterface() {
                 activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
               }
               onOpenArena={() => setArenaOpen(true)}
+              onOpenBlobbiFighting={() => setBlobbiFightingOpen(true)}
               onOpenTavern={() => setTavernOpen(true)}
               onOpenMarket={() => setMarketOpen(true)}
               onOpenTownHall={() => setTownHallOpen(true)}
@@ -1786,7 +1812,7 @@ export function RPGInterface() {
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
           health={questState.health}
         />
-        {relayHealthEnabled ? (
+        {showRelayHealthOverlay ? (
           <GameRelayStatusOverlay
             snapshot={relayHealthQuery.data}
             isFetching={relayHealthQuery.isFetching}
@@ -1853,6 +1879,15 @@ export function RPGInterface() {
               questState={questState}
               myPubkey={user?.pubkey}
               tournament={arenaTournament}
+            />
+          ) : null}
+          {blobbiFightingOpen ? (
+            <BlobbiFightingPanel
+              open
+              onOpenChange={setBlobbiFightingOpen}
+              myPubkey={user?.pubkey}
+              playerBlobbis={playerBlobbis}
+              blobbiFight={blobbiFight}
             />
           ) : null}
           {tavernOpen ? (
