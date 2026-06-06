@@ -56,7 +56,7 @@ jobs:
           npm ci
           npm run build
 
-      - name: Build investor site for Pages subpath
+      - name: Set investor site base path for Pages
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           if [ "$REPO_NAME" = "${GITHUB_REPOSITORY_OWNER}.github.io" ]; then
@@ -64,7 +64,9 @@ jobs:
           else
             echo "VITE_INVESTOR_BASE_PATH=/$REPO_NAME/investor/" >> "$GITHUB_ENV"
           fi
-          npm run build:investor
+
+      - name: Build investor site for Pages subpath
+        run: npm run build:investor
 
       - name: Merge investor site into Pages artifact
         run: |
