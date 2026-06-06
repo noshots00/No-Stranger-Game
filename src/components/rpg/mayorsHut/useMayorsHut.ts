@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -6,15 +6,19 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import {
   buildMayorCandidateDraft,
   buildMayorVoteDraft,
+  buildMayorVoteWithdrawDraft,
   buildMayorElectionSnapshot,
   mayorCandidateFilter,
   mayorVoteFilter,
   type MayorElectionSnapshot,
 } from './mayorElectionNostr';
-import { MAYORS_HUT_FEED_STALE_MS } from './constants';
+import { MAYORS_HUT_FEED_STALE_MS, NSG_MAYOR_CANDIDATE_KIND, NSG_MAYOR_VOTE_KIND } from './constants';
 import type { QuestState } from '../quests/types';
 
 const MAYORS_HUT_FEED_KEY = ['mayors-hut-election'] as const;
+
+/** Block vote publishes briefly after candidacy changes (avoids touch "ghost click" on new Vote buttons). */
+export const MAYOR_VOTE_GESTURE_BLOCK_MS = 1000;
 
 async function fetchMayorElection(
   nostr: {
@@ -23,11 +27,21 @@ async function fetchMayorElection(
     ) => Promise<unknown[]>;
   }
 ): Promise<MayorElectionSnapshot> {
-  const [candidateEvents, voteEvents] = await Promise.all([
-    nostr.query([mayorCandidateFilter()]) as Promise<NostrEvent[]>,
-    nostr.query([mayorVoteFilter()]) as Promise<NostrEvent[]>,
-  ]);
+  const events = (await nostr.query([mayorCandidateFilter(), mayorVoteFilter()])) as NostrEvent[];
+  const candidateEvents = events.filter((e) => e.kind === NSG_MAYOR_CANDIDATE_KIND);
+  const voteEvents = events.filter((e) => e.kind === NSG_MAYOR_VOTE_KIND);
   return buildMayorElectionSnapshot(candidateEvents, voteEvents);
+}
+
+/** Avoid replacing a good cached snapshot when relays time out and return no rows. */
+export function shouldRejectEmptyElectionRefresh(
+  prev: MayorElectionSnapshot | undefined,
+  next: MayorElectionSnapshot
+): boolean {
+  if (!prev) return false;
+  const hadData = prev.candidates.length > 0 || prev.votes.length > 0;
+  const gotNothing = next.candidates.length === 0 && next.votes.length === 0;
+  return hadData && gotNothing;
 }
 
 export function useMayorsHut(args: {
@@ -38,10 +52,38 @@ export function useMayorsHut(args: {
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
   const queryClient = useQueryClient();
+  const voteGesturesBlockedRef = useRef(false);
+  const [voteGesturesBlocked, setVoteGesturesBlocked] = useState(false);
+  const unblockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const blockVoteGesturesBriefly = useCallback(() => {
+    voteGesturesBlockedRef.current = true;
+    setVoteGesturesBlocked(true);
+    if (unblockTimerRef.current) clearTimeout(unblockTimerRef.current);
+    unblockTimerRef.current = setTimeout(() => {
+      voteGesturesBlockedRef.current = false;
+      setVoteGesturesBlocked(false);
+      unblockTimerRef.current = null;
+    }, MAYOR_VOTE_GESTURE_BLOCK_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (unblockTimerRef.current) clearTimeout(unblockTimerRef.current);
+    },
+    []
+  );
 
   const feedQuery = useQuery({
     queryKey: MAYORS_HUT_FEED_KEY,
-    queryFn: () => fetchMayorElection(nostr),
+    queryFn: async () => {
+      const prev = queryClient.getQueryData<MayorElectionSnapshot>(MAYORS_HUT_FEED_KEY);
+      const snapshot = await fetchMayorElection(nostr);
+      if (shouldRejectEmptyElectionRefresh(prev, snapshot)) {
+        throw new Error('Could not refresh election data from relays.');
+      }
+      return snapshot;
+    },
     enabled: args.enabled,
     staleTime: MAYORS_HUT_FEED_STALE_MS,
     refetchInterval: args.enabled ? MAYORS_HUT_FEED_STALE_MS : false,
@@ -60,9 +102,7 @@ export function useMayorsHut(args: {
     [election.votes, args.myPubkey]
   );
 
-  const invalidateFeed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: MAYORS_HUT_FEED_KEY });
-  }, [queryClient]);
+  const refreshFeed = useCallback(() => feedQuery.refetch(), [feedQuery]);
 
   const displayName = args.questState.playerName.trim() || 'Stranger';
 
@@ -76,7 +116,11 @@ export function useMayorsHut(args: {
         })
       );
     },
-    onSuccess: () => invalidateFeed(),
+    onMutate: () => blockVoteGesturesBriefly(),
+    onSuccess: () => {
+      blockVoteGesturesBriefly();
+      void refreshFeed();
+    },
   });
 
   const withdrawFromElection = useMutation({
@@ -89,12 +133,19 @@ export function useMayorsHut(args: {
         })
       );
     },
-    onSuccess: () => invalidateFeed(),
+    onMutate: () => blockVoteGesturesBriefly(),
+    onSuccess: () => {
+      blockVoteGesturesBriefly();
+      void refreshFeed();
+    },
   });
 
   const castVote = useMutation({
     mutationFn: async (candidatePubkey: string) => {
       if (!args.myPubkey) throw new Error('You must be logged in to vote.');
+      if (voteGesturesBlockedRef.current) {
+        throw new Error('Wait a moment before voting.');
+      }
       await publish(
         buildMayorVoteDraft({
           candidatePubkey,
@@ -102,7 +153,19 @@ export function useMayorsHut(args: {
         })
       );
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => void refreshFeed(),
+  });
+
+  const retractVote = useMutation({
+    mutationFn: async () => {
+      if (!args.myPubkey) throw new Error('You must be logged in to retract your vote.');
+      await publish(
+        buildMayorVoteWithdrawDraft({
+          voterName: displayName,
+        })
+      );
+    },
+    onSuccess: () => void refreshFeed(),
   });
 
   return {
@@ -111,9 +174,12 @@ export function useMayorsHut(args: {
     myCandidate,
     myActiveCandidacy,
     myVote,
+    voteGesturesBlocked,
     runForMayor,
     withdrawFromElection,
     castVote,
-    invalidateFeed,
+    retractVote,
+    refreshFeed,
+    invalidateFeed: refreshFeed,
   };
 }

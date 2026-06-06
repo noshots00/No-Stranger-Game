@@ -19,11 +19,13 @@ import {
   interpolateStepText,
   isDayPacingActive,
   isVillagePhase,
+  markQuestCompleted,
   offerNextTrackedForestQuest,
   resolveDisplayDay,
   shouldShowDayInHeader,
   catchUpVillageQuestAfterTheDoor,
   introduceVillageQuestAfterTheDoor,
+  introduceMayorQuestAfterPickJob,
   reconcileVillagePhaseState,
   restartQuestProgress,
   resumeLocationQuestAtStep,
@@ -34,6 +36,8 @@ import {
 import { allQuests, questById } from '@/components/rpg/quests/registry';
 import {
   catchUpManualSagaUnveilIds,
+  catchUpMayorQuestUnveilId,
+  catchUpPickJobQuestUnveilId,
   catchUpSagaUnveilIds,
   catchUpVillageUnveilId,
   computeNextUnveilIdsAfterCompletion,
@@ -48,6 +52,7 @@ import {
   DAY_IN_MS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
   DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY,
+  DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY,
   DEV_USE_QUEST_POPUP_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
@@ -58,6 +63,9 @@ import {
   QUEST_003B_MEET_MERCHANT_ID,
   QUEST_004_B_THE_DOOR_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
+  QUEST_PICK_A_JOB_ID,
+  QUEST_MAYOR_ID,
+  JOB_SLUG_EXPLORER,
   ORIGIN_QUEST_OPENED_FLAG,
   SILVER_LAKE_SCENE_ACTION_QUEST,
   PLAY_DIALOGUE_RECENT_MAX,
@@ -92,7 +100,7 @@ import {
   isPlayDayMarkerText,
   worldLinesForPlayFeed,
 } from './playLedgerSchema';
-import { appendDialogue, getCopperFromModifiers } from './helpers';
+import { appendDialogue, appendUniqueWorldEntries, getCopperFromModifiers } from './helpers';
 import { createPlayFeedScrollController } from './playFeedScroll';
 import {
   dialogueHasQuestOpeningAtEnd,
@@ -110,6 +118,10 @@ import type { ChronicleMergedRow } from './dialogueFormat';
 import { useQuestState } from './hooks/useQuestState';
 import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
+import { useGameRelayHealth } from '@/hooks/useGameRelayHealth';
+import { GameRelayStatusOverlay } from './dev/GameRelayStatusOverlay';
+import { QuestCheckpointRestoreDialog } from './dev/QuestCheckpointRestoreDialog';
+import { questCheckpointDisplayDay, type QuestCheckpointRecord } from './gameProfile';
 import {
   devResetQuestById,
   devRestartFromQuest,
@@ -147,17 +159,16 @@ import { MERCHANT_TRADE_GOODS } from './merchant/merchantEconomy';
 import { ArenaPanel } from './arena/ArenaPanel';
 import { useArenaTournament } from './arena/useArenaTournament';
 import { useArenaSyncPersonalRecord } from './arena/useArenaSyncPersonalRecord';
-import { GuildAlleyPanel } from './guild/GuildAlleyPanel';
 import { useGuildAlley } from './guild/useGuildAlley';
 import { TavernPanel } from './tavern/TavernPanel';
 import { useTavern } from './tavern/useTavern';
 import { MarketPanel } from './market/MarketPanel';
 import { useMarket } from './market/useMarket';
-import { MayorsHutPanel } from './mayorsHut/MayorsHutPanel';
 import { useMayorsHut } from './mayorsHut/useMayorsHut';
-import { JobsHallPanel } from './jobs/JobsHallPanel';
 import { switchActiveJob } from './jobs/applyJobAction';
-import { VillageProjectsPanel } from './villageProjects/VillageProjectsPanel';
+import { getJobDefinition } from './jobs/registry';
+import { getVillageJournalQuests } from './village/villageJournal';
+import { TownHallPanel } from './village/townHall/TownHallPanel';
 import { useVillageProjects } from './villageProjects/useVillageProjects';
 import { CraftersCornerPanel } from './crafter/CraftersCornerPanel';
 
@@ -219,6 +230,9 @@ function mergeDiscoveryUnveils(
   if (add.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
     next = introduceVillageQuestAfterTheDoor(next);
   }
+  if (add.includes(QUEST_MAYOR_ID)) {
+    next = introduceMayorQuestAfterPickJob(next);
+  }
   return next;
 }
 
@@ -229,6 +243,49 @@ function notifyVillageQuestAvailable(toast: ReturnType<typeof useToast>['toast']
   });
 }
 
+function finishMayorQuestIfInProgress(
+  prev: QuestState,
+  state: QuestState,
+  dayCounter: number
+): QuestState | null {
+  const mayorQuest = questById[QUEST_MAYOR_ID];
+  if (!mayorQuest) return null;
+  const mayorProg = state.progressByQuestId[QUEST_MAYOR_ID];
+  if (!mayorProg || mayorProg.isCompleted) return null;
+
+  const marked = markQuestCompleted(state, QUEST_MAYOR_ID);
+  if (!marked) return null;
+
+  let merged: QuestState = {
+    ...marked,
+    worldEventLog: appendUniqueWorldEntries(marked.worldEventLog, [
+      'You cast your vote for village mayor.',
+    ]),
+  };
+  merged = mergeJournalRecapOnQuestComplete(prev, merged, mayorQuest);
+  merged = applyQuestLevelMilestoneIfNeeded(prev, merged, QUEST_MAYOR_ID);
+  merged = mergeDiscoveryUnveils(merged, QUEST_MAYOR_ID, resolveDisplayDay(merged, dayCounter));
+  return merged;
+}
+
+function revertMayorQuestAfterVoteRetracted(state: QuestState): QuestState | null {
+  const prog = state.progressByQuestId[QUEST_MAYOR_ID];
+  if (!prog?.isCompleted) return null;
+
+  return {
+    ...state,
+    activeQuestId: QUEST_MAYOR_ID,
+    progressByQuestId: {
+      ...state.progressByQuestId,
+      [QUEST_MAYOR_ID]: {
+        ...prog,
+        isCompleted: false,
+        currentStepId: 'await-vote',
+      },
+    },
+  };
+}
+
 export function RPGInterface() {
   const { toast } = useToast();
   const { nostr } = useNostr();
@@ -237,7 +294,7 @@ export function RPGInterface() {
   const { logout } = useLoginActions();
   const navigate = useNavigate();
 
-  const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestStateAndSync } =
+  const { questState, setQuestState, isQuestStateHydrated, persistQuestCheckpoint, resetQuestStateAndSync, restoreQuestCheckpoint } =
     useQuestState();
   const {
     creationDateEastern,
@@ -269,13 +326,10 @@ export function RPGInterface() {
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
   const [arenaOpen, setArenaOpen] = useState(false);
-  const [guildAlleyOpen, setGuildAlleyOpen] = useState(false);
   const [tavernOpen, setTavernOpen] = useState(false);
   const [marketOpen, setMarketOpen] = useState(false);
-  const [mayorsHutOpen, setMayorsHutOpen] = useState(false);
   const [craftersCornerOpen, setCraftersCornerOpen] = useState(false);
-  const [jobsHallOpen, setJobsHallOpen] = useState(false);
-  const [villageProjectsOpen, setVillageProjectsOpen] = useState(false);
+  const [townHallOpen, setTownHallOpen] = useState(false);
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
   const arenaTournament = useArenaTournament({
@@ -468,7 +522,7 @@ export function RPGInterface() {
   );
 
   const guildAlley = useGuildAlley({
-    enabled: (guildAlleyOpen || activeTab === 'character') && canShowGame,
+    enabled: (townHallOpen || activeTab === 'character') && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     setQuestState,
@@ -504,13 +558,13 @@ export function RPGInterface() {
   });
 
   const mayorsHut = useMayorsHut({
-    enabled: (mayorsHutOpen || villageProjectsOpen) && canShowGame,
+    enabled: townHallOpen && canShowGame,
     questState,
     myPubkey: user?.pubkey,
   });
 
   const villageProjects = useVillageProjects({
-    enabled: villageProjectsOpen && canShowGame,
+    enabled: townHallOpen && canShowGame,
     questState,
     myPubkey: user?.pubkey,
     election: mayorsHut.election,
@@ -525,14 +579,25 @@ export function RPGInterface() {
   );
 
   const [devHeaderToolsFromStorage, setDevHeaderToolsFromStorage] = useState(false);
+  const [showRelayStatusOverlay, setShowRelayStatusOverlay] = useState(false);
+  const [checkpointRestoreOpen, setCheckpointRestoreOpen] = useState(false);
+  const [restoringCheckpointEventId, setRestoringCheckpointEventId] = useState<string | null>(null);
   useEffect(() => {
     try {
       if (localStorage.getItem(DEV_HEADER_TOOLS_STORAGE_KEY) === '1') setDevHeaderToolsFromStorage(true);
+      if (localStorage.getItem(DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY) === '1') {
+        setShowRelayStatusOverlay(true);
+      }
     } catch {
       /* private / blocked storage */
     }
   }, []);
+  useEffect(() => {
+    localStorage.setItem(DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY, showRelayStatusOverlay ? '1' : '0');
+  }, [showRelayStatusOverlay]);
   const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
+  const relayHealthEnabled = showHeaderDevTools && showRelayStatusOverlay && canShowGame;
+  const relayHealthQuery = useGameRelayHealth(relayHealthEnabled);
   const [devToolsMenuOpen, setDevToolsMenuOpen] = useState(false);
 
   const orderedQuestsForDev = useMemo(() => {
@@ -605,6 +670,31 @@ export function RPGInterface() {
     [appendQuestOpeningDialogue, orderedQuestsForDev, setQuestState, persistQuestCheckpoint]
   );
 
+  const handleRestoreCheckpoint = useCallback(
+    async (record: QuestCheckpointRecord) => {
+      setRestoringCheckpointEventId(record.eventId);
+      try {
+        await restoreQuestCheckpoint(record.state);
+        const name = record.state.playerName.trim() || 'Character';
+        const day = questCheckpointDisplayDay(record.state);
+        toast({
+          title: 'Checkpoint restored',
+          description: `${name} · Day ${day} is now your active save.`,
+        });
+        setCheckpointRestoreOpen(false);
+        void queryClient.invalidateQueries({ queryKey: ['dev-quest-checkpoints', user?.pubkey] });
+      } catch (error) {
+        toast({
+          title: 'Restore failed',
+          description: error instanceof Error ? error.message : 'Could not publish restored save.',
+        });
+      } finally {
+        setRestoringCheckpointEventId(null);
+      }
+    },
+    [restoreQuestCheckpoint, toast, queryClient, user?.pubkey]
+  );
+
   const headerDevPanel = useMemo(() => {
     if (!showHeaderDevTools) return null;
     return (
@@ -668,6 +758,40 @@ export function RPGInterface() {
             </span>
           </label>
         </div>
+        <div>
+          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">
+            Save
+          </p>
+          <button
+            type="button"
+            className="w-full rounded border border-[var(--candle-rule)]/70 bg-black/25 px-2 py-1.5 text-left text-[0.7rem] text-[var(--candle-ink-soft)] hover:bg-black/40 hover:text-[var(--candle-wax)]"
+            onClick={() => setCheckpointRestoreOpen(true)}
+          >
+            Restore kind 10032 checkpoint…
+          </button>
+          <p className="mt-1 text-[0.6rem] leading-snug text-[var(--candle-ink-faint)]">
+            Lists relay save history for your npub; loading one re-publishes it as the newest checkpoint.
+          </p>
+        </div>
+        <div>
+          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">
+            Network
+          </p>
+          <label className="flex cursor-pointer items-start gap-2 rounded border border-[var(--candle-rule)]/60 bg-black/25 px-2 py-1.5">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={showRelayStatusOverlay}
+              onChange={(e) => setShowRelayStatusOverlay(e.target.checked)}
+            />
+            <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
+              Show relay status overlay
+              <span className="mt-0.5 block text-[0.6rem] text-[var(--candle-ink-faint)]">
+                Floating up/down indicator for game relays (top right).
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
     );
   }, [
@@ -678,6 +802,7 @@ export function RPGInterface() {
     devQuestSelection,
     completedQuestIds,
     showQuestChoiceEffects,
+    showRelayStatusOverlay,
   ]);
 
   const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
@@ -698,10 +823,21 @@ export function RPGInterface() {
     () => getQuestListForUi(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
     [questContext, questState.unveiledQuestIds, devUnlockAllQuests]
   );
+  const villageJournalQuests = useMemo(
+    () => getVillageJournalQuests(allQuests, questContext, questState.unveiledQuestIds, devUnlockAllQuests),
+    [questContext, questState.unveiledQuestIds, devUnlockAllQuests]
+  );
   /** Incomplete visible quests keep the New badge until completed. */
   const newQuestIds = useMemo(
     () => visibleQuests.filter((quest) => !completedQuestIds.includes(quest.id)).map((quest) => quest.id),
     [visibleQuests, completedQuestIds]
+  );
+  const villageNewQuestIds = useMemo(
+    () =>
+      villageJournalQuests
+        .filter((quest) => !completedQuestIds.includes(quest.id))
+        .map((quest) => quest.id),
+    [villageJournalQuests, completedQuestIds]
   );
   const activeQuest = questState.activeQuestId ? questById[questState.activeQuestId] : null;
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
@@ -761,25 +897,82 @@ export function RPGInterface() {
   }, [questState.playerName]);
   const handleJobsSwitch = useCallback(
     (jobSlug: string) => {
+      const pickJobQuest = questById[QUEST_PICK_A_JOB_ID];
       setQuestState((prev) => {
-        const next = switchActiveJob(prev, jobSlug);
-        if (!next) return prev;
-        window.queueMicrotask(() => void persistQuestCheckpoint(next));
-        return next;
+        const switched = switchActiveJob(prev, jobSlug);
+        if (!switched) return prev;
+
+        const pickProg = switched.progressByQuestId[QUEST_PICK_A_JOB_ID];
+        const pickJobInProgress = Boolean(pickProg && !pickProg.isCompleted);
+        const isProfession = jobSlug !== JOB_SLUG_EXPLORER;
+
+        if (!pickJobInProgress || !isProfession || !pickJobQuest) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(switched));
+          return switched;
+        }
+
+        const marked = markQuestCompleted(switched, QUEST_PICK_A_JOB_ID);
+        if (!marked) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(switched));
+          return switched;
+        }
+
+        const job = getJobDefinition(jobSlug);
+        let merged: QuestState = job
+          ? {
+              ...marked,
+              worldEventLog: appendUniqueWorldEntries(marked.worldEventLog, [
+                `You took up work as a ${job.displayName}.`,
+              ]),
+            }
+          : marked;
+
+        merged = mergeJournalRecapOnQuestComplete(prev, merged, pickJobQuest);
+        merged = applyQuestLevelMilestoneIfNeeded(prev, merged, QUEST_PICK_A_JOB_ID);
+        merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, pickJobQuest, dayCounter);
+        merged = mergeDiscoveryUnveils(
+          merged,
+          QUEST_PICK_A_JOB_ID,
+          resolveDisplayDay(merged, dayCounter)
+        );
+
+        window.queueMicrotask(() => {
+          void persistQuestCheckpoint(merged);
+          setPlaySceneQuestId(null);
+        });
+        return merged;
       });
     },
-    [setQuestState, persistQuestCheckpoint]
+    [setQuestState, persistQuestCheckpoint, dayCounter]
   );
+
+  const handleMayorVoteRecorded = useCallback(() => {
+    setQuestState((prev) => {
+      const merged = finishMayorQuestIfInProgress(prev, prev, dayCounter);
+      if (!merged) return prev;
+      window.queueMicrotask(() => {
+        void persistQuestCheckpoint(merged);
+        setPlaySceneQuestId(null);
+      });
+      return merged;
+    });
+  }, [setQuestState, persistQuestCheckpoint, dayCounter]);
+
+  const handleMayorVoteRetracted = useCallback(() => {
+    setQuestState((prev) => {
+      const merged = revertMayorQuestAfterVoteRetracted(prev);
+      if (!merged) return prev;
+      window.queueMicrotask(() => void persistQuestCheckpoint(merged));
+      return merged;
+    });
+  }, [setQuestState, persistQuestCheckpoint]);
 
   const closeVillagePanels = useCallback(() => {
     setArenaOpen(false);
-    setGuildAlleyOpen(false);
     setTavernOpen(false);
     setMarketOpen(false);
-    setMayorsHutOpen(false);
     setCraftersCornerOpen(false);
-    setJobsHallOpen(false);
-    setVillageProjectsOpen(false);
+    setTownHallOpen(false);
   }, []);
 
   const handleVillageTravel = useCallback(
@@ -894,6 +1087,14 @@ export function RPGInterface() {
           const village = catchUpVillageUnveilId(prev.unveiledQuestIds, completed, ctx);
           return village ? [village] : [];
         })(),
+        ...(() => {
+          const pickJob = catchUpPickJobQuestUnveilId(prev.unveiledQuestIds, completed, ctx);
+          return pickJob ? [pickJob] : [];
+        })(),
+        ...(() => {
+          const mayor = catchUpMayorQuestUnveilId(prev.unveiledQuestIds, completed, ctx);
+          return mayor ? [mayor] : [];
+        })(),
       ];
       let next = prev;
       if (catchUp.length > 0) {
@@ -904,6 +1105,9 @@ export function RPGInterface() {
       }
       if (catchUp.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
         next = introduceVillageQuestAfterTheDoor(next);
+      }
+      if (catchUp.includes(QUEST_MAYOR_ID)) {
+        next = introduceMayorQuestAfterPickJob(next);
       }
       const tracked = offerNextTrackedForestQuest(
         next,
@@ -1462,14 +1666,41 @@ export function RPGInterface() {
             <VillagePlaySurface
               questFlags={questState.flags}
               playerName={questState.playerName}
+              playFeedSegments={playFeedSegments}
+              playJournalLines={playJournalLines}
+              newQuestIds={villageNewQuestIds}
+              questTitleById={questTitleById}
+              villageJournalQuests={villageJournalQuests}
+              completedQuestIds={completedQuestIds}
+              onOpenQuest={handleOpenQuest}
+              playSceneQuestId={playSceneQuestId}
+              activeQuest={activeQuest ?? null}
+              activeStep={activeStep ?? null}
+              nameInput={nameInput}
+              onNameInputChange={setNameInput}
+              nameInputError={nameInputError}
+              onStepChoice={handleStepChoice}
+              onNameSubmit={handleNameSubmit}
+              onAdvanceQuestMessage={handleAdvanceQuestMessage}
+              dialogueScrollRef={dialogueScrollRef}
+              onDialogueScroll={handleDialogueScroll}
+              showOriginStartHint={showOriginStartHint}
+              playerModifiers={questState.modifiers}
+              questItems={questState.questItems}
+              onInventoryPickSubmit={handleInventoryPickSubmit}
+              showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
+              playerHealth={questState.health}
+              onPlayerHealthChange={(health) =>
+                setQuestState((prev) => ({ ...prev, health: Math.max(0, Math.min(100, health)) }))
+              }
+              questProgress={
+                activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
+              }
               onOpenArena={() => setArenaOpen(true)}
-              onOpenGuildAlley={() => setGuildAlleyOpen(true)}
               onOpenTavern={() => setTavernOpen(true)}
               onOpenMarket={() => setMarketOpen(true)}
-              onOpenMayorsHut={() => setMayorsHutOpen(true)}
+              onOpenTownHall={() => setTownHallOpen(true)}
               onOpenCraftersCorner={() => setCraftersCornerOpen(true)}
-              onOpenJobsHall={() => setJobsHallOpen(true)}
-              onOpenVillageProjects={() => setVillageProjectsOpen(true)}
               onTravelToLocation={handleVillageTravel}
             />
           );
@@ -1555,6 +1786,13 @@ export function RPGInterface() {
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
           health={questState.health}
         />
+        {relayHealthEnabled ? (
+          <GameRelayStatusOverlay
+            snapshot={relayHealthQuery.data}
+            isFetching={relayHealthQuery.isFetching}
+            onRefresh={() => void relayHealthQuery.refetch()}
+          />
+        ) : null}
         <div
           className={`min-h-0 flex-1 ${
             activeTab === 'play'
@@ -1617,14 +1855,6 @@ export function RPGInterface() {
               tournament={arenaTournament}
             />
           ) : null}
-          {guildAlleyOpen ? (
-            <GuildAlleyPanel
-              open
-              onOpenChange={setGuildAlleyOpen}
-              myPubkey={user?.pubkey}
-              guildAlley={guildAlley}
-            />
-          ) : null}
           {tavernOpen ? (
             <TavernPanel
               open
@@ -1652,34 +1882,33 @@ export function RPGInterface() {
               onApplyModifiers={handleMerchantApplyModifiers}
             />
           ) : null}
-          {mayorsHutOpen ? (
-            <MayorsHutPanel
+          {townHallOpen ? (
+            <TownHallPanel
               open
-              onOpenChange={setMayorsHutOpen}
+              onOpenChange={setTownHallOpen}
               myPubkey={user?.pubkey}
               mayorsHut={mayorsHut}
-            />
-          ) : null}
-          {jobsHallOpen ? (
-            <JobsHallPanel
-              open
-              onOpenChange={setJobsHallOpen}
+              villageProjects={villageProjects}
+              guildAlley={guildAlley}
               questState={questState}
               onSwitchJob={handleJobsSwitch}
-            />
-          ) : null}
-          {villageProjectsOpen ? (
-            <VillageProjectsPanel
-              open
-              onOpenChange={setVillageProjectsOpen}
-              questState={questState}
-              villageProjects={villageProjects}
+              onMayorVoteRecorded={handleMayorVoteRecorded}
+              onMayorVoteRetracted={handleMayorVoteRetracted}
             />
           ) : null}
         </>
       ) : null}
     </main>
     </GamePortraitViewport>
+    {showHeaderDevTools ? (
+      <QuestCheckpointRestoreDialog
+        open={checkpointRestoreOpen}
+        onOpenChange={setCheckpointRestoreOpen}
+        myPubkey={user?.pubkey}
+        restoringEventId={restoringCheckpointEventId}
+        onRestore={handleRestoreCheckpoint}
+      />
+    ) : null}
     </>
   );
 }

@@ -45,6 +45,8 @@ import { quest036TheVillage } from './quest-036-the-village';
 import { quest037DiscoverCemetery } from './quest-037-discover-cemetery';
 import { quest038DiscoverQuarry } from './quest-038-discover-quarry';
 import { quest039DiscoverMine } from './quest-039-discover-mine';
+import { quest040PickAJob } from './quest-040-pick-a-job';
+import { quest041Mayor } from './quest-041-mayor';
 import type { QuestDefinition } from './types';
 
 export const allQuests: QuestDefinition[] = [
@@ -95,6 +97,8 @@ export const allQuests: QuestDefinition[] = [
   quest037DiscoverCemetery,
   quest038DiscoverQuarry,
   quest039DiscoverMine,
+  quest040PickAJob,
+  quest041Mayor,
 ];
 
 export const questById: Record<string, QuestDefinition> = allQuests.reduce<Record<string, QuestDefinition>>(

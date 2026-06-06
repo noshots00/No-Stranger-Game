@@ -1,5 +1,9 @@
 # No Stranger Game — custom Nostr events
 
+## Client community epoch
+
+The browser client ignores shared multiplayer kinds when `created_at` is before **`COMMUNITY_EVENT_EPOCH_YMD`** (Eastern midnight), configured in [`src/lib/communityEventEpoch.ts`](src/lib/communityEventEpoch.ts). Covered kinds: **30333–30342** (village, mayor, market, guild, etc.) and **10050** (arena match results). Older relay data remains public but does not affect shared UI or arena stats. Bump that date to reset shared multiplayer state for all players on the next release.
+
 ## Kind 30333 — Arena open registration (addressable)
 
 Replaceable per author with `d` tag `arena-open`. One active queue slot per player.
@@ -126,11 +130,12 @@ Replaceable per voter with fixed `d` tag `village-mayor-vote`.
 |-----|----------|-------------|
 | `d` | yes | `village-mayor-vote` |
 | `t` | yes | `village`, `mayor-vote` |
-| `candidate` | yes | Pubkey hex of the chosen candidate |
+| `status` | yes | `active` or `withdrawn` (latest replaceable row per voter) |
+| `candidate` | when active | Pubkey hex of the chosen candidate |
 | `voter-name` | yes | Voter display name |
 | `alt` | yes | Human-readable description |
 
-`content` is empty. The player with the most votes among active candidates is mayor; ties or no votes keep the placeholder mayor (Shannon) in the client UI.
+`content` is empty. A latest `withdrawn` row removes that voter from the tally. Active votes require `candidate`. The player with the most votes among active candidates is mayor; ties or no votes keep the placeholder mayor (Shannon) in the client UI.
 
 ## Kind 30340 — Village community project (addressable)
 
@@ -140,10 +145,11 @@ Replaceable per mayor with fixed `d` tag `village-project-active`. Clients query
 |-----|----------|-------------|
 | `d` | yes | `village-project-active` |
 | `t` | yes | `village`, `village-project` |
-| `project-id` | yes | Catalog slug (e.g. `build-town-hall`) |
+| `project-id` | yes | Catalog slug (e.g. `lithic-workshop`) |
 | `title` | yes | Project title |
 | `goal-stone` | no | Stone required (integer string) |
 | `goal-iron` | no | Iron required (integer string) |
+| `goal-logs` | no | Logs required (integer string) |
 | `desc` | no | Short description |
 | `alt` | yes | Human-readable description |
 
@@ -158,7 +164,7 @@ Immutable per contribution. Clients sum `amount` by `resource` for a given `p` (
 | `d` | yes | Unique contribution id (e.g. `contrib-…`) |
 | `t` | yes | `village`, `village-project-contribution` |
 | `p` | yes | `project-id` matching the active project |
-| `resource` | yes | `stone` or `iron` |
+| `resource` | yes | `stone`, `iron`, or `logs` |
 | `amount` | yes | Positive integer string |
 | `contributor-name` | yes | Display name |
 | `alt` | yes | Human-readable description |

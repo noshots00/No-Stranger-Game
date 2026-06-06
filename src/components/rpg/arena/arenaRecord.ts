@@ -1,4 +1,5 @@
 import type { ArenaFightRecord, ArenaRecord, QuestState } from '../quests/types';
+import { COMMUNITY_EVENT_EPOCH_UNIX } from '@/lib/communityEventEpoch';
 import type { ArenaMatchResult } from './arenaNostr';
 import { ARENA_FIGHT_HISTORY_CAP } from './constants';
 import { getWinProbability } from './combatRating';
@@ -8,6 +9,23 @@ export const createEmptyArenaRecord = (): ArenaRecord => ({
   losses: 0,
   fights: [],
 });
+
+const COMMUNITY_EVENT_EPOCH_MS = COMMUNITY_EVENT_EPOCH_UNIX * 1000;
+
+/** Drop pre-epoch fights from persisted arena stats (relay rows are filtered separately). */
+export function reconcileArenaRecordForEpoch(record: ArenaRecord): ArenaRecord {
+  const fights = record.fights.filter((f) => f.atMs >= COMMUNITY_EVENT_EPOCH_MS);
+  let wins = 0;
+  let losses = 0;
+  for (const fight of fights) {
+    if (fight.won) wins += 1;
+    else losses += 1;
+  }
+  if (wins === record.wins && losses === record.losses && fights.length === record.fights.length) {
+    return record;
+  }
+  return { wins, losses, fights };
+}
 
 export function formatArenaFightLine(
   won: boolean,

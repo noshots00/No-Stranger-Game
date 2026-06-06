@@ -8,6 +8,8 @@ import {
   QUEST_FIRST_NIGHT_ID,
   QUEST_004_B_THE_DOOR_ID,
   QUEST_FOREST_CAVE_ID,
+  QUEST_MAYOR_ID,
+  QUEST_PICK_A_JOB_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
 } from '../constants';
 import { isQuestEligibleForUnveil } from './branching-quest-template';
@@ -125,6 +127,13 @@ export function computeNextUnveilIdsAfterCompletion(
         if (unveilEligible(q, context)) return [villageId];
       }
     }
+    if (completedQuestId === QUEST_PICK_A_JOB_ID) {
+      const mayorId = QUEST_MAYOR_ID;
+      if (!completed.has(mayorId) && !unveiled.has(mayorId)) {
+        const q = questById[mayorId];
+        if (unveilEligible(q, context)) return [mayorId];
+      }
+    }
     return [];
   }
   const unveiled = new Set(unveiledQuestIds);
@@ -149,6 +158,22 @@ export function computeNextUnveilIdsAfterCompletion(
   }
 
   if (completedQuestId === QUEST_VILLAGE_ARRIVAL_ID) {
+    const pickJobId = QUEST_PICK_A_JOB_ID;
+    if (!completed.has(pickJobId) && !unveiled.has(pickJobId)) {
+      const q = questById[pickJobId];
+      if (unveilEligible(q, context)) return [pickJobId];
+    }
+  }
+
+  if (completedQuestId === QUEST_PICK_A_JOB_ID) {
+    const mayorId = QUEST_MAYOR_ID;
+    if (!completed.has(mayorId) && !unveiled.has(mayorId)) {
+      const q = questById[mayorId];
+      if (unveilEligible(q, context)) return [mayorId];
+    }
+  }
+
+  if (completedQuestId === QUEST_MAYOR_ID) {
     const firstDiscovery = QUEST_DISCOVER_CEMETERY_ID;
     if (!completed.has(firstDiscovery) && !unveiled.has(firstDiscovery)) {
       const q = questById[firstDiscovery];
@@ -216,6 +241,34 @@ export function catchUpVillageUnveilId(
   const q = questById[villageId];
   if (!unveilEligible(q, context)) return null;
   return villageId;
+}
+
+/** On login: surface Pick a job when village arrival is already complete. */
+export function catchUpPickJobQuestUnveilId(
+  unveiledQuestIds: readonly string[],
+  completedQuestIds: readonly string[],
+  context: QuestContext
+): string | null {
+  if (!completedQuestIds.includes(QUEST_VILLAGE_ARRIVAL_ID)) return null;
+  if (completedQuestIds.includes(QUEST_PICK_A_JOB_ID)) return null;
+  if (unveiledQuestIds.includes(QUEST_PICK_A_JOB_ID)) return null;
+  const q = questById[QUEST_PICK_A_JOB_ID];
+  if (!unveilEligible(q, context)) return null;
+  return QUEST_PICK_A_JOB_ID;
+}
+
+/** On login: surface Mayor when Pick a job is already complete. */
+export function catchUpMayorQuestUnveilId(
+  unveiledQuestIds: readonly string[],
+  completedQuestIds: readonly string[],
+  context: QuestContext
+): string | null {
+  if (!completedQuestIds.includes(QUEST_PICK_A_JOB_ID)) return null;
+  if (completedQuestIds.includes(QUEST_MAYOR_ID)) return null;
+  if (unveiledQuestIds.includes(QUEST_MAYOR_ID)) return null;
+  const q = questById[QUEST_MAYOR_ID];
+  if (!unveilEligible(q, context)) return null;
+  return QUEST_MAYOR_ID;
 }
 
 /** Manual gating: unveil the next forest saga step when the prior step is already complete. */

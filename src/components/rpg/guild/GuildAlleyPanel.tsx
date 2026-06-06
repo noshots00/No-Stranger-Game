@@ -133,7 +133,15 @@ function GuildMembersTab({
   );
 }
 
-export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: GuildAlleyPanelProps) {
+export function GuildAlleyContent({
+  myPubkey,
+  guildAlley,
+  embedded = false,
+}: {
+  myPubkey: string | undefined;
+  guildAlley: ReturnType<typeof useGuildAlley>;
+  embedded?: boolean;
+}) {
   const { toast } = useToast();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('alley');
@@ -150,7 +158,6 @@ export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: Gu
     createGuild,
   } = guildAlley;
 
-  /** Guild tab stays available after leave so the roster can show struck-through self. */
   const memberGuildDef = useMemo(() => {
     if (!membership) return null;
     return (
@@ -196,124 +203,125 @@ export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: Gu
 
   return (
     <>
-      <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Guild Alley" panelClassName="gap-0 p-4 pt-8">
-        <GamePanelDialogTitle className="px-2">Guild Alley</GamePanelDialogTitle>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1">
-          <div
-            className={cn(
-              'grid h-auto w-full shrink-0 gap-1 rounded-md border border-[var(--candle-rule)] bg-black/30 p-1',
-              tabValues.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
-            )}
-          >
-            {tabValues.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                className={cn(
-                  'truncate rounded-sm px-2 py-1.5 font-serif text-[0.65rem] uppercase tracking-[0.1em] sm:text-xs',
-                  activeTab === t.value
-                    ? 'bg-[var(--candle-flame)]/15 text-[var(--candle-wax)]'
-                    : 'text-[var(--candle-ink-soft)]'
-                )}
-                onClick={() => setActiveTab(t.value)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {activeTab === 'alley' ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-              <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
-                <div className="space-y-2 p-2">
-                  {feedQuery.isPending ? (
-                    <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
-                      Loading guilds…
-                    </p>
-                  ) : (
-                    feed.guilds.map((guild) => {
-                      const members = feed.membersBySlug[guild.slug] ?? [];
-                      const iAmActive = myPubkey
-                        ? members.some((m) => m.pubkey === myPubkey && m.status === 'active')
-                        : false;
-                      const joinDisabled =
-                        !myPubkey ||
-                        (hasActiveMembership && myActiveMembershipSlug !== guild.slug) ||
-                        iAmActive;
-                      let joinReason: string | undefined;
-                      if (hasActiveMembership && myActiveMembershipSlug !== guild.slug) {
-                        joinReason = 'Leave your current guild first.';
-                      } else if (iAmActive) {
-                        joinReason = 'You are already a member.';
-                      }
-
-                      return (
-                        <GuildListRow
-                          key={guild.slug}
-                          guild={guild}
-                          joinDisabled={joinDisabled}
-                          joinReason={joinReason}
-                          isJoinPending={joinGuild.isPending}
-                          onJoin={() =>
-                            joinGuild.mutate(guild, {
-                              onSuccess: () => setActiveTab(`guild-${guild.slug}`),
-                              onError: (err) =>
-                                toast({
-                                  title: 'Could not join',
-                                  description: err instanceof Error ? err.message : 'Try again.',
-                                }),
-                            })
-                          }
-                        />
-                      );
-                    })
-                  )}
-                </div>
-              </GamePanelScroll>
-
-              {joinError ? (
-                <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{joinError}</p>
-              ) : null}
-
-              <Button
-                type="button"
-                className="shrink-0 font-serif uppercase tracking-[0.1em]"
-                disabled={!myPubkey || !canAffordCreate || createGuild.isPending}
-                onClick={handleCreateClick}
-              >
-                Create Guild ({GUILD_CREATE_COST_GOLD}G)
-              </Button>
-              {!canAffordCreate ? (
-                <p className="text-center font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
-                  Need {GUILD_CREATE_COST_GOLD} gold to found a guild.
-                </p>
-              ) : null}
-            </div>
-          ) : membership && memberGuildDef ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <GuildMembersTab
-                guild={memberGuildDef}
-                members={guildTabMembers}
-                canLeave={hasActiveMembership && membership.guildSlug === memberGuildDef.slug}
-                onElectLeader={() =>
-                  toast({ title: 'Elect new leader', description: 'Not implemented yet.' })
-                }
-                onLeave={() =>
-                  leaveGuild.mutate(undefined, {
-                    onError: (err) =>
-                      toast({
-                        title: 'Could not leave',
-                        description: err instanceof Error ? err.message : 'Try again.',
-                      }),
-                  })
-                }
-                isLeavePending={leaveGuild.isPending}
-              />
-            </div>
-          ) : null}
+      <div className={cn('flex min-h-0 flex-col gap-2 overflow-hidden', embedded ? '' : 'flex-1 px-1')}>
+        <div
+          className={cn(
+            'grid h-auto w-full shrink-0 gap-1 rounded-md border border-[var(--candle-rule)] bg-black/30 p-1',
+            tabValues.length > 1 ? 'grid-cols-2' : 'grid-cols-1'
+          )}
+        >
+          {tabValues.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              className={cn(
+                'truncate rounded-sm px-2 py-1.5 font-serif text-[0.65rem] uppercase tracking-[0.1em] sm:text-xs',
+                activeTab === t.value
+                  ? 'bg-[var(--candle-flame)]/15 text-[var(--candle-wax)]'
+                  : 'text-[var(--candle-ink-soft)]'
+              )}
+              onClick={() => setActiveTab(t.value)}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      </GamePanelDialog>
+
+        {activeTab === 'alley' ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+            <GamePanelScroll
+              className={cn(
+                'min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20',
+                embedded && 'max-h-[min(36vh,280px)]'
+              )}
+            >
+              <div className="space-y-2 p-2">
+                {feedQuery.isPending ? (
+                  <p className="py-4 text-center font-serif text-sm text-[var(--candle-ink-faint)]">
+                    Loading guilds…
+                  </p>
+                ) : (
+                  feed.guilds.map((guild) => {
+                    const members = feed.membersBySlug[guild.slug] ?? [];
+                    const iAmActive = myPubkey
+                      ? members.some((m) => m.pubkey === myPubkey && m.status === 'active')
+                      : false;
+                    const joinDisabled =
+                      !myPubkey ||
+                      (hasActiveMembership && myActiveMembershipSlug !== guild.slug) ||
+                      iAmActive;
+                    let joinReason: string | undefined;
+                    if (hasActiveMembership && myActiveMembershipSlug !== guild.slug) {
+                      joinReason = 'Leave your current guild first.';
+                    } else if (iAmActive) {
+                      joinReason = 'You are already a member.';
+                    }
+
+                    return (
+                      <GuildListRow
+                        key={guild.slug}
+                        guild={guild}
+                        joinDisabled={joinDisabled}
+                        joinReason={joinReason}
+                        isJoinPending={joinGuild.isPending}
+                        onJoin={() =>
+                          joinGuild.mutate(guild, {
+                            onSuccess: () => setActiveTab(`guild-${guild.slug}`),
+                            onError: (err) =>
+                              toast({
+                                title: 'Could not join',
+                                description: err instanceof Error ? err.message : 'Try again.',
+                              }),
+                          })
+                        }
+                      />
+                    );
+                  })
+                )}
+              </div>
+            </GamePanelScroll>
+
+            {joinError ? (
+              <p className="shrink-0 text-center font-serif text-xs text-red-300/90">{joinError}</p>
+            ) : null}
+
+            <Button
+              type="button"
+              className="shrink-0 font-serif uppercase tracking-[0.1em]"
+              disabled={!myPubkey || !canAffordCreate || createGuild.isPending}
+              onClick={handleCreateClick}
+            >
+              Create Guild ({GUILD_CREATE_COST_GOLD}G)
+            </Button>
+            {!canAffordCreate ? (
+              <p className="text-center font-serif text-[0.65rem] text-[var(--candle-ink-faint)]">
+                Need {GUILD_CREATE_COST_GOLD} gold to found a guild.
+              </p>
+            ) : null}
+          </div>
+        ) : membership && memberGuildDef ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <GuildMembersTab
+              guild={memberGuildDef}
+              members={guildTabMembers}
+              canLeave={hasActiveMembership && membership.guildSlug === memberGuildDef.slug}
+              onElectLeader={() =>
+                toast({ title: 'Elect new leader', description: 'Not implemented yet.' })
+              }
+              onLeave={() =>
+                leaveGuild.mutate(undefined, {
+                  onError: (err) =>
+                    toast({
+                      title: 'Could not leave',
+                      description: err instanceof Error ? err.message : 'Try again.',
+                    }),
+                })
+              }
+              isLeavePending={leaveGuild.isPending}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <CreateGuildNameDialog
         open={createDialogOpen}
@@ -335,5 +343,14 @@ export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: Gu
         }
       />
     </>
+  );
+}
+
+export function GuildAlleyPanel({ open, onOpenChange, myPubkey, guildAlley }: GuildAlleyPanelProps) {
+  return (
+    <GamePanelDialog open={open} onOpenChange={onOpenChange} ariaLabel="Guild Alley" panelClassName="gap-0 p-4 pt-8">
+      <GamePanelDialogTitle className="px-2">Guild Alley</GamePanelDialogTitle>
+      <GuildAlleyContent myPubkey={myPubkey} guildAlley={guildAlley} />
+    </GamePanelDialog>
   );
 }

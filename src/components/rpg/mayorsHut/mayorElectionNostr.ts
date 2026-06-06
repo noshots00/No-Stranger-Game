@@ -10,6 +10,7 @@ import {
   NSG_MAYOR_CANDIDATE_KIND,
   NSG_MAYOR_VOTE_KIND,
   type MayorCandidateStatus,
+  type MayorVoteStatus,
 } from './constants';
 
 export type MayorCandidateView = {
@@ -61,10 +62,16 @@ export function parseMayorCandidate(event: NostrEvent): MayorCandidateView | nul
   };
 }
 
+function parseMayorVoteStatus(event: NostrEvent): MayorVoteStatus {
+  const statusRaw = tagValue(event, 'status');
+  return statusRaw === 'withdrawn' ? 'withdrawn' : 'active';
+}
+
 export function parseMayorVote(event: NostrEvent): MayorVoteView | null {
   if (event.kind !== NSG_MAYOR_VOTE_KIND) return null;
   if (tagValue(event, 'd') !== MAYOR_VOTE_D_TAG) return null;
   if (!event.tags.some(([n, v]) => n === 't' && v === MAYOR_VOTE_TAG)) return null;
+  if (parseMayorVoteStatus(event) === 'withdrawn') return null;
 
   const candidatePubkey = tagValue(event, 'candidate')?.trim();
   const voterName = tagValue(event, 'voter-name')?.trim() ?? 'Stranger';
@@ -105,18 +112,24 @@ export function latestMayorCandidates(events: readonly NostrEvent[]): MayorCandi
   return Array.from(byPubkey.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Latest vote per voter pubkey. */
+/** Latest active vote per voter pubkey (withdrawn replaceable rows remove the vote). */
 export function latestMayorVotes(events: readonly NostrEvent[]): MayorVoteView[] {
-  const byVoter = new Map<string, MayorVoteView>();
+  const latestEventByVoter = new Map<string, NostrEvent>();
   for (const event of events) {
-    const row = parseMayorVote(event);
-    if (!row) continue;
-    const prev = byVoter.get(row.voterPubkey);
-    if (!prev || event.created_at >= prev.updatedAt) {
-      byVoter.set(row.voterPubkey, row);
+    if (event.kind !== NSG_MAYOR_VOTE_KIND) continue;
+    if (tagValue(event, 'd') !== MAYOR_VOTE_D_TAG) continue;
+    if (!event.tags.some(([n, v]) => n === 't' && v === MAYOR_VOTE_TAG)) continue;
+    const prev = latestEventByVoter.get(event.pubkey);
+    if (!prev || event.created_at >= prev.created_at) {
+      latestEventByVoter.set(event.pubkey, event);
     }
   }
-  return Array.from(byVoter.values());
+  const votes: MayorVoteView[] = [];
+  for (const event of latestEventByVoter.values()) {
+    const row = parseMayorVote(event);
+    if (row) votes.push(row);
+  }
+  return votes;
 }
 
 export function buildMayorElectionSnapshot(
@@ -198,9 +211,28 @@ export function buildMayorVoteDraft(args: {
       ['d', MAYOR_VOTE_D_TAG],
       ['t', MAYOR_ELECTION_COMMUNITY_TAG],
       ['t', MAYOR_VOTE_TAG],
+      ['status', 'active'],
       ['candidate', args.candidatePubkey],
       ['voter-name', args.voterName],
       ['alt', 'Village mayor election vote for No Stranger Game'],
+    ],
+  };
+}
+
+export function buildMayorVoteWithdrawDraft(args: {
+  voterName: string;
+}): Omit<NostrEvent, 'id' | 'pubkey' | 'sig'> {
+  return {
+    kind: NSG_MAYOR_VOTE_KIND,
+    content: '',
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ['d', MAYOR_VOTE_D_TAG],
+      ['t', MAYOR_ELECTION_COMMUNITY_TAG],
+      ['t', MAYOR_VOTE_TAG],
+      ['status', 'withdrawn'],
+      ['voter-name', args.voterName],
+      ['alt', 'Village mayor election vote withdrawn for No Stranger Game'],
     ],
   };
 }

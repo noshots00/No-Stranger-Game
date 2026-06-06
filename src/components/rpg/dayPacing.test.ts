@@ -2,12 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { appendDialogue } from './dialogueFormat';
 import { buildDayReportDialogueLines } from './helpers';
 import {
+  applyDailyXpGrants,
   applyInSessionDayAdvanceAfterMainQuest,
   reconcileForestSessionDay,
   reconcilePlayDayRollStaging,
   stageInSessionDayAdvanceAfterMainQuest,
 } from './dayPacing';
-import { QUEST_FIRST_NIGHT_ID } from './constants';
+import {
+  JOB_SLUG_ADVENTURER,
+  JOB_SLUG_MINER,
+  JOB_SLUG_STONECUTTER,
+  JOB_SLUG_WOODCUTTER,
+  QUEST_FIRST_NIGHT_ID,
+  RESOURCE_ADVENTURES,
+  RESOURCE_COPPER_ORE,
+  RESOURCE_LOGS,
+  RESOURCE_STONE,
+} from './constants';
 import { createInitialQuestState, createInitialSkills } from './quests/engine';
 
 describe('Day 1 report after Sunset', () => {
@@ -128,5 +139,57 @@ describe('Day 1 report after Sunset', () => {
     expect(body).toContain("It's a tiny buckler.");
     expect(body).toContain('Day 3 begins');
     expect(next.dayReportQuestItemsBaseline).toContain("It's a tiny buckler.");
+  });
+});
+
+describe('applyDailyXpGrants profession resources', () => {
+  it('grants 10 logs per day for woodcutter', () => {
+    const state = {
+      ...createInitialQuestState(),
+      activeJobSlug: JOB_SLUG_WOODCUTTER,
+      lastDailyXpDay: 1,
+    };
+    const next = applyDailyXpGrants(state, 1, 2);
+    expect(next.resources?.[RESOURCE_LOGS]).toBe(10);
+  });
+
+  it('grants 10 stone per day for stonecutter', () => {
+    const state = {
+      ...createInitialQuestState(),
+      activeJobSlug: JOB_SLUG_STONECUTTER,
+      lastDailyXpDay: 1,
+    };
+    const next = applyDailyXpGrants(state, 1, 2);
+    expect(next.resources?.[RESOURCE_STONE]).toBe(10);
+  });
+
+  it('grants 10 copper ore per day for miner', () => {
+    const state = {
+      ...createInitialQuestState(),
+      activeJobSlug: JOB_SLUG_MINER,
+      lastDailyXpDay: 1,
+    };
+    const next = applyDailyXpGrants(state, 1, 2);
+    expect(next.resources?.[RESOURCE_COPPER_ORE]).toBe(10);
+  });
+
+  it('grants 2 adventures per day for adventurer', () => {
+    const state = {
+      ...createInitialQuestState(),
+      activeJobSlug: JOB_SLUG_ADVENTURER,
+      lastDailyXpDay: 1,
+    };
+    const next = applyDailyXpGrants(state, 1, 2);
+    expect(next.resources?.[RESOURCE_ADVENTURES]).toBe(2);
+  });
+
+  it('scales grants across multi-day catch-up', () => {
+    const state = {
+      ...createInitialQuestState(),
+      activeJobSlug: JOB_SLUG_WOODCUTTER,
+      lastDailyXpDay: 1,
+    };
+    const next = applyDailyXpGrants(state, 3, 4);
+    expect(next.resources?.[RESOURCE_LOGS]).toBe(30);
   });
 });

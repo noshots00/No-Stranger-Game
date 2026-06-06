@@ -361,6 +361,9 @@ export const toItemLabel = (key: string): string =>
 export function formatResourceLabel(key: string): string {
   if (key === 'stone') return 'Stone';
   if (key === 'iron') return 'Iron';
+  if (key === 'logs') return 'Logs';
+  if (key === 'copperOre') return 'Copper Ore';
+  if (key === 'adventures') return 'Adventures';
   return formatOrganicSlugForDisplay(key);
 }
 
@@ -543,7 +546,7 @@ export const getResourceGainLines = (prevState: QuestState, nextState: QuestStat
   for (const key of keys) {
     const delta = (next[key] ?? 0) - (prev[key] ?? 0);
     if (delta > 0) {
-      out.push(`You gained ${delta} ${key}.`);
+      out.push(`You gained ${delta} ${formatResourceLabel(key)}.`);
     }
   }
   return out;

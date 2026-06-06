@@ -104,6 +104,8 @@ export const DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY = 'nsg:dev-show-quest-cho
 export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';
 /** When enabled, Play quest interactions use the legacy modal popup instead of inline expansion. */
 export const DEV_USE_QUEST_POPUP_STORAGE_KEY = 'nsg:dev-use-quest-popup';
+/** When enabled (with dev header tools), show floating relay up/down overlay. */
+export const DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY = 'nsg:dev-relay-status-overlay';
 /** Quest step back arrow on choice/message panes (dev testing). */
 /** Dev quest-step rewind UI (removed from Play; logic remains in `questStepBack.ts`). */
 export const SHOW_QUEST_STEP_BACK = false;
@@ -225,12 +227,14 @@ export const JOB_SLUG_EXPLORER = 'explorer';
 export const JOB_SLUG_ADVENTURER = 'adventurer';
 export const JOB_SLUG_STONECUTTER = 'stonecutter';
 export const JOB_SLUG_MINER = 'miner';
+export const JOB_SLUG_WOODCUTTER = 'woodcutter';
 
 export const ALL_JOB_SLUGS = [
   JOB_SLUG_EXPLORER,
   JOB_SLUG_ADVENTURER,
   JOB_SLUG_STONECUTTER,
   JOB_SLUG_MINER,
+  JOB_SLUG_WOODCUTTER,
 ] as const;
 
 export type JobSlug = (typeof ALL_JOB_SLUGS)[number];
@@ -247,9 +251,19 @@ export const QUEST_DISCOVER_MINE_ID = 'quest-039-discover-mine';
 /** Canonical resource keys on `QuestState.resources`. */
 export const RESOURCE_STONE = 'stone';
 export const RESOURCE_IRON = 'iron';
+export const RESOURCE_LOGS = 'logs';
+export const RESOURCE_COPPER_ORE = 'copperOre';
+export const RESOURCE_ADVENTURES = 'adventures';
 
 export const QUEST_018_SILVER_LAKE_REFLECTION_ID = 'quest-018-silver-lake-reflection';
 export const QUEST_VILLAGE_ARRIVAL_ID = 'quest-036-the-village';
+export const QUEST_PICK_A_JOB_ID = 'quest-040-pick-a-job';
+export const QUEST_MAYOR_ID = 'quest-041-mayor';
+
+/** Jobs Hall professions (Explorer is forest-only; not choosable in village). */
+export const VILLAGE_CHOOSEABLE_JOB_SLUGS = ALL_JOB_SLUGS.filter(
+  (slug) => slug !== JOB_SLUG_EXPLORER
+);
 /** Set when the player finishes the village arrival quest; enables endgame hub UI. */
 export const VILLAGE_PHASE_FLAG = 'village-phase';
 /** Real-life calendar pacing (minDay, daily XP, day-roll unveil) starts when this is set. */
@@ -264,7 +278,7 @@ export const locationActions: Record<string, string[]> = {
   Merchant: [],
   Airship: [],
   /** Placeholders for future building scenes / mechanics. */
-  Village: ['North hall', 'Market square', 'Forge lane'],
+  Village: ['North hall', 'Market row', 'Forge lane'],
   Cemetery: ['Enter the crypt'],
   Quarry: ['Work the face'],
   Mine: ['Descend the shaft'],

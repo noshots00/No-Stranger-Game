@@ -15,3 +15,4 @@ export const MAYOR_ELECTION_QUERY_LIMIT = 80;
 export const MAYORS_HUT_FEED_STALE_MS = 20_000;
 
 export type MayorCandidateStatus = 'active' | 'withdrawn';
+export type MayorVoteStatus = 'active' | 'withdrawn';

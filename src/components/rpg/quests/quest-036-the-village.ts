@@ -1,5 +1,9 @@
 import {
   DAY_PACING_ACTIVE_FLAG,
+  JOB_SLUG_ADVENTURER,
+  JOB_SLUG_MINER,
+  JOB_SLUG_STONECUTTER,
+  JOB_SLUG_WOODCUTTER,
   QUEST_004_B_THE_DOOR_ID,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
@@ -30,6 +34,12 @@ export const quest036TheVillage = createQuestDefinition({
           effects: {
             flagsSet: [VILLAGE_PHASE_FLAG, DAY_PACING_ACTIVE_FLAG],
             setCurrentLocation: 'Village',
+            unlockJobSlugs: [
+              JOB_SLUG_ADVENTURER,
+              JOB_SLUG_STONECUTTER,
+              JOB_SLUG_MINER,
+              JOB_SLUG_WOODCUTTER,
+            ],
           },
           worldEventLogAdd: ['{playerName} approached the village gates.'],
         },

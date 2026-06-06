@@ -1,6 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { formatInTimeZone } from 'date-fns-tz';
 import { normalizeQuestState } from '@/components/rpg/quests/engine';
+import { canPersistQuestCheckpoint } from '@/components/rpg/quests/questSaveGuard';
 import type { QuestState } from '@/components/rpg/quests/types';
 import { EASTERN_GAME_TIMEZONE } from '@/lib/easternGameTime';
 
@@ -36,6 +37,14 @@ export type CharacterCreationPayload = {
 };
 
 export type QuestCheckpointPayload = {
+  savedAtMs: number;
+  state: QuestState;
+};
+
+/** One kind 10032 row from relays (immutable history; newest wins on normal login). */
+export type QuestCheckpointRecord = {
+  eventId: string;
+  createdAtUnix: number;
   savedAtMs: number;
   state: QuestState;
 };
@@ -144,6 +153,28 @@ export function parseQuestCheckpointPayload(content: string): QuestCheckpointPay
   return parseQuestStateSnapshot(content);
 }
 
+export function parseQuestCheckpointEvent(event: NostrEvent): QuestCheckpointRecord | null {
+  const payload = parseQuestStateSnapshot(event.content);
+  if (!payload) return null;
+  const savedAtMs =
+    payload.savedAtMs > 0 ? payload.savedAtMs : Math.max(0, event.created_at) * 1000;
+  return {
+    eventId: event.id,
+    createdAtUnix: event.created_at,
+    savedAtMs,
+    state: payload.state,
+  };
+}
+
+export function formatQuestCheckpointSavedAt(savedAtMs: number): string {
+  return formatInTimeZone(savedAtMs, EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd h:mm a zzz');
+}
+
+/** Display day from checkpoint state (matches in-game header during forest / paced village). */
+export function questCheckpointDisplayDay(state: QuestState): number {
+  return Math.max(1, Math.floor(state.lastDailyXpDay));
+}
+
 /** Latest character creation Eastern date from relays (newest event wins for current playthrough). */
 export async function fetchCharacterCreationDateFromRelay(
   nostr: NostrClient,
@@ -225,11 +256,36 @@ export async function fetchQuestStateSnapshot(
   return parseQuestStateSnapshot(matching[0].content);
 }
 
+/** All quest checkpoints for a pubkey (newest first). Kind 10032 events are not replaced — history accumulates. */
+export async function fetchAllQuestStateCheckpoints(
+  nostr: NostrClient,
+  pubkey: string,
+  limit = 100
+): Promise<QuestCheckpointRecord[]> {
+  const events = await nostr.query([
+    {
+      kinds: [NSG_QUEST_STATE_KIND],
+      authors: [pubkey],
+      limit,
+    },
+  ]);
+
+  return events
+    .filter((event) => event.tags.some(([name, value]) => name === 'd' && value === NSG_QUEST_STATE_D_TAG))
+    .map((event) => parseQuestCheckpointEvent(event))
+    .filter((row): row is QuestCheckpointRecord => row !== null)
+    .sort((a, b) => b.savedAtMs - a.savedAtMs || b.createdAtUnix - a.createdAtUnix);
+}
+
 export async function publishQuestStateSnapshot(
   nostr: NostrClient,
   signer: Signer,
   state: QuestState
 ): Promise<number> {
+  if (!canPersistQuestCheckpoint(state)) {
+    console.warn('Skipped quest checkpoint publish: character has no name yet.');
+    return 0;
+  }
   const savedAtMs = Date.now();
   const draft = {
     kind: NSG_QUEST_STATE_KIND,

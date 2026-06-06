@@ -2,13 +2,10 @@ import { DISCOVERED_CEMETERY_FLAG } from '../constants';
 
 export type VillagePanelId =
   | 'arena'
-  | 'guildAlley'
   | 'tavern'
   | 'market'
-  | 'mayorsHut'
-  | 'craftersCorner'
-  | 'jobsHall'
-  | 'villageProjects';
+  | 'townHall'
+  | 'craftersCorner';
 
 export type VillageLotKind = 'system' | 'claimable' | 'stub' | 'travel';
 
@@ -57,40 +54,10 @@ export const VILLAGE_DISTRICTS: ReadonlyArray<VillageDistrictDef> = [
     title: 'Town Square',
     lots: [
       {
-        id: 'mayors-hut',
-        label: "Mayor's Hut",
-        kind: 'system',
-        action: { type: 'panel', panel: 'mayorsHut' },
-      },
-      {
         id: 'town-hall',
         label: 'Town Hall',
         kind: 'system',
-        action: { type: 'panel', panel: 'villageProjects' },
-      },
-      {
-        id: 'market-square',
-        label: 'Market Square',
-        kind: 'stub',
-        action: { type: 'stub' },
-      },
-      {
-        id: 'jobs-hall',
-        label: 'Jobs Hall',
-        kind: 'system',
-        action: { type: 'panel', panel: 'jobsHall' },
-      },
-      {
-        id: 'tavern',
-        label: 'Tavern',
-        kind: 'system',
-        action: { type: 'panel', panel: 'tavern' },
-      },
-      {
-        id: 'guild-alley',
-        label: 'Guild Alley',
-        kind: 'system',
-        action: { type: 'panel', panel: 'guildAlley' },
+        action: { type: 'panel', panel: 'townHall' },
       },
       {
         id: 'arena',
@@ -105,15 +72,16 @@ export const VILLAGE_DISTRICTS: ReadonlyArray<VillageDistrictDef> = [
     title: 'Market Row',
     lots: [
       {
+        id: 'tavern',
+        label: 'Tavern',
+        kind: 'system',
+        action: { type: 'panel', panel: 'tavern' },
+      },
+      {
         id: 'market',
         label: 'Market',
         kind: 'system',
         action: { type: 'panel', panel: 'market' },
-      },
-      {
-        id: 'market-row-lot-2',
-        label: 'Empty lot',
-        kind: 'claimable',
       },
     ],
   },
@@ -126,17 +94,6 @@ export const VILLAGE_DISTRICTS: ReadonlyArray<VillageDistrictDef> = [
         label: "Crafter's Corner",
         kind: 'system',
         action: { type: 'panel', panel: 'craftersCorner' },
-      },
-      {
-        id: 'forge-lane-stub',
-        label: 'Forge Lane',
-        kind: 'stub',
-        action: { type: 'stub' },
-      },
-      {
-        id: 'forge-lane-lot-3',
-        label: 'Empty lot',
-        kind: 'claimable',
       },
     ],
   },

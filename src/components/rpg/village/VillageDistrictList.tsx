@@ -12,12 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
 
-import { GamePanelScroll } from '../GamePanelScroll';
 import type { VillageLotOccupancyView } from './villageLotNostr';
 import {
   VILLAGE_BUSINESS_TYPES,
   visibleBuildingDistricts,
-  visibleLeaveDistrict,
   type VillageBusinessType,
   type VillageDistrictDef,
   type VillageLotDef,
@@ -44,7 +42,7 @@ type ClaimDialogState = { lotId: string; districtTitle: string } | null;
 type BuildDialogState = { lotId: string; businessName: string } | null;
 
 const lotButtonClass =
-  'block min-w-0 w-full rounded px-0 py-px text-left font-sans text-[13px] leading-snug text-[var(--candle-wax)] transition-colors hover:text-[var(--candle-flame-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--candle-flame-soft)] disabled:cursor-default disabled:opacity-70';
+  'block min-w-0 w-full rounded-md border border-transparent px-2 py-1.5 text-left font-sans text-[13px] leading-snug text-[var(--candle-wax)] transition-colors hover:border-[var(--candle-rule)]/60 hover:bg-black/20 hover:text-[var(--candle-flame-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--candle-flame-soft)] disabled:cursor-default disabled:opacity-70';
 
 function lotDisplayName(lot: VillageLotDef, occupancy: VillageLotOccupancyView | undefined): string {
   if (occupancy) return occupancy.businessName;
@@ -107,54 +105,12 @@ function VillageLotRow({
   }
 
   return (
-    <span className="block px-0 py-px font-sans text-[13px] leading-snug text-[var(--candle-ink-soft)]">
+    <span className="block rounded-md px-2 py-1.5 font-sans text-[13px] leading-snug text-[var(--candle-ink-soft)]">
       {displayName}
     </span>
   );
 }
 
-function VillageDistrictColumn({
-  district,
-  occupancyByLotId,
-  myPubkey,
-  isBuildPending,
-  onLotClick,
-}: {
-  district: VillageDistrictDef;
-  occupancyByLotId: Map<string, VillageLotOccupancyView>;
-  myPubkey: string | undefined;
-  isBuildPending: boolean;
-  onLotClick: (
-    lot: VillageLotDef,
-    district: VillageDistrictDef,
-    occupancy: VillageLotOccupancyView | undefined
-  ) => void;
-}) {
-  return (
-    <section className="min-w-0" aria-labelledby={`district-${district.id}`}>
-      <h3
-        id={`district-${district.id}`}
-        className="mb-0.5 font-cormorant text-sm font-semibold tracking-[0.02em] text-[var(--candle-wax)]"
-      >
-        {district.title}
-      </h3>
-      <ul className="m-0 list-none p-0" role="list">
-        {district.lots.map((lot) => (
-          <li key={lot.id}>
-            <VillageLotRow
-              lot={lot}
-              district={district}
-              occupancy={occupancyByLotId.get(lot.id)}
-              myPubkey={myPubkey}
-              isBuildPending={isBuildPending}
-              onLotClick={onLotClick}
-            />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 export function VillageDistrictList({
   questFlags,
@@ -168,11 +124,13 @@ export function VillageDistrictList({
   onTravelToLocation,
 }: VillageDistrictListProps) {
   const { toast } = useToast();
-  const buildingDistricts = useMemo(
-    () => visibleBuildingDistricts(questFlags),
+  const buildingLots = useMemo(
+    () =>
+      visibleBuildingDistricts(questFlags).flatMap((district) =>
+        district.lots.map((lot) => ({ lot, district }))
+      ),
     [questFlags]
   );
-  const leaveDistrict = useMemo(() => visibleLeaveDistrict(questFlags), [questFlags]);
 
   const [claimDialog, setClaimDialog] = useState<ClaimDialogState>(null);
   const [buildDialog, setBuildDialog] = useState<BuildDialogState>(null);
@@ -255,48 +213,23 @@ export function VillageDistrictList({
 
   return (
     <>
-      <GamePanelScroll className="facsimile-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2 pr-0">
-        <div className="grid grid-cols-2 items-start gap-x-3 gap-y-3">
-          {buildingDistricts.map((district) => (
-            <VillageDistrictColumn
-              key={district.id}
+      <ul
+        className="m-0 grid list-none grid-cols-2 gap-x-2 gap-y-1 p-0 sm:grid-cols-3"
+        role="list"
+      >
+        {buildingLots.map(({ lot, district }) => (
+          <li key={lot.id} className="min-w-0">
+            <VillageLotRow
+              lot={lot}
               district={district}
-              occupancyByLotId={occupancyByLotId}
+              occupancy={occupancyByLotId.get(lot.id)}
               myPubkey={myPubkey}
               isBuildPending={isBuildPending}
               onLotClick={handleLotClick}
             />
-          ))}
-        </div>
-
-        {leaveDistrict ? (
-          <section
-            className="mt-2 border-t border-[var(--candle-rule)]/40 pt-2"
-            aria-labelledby={`district-${leaveDistrict.id}`}
-          >
-            <h3
-              id={`district-${leaveDistrict.id}`}
-              className="mb-0.5 font-cormorant text-sm font-semibold tracking-[0.02em] text-[var(--candle-wax)]"
-            >
-              {leaveDistrict.title}
-            </h3>
-            <ul className="m-0 list-none p-0" role="list">
-              {leaveDistrict.lots.map((lot) => (
-                <li key={lot.id}>
-                  <VillageLotRow
-                    lot={lot}
-                    district={leaveDistrict}
-                    occupancy={occupancyByLotId.get(lot.id)}
-                    myPubkey={myPubkey}
-                    isBuildPending={isBuildPending}
-                    onLotClick={handleLotClick}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-      </GamePanelScroll>
+          </li>
+        ))}
+      </ul>
 
       <Dialog
         open={claimDialog !== null}

@@ -72,6 +72,10 @@ function parseGoalTags(event: NostrEvent): Partial<Record<VillageProjectResource
       const n = Number.parseInt(value, 10);
       if (Number.isFinite(n) && n > 0) goals.iron = n;
     }
+    if (name === 'goal-logs' && value) {
+      const n = Number.parseInt(value, 10);
+      if (Number.isFinite(n) && n > 0) goals.logs = n;
+    }
   }
   return goals;
 }
@@ -106,7 +110,7 @@ export function parseVillageProjectContribution(event: NostrEvent): VillageProje
   const projectId = tagValue(event, 'p')?.trim() ?? tagValue(event, 'project-id')?.trim();
   const resourceRaw = tagValue(event, 'resource')?.trim();
   const amountRaw = tagValue(event, 'amount')?.trim();
-  if (!projectId || (resourceRaw !== 'stone' && resourceRaw !== 'iron')) return null;
+  if (!projectId || (resourceRaw !== 'stone' && resourceRaw !== 'iron' && resourceRaw !== 'logs')) return null;
   const amount = Number.parseInt(amountRaw ?? '', 10);
   if (!Number.isFinite(amount) || amount <= 0) return null;
 
@@ -166,6 +170,7 @@ export function buildVillageProjectDefinitionDraft(args: {
   ];
   if (args.goals.stone) tags.push(['goal-stone', String(args.goals.stone)]);
   if (args.goals.iron) tags.push(['goal-iron', String(args.goals.iron)]);
+  if (args.goals.logs) tags.push(['goal-logs', String(args.goals.logs)]);
   if (args.description.trim()) tags.push(['desc', args.description.trim()]);
 
   return {

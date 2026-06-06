@@ -1,9 +1,10 @@
-import { appendUniqueWorldEntries } from '../helpers';
+import { appendUniqueWorldEntries, formatResourceLabel } from '../helpers';
 import {
   JOB_SLUG_EXPLORER,
   QUEST_DISCOVER_CEMETERY_ID,
   QUEST_DISCOVER_MINE_ID,
   QUEST_DISCOVER_QUARRY_ID,
+  VILLAGE_CHOOSEABLE_JOB_SLUGS,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
 import type { QuestState } from '../quests/types';
@@ -74,21 +75,18 @@ export function applyJobDailyAction(
     `You completed a ${job.displayName} shift (Day ${day}).`,
   ];
   for (const [key, amount] of Object.entries(job.dailyYields)) {
-    if (amount && amount > 0) worldLines.push(`Gathered ${amount} ${key}.`);
+    if (amount && amount > 0) worldLines.push(`Gathered ${amount} ${formatResourceLabel(key)}.`);
   }
 
   let unveilQuestId: string | undefined;
   if (jobSlug === JOB_SLUG_EXPLORER) {
     unveilQuestId = pickExplorerUnveilQuestId(state, day);
-    if (unveilQuestId) {
-      worldLines.push('Your patrol turned up a new lead in the forest.');
-    }
   }
 
-  let unveiledQuestIds = state.unveiledQuestIds;
-  if (unveilQuestId) {
-    unveiledQuestIds = Array.from(new Set([...unveiledQuestIds, unveilQuestId]));
-  }
+  const unveiledQuestIds =
+    unveilQuestId && !state.unveiledQuestIds.includes(unveilQuestId)
+      ? [...state.unveiledQuestIds, unveilQuestId]
+      : state.unveiledQuestIds;
 
   const nextState: QuestState = {
     ...state,
@@ -103,7 +101,18 @@ export function applyJobDailyAction(
 }
 
 export function switchActiveJob(state: QuestState, jobSlug: string): QuestState | null {
-  if (!state.unlockedJobSlugs?.includes(jobSlug)) return null;
+  if (jobSlug === JOB_SLUG_EXPLORER) return null;
+  const job = getJobDefinition(jobSlug);
+  if (!job) return null;
+
+  const inVillage = state.flags.includes(VILLAGE_PHASE_FLAG);
+  const unlocked = state.unlockedJobSlugs ?? [];
+  const villageChoosable = VILLAGE_CHOOSEABLE_JOB_SLUGS.includes(
+    jobSlug as (typeof VILLAGE_CHOOSEABLE_JOB_SLUGS)[number]
+  );
+  if (!inVillage && !unlocked.includes(jobSlug)) return null;
+  if (inVillage && !villageChoosable) return null;
+
   if (state.activeJobSlug === jobSlug) return state;
   return { ...state, activeJobSlug: jobSlug };
 }

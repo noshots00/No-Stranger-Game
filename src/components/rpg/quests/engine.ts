@@ -50,6 +50,9 @@ import {
   AIRSHIP_FLAG,
   JOB_SLUG_EXPLORER,
   QUEST_VILLAGE_ARRIVAL_ID,
+  QUEST_MAYOR_ID,
+  QUEST_PICK_A_JOB_ID,
+  VILLAGE_CHOOSEABLE_JOB_SLUGS,
   VALID_SAVE_LOCATIONS,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
@@ -59,7 +62,7 @@ import { resolveForestCavePrimaryKnockoutStepId } from './quest-005-forest-cave'
 import { unlockJobSlug } from '../jobs/unlockJob';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
-import { createEmptyArenaRecord } from '../arena/arenaRecord';
+import { createEmptyArenaRecord, reconcileArenaRecordForEpoch } from '../arena/arenaRecord';
 import type {
   ArenaFightRecord,
   ArenaRecord,
@@ -683,7 +686,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
           .sort((a, b) => b.atMs - a.atMs)
           .slice(0, 50)
       : [];
-    arenaRecord = { wins, losses, fights };
+    arenaRecord = reconcileArenaRecordForEpoch({ wins, losses, fights });
   }
 
   const rawGuild = (state as { guildMembership?: unknown }).guildMembership;
@@ -1240,6 +1243,27 @@ export function introduceVillageQuestAfterTheDoor(state: QuestState): QuestState
   return next;
 }
 
+/** Unveils and starts the Mayor quest after Pick a job (vote at Town Hall completes it). */
+export function introduceMayorQuestAfterPickJob(state: QuestState): QuestState {
+  const quest = questById[QUEST_MAYOR_ID];
+  if (!quest) return state;
+  if (getCompletedQuestIds(state).includes(QUEST_MAYOR_ID)) return state;
+  if (!getCompletedQuestIds(state).includes(QUEST_PICK_A_JOB_ID)) return state;
+
+  let next = state;
+  if (!next.unveiledQuestIds.includes(QUEST_MAYOR_ID)) {
+    next = {
+      ...next,
+      unveiledQuestIds: [...next.unveiledQuestIds, QUEST_MAYOR_ID],
+    };
+  }
+  const progress = next.progressByQuestId[QUEST_MAYOR_ID];
+  if (!progress || progress.isCompleted) {
+    next = startQuest(ensureQuestProgress(next, quest), quest);
+  }
+  return next;
+}
+
 /** Saves that finished The Door before The Village quest was unveiled. */
 export function catchUpVillageQuestAfterTheDoor(state: QuestState): QuestState {
   if (getCompletedQuestIds(state).includes(QUEST_VILLAGE_ARRIVAL_ID)) return state;
@@ -1265,9 +1289,7 @@ export function reconcileVillagePhaseState(state: QuestState, calendarDay?: numb
     ? state.currentLocation
     : 'Village';
 
-  const unlockedJobSlugs = (state.unlockedJobSlugs ?? []).filter(
-    (slug) => slug !== JOB_SLUG_EXPLORER
-  );
+  const unlockedJobSlugs: string[] = [...VILLAGE_CHOOSEABLE_JOB_SLUGS];
   const activeJobSlug =
     state.activeJobSlug &&
     state.activeJobSlug !== JOB_SLUG_EXPLORER &&
@@ -1352,6 +1374,20 @@ export const getQuestListForUi = (
   }
   // Temporary manual quest gating: UI should respect unveiled/completed only.
   return getPlayerVisibleQuests(quests, context, unveiledQuestIds);
+};
+
+/** Mark a quest complete without walking choice resolution (external triggers). */
+export function markQuestCompleted(state: QuestState, questId: string): QuestState | null {
+  const prog = state.progressByQuestId[questId];
+  if (!prog || prog.isCompleted) return null;
+  return {
+    ...state,
+    activeQuestId: state.activeQuestId === questId ? null : state.activeQuestId,
+    progressByQuestId: {
+      ...state.progressByQuestId,
+      [questId]: { ...prog, isCompleted: true },
+    },
+  };
 };
 
 /** Forest mainline order for auto-track after unveil (Play tab quest card + inline choices). */

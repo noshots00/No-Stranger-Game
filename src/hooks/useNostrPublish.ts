@@ -2,6 +2,7 @@ import { useNostr } from "@nostrify/react";
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 
 import { useCurrentUser } from "./useCurrentUser";
+import { publishGameRelayEvent } from "@/lib/publishGameRelayEvent";
 
 import type { NostrEvent } from "@nostrify/nostrify";
 
@@ -26,7 +27,7 @@ export function useNostrPublish(): UseMutationResult<NostrEvent> {
           created_at: t.created_at ?? Math.floor(Date.now() / 1000),
         });
 
-        await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+        await publishGameRelayEvent(nostr, event, { signal: AbortSignal.timeout(5000) });
         return event;
       } else {
         throw new Error("User is not logged in");
