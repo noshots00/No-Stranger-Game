@@ -6,7 +6,12 @@ import {
 } from '@/lib/gameRelays';
 import { mergeRelayQueryResults } from '@/lib/mergeRelayQueryResults';
 import { filterValidCommunityEvents } from '@/lib/communityEventEpoch';
-import { recordRelayInteraction, summarizeNostrFilters } from '@/lib/relayInteractionLog';
+import {
+  beginGameRelayBatch,
+  recordRelayInteraction,
+  summarizeNostrFilters,
+  type GameRelayBatchHandle,
+} from '@/lib/relayInteractionLog';
 
 export type GameRelayQueryPool = {
   relay: (url: string) => {
@@ -29,13 +34,15 @@ async function queryOneRelay(
   url: string,
   filters: NostrFilter[],
   parentSignal: AbortSignal | undefined,
-  timeoutMs: number
+  timeoutMs: number,
+  batch: GameRelayBatchHandle
 ): Promise<NostrEvent[]> {
   const started = performance.now();
   const filterSummary = summarizeNostrFilters(filters);
   const signal = relayQuerySignal(parentSignal, timeoutMs);
   try {
     const events = await pool.relay(url).query(filters, { signal });
+    batch.completeLeg(url, true);
     recordRelayInteraction({
       operation: 'query',
       relayUrl: url,
@@ -46,6 +53,7 @@ async function queryOneRelay(
     });
     return events;
   } catch (error) {
+    batch.completeLeg(url, false);
     recordRelayInteraction({
       operation: 'query',
       relayUrl: url,
@@ -63,10 +71,15 @@ export async function queryGameRelays(
   filters: NostrFilter[],
   opts?: { signal?: AbortSignal; timeoutMs?: number }
 ): Promise<NostrEvent[]> {
-  const timeoutMs = opts?.timeoutMs ?? GAME_RELAY_QUERY_TIMEOUT_MS;
-  const [primary, backup] = await Promise.all([
-    queryOneRelay(pool, GAME_RELAY_PRIMARY_URL, filters, opts?.signal, timeoutMs),
-    queryOneRelay(pool, GAME_RELAY_BACKUP_URL, filters, opts?.signal, timeoutMs),
-  ]);
-  return filterValidCommunityEvents(mergeRelayQueryResults(primary, backup));
+  const batch = beginGameRelayBatch('query');
+  try {
+    const timeoutMs = opts?.timeoutMs ?? GAME_RELAY_QUERY_TIMEOUT_MS;
+    const [primary, backup] = await Promise.all([
+      queryOneRelay(pool, GAME_RELAY_PRIMARY_URL, filters, opts?.signal, timeoutMs, batch),
+      queryOneRelay(pool, GAME_RELAY_BACKUP_URL, filters, opts?.signal, timeoutMs, batch),
+    ]);
+    return filterValidCommunityEvents(mergeRelayQueryResults(primary, backup));
+  } finally {
+    batch.finalize();
+  }
 }

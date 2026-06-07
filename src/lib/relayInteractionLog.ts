@@ -26,10 +26,35 @@ export type RelayInteractionTotals = {
   byRelay: Record<string, { total: number; ok: number; failed: number }>;
 };
 
+export type GameRelayBatchOperation = 'query' | 'publish';
+export type RelayLegStatus = 'ok' | 'failed';
+
+export type GameRelayBatch = {
+  operation: GameRelayBatchOperation;
+  atMs: number;
+  byRelay: Record<string, RelayLegStatus>;
+};
+
+export type RelayLegIndicatorStatus = 'unknown' | 'ok' | 'failed';
+
+export type RelayHealthIndicatorState = {
+  inFlight: boolean;
+  primaryStatus: RelayLegIndicatorStatus;
+  backupStatus: RelayLegIndicatorStatus;
+  latestOperation: GameRelayBatchOperation | null;
+};
+
+export type GameRelayBatchHandle = {
+  completeLeg: (relayUrl: string, ok: boolean) => void;
+  finalize: () => void;
+};
+
 const MAX_ENTRIES = 120;
 
 let nextId = 1;
 let entries: RelayInteractionEntry[] = [];
+let inFlightGameRequests = 0;
+let latestGameBatch: GameRelayBatch | null = null;
 const listeners = new Set<() => void>();
 
 function emptyRelayTotals(): Record<string, { total: number; ok: number; failed: number }> {
@@ -73,6 +98,80 @@ function computeTotals(rows: readonly RelayInteractionEntry[]): RelayInteraction
 
 function emit(): void {
   for (const listener of listeners) listener();
+}
+
+function finalizeBatchByRelay(
+  legs: Partial<Record<string, RelayLegStatus>>
+): Record<string, RelayLegStatus> {
+  return Object.fromEntries(
+    GAME_RELAY_URLS.map((url) => [url, legs[url] ?? 'failed'])
+  ) as Record<string, RelayLegStatus>;
+}
+
+/** Derive header indicator halves from in-flight count and latest query/publish batch. */
+export function deriveRelayHealthIndicatorState(
+  inFlight: number,
+  batch: GameRelayBatch | null
+): RelayHealthIndicatorState {
+  const [primaryUrl, backupUrl] = GAME_RELAY_URLS;
+
+  if (inFlight > 0) {
+    return {
+      inFlight: true,
+      primaryStatus: 'unknown',
+      backupStatus: 'unknown',
+      latestOperation: null,
+    };
+  }
+
+  if (!batch) {
+    return {
+      inFlight: false,
+      primaryStatus: 'unknown',
+      backupStatus: 'unknown',
+      latestOperation: null,
+    };
+  }
+
+  const legToIndicator = (status: RelayLegStatus | undefined): RelayLegIndicatorStatus =>
+    status === 'ok' ? 'ok' : 'failed';
+
+  return {
+    inFlight: false,
+    primaryStatus: legToIndicator(batch.byRelay[primaryUrl]),
+    backupStatus: legToIndicator(batch.byRelay[backupUrl]),
+    latestOperation: batch.operation,
+  };
+}
+
+export function beginGameRelayBatch(operation: GameRelayBatchOperation): GameRelayBatchHandle {
+  inFlightGameRequests += 1;
+  const legs: Partial<Record<string, RelayLegStatus>> = {};
+  emit();
+
+  return {
+    completeLeg(relayUrl: string, ok: boolean) {
+      legs[relayUrl] = ok ? 'ok' : 'failed';
+      emit();
+    },
+    finalize() {
+      latestGameBatch = {
+        operation,
+        atMs: Date.now(),
+        byRelay: finalizeBatchByRelay(legs),
+      };
+      inFlightGameRequests = Math.max(0, inFlightGameRequests - 1);
+      emit();
+    },
+  };
+}
+
+export function getInFlightGameRequests(): number {
+  return inFlightGameRequests;
+}
+
+export function getLatestGameRelayBatch(): GameRelayBatch | null {
+  return latestGameBatch;
 }
 
 export function summarizeNostrFilters(filters: readonly NostrFilter[]): string {
@@ -126,6 +225,22 @@ export function getRelayInteractionTotals(): RelayInteractionTotals {
   return computeTotals(entries);
 }
 
+let relayHealthIndicatorSnapshot: RelayHealthIndicatorState = deriveRelayHealthIndicatorState(0, null);
+
+function getRelayHealthIndicatorSnapshot(): RelayHealthIndicatorState {
+  const next = deriveRelayHealthIndicatorState(inFlightGameRequests, latestGameBatch);
+  if (
+    relayHealthIndicatorSnapshot.inFlight === next.inFlight &&
+    relayHealthIndicatorSnapshot.primaryStatus === next.primaryStatus &&
+    relayHealthIndicatorSnapshot.backupStatus === next.backupStatus &&
+    relayHealthIndicatorSnapshot.latestOperation === next.latestOperation
+  ) {
+    return relayHealthIndicatorSnapshot;
+  }
+  relayHealthIndicatorSnapshot = next;
+  return relayHealthIndicatorSnapshot;
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -142,4 +257,12 @@ export function useRelayInteractionLog(): {
     totals: computeTotals(snapshot),
     clearLog: clearRelayInteractionLog,
   };
+}
+
+export function useRelayHealthIndicator(): RelayHealthIndicatorState {
+  return useSyncExternalStore(
+    subscribe,
+    getRelayHealthIndicatorSnapshot,
+    getRelayHealthIndicatorSnapshot
+  );
 }

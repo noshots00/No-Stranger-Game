@@ -154,6 +154,53 @@ export function buildVillageProjectProgress(
   return { definition, totals, contributions };
 }
 
+function finalizeVillageProjectProgress(
+  definition: VillageProjectDefinitionView | null,
+  contributions: VillageProjectContributionView[]
+): VillageProjectProgress {
+  const projectId = definition?.projectId;
+  const scoped = projectId
+    ? contributions.filter((c) => c.projectId === projectId)
+    : contributions;
+  const sorted = [...scoped].sort((a, b) => b.atMs - a.atMs);
+  const totals: Partial<Record<VillageProjectResource, number>> = {};
+  for (const c of sorted) {
+    totals[c.resource] = (totals[c.resource] ?? 0) + c.amount;
+  }
+  return { definition, totals, contributions: sorted };
+}
+
+/** Merge relay snapshot with local optimistic rows (union by event id). */
+export function mergeVillageProjectProgress(
+  local: VillageProjectProgress | undefined,
+  remote: VillageProjectProgress
+): VillageProjectProgress {
+  if (!local) return remote;
+
+  const definition = remote.definition ?? local.definition;
+  const byEventId = new Map<string, VillageProjectContributionView>();
+  for (const c of remote.contributions) byEventId.set(c.eventId, c);
+  for (const c of local.contributions) {
+    const prev = byEventId.get(c.eventId);
+    if (!prev || c.atMs >= prev.atMs) byEventId.set(c.eventId, c);
+  }
+
+  return finalizeVillageProjectProgress(definition, Array.from(byEventId.values()));
+}
+
+/** Apply a freshly published contribution to the cached progress snapshot. */
+export function applyVillageProjectContributionEventToProgress(
+  prev: VillageProjectProgress,
+  event: NostrEvent
+): VillageProjectProgress {
+  const row = parseVillageProjectContribution(event);
+  if (!row) return prev;
+  if (prev.definition && row.projectId !== prev.definition.projectId) return prev;
+  if (prev.contributions.some((c) => c.eventId === row.eventId)) return prev;
+
+  return finalizeVillageProjectProgress(prev.definition, [...prev.contributions, row]);
+}
+
 export function buildVillageProjectDefinitionDraft(args: {
   projectId: string;
   title: string;
@@ -195,6 +242,7 @@ export function buildVillageProjectContributionDraft(args: {
       ['t', VILLAGE_PROJECT_COMMUNITY_TAG],
       ['t', VILLAGE_PROJECT_CONTRIBUTION_TAG],
       ['p', args.projectId],
+      ['project-id', args.projectId],
       ['resource', args.resource],
       ['amount', String(args.amount)],
       ['contributor-name', args.contributorName],

@@ -9,8 +9,11 @@ import {
 import {
   buildVillageProjectContributionDraft,
   buildVillageProjectDefinitionDraft,
+  applyVillageProjectContributionEventToProgress,
+  mergeVillageProjectProgress,
   parseVillageProjectContribution,
   parseVillageProjectDefinition,
+  type VillageProjectProgress,
 } from './villageProjectNostr';
 
 function mockEvent(
@@ -91,5 +94,45 @@ describe('villageProjectNostr logs schema', () => {
       })
     );
     expect(parsed).toBeNull();
+  });
+
+  it('merges local optimistic logs with stale relay totals', () => {
+    const localEvent = mockEvent(
+      buildVillageProjectContributionDraft({
+        projectId: 'lithic-workshop',
+        resource: 'logs',
+        amount: 1,
+        contributorName: 'Ada',
+        contributionId: 'contrib-local',
+      })
+    );
+    localEvent.id = 'local-event-id';
+
+    const local: VillageProjectProgress = applyVillageProjectContributionEventToProgress(
+      {
+        definition: {
+          projectId: 'lithic-workshop',
+          title: 'Lithic Workshop',
+          description: 'Timber for the yard.',
+          goals: { logs: 500 },
+          mayorPubkey: 'mayor-pk',
+          eventId: 'def-id',
+          updatedAt: 1,
+        },
+        totals: { logs: 1 },
+        contributions: [],
+      },
+      localEvent
+    );
+
+    const remote: VillageProjectProgress = {
+      definition: local.definition,
+      totals: { logs: 0 },
+      contributions: [],
+    };
+
+    const merged = mergeVillageProjectProgress(local, remote);
+    expect(merged.totals.logs).toBe(1);
+    expect(merged.contributions).toHaveLength(1);
   });
 });

@@ -1,7 +1,11 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
+import type { GameRelayHealthSnapshot } from '@/lib/probeGameRelay';
+import { useRelayHealthIndicator } from '@/lib/relayInteractionLog';
 import { HeaderHealthBar } from './HeaderHealthBar';
 import { HeaderFlyout } from './HeaderFlyout';
 import { NewDot } from './NewDot';
+import { GameRelayStatusOverlay } from './dev/GameRelayStatusOverlay';
+import { RelayHealthIndicator, relayHealthIndicatorAriaLabel } from './dev/RelayHealthIndicator';
 import type { TravelMenuItem } from './travelLocations';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +30,11 @@ type GameHeaderProps = {
   onDevToolsMenuOpenChange?: (open: boolean) => void;
   onEnableDevTools?: () => void;
   health?: number;
+  relayHealthFlyoutOpen?: boolean;
+  onRelayHealthFlyoutOpenChange?: (open: boolean) => void;
+  relayHealthSnapshot?: GameRelayHealthSnapshot;
+  relayHealthFetching?: boolean;
+  onRelayHealthProbe?: () => void;
 };
 
 export function GameHeader({
@@ -45,10 +54,16 @@ export function GameHeader({
   onDevToolsMenuOpenChange,
   onEnableDevTools,
   health = 100,
+  relayHealthFlyoutOpen = false,
+  onRelayHealthFlyoutOpenChange,
+  relayHealthSnapshot,
+  relayHealthFetching = false,
+  onRelayHealthProbe,
 }: GameHeaderProps) {
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const devUnlockTapCountRef = useRef(0);
   const devUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const relayIndicatorState = useRelayHealthIndicator();
 
   const handleDevUnlockTap = useCallback(() => {
     if (showHeaderDevTools || !onEnableDevTools) return;
@@ -138,15 +153,53 @@ export function GameHeader({
       </HeaderFlyout>
     );
 
-  const versionCell =
-    showHeaderDevTools && devToolsPanel ? (
-      <>
-        {devToolsInSideRail ? (
-          <div className="mx-auto hidden w-full max-w-[4.75rem] lg:block">
+  const relayHealthControl = showHeaderDevTools ? (
+    <HeaderFlyout
+      open={relayHealthFlyoutOpen}
+      onOpenChange={(open) => onRelayHealthFlyoutOpenChange?.(open)}
+      ariaLabel={relayHealthIndicatorAriaLabel(relayIndicatorState)}
+      align="center"
+      panelClassName="p-0"
+      trigger={
+        <span className="inline-flex shrink-0 cursor-pointer rounded-sm p-0.5">
+          <RelayHealthIndicator state={relayIndicatorState} />
+        </span>
+      }
+    >
+      <GameRelayStatusOverlay
+        variant="flyout"
+        snapshot={relayHealthSnapshot}
+        isFetching={relayHealthFetching}
+        onRefresh={() => onRelayHealthProbe?.()}
+      />
+    </HeaderFlyout>
+  ) : null;
+
+  let healthControl: ReactNode;
+  if (showHeaderDevTools && devToolsPanel) {
+    if (devToolsInSideRail) {
+      healthControl = (
+        <>
+          <div className="hidden min-w-0 flex-1 lg:block">
             <HeaderHealthBar health={health} hideMeterSemantics className="px-0.5" />
           </div>
-        ) : null}
-        <div className={devToolsInSideRail ? 'lg:hidden' : undefined}>
+          <div className="min-w-0 flex-1 lg:hidden">
+            <HeaderFlyout
+              open={devToolsMenuOpen}
+              onOpenChange={(open) => onDevToolsMenuOpenChange?.(open)}
+              ariaLabel={`Health ${health}; open developer tools`}
+              align="center"
+              panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
+              trigger={<HeaderHealthBar health={health} hideMeterSemantics className="cursor-pointer" />}
+            >
+              {devToolsPanel}
+            </HeaderFlyout>
+          </div>
+        </>
+      );
+    } else {
+      healthControl = (
+        <div className="min-w-0 flex-1">
           <HeaderFlyout
             open={devToolsMenuOpen}
             onOpenChange={(open) => onDevToolsMenuOpenChange?.(open)}
@@ -158,17 +211,27 @@ export function GameHeader({
             {devToolsPanel}
           </HeaderFlyout>
         </div>
-      </>
-    ) : (
+      );
+    }
+  } else {
+    healthControl = (
       <button
         type="button"
-        className="mx-auto block w-full max-w-[4.75rem] rounded-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
+        className="min-w-0 flex-1 rounded-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
         aria-label="Health and version"
         onClick={handleDevUnlockTap}
       >
         <HeaderHealthBar health={health} hideMeterSemantics className="px-0.5" />
       </button>
     );
+  }
+
+  const versionCell = (
+    <div className="mx-auto flex min-w-0 max-w-[6rem] items-center justify-center gap-1">
+      {healthControl}
+      {relayHealthControl}
+    </div>
+  );
 
   return (
     <header className="sticky top-0 z-20 w-full select-none bg-black/40 backdrop-blur-[6px]" role="status" aria-label="Game status">

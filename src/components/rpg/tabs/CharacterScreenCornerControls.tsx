@@ -5,11 +5,6 @@ import { toggleAudioMuted, useAudioMuted } from '../audio/audioMute';
 
 export type CharacterScreenCornerControlsProps = {
   showDevTools?: boolean;
-  onAdvanceDay: () => void;
-  devFiveMinuteDays?: boolean;
-  onDevFiveMinuteDaysChange?: (enabled: boolean) => void;
-  rapidDaySimulation: boolean;
-  onRapidDaySimulationChange: (enabled: boolean) => void;
   showModifierDetails: boolean;
   onShowModifierDetailsChange: (enabled: boolean) => void;
   showQuestChoiceEffects?: boolean;
@@ -29,11 +24,6 @@ const menuCheckboxClass =
 /** Mute + game/dev menu; fixed bottom-left on the Character tab only. */
 export function CharacterScreenCornerControls({
   showDevTools = false,
-  onAdvanceDay,
-  devFiveMinuteDays = false,
-  onDevFiveMinuteDaysChange,
-  rapidDaySimulation,
-  onRapidDaySimulationChange,
   showModifierDetails,
   onShowModifierDetailsChange,
   showQuestChoiceEffects = false,
@@ -95,36 +85,6 @@ export function CharacterScreenCornerControls({
       >
         {showDevTools ? (
           <>
-            <button
-              type="button"
-              className={menuItemClass}
-              onClick={() => {
-                onAdvanceDay();
-                closeMenu();
-              }}
-            >
-              Advance 24 hours
-            </button>
-            {onDevFiveMinuteDaysChange ? (
-              <label className={menuCheckboxClass}>
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={devFiveMinuteDays}
-                  onChange={(e) => onDevFiveMinuteDaysChange(e.target.checked)}
-                />
-                <span>Set reset to every 5 minutes</span>
-              </label>
-            ) : null}
-            <label className={menuCheckboxClass}>
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={rapidDaySimulation}
-                onChange={(e) => onRapidDaySimulationChange(e.target.checked)}
-              />
-              <span>Simulate 24 hours every 2 seconds</span>
-            </label>
             <label className={menuCheckboxClass}>
               <input
                 type="checkbox"

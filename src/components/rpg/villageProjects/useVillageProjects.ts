@@ -10,9 +10,11 @@ import {
   type VillageProjectResource,
 } from './constants';
 import {
+  applyVillageProjectContributionEventToProgress,
   buildVillageProjectContributionDraft,
   buildVillageProjectDefinitionDraft,
   buildVillageProjectProgress,
+  mergeVillageProjectProgress,
   villageProjectContributionFilter,
   villageProjectDefinitionFilter,
 } from './villageProjectNostr';
@@ -51,8 +53,9 @@ export function useVillageProjects(args: {
       const contributionEvents = (await nostr.query([
         villageProjectContributionFilter(projectId),
       ])) as NostrEvent[];
-      const next = buildVillageProjectProgress(defEvents, contributionEvents);
-      return keepQueryDataIfUnchanged(prev, next);
+      const remote = buildVillageProjectProgress(defEvents, contributionEvents);
+      const merged = mergeVillageProjectProgress(prev, remote);
+      return keepQueryDataIfUnchanged(prev, merged);
     },
     ...LEDGER_QUERY_OPTIONS,
   });
@@ -63,6 +66,28 @@ export function useVillageProjects(args: {
   const refreshFeed = useCallback(() => {
     void feedQuery.refetch();
   }, [feedQuery.refetch]);
+
+  const applyLocalContributionEvent = useCallback(
+    (event: NostrEvent) => {
+      queryClient.setQueryData(feedQueryKey, (prev) =>
+        applyVillageProjectContributionEventToProgress(
+          prev ?? buildVillageProjectProgress([], []),
+          event
+        )
+      );
+    },
+    [feedQueryKey, queryClient]
+  );
+
+  const syncProgressAfterPublish = useCallback(
+    (event: NostrEvent) => {
+      applyLocalContributionEvent(event);
+      window.setTimeout(() => {
+        void feedQuery.refetch();
+      }, 2500);
+    },
+    [applyLocalContributionEvent, feedQuery]
+  );
 
   const catalogById = useMemo(() => {
     const m = new Map<string, (typeof VILLAGE_PROJECT_CATALOG)[number]>();
@@ -95,7 +120,7 @@ export function useVillageProjects(args: {
       const stock = args.questState.resources?.[input.resource] ?? 0;
       if (stock < input.amount) throw new Error(`Not enough ${input.resource}.`);
       const contributionId = `contrib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await publish(
+      const event = await publish(
         buildVillageProjectContributionDraft({
           projectId,
           resource: input.resource,
@@ -104,9 +129,10 @@ export function useVillageProjects(args: {
           contributionId,
         })
       );
-      return input;
+      return { input, event };
     },
-    onSuccess: (input) => {
+    onSuccess: ({ input, event }) => {
+      syncProgressAfterPublish(event);
       args.setQuestState((prev) => {
         const resources = { ...(prev.resources ?? {}) };
         resources[input.resource] = Math.max(0, (resources[input.resource] ?? 0) - input.amount);
@@ -114,7 +140,6 @@ export function useVillageProjects(args: {
         window.queueMicrotask(() => void args.persistQuestCheckpoint(next));
         return next;
       });
-      refreshFeed();
     },
   });
 

@@ -194,11 +194,6 @@ export function CharacterTab({
   onOpenChronicle,
   showModifierDetails,
   showDevTools,
-  onAdvanceDay,
-  devFiveMinuteDays,
-  onDevFiveMinuteDaysChange,
-  rapidDaySimulation,
-  onRapidDaySimulationChange,
   onShowModifierDetailsChange,
   showQuestChoiceEffects,
   onShowQuestChoiceEffectsChange,
@@ -639,11 +634,6 @@ export function CharacterTab({
 
       <CharacterScreenCornerControls
         showDevTools={showDevTools}
-        onAdvanceDay={onAdvanceDay}
-        devFiveMinuteDays={devFiveMinuteDays}
-        onDevFiveMinuteDaysChange={onDevFiveMinuteDaysChange}
-        rapidDaySimulation={rapidDaySimulation}
-        onRapidDaySimulationChange={onRapidDaySimulationChange}
         showModifierDetails={showModifierDetails}
         onShowModifierDetailsChange={onShowModifierDetailsChange}
         showQuestChoiceEffects={showQuestChoiceEffects}

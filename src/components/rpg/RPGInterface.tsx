@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { computeGameDayCounterFromCreationYmd } from '@/lib/easternGameTime';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -129,6 +130,7 @@ import { useQuestState } from './hooks/useQuestState';
 import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
 import { useGameRelayHealth } from '@/hooks/useGameRelayHealth';
+import { DevTimeToolsPanel } from './dev/DevTimeToolsPanel';
 import { GameRelayStatusOverlay } from './dev/GameRelayStatusOverlay';
 import { QuestCheckpointRestoreDialog } from './dev/QuestCheckpointRestoreDialog';
 import { questCheckpointDisplayDay, type QuestCheckpointRecord } from './gameProfile';
@@ -318,6 +320,7 @@ export function RPGInterface() {
   const {
     creationDateEastern,
     dayCounter,
+    devDayOffsetMs,
     devFiveMinuteDays,
     setDevFiveMinuteDays,
     setDevDayOffsetMs,
@@ -665,6 +668,7 @@ export function RPGInterface() {
   const showRelayHealthOverlay = showHeaderDevTools && showRelayStatusOverlay;
   const relayHealthQuery = useGameRelayHealth();
   const [devToolsMenuOpen, setDevToolsMenuOpen] = useState(false);
+  const [relayHealthFlyoutOpen, setRelayHealthFlyoutOpen] = useState(false);
 
   const orderedQuestsForDev = useMemo(() => {
     const arcOrder = (id: string) => {
@@ -853,7 +857,7 @@ export function RPGInterface() {
             <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
               Show relay status panel
               <span className="mt-0.5 block text-[0.6rem] text-[var(--candle-ink-faint)]">
-                Desktop: right gutter. Narrow screens: floating overlay.
+                Header dot opens Status/Activity; this checkbox also pins the panel in the right gutter (desktop) or overlay (mobile).
               </span>
             </span>
           </label>
@@ -1331,6 +1335,53 @@ export function RPGInterface() {
     window.location.reload();
   };
 
+  /** Dev: shift virtual clock and always roll one narrative day (report + grants). */
+  const handleDevAdvanceDay = useCallback(() => {
+    const nextOffsetMs = devDayOffsetMs + DAY_IN_MS;
+    setDevDayOffsetMs(nextOffsetMs);
+    const nextDayCounter = computeGameDayCounterFromCreationYmd(
+      creationDateEastern,
+      Date.now() + nextOffsetMs,
+      devFiveMinuteDays
+    );
+
+    setQuestState((prev) => {
+      let next: QuestState;
+
+      if (isDayPacingActive(prev.flags)) {
+        if (nextDayCounter > prev.lastDailyXpDay) {
+          next = applyCalendarDayCatchUp(prev, nextDayCounter);
+        } else {
+          // Calendar already caught up (common after village anchor) — still roll one day for dev.
+          next = applyInSessionDayAdvanceAfterMainQuest(
+            prev,
+            prev,
+            Math.max(1, prev.lastDailyXpDay),
+            false
+          );
+        }
+      } else {
+        if (!prev.flags.includes('quest001-complete')) return prev;
+        next = applyInSessionDayAdvanceAfterMainQuest(
+          prev,
+          prev,
+          Math.max(1, prev.lastDailyXpDay),
+          true
+        );
+      }
+
+      window.queueMicrotask(() => void persistQuestCheckpoint(next));
+      return next;
+    });
+  }, [
+    creationDateEastern,
+    devDayOffsetMs,
+    devFiveMinuteDays,
+    persistQuestCheckpoint,
+    setDevDayOffsetMs,
+    setQuestState,
+  ]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/');
@@ -1742,11 +1793,6 @@ export function RPGInterface() {
             onOpenChronicle={() => setActiveTab('chronicle')}
             showModifierDetails={showModifierDetails}
             showDevTools={showHeaderDevTools}
-            onAdvanceDay={() => setDevDayOffsetMs((prev) => prev + DAY_IN_MS)}
-            devFiveMinuteDays={devFiveMinuteDays}
-            onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
-            rapidDaySimulation={rapidDaySimulation}
-            onRapidDaySimulationChange={setRapidDaySimulation}
             onShowModifierDetailsChange={setShowModifierDetails}
             showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
             onShowQuestChoiceEffectsChange={setShowQuestChoiceEffects}
@@ -1887,13 +1933,25 @@ export function RPGInterface() {
         ) : undefined
       }
       rightRail={
-        showRelayHealthOverlay ? (
-          <GameRelayStatusOverlay
-            variant="rail"
-            snapshot={relayHealthQuery.data}
-            isFetching={relayHealthQuery.isFetching}
-            onRefresh={() => void relayHealthQuery.refetch()}
-          />
+        showHeaderDevTools ? (
+          <div className="flex w-full max-w-[20rem] flex-col gap-4">
+            <DevTimeToolsPanel
+              dayCounter={dayCounter}
+              onAdvanceDay={handleDevAdvanceDay}
+              devFiveMinuteDays={devFiveMinuteDays}
+              onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
+              rapidDaySimulation={rapidDaySimulation}
+              onRapidDaySimulationChange={setRapidDaySimulation}
+            />
+            {showRelayHealthOverlay ? (
+              <GameRelayStatusOverlay
+                variant="rail"
+                snapshot={relayHealthQuery.data}
+                isFetching={relayHealthQuery.isFetching}
+                onRefresh={() => void relayHealthQuery.refetch()}
+              />
+            ) : null}
+          </div>
         ) : undefined
       }
     >
@@ -1934,6 +1992,11 @@ export function RPGInterface() {
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
           onEnableDevTools={handleEnableDevTools}
           health={questState.health}
+          relayHealthFlyoutOpen={relayHealthFlyoutOpen}
+          onRelayHealthFlyoutOpenChange={setRelayHealthFlyoutOpen}
+          relayHealthSnapshot={relayHealthQuery.data}
+          relayHealthFetching={relayHealthQuery.isFetching}
+          onRelayHealthProbe={() => void relayHealthQuery.refetch()}
         />
         {showRelayHealthOverlay ? (
           <GameRelayStatusOverlay
