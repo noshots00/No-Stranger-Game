@@ -9,6 +9,12 @@ import {
   RPG_UI_META,
   RPG_UI_UI,
 } from '../typography/rpgUiTypography';
+import { ArenaTrainerTalkView } from './ArenaTrainerTalk';
+import {
+  TRAINER_ATTACK_LABEL,
+  TRAINER_LEAVE_LABEL,
+} from './arenaTrainerDialogueTree';
+import { useArenaTrainerTalk } from './useArenaTrainerTalk';
 import { getCombatRating } from './combatRating';
 import { formatArenaFightLine, createEmptyArenaRecord } from './arenaRecord';
 import type { ArenaMatchResult, ArenaOpenRegistration } from './arenaNostr';
@@ -21,6 +27,8 @@ type ArenaScreenProps = {
   questState: QuestState;
   myPubkey: string | undefined;
   tournament: ReturnType<typeof useArenaTournament>;
+  playerHealth: number;
+  onPlayerHealthChange?: (health: number) => void;
 };
 
 function formatMatchTime(atMs: number): string {
@@ -88,8 +96,11 @@ export function ArenaScreen({
   questState,
   myPubkey,
   tournament,
+  playerHealth,
+  onPlayerHealthChange,
 }: ArenaScreenProps) {
   const [arenaTab, setArenaTab] = useState<'tournament' | 'stats'>('tournament');
+  const [trainerTalkOpen, setTrainerTalkOpen] = useState(false);
   const combatRating = getCombatRating(questState);
   const arenaRecord: ArenaRecord = questState.arenaRecord ?? createEmptyArenaRecord();
   const { feed, feedQuery, register } = tournament;
@@ -109,26 +120,69 @@ export function ArenaScreen({
       ? 'Waiting for opponent…'
       : 'Register for tournament';
 
+  const trainerTalk = useArenaTrainerTalk({
+    active: trainerTalkOpen,
+    playerHealth,
+    onPlayerHealthChange,
+    onLeave: () => setTrainerTalkOpen(false),
+  });
+
   return (
     <VillageLocationScreen
       panel="arena"
       className={className}
       onClose={onClose}
+      fillViewport={trainerTalkOpen}
+      hideLeaveButton={trainerTalkOpen && trainerTalk.isCombatMode}
       footer={
-        arenaTab === 'tournament' ? (
-          <li>
-            <button
-              type="button"
-              className={RPG_COMMAND_CHIP}
-              disabled={!myPubkey || register.isPending || Boolean(feed.myOpen)}
-              onClick={() => register.mutate()}
-            >
-              <span className={RPG_COMMAND_CHIP_LABEL}>{registerLabel}</span>
-            </button>
-          </li>
-        ) : null
+        trainerTalkOpen && !trainerTalk.isCombatMode ? (
+          <>
+            <li>
+              <button
+                type="button"
+                className={cn(RPG_COMMAND_CHIP, 'rpg-command-chip--danger')}
+                onClick={trainerTalk.handleAttack}
+              >
+                <span className={RPG_COMMAND_CHIP_LABEL}>{TRAINER_ATTACK_LABEL}</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" className={RPG_COMMAND_CHIP} onClick={trainerTalk.handleLeave}>
+                <span className={RPG_COMMAND_CHIP_LABEL}>{TRAINER_LEAVE_LABEL}</span>
+              </button>
+            </li>
+          </>
+        ) : trainerTalkOpen ? null : (
+          <>
+            <li>
+              <button
+                type="button"
+                className={RPG_COMMAND_CHIP}
+                onClick={() => setTrainerTalkOpen(true)}
+              >
+                <span className={RPG_COMMAND_CHIP_LABEL}>Fight the Trainer</span>
+              </button>
+            </li>
+            {arenaTab === 'tournament' ? (
+              <li>
+                <button
+                  type="button"
+                  className={RPG_COMMAND_CHIP}
+                  disabled={!myPubkey || register.isPending || Boolean(feed.myOpen)}
+                  onClick={() => register.mutate()}
+                >
+                  <span className={RPG_COMMAND_CHIP_LABEL}>{registerLabel}</span>
+                </button>
+              </li>
+            ) : null}
+          </>
+        )
       }
     >
+      {trainerTalkOpen ? (
+        <ArenaTrainerTalkView {...trainerTalk} className="h-full min-h-0" />
+      ) : (
+        <>
       <p className={cn(RPG_UI_CAPTION, 'text-center')}>Combat rating {combatRating}</p>
 
       <div className="grid w-full shrink-0 grid-cols-2 gap-0.5 rounded-md border border-[var(--candle-rule)] bg-black/30 p-0.5">
@@ -216,6 +270,8 @@ export function ArenaScreen({
             )}
           </div>
         </div>
+      )}
+        </>
       )}
     </VillageLocationScreen>
   );

@@ -1143,6 +1143,15 @@ function questAdvanceScore(state: QuestState): number {
   return completed * 1000 + state.unveiledQuestIds.length * 10 + state.lastDailyXpDay;
 }
 
+function mergeHydratedHealth(relayHealth: unknown, localHealth: unknown): number {
+  const toScore = (value: unknown): number =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.min(100, Math.floor(value)))
+      : -1;
+  const merged = Math.max(toScore(relayHealth), toScore(localHealth));
+  return merged >= 0 ? merged : 100;
+}
+
 function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
   const localAhead = questAdvanceScore(local) >= questAdvanceScore(relay);
   const preferred = localAhead ? local : relay;
@@ -1160,7 +1169,7 @@ function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
     dialogueLog: dialogueSource.dialogueLog,
     journalLog: journalSource.journalLog,
     experience: Math.max(relay.experience, local.experience),
-    health: Math.max(relay.health, local.health),
+    health: mergeHydratedHealth(relay.health, local.health),
     skills: {
       explorationXp: Math.max(relay.skills.explorationXp, local.skills.explorationXp),
       foragingXp: Math.max(relay.skills.foragingXp, local.skills.foragingXp),

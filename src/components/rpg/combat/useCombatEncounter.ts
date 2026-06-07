@@ -10,20 +10,13 @@ const PLAYER_STRIKE_DAMAGE = 10;
 const ENEMY_RETALIATE_DAMAGE = 4;
 const VICTORY_RETURN_MS = 1200;
 
-const PLAYER_STRIKE_LINES = [
-  'You strike Carl.',
-  'You press the attack.',
-  'Your blow lands—Carl shifts his footing.',
-] as const;
-
-const ENEMY_RETALIATE_LINES = [
-  'Carl parries and counters.',
-  'Carl blocks, then answers with a sharp riposte.',
-  'Carl meets your strike and gives ground only an inch.',
-] as const;
-
 function clampHealth(value: number): number {
-  return Math.max(0, Math.min(100, value));
+  if (!Number.isFinite(value)) return 100;
+  return Math.max(0, Math.min(100, Math.floor(value)));
+}
+
+function resolvePlayerHealth(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? clampHealth(value) : 100;
 }
 
 type UseCombatEncounterOptions = {
@@ -49,9 +42,15 @@ export function useCombatEncounter({
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const endingRef = useRef(false);
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const playerHealthRef = useRef(playerHealth);
+  const playerHealthRef = useRef(resolvePlayerHealth(playerHealth));
+  const onPlayerHealthChangeRef = useRef(onPlayerHealthChange);
+  const onCombatChromeChangeRef = useRef(onCombatChromeChange);
+  const onVictoryRef = useRef(onVictory);
 
-  playerHealthRef.current = playerHealth;
+  playerHealthRef.current = resolvePlayerHealth(playerHealth);
+  onPlayerHealthChangeRef.current = onPlayerHealthChange;
+  onCombatChromeChangeRef.current = onCombatChromeChange;
+  onVictoryRef.current = onVictory;
 
   const appendLog = useCallback((text: string, tone: CombatLogLine['tone']) => {
     setCombatLog((prev) => [...prev, { id: nextCombatLogId(), text, tone }]);
@@ -62,13 +61,13 @@ export function useCombatEncounter({
     setPhase('talk');
     setCombatLog([]);
     setEnemyHp(def.maxEnemyHp);
-    onCombatChromeChange?.(false);
-  }, [def.maxEnemyHp, onCombatChromeChange]);
+    onCombatChromeChangeRef.current?.(false);
+  }, [def.maxEnemyHp]);
 
   const scheduleVictoryReturn = useCallback(() => {
     if (endingRef.current) return;
     endingRef.current = true;
-    window.setTimeout(() => onVictory?.(), 0);
+    window.setTimeout(() => onVictoryRef.current?.(), 0);
     setCombatLog((prev) => [
       ...prev,
       ...def.victoryLines.map((text) => ({
@@ -78,7 +77,25 @@ export function useCombatEncounter({
       })),
     ]);
     window.setTimeout(() => finishCombat(), VICTORY_RETURN_MS);
-  }, [def.victoryLines, finishCombat, onVictory]);
+  }, [def.victoryLines, finishCombat]);
+
+  const scheduleDefeatReturn = useCallback(() => {
+    if (endingRef.current) return;
+    endingRef.current = true;
+    setCombatLog((prev) => [
+      ...prev,
+      ...def.defeatLines.map((text) => ({
+        id: nextCombatLogId(),
+        text,
+        tone: 'narrator' as const,
+      })),
+    ]);
+    window.setTimeout(() => {
+      onPlayerHealthChangeRef.current?.(100);
+      playerHealthRef.current = 100;
+      finishCombat();
+    }, VICTORY_RETURN_MS);
+  }, [def.defeatLines, finishCombat]);
 
   const startCombat = useCallback(() => {
     if (phase !== 'talk') return;
@@ -86,7 +103,7 @@ export function useCombatEncounter({
     setPhase('entering');
     setCombatLog([{ id: nextCombatLogId(), text: def.enterLine, tone: 'narrator' }]);
     setEnemyHp(def.maxEnemyHp);
-    onCombatChromeChange?.(true);
+    onCombatChromeChangeRef.current?.(true);
 
     if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
     enterTimerRef.current = setTimeout(() => {
@@ -94,7 +111,7 @@ export function useCombatEncounter({
       setPhase('combat');
       appendLog('Battle joined—your strikes land on their own rhythm.', 'narrator');
     }, ENTER_DELAY_MS);
-  }, [appendLog, def.enterLine, def.maxEnemyHp, onCombatChromeChange, phase]);
+  }, [appendLog, def.enterLine, def.maxEnemyHp, phase]);
 
   const flee = useCallback(() => {
     if (phase !== 'combat' && phase !== 'entering') return;
@@ -113,16 +130,24 @@ export function useCombatEncounter({
     };
   }, []);
 
+  const scheduleVictoryReturnRef = useRef(scheduleVictoryReturn);
+  scheduleVictoryReturnRef.current = scheduleVictoryReturn;
+  const scheduleDefeatReturnRef = useRef(scheduleDefeatReturn);
+  scheduleDefeatReturnRef.current = scheduleDefeatReturn;
+
   useEffect(() => {
     if (phase !== 'combat' || endingRef.current) return;
+
+    const playerStrikeLines = def.playerStrikeLines;
+    const enemyRetaliateLines = def.enemyRetaliateLines;
 
     const timer = window.setInterval(() => {
       if (endingRef.current) return;
 
       setCombatLog((logPrev) => {
         const tick = logPrev.length;
-        const playerLine = PLAYER_STRIKE_LINES[tick % PLAYER_STRIKE_LINES.length]!;
-        const enemyLine = ENEMY_RETALIATE_LINES[tick % ENEMY_RETALIATE_LINES.length]!;
+        const playerLine = playerStrikeLines[tick % playerStrikeLines.length]!;
+        const enemyLine = enemyRetaliateLines[tick % enemyRetaliateLines.length]!;
         return [
           ...logPrev,
           { id: nextCombatLogId(), text: playerLine, tone: 'player' },
@@ -130,21 +155,29 @@ export function useCombatEncounter({
         ];
       });
 
-      onPlayerHealthChange?.(clampHealth(playerHealthRef.current - ENEMY_RETALIATE_DAMAGE));
+      const nextPlayerHp = clampHealth(playerHealthRef.current - ENEMY_RETALIATE_DAMAGE);
+      playerHealthRef.current = nextPlayerHp;
+      onPlayerHealthChangeRef.current?.(nextPlayerHp);
+
+      if (nextPlayerHp <= 0) {
+        window.clearInterval(timer);
+        window.setTimeout(() => scheduleDefeatReturnRef.current(), 0);
+        return;
+      }
 
       setEnemyHp((hp) => {
         const nextHp = Math.max(0, hp - PLAYER_STRIKE_DAMAGE);
         if (nextHp <= 0) {
           window.clearInterval(timer);
           // Defer victory hooks — never call parent setState from inside this updater.
-          window.setTimeout(() => scheduleVictoryReturn(), 0);
+          window.setTimeout(() => scheduleVictoryReturnRef.current(), 0);
         }
         return nextHp;
       });
     }, AUTO_ATTACK_TICK_MS);
 
     return () => window.clearInterval(timer);
-  }, [onPlayerHealthChange, phase, scheduleVictoryReturn]);
+  }, [def.enemyRetaliateLines, def.playerStrikeLines, phase]);
 
   useLayoutEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -159,7 +192,7 @@ export function useCombatEncounter({
     logEndRef,
     enemyHp,
     enemyMaxHp: def.maxEnemyHp,
-    playerHp: clampHealth(playerHealth),
+    playerHp: resolvePlayerHealth(playerHealth),
     playerMaxHp: 100,
     displayName: def.displayName,
     startCombat,

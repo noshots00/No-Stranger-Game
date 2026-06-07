@@ -76,6 +76,9 @@ type VillagePlayTabProps = {
   onSwitchJob: (jobSlug: string) => void;
   onMayorVoteRecorded?: (candidateName: string) => void;
   onMayorVoteRetracted?: () => void;
+  dayCounter: number;
+  dayPacingActive: boolean;
+  nextDayResetMs: number | null;
 };
 
 export function VillagePlayTab({
@@ -126,6 +129,9 @@ export function VillagePlayTab({
   onSwitchJob,
   onMayorVoteRecorded,
   onMayorVoteRetracted,
+  dayCounter,
+  dayPacingActive,
+  nextDayResetMs,
 }: VillagePlayTabProps) {
   const showQuestScene =
     Boolean(playSceneQuestId) &&
@@ -171,6 +177,8 @@ export function VillagePlayTab({
             questState={questState}
             myPubkey={myPubkey}
             tournament={arenaTournament}
+            playerHealth={playerHealth}
+            onPlayerHealthChange={onPlayerHealthChange}
           />
         );
       case 'blobbiFighting':
@@ -254,6 +262,12 @@ export function VillagePlayTab({
           onDialogueScroll={onDialogueScroll}
           visibleLocationActions={[]}
           playerFlags={playerFlags}
+          activeJobSlug={questState.activeJobSlug}
+          skills={questState.skills}
+          dayCounter={dayCounter}
+          dayPacingActive={dayPacingActive}
+          nextDayResetMs={nextDayResetMs}
+          communityProject={villageProjects.progress}
         />
       )}
     </div>

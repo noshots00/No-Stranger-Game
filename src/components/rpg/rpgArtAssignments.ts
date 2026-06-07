@@ -282,11 +282,13 @@ export function getQuestPopupPortraitSrc(quest: QuestDefinition, stepId: string)
 export const NPC_PORTRAIT_BY_ID: Record<string, string> = {
   carl: publicAsset(`${CONVERTED_ART}/atlantian-artist.webp`),
   shannon: publicAsset(`${CONVERTED_ART}/wa195531.webp`),
+  trainer: publicAsset(`${CONVERTED_ART}/river-kingdom-marching.webp`),
 };
 
 /** Hero background for NPC talk scenes (portrait uses `NPC_PORTRAIT_BY_ID`). */
 export const NPC_TALK_BACKGROUND_BY_ID: Record<string, string> = {
   shannon: batchAsset(VILLAGE_MAP_PATH),
+  trainer: publicAsset(`${CONVERTED_ART}/ancient-war.webp`),
 };
 
 export function getNpcPortraitSrc(npcTalkId: string): string {

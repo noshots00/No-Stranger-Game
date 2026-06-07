@@ -7,6 +7,7 @@ import type {
   ModifierMap,
   QuestDefinition,
   QuestProgress,
+  QuestState,
   QuestStep,
 } from '../quests/types';
 type PlayTabProps = {
@@ -40,6 +41,11 @@ type PlayTabProps = {
   playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
+  activeJobSlug?: string | null;
+  skills?: QuestState['skills'];
+  dayCounter?: number;
+  dayPacingActive?: boolean;
+  nextDayResetMs?: number | null;
 };
 
 export function PlayTab({
@@ -73,6 +79,11 @@ export function PlayTab({
   playerHealth = 100,
   onPlayerHealthChange,
   questProgress,
+  activeJobSlug = null,
+  skills,
+  dayCounter = 1,
+  dayPacingActive = false,
+  nextDayResetMs = null,
 }: PlayTabProps) {
   const showQuestScene =
     Boolean(playSceneQuestId) &&
@@ -122,6 +133,11 @@ export function PlayTab({
       visibleLocationActions={visibleLocationActions}
       playerFlags={playerFlags}
       onLocationAction={onLocationAction}
+      activeJobSlug={activeJobSlug}
+      skills={skills}
+      dayCounter={dayCounter}
+      dayPacingActive={dayPacingActive}
+      nextDayResetMs={nextDayResetMs}
     />
   );
 }

@@ -52,6 +52,7 @@ import {
 import {
   fetchMayorElection,
   MAYORS_HUT_FEED_KEY,
+  useMayorElectionQuery,
 } from '@/components/rpg/mayorsHut/useMayorElectionQuery';
 import type { ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
@@ -328,6 +329,7 @@ export function RPGInterface() {
     rapidDaySimulation,
     setRapidDaySimulation,
     isPacingResolved,
+    nextDayResetMs,
   } = useDayCounter({ questCreationDateEastern: questState.characterCreationDateEastern });
 
   const showEarlyDevResetGate = isQuestStateHydrated && needsMandatoryCharacterReset(questState);
@@ -613,6 +615,9 @@ export function RPGInterface() {
     persistQuestCheckpoint,
   });
 
+  const villageHubFeedsEnabled = canShowGame && isVillagePhase(questState.flags);
+  useMayorElectionQuery({ enabled: villageHubFeedsEnabled });
+
   const mayorsHut = useMayorsHut({
     enabled: activeVillagePanel === 'townHall' && canShowGame,
     questState,
@@ -620,7 +625,7 @@ export function RPGInterface() {
   });
 
   const villageProjects = useVillageProjects({
-    enabled: activeVillagePanel === 'townHall' && canShowGame,
+    enabled: villageHubFeedsEnabled,
     questState,
     myPubkey: user?.pubkey,
     election: mayorsHut.election,
@@ -1847,10 +1852,18 @@ export function RPGInterface() {
               questItems={questState.questItems}
               onInventoryPickSubmit={handleInventoryPickSubmit}
               showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
-              playerHealth={questState.health}
-              onPlayerHealthChange={(health) =>
-                setQuestState((prev) => ({ ...prev, health: Math.max(0, Math.min(100, health)) }))
+              playerHealth={
+                typeof questState.health === 'number' && Number.isFinite(questState.health)
+                  ? questState.health
+                  : 100
               }
+              onPlayerHealthChange={(health) => {
+                if (!Number.isFinite(health)) return;
+                setQuestState((prev) => ({
+                  ...prev,
+                  health: Math.max(0, Math.min(100, Math.floor(health))),
+                }));
+              }}
               questProgress={
                 activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
               }
@@ -1872,6 +1885,9 @@ export function RPGInterface() {
               onSwitchJob={handleJobsSwitch}
               onMayorVoteRecorded={handleMayorVoteRecorded}
               onMayorVoteRetracted={handleMayorVoteRetracted}
+              dayCounter={displayDay}
+              dayPacingActive={questContext.dayPacingActive}
+              nextDayResetMs={nextDayResetMs}
             />
           );
         }
@@ -1904,13 +1920,26 @@ export function RPGInterface() {
             questItems={questState.questItems}
             onInventoryPickSubmit={handleInventoryPickSubmit}
             showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
-            playerHealth={questState.health}
-            onPlayerHealthChange={(health) =>
-              setQuestState((prev) => ({ ...prev, health: Math.max(0, Math.min(100, health)) }))
+            playerHealth={
+              typeof questState.health === 'number' && Number.isFinite(questState.health)
+                ? questState.health
+                : 100
             }
+            onPlayerHealthChange={(health) => {
+              if (!Number.isFinite(health)) return;
+              setQuestState((prev) => ({
+                ...prev,
+                health: Math.max(0, Math.min(100, Math.floor(health))),
+              }));
+            }}
             questProgress={
               activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
             }
+            activeJobSlug={questState.activeJobSlug}
+            skills={questState.skills}
+            dayCounter={displayDay}
+            dayPacingActive={questContext.dayPacingActive}
+            nextDayResetMs={nextDayResetMs}
           />
         );
     }
@@ -1988,7 +2017,11 @@ export function RPGInterface() {
           devToolsMenuOpen={devToolsMenuOpen}
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
           onEnableDevTools={handleEnableDevTools}
-          health={questState.health}
+          health={
+            typeof questState.health === 'number' && Number.isFinite(questState.health)
+              ? questState.health
+              : 100
+          }
           walletCopper={walletCopper}
           relayHealthFlyoutOpen={relayHealthFlyoutOpen}
           onRelayHealthFlyoutOpenChange={setRelayHealthFlyoutOpen}

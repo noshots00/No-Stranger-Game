@@ -73,6 +73,9 @@ type VillagePlaySurfaceProps = {
   onMayorVoteRecorded?: (candidateName: string) => void;
   onMayorVoteRetracted?: () => void;
   onTravelToLocation: (locationId: string) => void;
+  dayCounter: number;
+  dayPacingActive: boolean;
+  nextDayResetMs: number | null;
 };
 
 export function VillagePlaySurface({
@@ -124,6 +127,9 @@ export function VillagePlaySurface({
   onMayorVoteRecorded,
   onMayorVoteRetracted,
   onTravelToLocation,
+  dayCounter,
+  dayPacingActive,
+  nextDayResetMs,
 }: VillagePlaySurfaceProps) {
   const { user } = useCurrentUser();
   const displayName = playerName.trim() || 'Stranger';
@@ -139,7 +145,7 @@ export function VillagePlaySurface({
 
   return (
     <section
-      className="relative isolate flex h-full min-h-0 flex-1 flex-col overflow-hidden px-1"
+      className="relative isolate flex h-full min-h-0 flex-1 flex-col overflow-hidden px-0"
       aria-label="Village hub"
     >
       <VillagePlayTab
@@ -190,6 +196,9 @@ export function VillagePlaySurface({
         onSwitchJob={onSwitchJob}
         onMayorVoteRecorded={onMayorVoteRecorded}
         onMayorVoteRetracted={onMayorVoteRetracted}
+        dayCounter={dayCounter}
+        dayPacingActive={dayPacingActive}
+        nextDayResetMs={nextDayResetMs}
       />
     </section>
   );

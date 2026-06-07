@@ -7,7 +7,10 @@ import {
   ORIGIN_QUEST_OPENED_FLAG,
   WORLD_EVENT_PRINTS_ENABLED,
 } from '../constants';
+import { ActiveStateCard } from './ActiveStateCard';
 import { QuestCardHeader } from './QuestCardHeader';
+import type { QuestState } from '../quests/types';
+import type { VillageProjectProgress } from '../villageProjects/villageProjectNostr';
 import {
   RPG_CHOICE_GRID,
   RPG_COMMAND_CHIP,
@@ -35,6 +38,13 @@ export type JournalScreenProps = {
   visibleLocationActions: string[];
   playerFlags: string[];
   onLocationAction?: (actionLabel: string) => void;
+  /** Idle journal card — profession earnings + next day countdown. */
+  activeJobSlug?: string | null;
+  skills?: QuestState['skills'];
+  dayCounter?: number;
+  dayPacingActive?: boolean;
+  nextDayResetMs?: number | null;
+  communityProject?: Pick<VillageProjectProgress, 'definition' | 'totals'> | null;
   /** Extra classes on the root section. */
   className?: string;
 };
@@ -53,6 +63,12 @@ export function JournalScreen({
   visibleLocationActions,
   playerFlags,
   onLocationAction,
+  activeJobSlug = null,
+  skills,
+  dayCounter = 1,
+  dayPacingActive = false,
+  nextDayResetMs = null,
+  communityProject = null,
   className,
 }: JournalScreenProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
@@ -135,6 +151,9 @@ export function JournalScreen({
       ? 'Welcome to No Stranger Game'
       : defaultBriefing;
 
+  const showActiveStateCard =
+    questCardRows.length === 0 && Boolean(activeJobSlug) && skills !== undefined;
+
   const locationActionsBlock =
     visibleLocationActions.length > 0 ? (
       <div className="space-y-1.5 border-t border-[var(--candle-rule)] pt-2">
@@ -161,7 +180,12 @@ export function JournalScreen({
         onScroll={onDialogueScroll}
         className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0 [scroll-padding-bottom:min(8dvh,80px)]"
       >
-        <div className="play-feed-scroll-inner facsimile-scroll-dialogue-inner !pl-[16px] !pr-[16px] space-y-1">
+        <div
+          className={cn(
+            'play-feed-scroll-inner facsimile-scroll-dialogue-inner space-y-1',
+            '!px-[5px]'
+          )}
+        >
           {playLedgerRows.map((row, idx) => {
             if (row.kind === 'story') {
               const segment = row.segment;
@@ -229,7 +253,7 @@ export function JournalScreen({
       </div>
 
       {questCardRows.length > 0 ? (
-        <div className="shrink-0 space-y-1 bg-black/20 px-[16px] py-1.5">
+        <div className={cn('shrink-0 space-y-1 bg-black/20 py-1.5', '!px-[5px]')}>
           {questCardRows.map((quest) => {
             const isNew = newQuestIds.includes(quest.id);
             const briefingText = resolveQuestBriefing(quest.id, quest.briefing);
@@ -248,6 +272,19 @@ export function JournalScreen({
               </div>
             );
           })}
+        </div>
+      ) : null}
+
+      {showActiveStateCard && activeJobSlug && skills ? (
+        <div className="w-full shrink-0">
+          <ActiveStateCard
+            activeJobSlug={activeJobSlug}
+            skills={skills}
+            dayCounter={dayCounter}
+            dayPacingActive={dayPacingActive}
+            nextDayResetMs={nextDayResetMs}
+            communityProject={communityProject}
+          />
         </div>
       ) : null}
 

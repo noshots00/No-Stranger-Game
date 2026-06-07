@@ -50,9 +50,18 @@ export const RPG_CHOICE_GRID = 'rpg-choice-grid';
 export const RPG_SCENE_BANNER =
   'aspect-[16/7] w-full overflow-hidden rounded-md border border-[var(--candle-rule)] shadow-[0_8px_28px_rgba(0,0,0,0.4)]';
 
+/** Tight horizontal inset for play journal log and quest cards. */
+export const RPG_PLAY_JOURNAL_GUTTER = 'px-[5px]';
+
+/** @deprecated Use `RPG_PLAY_JOURNAL_GUTTER`. */
+export const RPG_PLAY_CONTENT_GUTTER = RPG_PLAY_JOURNAL_GUTTER;
+
+/** Full-bleed village hub strip — location cloud + earning indicator. */
+export const RPG_VILLAGE_HUB_STRIP =
+  'h-[4.75rem] w-full overflow-hidden border-y border-[var(--candle-rule)] shadow-[0_4px_16px_rgba(0,0,0,0.35)]';
+
 /** Compact village hub strip — location cloud + inline location screens. */
-export const RPG_VILLAGE_HUB_BANNER =
-  'h-[4.75rem] w-full overflow-hidden rounded-md border border-[var(--candle-rule)] shadow-[0_4px_16px_rgba(0,0,0,0.35)]';
+export const RPG_VILLAGE_HUB_BANNER = RPG_VILLAGE_HUB_STRIP;
 
 /** Vertical command stack — NPC / merchant talk panes */
 export const RPG_CHOICE_STACK = 'rpg-choice-stack';

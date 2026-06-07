@@ -113,20 +113,24 @@ export function QuestSceneCombat({
       </div>
 
       <QuestSceneActionBox ref={actionBoxRef} innerClassName="space-y-1">
-          <p className={cn(RPG_UI_EMPHASIS, 'px-0.5')}>Battle — {displayName}</p>
-          <div className="flex gap-2 px-0.5">
-            <CombatHpBar label="You" current={playerHp} max={playerMaxHp} variant="player" />
-            <CombatHpBar label={displayName} current={enemyHp} max={enemyMaxHp} variant="enemy" />
-          </div>
-          <div className="px-0.5">
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <p className={cn(RPG_UI_EMPHASIS, 'min-w-0 truncate')}>Battle — {displayName}</p>
             <button
               type="button"
               disabled={fleeDisabled}
               onClick={onFlee}
-              className={cn(QUEST_SCENE_CONTINUE, fleeDisabled && 'cursor-not-allowed opacity-50')}
+              className={cn(
+                QUEST_SCENE_CONTINUE,
+                'shrink-0',
+                fleeDisabled && 'cursor-not-allowed opacity-50'
+              )}
             >
               Flee
             </button>
+          </div>
+          <div className="flex gap-2 px-0.5">
+            <CombatHpBar label="You" current={playerHp} max={playerMaxHp} variant="player" />
+            <CombatHpBar label={displayName} current={enemyHp} max={enemyMaxHp} variant="enemy" />
           </div>
       </QuestSceneActionBox>
     </QuestSceneContentPanel>

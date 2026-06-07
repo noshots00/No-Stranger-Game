@@ -21,7 +21,8 @@ type NpcTalkSceneLayoutProps = {
   logEndRef: RefObject<HTMLDivElement | null>;
   logAriaLabel: string;
   actionBoxRef: RefObject<HTMLDivElement | null>;
-  choicePane: ReactNode;
+  /** Omit to hide the in-panel choice box (e.g. village footer drives actions). */
+  choicePane?: ReactNode;
 };
 
 export function NpcTalkSceneLayout({
@@ -102,7 +103,9 @@ export function NpcTalkSceneLayout({
           </div>
         </div>
 
-        <QuestSceneActionBox ref={actionBoxRef}>{choicePane}</QuestSceneActionBox>
+        {choicePane ? (
+          <QuestSceneActionBox ref={actionBoxRef}>{choicePane}</QuestSceneActionBox>
+        ) : null}
       </QuestSceneContentPanel>
     </div>
   );

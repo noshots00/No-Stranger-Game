@@ -21,6 +21,10 @@ type VillageLocationScreenProps = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** NPC talk / combat fills the panel instead of scrolling in a short viewport. */
+  fillViewport?: boolean;
+  /** Hide the panel leave chip (e.g. trainer combat uses Flee instead). */
+  hideLeaveButton?: boolean;
 };
 
 export function VillageLocationScreen({
@@ -30,6 +34,8 @@ export function VillageLocationScreen({
   onClose,
   children,
   footer,
+  fillViewport = false,
+  hideLeaveButton = false,
 }: VillageLocationScreenProps) {
   const banner = getVillageLocationBanner(panel);
   const displayTagline = tagline ?? banner.tagline;
@@ -48,19 +54,28 @@ export function VillageLocationScreen({
         <p className={cn(RPG_UI_CAPTION, 'text-center text-[var(--candle-wax)]')}>{displayTagline}</p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-0.5 [scroll-padding-bottom:min(6dvh,64px)]">
-        <div className="space-y-1">{children}</div>
+      <div
+        className={cn(
+          'min-h-0 flex-1 px-0.5',
+          fillViewport
+            ? 'flex flex-col overflow-hidden'
+            : 'overflow-y-auto [scroll-padding-bottom:min(6dvh,64px)]'
+        )}
+      >
+        <div className={cn(fillViewport ? 'flex min-h-0 flex-1 flex-col' : 'space-y-1')}>{children}</div>
       </div>
 
       <div className="shrink-0 space-y-1 pt-0.5">
         {footer ? <ul className={RPG_CHOICE_GRID}>{footer}</ul> : null}
-        <ul className={RPG_CHOICE_GRID}>
-          <li>
-            <button type="button" className={RPG_COMMAND_CHIP} onClick={onClose}>
-              <span className={RPG_COMMAND_CHIP_LABEL}>{banner.leaveLabel}</span>
-            </button>
-          </li>
-        </ul>
+        {hideLeaveButton ? null : (
+          <ul className={RPG_CHOICE_GRID}>
+            <li>
+              <button type="button" className={RPG_COMMAND_CHIP} onClick={onClose}>
+                <span className={RPG_COMMAND_CHIP_LABEL}>{banner.leaveLabel}</span>
+              </button>
+            </li>
+          </ul>
+        )}
       </div>
     </section>
   );

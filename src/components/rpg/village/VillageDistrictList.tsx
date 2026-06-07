@@ -93,7 +93,7 @@ export function VillageDistrictList({
   );
 
   return (
-    <div className="px-0.5">
+    <div className="w-full shrink-0">
       <div className={cn('village-location-cloud-panel', RPG_VILLAGE_HUB_BANNER)}>
         <img src={VILLAGE_MAP_SRC} alt="" className="village-location-cloud-panel__art" />
         <ul className={cn(RPG_CHOICE_GRID, 'village-location-cloud')} role="list">
