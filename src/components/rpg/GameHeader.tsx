@@ -153,7 +153,7 @@ export function GameHeader({
       </HeaderFlyout>
     );
 
-  const relayHealthControl = showHeaderDevTools ? (
+  const relayHealthControl = (
     <HeaderFlyout
       open={relayHealthFlyoutOpen}
       onOpenChange={(open) => onRelayHealthFlyoutOpenChange?.(open)}
@@ -173,7 +173,7 @@ export function GameHeader({
         onRefresh={() => onRelayHealthProbe?.()}
       />
     </HeaderFlyout>
-  ) : null;
+  );
 
   let healthControl: ReactNode;
   if (showHeaderDevTools && devToolsPanel) {
