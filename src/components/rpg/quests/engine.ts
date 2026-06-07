@@ -1672,6 +1672,9 @@ export const applyHealthFromChoiceEffect = (state: QuestState, effect?: ChoiceEf
   if (typeof effect.healthDelta === 'number' && Number.isFinite(effect.healthDelta)) {
     health = Math.max(0, Math.min(100, Math.floor(health + effect.healthDelta)));
   }
+  if (typeof effect.healthSet === 'number' && Number.isFinite(effect.healthSet)) {
+    health = Math.max(0, Math.min(100, Math.floor(effect.healthSet)));
+  }
   return health === state.health ? state : { ...state, health };
 };
 

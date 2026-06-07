@@ -355,7 +355,7 @@ export function RPGInterface() {
   const [hasShownGameOnce, setHasShownGameOnce] = useState(() => hasShownGameOnceInSession);
 
   const socialQueriesEnabled = activeTab === 'social' && canShowGame;
-  const { socialStats, socialActivityQuery, socialKindredSignalsQuery, lobbyNameMap } = useSocialQueries({
+  const { socialStats, socialActivityQuery, lobbyNameMap } = useSocialQueries({
     enabled: socialQueriesEnabled,
   });
 
@@ -1809,11 +1809,8 @@ export function RPGInterface() {
       case 'social':
         return (
           <SocialTab
-            socialStats={socialStats}
             activityRows={socialActivityQuery.data ?? []}
             activityStatus={socialActivityQuery.isPending ? 'pending' : socialActivityQuery.isError ? 'error' : 'success'}
-            kindredSignalRows={socialKindredSignalsQuery.data ?? []}
-            kindredSignalStatus={socialKindredSignalsQuery.isPending ? 'pending' : socialKindredSignalsQuery.isError ? 'error' : 'success'}
             lobbyNameMap={lobbyNameMap}
             characterNameLabel={characterNameLabel}
             hasCharacter={questState.playerName.trim().length > 0}
@@ -1992,6 +1989,7 @@ export function RPGInterface() {
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
           onEnableDevTools={handleEnableDevTools}
           health={questState.health}
+          walletCopper={walletCopper}
           relayHealthFlyoutOpen={relayHealthFlyoutOpen}
           onRelayHealthFlyoutOpenChange={setRelayHealthFlyoutOpen}
           relayHealthSnapshot={relayHealthQuery.data}

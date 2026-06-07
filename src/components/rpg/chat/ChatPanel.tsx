@@ -8,6 +8,13 @@ import { useChatRoom } from './useChatRoom';
 import { PlayerBioDialog } from './PlayerBioDialog';
 import { useRpgSpeakerLobbySnapshots } from './useRpgSpeakerLobbySnapshots';
 
+export type ChatActivityPrint = {
+  key: string;
+  /** Unix ms — interleaved with chat message timestamps. */
+  atMs: number;
+  text: string;
+};
+
 type ChatPanelProps = {
   /** Stable group identifier (NIP-29 `h` tag). */
   groupId: string;
@@ -33,6 +40,10 @@ type ChatPanelProps = {
   fillAvailableHeight?: boolean;
   /** Has the player created a character? When false, gates the room behind a hint. */
   hasCharacter: boolean;
+  /** System activity lines (e.g. new players remembering their name) merged into the scroll list. */
+  activityPrints?: ChatActivityPrint[];
+  activityLoading?: boolean;
+  activityError?: boolean;
 };
 
 const truncate = (text: string, max: number): string => {
@@ -52,6 +63,9 @@ export function ChatPanel({
   messageListClassName = 'max-h-40',
   fillAvailableHeight = false,
   hasCharacter,
+  activityPrints,
+  activityLoading = false,
+  activityError = false,
 }: ChatPanelProps) {
   const resolvedEmptyHint =
     emptyHint !== undefined ? emptyHint : 'No one else has spoken here yet.';
@@ -75,8 +89,23 @@ export function ChatPanel({
   const [bioDialog, setBioDialog] = useState<{ pubkeyHex: string; displayName: string } | null>(null);
   const listScrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const timeline = useMemo(() => {
+    type Row =
+      | { sortAt: number; kind: 'activity'; key: string; text: string }
+      | { sortAt: number; kind: 'message'; event: (typeof events)[number] };
+    const rows: Row[] = [];
+    for (const print of activityPrints ?? []) {
+      rows.push({ sortAt: print.atMs, kind: 'activity', key: print.key, text: print.text });
+    }
+    for (const event of events) {
+      rows.push({ sortAt: event.created_at * 1000, kind: 'message', event });
+    }
+    rows.sort((a, b) => a.sortAt - b.sortAt);
+    return rows;
+  }, [activityPrints, events]);
+
   const chatScrollRevision =
-    `${status}-${events.length}-${events.at(-1)?.created_at ?? ''}-${events.at(-1)?.id ?? ''}`;
+    `${status}-${timeline.length}-${activityLoading}-${events.at(-1)?.created_at ?? ''}-${events.at(-1)?.id ?? ''}`;
   useStickScrollBottom(
     listScrollContainerRef,
     Boolean(fillAvailableHeight && user && hasCharacter),
@@ -166,6 +195,12 @@ export function ChatPanel({
             </p>
           )
         ) : null}
+        {activityError ? (
+          <p className="mb-2 font-sans text-[0.6875rem] italic text-rose-300/90">Could not load activity.</p>
+        ) : null}
+        {activityLoading ? (
+          <p className="mb-2 font-sans text-[0.6875rem] italic text-[var(--candle-ink-faint)]">Loading activity…</p>
+        ) : null}
         {status === 'pending' ? (
           <p className="text-sm text-[var(--candle-ink-faint)]">Loading messages…</p>
         ) : status === 'error' ? (
@@ -173,13 +208,24 @@ export function ChatPanel({
             Could not load this room.
             {roomError instanceof Error && roomError.message ? ` (${roomError.message})` : ''}
           </p>
-        ) : events.length === 0 ? (
+        ) : timeline.length === 0 ? (
           resolvedEmptyHint ? (
             <p className="text-sm italic text-[var(--candle-ink-soft)]">{resolvedEmptyHint}</p>
           ) : null
         ) : (
           <ul className="space-y-2 text-sm text-[var(--candle-ink-soft)]">
-            {events.map((event) => {
+            {timeline.map((row) => {
+              if (row.kind === 'activity') {
+                return (
+                  <li
+                    key={`activity-${row.key}`}
+                    className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
+                  >
+                    {row.text}
+                  </li>
+                );
+              }
+              const event = row.event;
               const pkNorm = normalizePubkeyHex(event.pubkey);
               const isMine = pubkeysEqual(event.pubkey, user.pubkey);
               const speaker = isMine

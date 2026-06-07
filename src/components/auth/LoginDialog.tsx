@@ -18,6 +18,7 @@ import {
 } from '@/hooks/useLoginActions';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { parseNsecFromKeyFile } from '@/lib/nostrKeyFile';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -241,9 +242,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
       setIsFileLoading(false);
       const content = event.target?.result as string;
       if (content) {
-        const trimmedContent = content.trim();
-        if (validateNsec(trimmedContent)) {
-          executeLogin(trimmedContent);
+        const parsedNsec = parseNsecFromKeyFile(content);
+        if (parsedNsec && validateNsec(parsedNsec)) {
+          executeLogin(parsedNsec);
         } else {
           setErrors({ file: 'File does not contain a valid secret key.' });
         }
@@ -458,10 +459,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
             Log in
           </DialogTitle>
         </DialogHeader>
-
-        <div className="flex justify-center pb-2">
-          <div className="breathing-flame" aria-hidden />
-        </div>
 
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
           {/* Extension Login Button - shown if extension is available */}

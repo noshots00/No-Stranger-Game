@@ -10,6 +10,21 @@ describe('applyHealthFromChoiceEffect', () => {
     const next = applyHealthFromChoiceEffect(state, { healthLossFraction: 0.5 });
     expect(next.health).toBe(40);
   });
+
+  it('sets health to an absolute value after fractional loss', () => {
+    const state = { ...createInitialQuestState(), health: 100 };
+    const next = applyHealthFromChoiceEffect(state, {
+      healthLossFraction: 0.25,
+      healthSet: 100,
+    });
+    expect(next.health).toBe(100);
+  });
+
+  it('sets health from partial HP', () => {
+    const state = { ...createInitialQuestState(), health: 75 };
+    const next = applyHealthFromChoiceEffect(state, { healthSet: 100 });
+    expect(next.health).toBe(100);
+  });
 });
 
 describe("Dyer's Crypt skeleton fight", () => {

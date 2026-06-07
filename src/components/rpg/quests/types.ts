@@ -35,6 +35,8 @@ export type ChoiceEffect = {
   healthLossFraction?: number;
   /** Add to `QuestState.health` (clamped 0–100). */
   healthDelta?: number;
+  /** Set `QuestState.health` to this value (clamped 0–100). Applied after fractional loss / delta on the same effect. */
+  healthSet?: number;
 };
 
 export type QuestChoice = {

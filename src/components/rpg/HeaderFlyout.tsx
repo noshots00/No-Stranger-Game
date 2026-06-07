@@ -49,7 +49,11 @@ export function HeaderFlyout({
   return (
     <div
       ref={rootRef}
-      className={cn('relative min-w-0', align === 'end' && 'ml-auto', align === 'center' && 'mx-auto')}
+      className={cn(
+        'relative inline-flex h-3.5 min-h-3.5 min-w-0 items-center leading-none',
+        align === 'end' && 'ml-auto',
+        align === 'center' && 'mx-auto'
+      )}
     >
       <div
         role="button"
@@ -59,8 +63,8 @@ export function HeaderFlyout({
         aria-controls={open ? panelId : undefined}
         aria-label={ariaLabel}
         className={cn(
-          'min-w-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0 rounded-sm',
-          align === 'end' && 'flex justify-end'
+          'inline-flex h-3.5 min-h-3.5 min-w-0 items-center leading-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0 rounded-sm',
+          align === 'end' && 'justify-end'
         )}
         onClick={() => onOpenChange(!open)}
         onKeyDown={(event) => {

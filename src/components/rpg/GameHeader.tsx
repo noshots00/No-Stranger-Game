@@ -1,16 +1,21 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import type { GameRelayHealthSnapshot } from '@/lib/probeGameRelay';
-import { useRelayHealthIndicator } from '@/lib/relayInteractionLog';
+import { CoinAmountDisplay } from './CoinAmountDisplay';
+import { splitCopperIntoCoins } from './helpers';
 import { HeaderHealthBar } from './HeaderHealthBar';
 import { HeaderFlyout } from './HeaderFlyout';
 import { NewDot } from './NewDot';
-import { GameRelayStatusOverlay } from './dev/GameRelayStatusOverlay';
-import { RelayHealthIndicator, relayHealthIndicatorAriaLabel } from './dev/RelayHealthIndicator';
+import { GameRelayHealthControl } from './GameRelayHealthControl';
 import type { TravelMenuItem } from './travelLocations';
 import { cn } from '@/lib/utils';
 
 const DEV_TOOLS_UNLOCK_TAP_COUNT = 5;
 const DEV_TOOLS_UNLOCK_WINDOW_MS = 2000;
+/** Shared header strip height — matches `HeaderHealthBar` track. */
+const HEADER_ROW_CLASS = 'flex h-3.5 min-h-3.5 items-center leading-none';
+/** Day, coin, and location share one size/line box so baselines match. */
+const HEADER_META_CLASS =
+  'font-sans text-[9px] font-medium uppercase leading-none tracking-[0.02em]';
 
 type GameHeaderProps = {
   dayCounter: number;
@@ -30,6 +35,7 @@ type GameHeaderProps = {
   onDevToolsMenuOpenChange?: (open: boolean) => void;
   onEnableDevTools?: () => void;
   health?: number;
+  walletCopper?: number;
   relayHealthFlyoutOpen?: boolean;
   onRelayHealthFlyoutOpenChange?: (open: boolean) => void;
   relayHealthSnapshot?: GameRelayHealthSnapshot;
@@ -54,6 +60,7 @@ export function GameHeader({
   onDevToolsMenuOpenChange,
   onEnableDevTools,
   health = 100,
+  walletCopper = 0,
   relayHealthFlyoutOpen = false,
   onRelayHealthFlyoutOpenChange,
   relayHealthSnapshot,
@@ -63,7 +70,6 @@ export function GameHeader({
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const devUnlockTapCountRef = useRef(0);
   const devUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const relayIndicatorState = useRelayHealthIndicator();
 
   const handleDevUnlockTap = useCallback(() => {
     if (showHeaderDevTools || !onEnableDevTools) return;
@@ -82,28 +88,17 @@ export function GameHeader({
   const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
   const selectableDestinations = travelMenuItems.length;
   const locationLabel = formatLocationLabel(currentLocation);
+  const coinSplit = splitCopperIntoCoins(walletCopper);
 
-  const locationTrigger = (
-    <span
-      className={cn(
-        'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate font-sans text-[9px] uppercase leading-none tracking-[0.14em]',
-        locationIndicatorClass
-      )}
-    >
-      <span className="truncate">{locationLabel}</span>
-    </span>
+  const locationTextClass = cn(
+    HEADER_META_CLASS,
+    'block max-w-full truncate tracking-[0.14em]',
+    locationIndicatorClass
   );
 
   const locationControl =
     selectableDestinations === 0 ? (
-      <span
-        className={cn(
-          'inline-flex min-w-0 max-w-full items-center justify-end truncate font-sans text-[9px] uppercase leading-none tracking-[0.14em]',
-          locationIndicatorClass
-        )}
-      >
-        {locationLabel}
-      </span>
+      <span className={locationTextClass}>{locationLabel}</span>
     ) : selectableDestinations === 1 ? (
       <button
         type="button"
@@ -112,12 +107,12 @@ export function GameHeader({
           if (dest) onTravelLocationSelect(dest);
         }}
         className={cn(
-          'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
-          locationIndicatorClass
+          locationTextClass,
+          'rounded-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0'
         )}
         aria-label="Travel"
       >
-        {locationTrigger}
+        {locationLabel}
       </button>
     ) : (
       <HeaderFlyout
@@ -125,7 +120,7 @@ export function GameHeader({
         onOpenChange={setLocationMenuOpen}
         ariaLabel="Choose location"
         align="end"
-        trigger={locationTrigger}
+        trigger={<span className={locationTextClass}>{locationLabel}</span>}
       >
         <ul className="flex flex-col gap-0.5 p-0.5">
           {travelMenuItems.map((item) => (
@@ -154,34 +149,25 @@ export function GameHeader({
     );
 
   const relayHealthControl = (
-    <HeaderFlyout
-      open={relayHealthFlyoutOpen}
-      onOpenChange={(open) => onRelayHealthFlyoutOpenChange?.(open)}
-      ariaLabel={relayHealthIndicatorAriaLabel(relayIndicatorState)}
-      align="center"
-      panelClassName="p-0"
-      trigger={
-        <span className="inline-flex shrink-0 cursor-pointer rounded-sm p-0.5">
-          <RelayHealthIndicator state={relayIndicatorState} />
-        </span>
-      }
-    >
-      <GameRelayStatusOverlay
-        variant="flyout"
-        snapshot={relayHealthSnapshot}
-        isFetching={relayHealthFetching}
-        onRefresh={() => onRelayHealthProbe?.()}
-      />
-    </HeaderFlyout>
+    <GameRelayHealthControl
+      flyoutOpen={relayHealthFlyoutOpen}
+      onFlyoutOpenChange={(open) => onRelayHealthFlyoutOpenChange?.(open)}
+      snapshot={relayHealthSnapshot}
+      isFetching={relayHealthFetching}
+      onProbe={() => onRelayHealthProbe?.()}
+      align="start"
+      className="p-0"
+    />
   );
 
   let healthControl: ReactNode;
+  const healthBarClassName = 'max-w-[9.5rem] px-0.5';
   if (showHeaderDevTools && devToolsPanel) {
     if (devToolsInSideRail) {
       healthControl = (
         <>
           <div className="hidden min-w-0 flex-1 lg:block">
-            <HeaderHealthBar health={health} hideMeterSemantics className="px-0.5" />
+            <HeaderHealthBar health={health} hideMeterSemantics className={healthBarClassName} />
           </div>
           <div className="min-w-0 flex-1 lg:hidden">
             <HeaderFlyout
@@ -190,7 +176,9 @@ export function GameHeader({
               ariaLabel={`Health ${health}; open developer tools`}
               align="center"
               panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
-              trigger={<HeaderHealthBar health={health} hideMeterSemantics className="cursor-pointer" />}
+              trigger={
+                <HeaderHealthBar health={health} hideMeterSemantics className={`cursor-pointer ${healthBarClassName}`} />
+              }
             >
               {devToolsPanel}
             </HeaderFlyout>
@@ -206,7 +194,9 @@ export function GameHeader({
             ariaLabel={`Health ${health}; open developer tools`}
             align="center"
             panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
-            trigger={<HeaderHealthBar health={health} hideMeterSemantics className="cursor-pointer" />}
+            trigger={
+              <HeaderHealthBar health={health} hideMeterSemantics className={`cursor-pointer ${healthBarClassName}`} />
+            }
           >
             {devToolsPanel}
           </HeaderFlyout>
@@ -217,30 +207,29 @@ export function GameHeader({
     healthControl = (
       <button
         type="button"
-        className="min-w-0 flex-1 rounded-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
+        className="flex h-3.5 min-h-3.5 min-w-0 w-full items-center rounded-sm leading-none outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0"
         aria-label="Health and version"
         onClick={handleDevUnlockTap}
       >
-        <HeaderHealthBar health={health} hideMeterSemantics className="px-0.5" />
+        <HeaderHealthBar health={health} hideMeterSemantics className={healthBarClassName} />
       </button>
     );
   }
 
-  const versionCell = (
-    <div className="mx-auto flex min-w-0 max-w-[6rem] items-center justify-center gap-1">
-      {healthControl}
-      {relayHealthControl}
-    </div>
-  );
-
   return (
     <header className="sticky top-0 z-20 w-full select-none bg-black/40 backdrop-blur-[6px]" role="status" aria-label="Game status">
-      <div className="grid min-w-0 grid-cols-3 items-center gap-1 px-1.5 py-px font-serif text-[var(--candle-ink)]">
-        <p className="min-w-0 truncate text-left font-sans text-[9px] font-medium leading-none tracking-[0.02em] text-[var(--candle-ink)]">
-          {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
-        </p>
-        {versionCell}
-        <div className="flex min-w-0 justify-end">{locationControl}</div>
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 px-1.5 py-px font-sans leading-none text-[var(--candle-ink)]">
+        <div className={cn(HEADER_ROW_CLASS, 'min-w-0 gap-1.5')}>
+          <span className={cn(HEADER_META_CLASS, 'min-w-0 truncate text-[var(--candle-ink)]')}>
+            {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
+          </span>
+          {relayHealthControl}
+        </div>
+        <div className={cn(HEADER_ROW_CLASS, 'min-w-0 justify-center px-0.5')}>{healthControl}</div>
+        <div className={cn(HEADER_ROW_CLASS, 'shrink-0 px-0.5')} aria-label="Wallet">
+          <CoinAmountDisplay split={coinSplit} className={cn(HEADER_META_CLASS, 'tabular-nums')} />
+        </div>
+        <div className={cn(HEADER_ROW_CLASS, 'min-w-0 justify-end')}>{locationControl}</div>
       </div>
     </header>
   );

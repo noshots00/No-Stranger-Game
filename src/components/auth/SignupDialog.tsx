@@ -11,6 +11,7 @@ import { toast } from '@/hooks/useToast';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { buildNostrKeyFileContent } from '@/lib/nostrKeyFile';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
 interface SignupDialogProps {
@@ -21,6 +22,7 @@ interface SignupDialogProps {
 const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState<'generate' | 'download' | 'profile'>('generate');
   const [nsec, setNsec] = useState('');
+  const [npub, setNpub] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
@@ -35,24 +37,30 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
   // Generate a proper nsec key using nostr-tools
   const generateKey = () => {
     const sk = generateSecretKey();
-    setNsec(nip19.nsecEncode(sk));
+    const encodedNsec = nip19.nsecEncode(sk);
+    setNsec(encodedNsec);
+    setNpub(nip19.npubEncode(getPublicKey(sk)));
     setStep('download');
   };
 
   const downloadKey = () => {
     try {
-      // Create a blob with the key text
-      const blob = new Blob([nsec], { type: 'text/plain; charset=utf-8' });
-      const url = globalThis.URL.createObjectURL(blob);
-
       const decoded = nip19.decode(nsec);
       if (decoded.type !== 'nsec') {
         throw new Error('Invalid nsec key');
       }
 
       const pubkey = getPublicKey(decoded.data);
-      const npub = nip19.npubEncode(pubkey);
-      const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
+      const encodedNpub = nip19.npubEncode(pubkey);
+      const fileContent = buildNostrKeyFileContent({
+        nsec,
+        npub: encodedNpub,
+        siteLabel: 'No Stranger Game',
+      });
+      const blob = new Blob([fileContent], { type: 'text/plain; charset=utf-8' });
+      const url = globalThis.URL.createObjectURL(blob);
+
+      const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${encodedNpub.slice(5, 9)}.nsec.txt`;
 
       // Create a temporary link element and trigger download
       const a = document.createElement('a');
@@ -157,6 +165,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
     if (isOpen) {
       setStep('generate');
       setNsec('');
+      setNpub('');
       setShowKey(false);
       setProfileData({ name: '', about: '', picture: '' });
     }
@@ -192,12 +201,30 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                 🔑
               </div>
 
-              <div className="relative">
+              <div className="space-y-2">
+                <label htmlFor="signup-npub" className="text-xs font-medium text-muted-foreground">
+                  Public key (npub) — safe to share
+                </label>
                 <Input
+                  id="signup-npub"
+                  type="text"
+                  value={npub}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="signup-nsec" className="text-xs font-medium text-muted-foreground">
+                  Secret key (nsec) — like your password
+                </label>
+                <div className="relative">
+                <Input
+                  id="signup-nsec"
                   type={showKey ? "text" : "password"}
                   value={nsec}
                   readOnly
-                  className="pr-10 font-mono"
+                  className="pr-10 font-mono text-xs"
                 />
                 <Button
                   type="button"
@@ -212,6 +239,7 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                     <Eye className="h-4 w-4 text-muted-foreground" />
                   )}
                 </Button>
+                </div>
               </div>
 
               <Button
@@ -230,7 +258,9 @@ const SignupDialog: React.FC<SignupDialogProps> = ({ isOpen, onClose }) => {
                     </span>
                   </div>
                   <p className='text-xs text-amber-900 dark:text-amber-300'>
-                    This key is your primary and only means of accessing your account. Store it safely and securely. Please download your key to continue.
+                    Your secret key is like a password and cannot be changed. If it is lost or compromised,
+                    it is impossible to regain control of this account. Download this file and store it safely
+                    before continuing.
                   </p>
                 </div>
               </div>

@@ -6,6 +6,21 @@ const SUNSET_QUEST_ART = 'art/converted/sophus-jacobsen-sunset-in-the-forest-187
 const TREE_CLIMB_ART = 'art/converted/treetops-against-sky-met-dt287184.webp';
 const WATER_STREAM_ART = 'art/converted/gustave-courbet-stream-in-the-forest-55982-museum-of-fine-arts.webp';
 const WILD_BOAR_ART = 'art/converted/eb1911-painting-plate-ii-fig-4.webp';
+const DEER_TRAIL_ART = 'art/converted/deer-mountain-trail-saam-19801338-2.webp';
+const LEMON_TREE_ART =
+  'art/converted/henry-scott-tuke-1858-1929-the-lemon-tree-1898-002-cartwright-hall-art-gallery.webp';
+
+const deerTrailVisual = {
+  kind: 'image' as const,
+  src: DEER_TRAIL_ART,
+  alt: 'Deer on a mountain trail',
+};
+
+const lemonTreeVisual = {
+  kind: 'image' as const,
+  src: LEMON_TREE_ART,
+  alt: 'A lemon tree',
+};
 
 const treeClimbVisual = {
   kind: 'image' as const,
@@ -46,6 +61,16 @@ function makeTreeClimbHigherChoice(nextStepId: string): QuestChoice {
     label: 'Climb higher',
     nextStepId,
   };
+}
+
+function makeSnakeReactChoices(): QuestChoice[] {
+  return [
+    { id: 'q2-snake-freeze', label: 'Freeze', nextStepId: 'food-snake-strike' },
+    { id: 'q2-snake-run', label: 'Run', nextStepId: 'food-snake-strike' },
+    { id: 'q2-snake-attack', label: 'Attack', nextStepId: 'food-snake-strike' },
+    { id: 'q2-snake-talk', label: 'Talk to the snake', nextStepId: 'food-snake-strike' },
+    { id: 'q2-snake-back-away', label: 'Slowly Back Away', nextStepId: 'food-snake-strike' },
+  ];
 }
 
 function makeBoarAftermathStep(id: string, outcomeLine: string) {
@@ -354,7 +379,7 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-explore-south',
       type: 'message',
       text: 'You head south.',
-      nextStepId: 'boar-encounter',
+      nextStepId: 'food-lemon-tree',
     },
     {
       id: 'flavor-explore-east',
@@ -422,12 +447,14 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'dir-south-path',
       type: 'message',
       text: 'You come upon a well beaten animal path.',
+      visuals: [deerTrailVisual],
       nextStepId: 'dir-south-path-fork',
     },
     {
       id: 'dir-south-path-fork',
       type: 'choice',
       text: '',
+      visuals: [deerTrailVisual],
       choices: [
         {
           id: 'q2-south-left',
@@ -438,6 +465,113 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'q2-south-right',
           label: 'Follow it right',
+          nextStepId: 'boar-encounter',
+        },
+      ],
+    },
+    {
+      id: 'food-lemon-tree',
+      type: 'choice',
+      text: 'You are very hungry.',
+      visuals: [lemonTreeVisual],
+      choices: [
+        {
+          id: 'q2-food-eat-ground',
+          label: 'Eat some fruit off the ground.',
+          nextStepId: 'food-lemon-ground',
+        },
+        {
+          id: 'q2-food-shake-tree',
+          label: 'Try to shake off some ripe ones.',
+          nextStepId: 'food-lemon-shake',
+        },
+        {
+          id: 'q2-food-leave-tree',
+          label: 'Leave',
+          nextStepId: 'food-lemon-leave',
+        },
+      ],
+    },
+    {
+      id: 'food-lemon-ground',
+      type: 'message',
+      text:
+        'You reach down to pick one up when you meet eyes with an emerald green snake, just inches from your face.',
+      visuals: [lemonTreeVisual],
+      nextStepId: 'food-snake-react',
+    },
+    {
+      id: 'food-lemon-shake',
+      type: 'message',
+      text:
+        'You grip the trunk with both hands and prepare to give the tree a vigorous shake, when an emerald green snake lowers itself head first from the tree, just inches from your face.',
+      visuals: [lemonTreeVisual],
+      nextStepId: 'food-snake-react',
+    },
+    {
+      id: 'food-lemon-leave',
+      type: 'message',
+      text:
+        'You turn to leave when an emerald green snake slides into your path, just inches from your face.',
+      visuals: [lemonTreeVisual],
+      nextStepId: 'food-snake-react',
+    },
+    {
+      id: 'food-snake-react',
+      type: 'choice',
+      text: '',
+      visuals: [lemonTreeVisual],
+      choices: makeSnakeReactChoices(),
+    },
+    {
+      id: 'food-snake-strike',
+      type: 'message',
+      text: 'The snake hisses and strikes!',
+      visuals: [lemonTreeVisual],
+      effects: { healthLossFraction: 0.25 },
+      nextStepId: 'food-eat-fruit',
+    },
+    {
+      id: 'food-eat-fruit',
+      type: 'choice',
+      text: '',
+      visuals: [lemonTreeVisual],
+      choices: [
+        {
+          id: 'q2-food-eat-fruit',
+          label: 'Eat a fruit',
+          nextStepId: 'food-feel-healthy',
+        },
+        {
+          id: 'q2-food-decline-fruit',
+          label: 'Leave',
+          nextStepId: 'boar-encounter',
+        },
+      ],
+    },
+    {
+      id: 'food-feel-healthy',
+      type: 'message',
+      text: 'You feel healthy!',
+      visuals: [lemonTreeVisual],
+      effects: { healthSet: 100 },
+      nextStepId: 'food-fruit-after',
+    },
+    {
+      id: 'food-fruit-after',
+      type: 'choice',
+      text: '',
+      visuals: [lemonTreeVisual],
+      choices: [
+        {
+          id: 'q2-food-take-fruit',
+          label: 'Take some fruit with you',
+          nextStepId: 'boar-encounter',
+          effects: { questItemsAdd: ['Fruit'] },
+        },
+        {
+          id: 'q2-food-continue',
+          label: 'Continue',
           nextStepId: 'boar-encounter',
         },
       ],

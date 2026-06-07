@@ -9,7 +9,6 @@ import {
   RPG_UI_META,
 } from '../typography/rpgUiTypography';
 import { VillageActionChip, VillageActionRow, VillageActionRowItem } from '../village/VillageActionChip';
-import { useToast } from '@/hooks/useToast';
 import { formatCoinShort, getCopperFromModifiers, splitCopperIntoCoins } from '../helpers';
 import { formatListingItem, formatListingPrice } from './listingEscrow';
 import { PostListingDialog } from './PostListingDialog';
@@ -96,7 +95,6 @@ export function MarketScreen({
   market,
   onApplyModifiers,
 }: MarketScreenProps) {
-  const { toast } = useToast();
   const [postOpen, setPostOpen] = useState(false);
   const { feed, feedQuery, postListing, cancelListing, buyListing, refreshFeed } = market;
   const walletCopper = getCopperFromModifiers(questState.modifiers);
@@ -142,15 +140,8 @@ export function MarketScreen({
                   <VillageActionChip
                     disabled={!myPubkey || !canAfford}
                     onClick={() => {
-                      if (!canAfford) {
-                        toast({
-                          title: 'Not enough coin',
-                          description: formatCoinShort(splitCopperIntoCoins(good.priceCopper)),
-                        });
-                        return;
-                      }
+                      if (!canAfford) return;
                       onApplyModifiers(villageSupplyBuyDelta(good));
-                      toast({ title: 'Purchased', description: good.label });
                     }}
                   >
                     Buy
@@ -183,31 +174,8 @@ export function MarketScreen({
                   walletCopper={walletCopper}
                   isBuyPending={buyListing.isPending}
                   isCancelPending={cancelListing.isPending}
-                  onBuy={() =>
-                    buyListing.mutate(listing, {
-                      onSuccess: () =>
-                        toast({
-                          title: 'Purchased',
-                          description: formatListingItem(listing),
-                        }),
-                      onError: (err) =>
-                        toast({
-                          title: 'Purchase failed',
-                          description: err instanceof Error ? err.message : 'Try again.',
-                        }),
-                    })
-                  }
-                  onCancel={() =>
-                    cancelListing.mutate(listing, {
-                      onSuccess: () =>
-                        toast({ title: 'Listing cancelled', description: 'Item returned from escrow.' }),
-                      onError: (err) =>
-                        toast({
-                          title: 'Cancel failed',
-                          description: err instanceof Error ? err.message : 'Try again.',
-                        }),
-                    })
-                  }
+                  onBuy={() => buyListing.mutate(listing)}
+                  onCancel={() => cancelListing.mutate(listing)}
                 />
               ))}
             </ul>
@@ -222,15 +190,7 @@ export function MarketScreen({
         isPending={postListing.isPending}
         onSubmit={(payload) =>
           postListing.mutate(payload, {
-            onSuccess: () => {
-              setPostOpen(false);
-              toast({ title: 'Listed', description: 'Item held in escrow until sold or cancelled.' });
-            },
-            onError: (err) =>
-              toast({
-                title: 'Could not list',
-                description: err instanceof Error ? err.message : 'Try again.',
-              }),
+            onSuccess: () => setPostOpen(false),
           })
         }
       />
