@@ -8,23 +8,12 @@ export type VillagePanelId =
   | 'townHall'
   | 'craftersCorner';
 
-export type VillageLotKind = 'system' | 'claimable' | 'stub' | 'travel';
+export type VillageLotKind = 'system' | 'stub' | 'travel';
 
 export type VillageLotAction =
   | { type: 'panel'; panel: VillagePanelId }
   | { type: 'travel'; locationId: string }
   | { type: 'stub' };
-
-export type VillageBusinessType = 'tavern' | 'shop' | 'workshop';
-
-export const VILLAGE_BUSINESS_TYPES: ReadonlyArray<{
-  id: VillageBusinessType;
-  label: string;
-}> = [
-  { id: 'tavern', label: 'Tavern' },
-  { id: 'shop', label: 'Shop' },
-  { id: 'workshop', label: 'Workshop' },
-];
 
 export type VillageLotDef = {
   id: string;
@@ -150,15 +139,3 @@ export function visibleLeaveDistrict(flags: readonly string[]): VillageDistrictD
   if (!leave) return null;
   return filterDistrictLots(leave, flags);
 }
-
-export function findVillageLotById(lotId: string): { district: VillageDistrictDef; lot: VillageLotDef } | null {
-  for (const district of VILLAGE_DISTRICTS) {
-    const lot = district.lots.find((l) => l.id === lotId);
-    if (lot) return { district, lot };
-  }
-  return null;
-}
-
-export const CLAIMABLE_VILLAGE_LOT_IDS = new Set(
-  VILLAGE_DISTRICTS.flatMap((d) => d.lots.filter((l) => l.kind === 'claimable').map((l) => l.id))
-);

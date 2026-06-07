@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { thrownItemLabelFromFlags } from '../constants';
 import { isContinueBridgeMessageStep, resolveQuestSceneTextBands } from '../quests/engine';
 import { isTownHallTutorialAwaitStep } from '../village/villageTutorialQuests';
 import type { ModifierMap, QuestChoice, QuestDefinition, QuestProgress, QuestStep } from '../quests/types';
-import { getQuestCardImageSrc, getQuestScenePortraitAlt, getQuestScenePortraitSrc } from '../rpgArtAssignments';
+import {
+  getQuestCardImageFit,
+  getQuestPopupPortraitSrc,
+  getQuestScenePortraitAlt,
+  getQuestScenePortraitSrc,
+  getQuestStepImageFit,
+  getQuestStepImageSrc,
+} from '../rpgArtAssignments';
 import { QuestSceneNpcTalk } from './QuestSceneNpcTalk';
 import {
   QUEST_SCENE_CHOICE,
@@ -21,6 +28,9 @@ import {
   choiceIsVisible,
   resolveChoiceLockState,
 } from './questSceneStepHelpers';
+import { QuestSceneActionBox } from './QuestSceneActionBox';
+import { QuestSceneContentPanel } from './QuestSceneContentPanel';
+import { useQuestSceneChoiceOverflow } from './useQuestSceneChoiceOverflow';
 
 /** Only very long labels span the full grid width. */
 const CHOICE_FULL_WIDTH_MIN_CHARS = 48;
@@ -77,8 +87,13 @@ export function QuestSceneScreen({
     setCombatChrome(active);
   }, []);
   const playerFlagSet = useMemo(() => new Set(playerFlags), [playerFlags]);
-  const backgroundSrc = getQuestCardImageSrc(quest);
+  const backgroundSrc = getQuestPopupPortraitSrc(quest, step.id);
   const portraitSrc = getQuestScenePortraitSrc(quest, step);
+  const portraitFit = step.npcTalkId
+    ? 'cover'
+    : getQuestStepImageSrc(quest, step.id)
+      ? getQuestStepImageFit(quest, step.id)
+      : getQuestCardImageFit(quest);
   const portraitAlt = getQuestScenePortraitAlt(quest, step);
   const isNpcTalk = Boolean(step.npcTalkId);
   const nameForTemplates = committedPlayerName.trim() || nameInput.trim();
@@ -106,6 +121,26 @@ export function QuestSceneScreen({
       ? trimmedNameInput.length >= (step.minLength ?? 2) && trimmedNameInput.length <= (step.maxLength ?? 32)
       : false;
 
+  const actionBoxRef = useRef<HTMLDivElement>(null);
+  const currentStepId = step.id;
+  const visibleChoiceCount =
+    step.type === 'choice'
+      ? step.choices.filter((choice) => choiceIsVisible(choice, playerFlagSet)).length
+      : 0;
+  const actionBoxOverflowEnabled =
+    isNpcTalk ||
+    step.type === 'choice' ||
+    step.type === 'input' ||
+    step.type === 'inventoryPick' ||
+    (step.type === 'message' &&
+      (isContinueBridgeMessageStep(step) ||
+        (isTownHallTutorialAwaitStep(quest.id, currentStepId) && Boolean(onDismissQuestScene))));
+  const choicesExpanded = useQuestSceneChoiceOverflow({
+    enabled: actionBoxOverflowEnabled,
+    actionBoxRef,
+    measureKey: `${currentStepId}:${visibleChoiceCount}`,
+  });
+
   const renderChoiceButton = (choice: QuestChoice, renderedLabel: string, isLocked: boolean) => (
     <button
       type="button"
@@ -123,8 +158,14 @@ export function QuestSceneScreen({
 
   return (
     <section
-      className={cn('quest-scene-root', combatChrome && 'quest-scene-root--combat')}
+      className={cn(
+        'quest-scene-root',
+        isNpcTalk && 'quest-scene-root--npc-talk',
+        combatChrome && 'quest-scene-root--combat',
+        choicesExpanded && 'quest-scene-root--choices-expanded'
+      )}
     >
+      {!isNpcTalk ? (
       <div className="quest-scene-stage rounded-t-md border border-x-0 border-b-0 border-[var(--candle-rule)]">
         <img src={backgroundSrc} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
         <div className="quest-scene-stage-gradient absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/70" aria-hidden />
@@ -135,24 +176,33 @@ export function QuestSceneScreen({
               key={portraitSrc}
               src={portraitSrc}
               alt={portraitAlt}
-              className={cn('quest-scene-portrait', combatChrome && 'quest-scene-portrait--hostile')}
+              className={cn(
+                'quest-scene-portrait',
+                portraitFit === 'contain' && 'quest-scene-portrait--contain',
+                combatChrome && 'quest-scene-portrait--hostile'
+              )}
               loading="lazy"
             />
           </div>
         </div>
       </div>
+      ) : null}
 
       {isNpcTalk ? (
         <QuestSceneNpcTalk
           npcTalkId={step.npcTalkId!}
-          stepId={step.id}
+          quest={quest}
+          step={step}
+          playerFlags={playerFlags}
           playerHealth={playerHealth}
           onPlayerHealthChange={onPlayerHealthChange}
           onCombatChromeChange={handleCombatChromeChange}
           onStepChoice={onStepChoice}
+          actionBoxRef={actionBoxRef}
         />
       ) : (
         <>
+      <QuestSceneContentPanel>
       <div className="quest-scene-text-box rpg-panel facsimile-scroll border-x-0 px-2.5 py-2">
         {beatResponse.length > 0 || beatPrompt.length > 0 ? (
           <div className="space-y-1.5">
@@ -168,8 +218,7 @@ export function QuestSceneScreen({
         )}
       </div>
 
-      <div className="quest-scene-action-box rpg-panel facsimile-scroll px-1.5 py-1">
-        <div className="quest-scene-action-inner">
+      <QuestSceneActionBox ref={actionBoxRef}>
           {step.type === 'choice' && !step.npcTalkId ? (
             <>
               {showQuestChoiceEffects && step.worldEventLogAfterChoice?.length ? (
@@ -296,8 +345,8 @@ export function QuestSceneScreen({
               </button>
             </div>
           ) : null}
-        </div>
-      </div>
+      </QuestSceneActionBox>
+      </QuestSceneContentPanel>
         </>
       )}
     </section>

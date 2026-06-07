@@ -13,83 +13,53 @@ export const quest016SweetDream = createBranchingQuest({
     {
       id: 'sweet-dream-intro',
       type: 'choice',
-      text: 'Warmth lingers behind your ribs at dawn. Sleep felt kind—which dream stayed with you?',
+      text: 'You had a wonderful dream... what do you remember?',
       choices: [
         {
-          id: 'sweet-dream-dawn-choir',
-          label: 'Voices raised in a rose-colored dawn',
-          nextStepId: 'sweet-dream-outcome-dawn',
+          id: 'sweet-dream-flying',
+          label: 'I was flying high above the trees.',
+          nextStepId: 'sweet-dream-outcome-flying',
           effects: {
 
           },
-          worldEventLogAdd: ['{playerName} woke smiling—somewhere a chorus still thanked the horizon.'],
+          worldEventLogAdd: ['{playerName} woke light-footed, remembering the canopy from above.'],
         },
         {
-          id: 'sweet-dream-moss-glade',
-          label: 'A glade where deer breathe beside you',
-          nextStepId: 'sweet-dream-outcome-glade',
+          id: 'sweet-dream-swimming',
+          label: 'I was swimming with a beautiful stranger.',
+          nextStepId: 'sweet-dream-outcome-swimming',
           effects: {
 
           },
-          worldEventLogAdd: ['{playerName} carried forest quiet into morning like a blanket.'],
+          worldEventLogAdd: ['{playerName} woke smiling—a stranger\'s easy current still carried them.'],
         },
         {
-          id: 'sweet-dream-hill-feast',
-          label: 'A long table and an arrow that finds the center',
-          nextStepId: 'sweet-dream-outcome-feast',
+          id: 'sweet-dream-telekinesis',
+          label: 'I could move objects with my mind.',
+          nextStepId: 'sweet-dream-outcome-telekinesis',
           effects: {
 
           },
-          worldEventLogAdd: ['{playerName} tasted honey and cordial—and the target rang true.'],
-        },
-        {
-          id: 'sweet-dream-crystal-hall',
-          label: 'Mirrors that show you at your kindest',
-          nextStepId: 'sweet-dream-outcome-hall',
-          effects: {
-
-          },
-          worldEventLogAdd: ['{playerName} opened kind eyes in every reflection.'],
-        },
-        {
-          id: 'sweet-dream-lantern-spirits',
-          label: 'Tiny lights that guide you home',
-          nextStepId: 'sweet-dream-outcome-lanterns',
-          effects: {
-
-          },
-          worldEventLogAdd: ['{playerName} followed laughter small as bells through friendly dark.'],
+          worldEventLogAdd: ['{playerName} woke with tingling hands, sure the world had once answered thought alone.'],
         },
       ],
     },
     {
-      id: 'sweet-dream-outcome-dawn',
+      id: 'sweet-dream-outcome-flying',
       type: 'message',
-      text: 'You stretch without hurry. The air feels redder than yesterday, as if the whole sky wished you well.',
+      text: 'You wake with wind still in your hair and the treetops swaying though no breeze touches the cabin.',
       completeQuest: true,
     },
     {
-      id: 'sweet-dream-outcome-glade',
+      id: 'sweet-dream-outcome-swimming',
       type: 'message',
-      text: 'Leaves scrape the roof like soft footsteps; you half-expect a warm muzzle at your palm. Your shoulders drop further than they have in weeks.',
+      text: 'You wake tasting salt you cannot place; warmth from the dream stranger still lingers on your skin.',
       completeQuest: true,
     },
     {
-      id: 'sweet-dream-outcome-feast',
+      id: 'sweet-dream-outcome-telekinesis',
       type: 'message',
-      text: 'Your belly remembers bread and laughter. Outside, the forest sounds patient—there is time enough for everything worth doing.',
-      completeQuest: true,
-    },
-    {
-      id: 'sweet-dream-outcome-hall',
-      type: 'message',
-      text: 'You rise believing your own courtesy was never wasted. The cabin boards are plain wood again, but your reflection still straightens its shoulders.',
-      completeQuest: true,
-    },
-    {
-      id: 'sweet-dream-outcome-lanterns',
-      type: 'message',
-      text: 'You tuck your boots under the cot smiling. Even the crickets seem to answer one another on purpose—like old friends checking in.',
+      text: 'You wake flexing fingers that almost remember lifting cups and candles without touching them.',
       completeQuest: true,
     },
   ],

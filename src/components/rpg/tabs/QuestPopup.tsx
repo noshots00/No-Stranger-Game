@@ -11,7 +11,8 @@ import type {
   QuestStep,
 } from '../quests/types';
 import { NpcTalkDialog } from '../npc/NpcTalkDialog';
-import { getQuestPopupPortraitSrc, getQuestStepImageSrc } from '../rpgArtAssignments';
+import { getQuestPopupPortraitSrc, getQuestStepImageFit, getQuestStepImageSrc } from '../rpgArtAssignments';
+import { questVisualImageClassName } from '../questVisualImage';
 import { npcTranscriptWithStepFallback } from '../quests/questPopupTranscript';
 import {
   RPG_DIALOG_BODY,
@@ -28,6 +29,7 @@ import {
 import { QuestChoiceEffectsHint } from '../dev/QuestChoiceEffectsHint';
 import { formatChoiceStepDevLines, formatQuestChoiceDevLines } from '../dev/questChoiceEffectsDev';
 import { QUEST_TRANSITION_MS } from '../constants';
+import { useChoicePaneScrollFallback } from '../quest-scene/useQuestSceneChoiceOverflow';
 
 type QuestPopupProps = {
   quest: QuestDefinition;
@@ -139,6 +141,7 @@ export function QuestPopup({
   const playerFlagSet = new Set(playerFlags);
   const isOriginStartCard = quest.id === 'quest-001-origin' && step.id === 'start';
   const stepImageSrc = getQuestStepImageSrc(quest, step.id);
+  const stepImageFit = getQuestStepImageFit(quest, step.id);
   const nameForTemplates = committedPlayerName.trim() || nameInput.trim();
   const startStep = quest.steps[quest.startStepId];
   const openingPromptNormalized = startStep
@@ -171,6 +174,7 @@ export function QuestPopup({
   const bodyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const inlineBlockRef = useRef<HTMLDivElement | null>(null);
+  const choicePaneRef = useRef<HTMLDivElement | null>(null);
   const prevTranscriptLenRef = useRef(0);
 
   const burnInEntryIdSet = (() => {
@@ -244,6 +248,17 @@ export function QuestPopup({
   const choicePaneVisible =
     step.type === 'choice' || step.type === 'input' || step.type === 'inventoryPick';
 
+  const visibleChoiceCount =
+    step.type === 'choice'
+      ? step.choices.filter((choice) => choiceIsVisible(choice, playerFlagSet)).length
+      : 0;
+  const choicePaneNeedsScroll = useChoicePaneScrollFallback({
+    enabled: presentation === 'modal' && choicePaneVisible,
+    paneRef: choicePaneRef,
+    measureKey: `${step.id}:${visibleChoiceCount}`,
+    measureAgainstParent: true,
+  });
+
   const shellClass =
     presentation === 'modal'
       ? 'flex h-[98%] max-h-[98dvh] min-h-0 w-[98%] flex-col rounded-xl border border-[var(--candle-rule)] bg-[rgba(8,7,6,0.96)] p-3 shadow-2xl'
@@ -254,7 +269,7 @@ export function QuestPopup({
       <img
         src={stepImageSrc}
         alt={`${quest.title} illustration`}
-        className="mx-auto aspect-[3/4] w-full max-w-[210px] shrink-0 rounded-md border border-[var(--candle-rule)] object-cover"
+        className={questVisualImageClassName(stepImageFit, 'popup')}
         loading="lazy"
       />
     ) : null;
@@ -484,7 +499,12 @@ export function QuestPopup({
     presentation === 'inline' ? (
       renderChoicePane(false)
     ) : (
-      <div className="max-h-[min(50dvh,480px)] overflow-y-auto">{renderChoicePane(false)}</div>
+      <div
+        ref={choicePaneRef}
+        className={cn('min-h-0 shrink-0', choicePaneNeedsScroll && 'overflow-y-auto')}
+      >
+        {renderChoicePane(false)}
+      </div>
     );
 
   const npcTalkTranscript = useMemo(
@@ -540,8 +560,15 @@ export function QuestPopup({
           )}
         >
           {presentation === 'modal' ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[var(--candle-rule)] bg-black/25">
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div
+              className={cn(
+                'grid min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--candle-rule)] bg-black/25',
+                choicePaneNeedsScroll
+                  ? 'grid-rows-[minmax(0,1fr)_minmax(0,1fr)]'
+                  : 'grid-rows-[minmax(0,1fr)_auto]'
+              )}
+            >
+              <div className="min-h-0 overflow-y-auto overscroll-contain">
                 <div className="flex flex-col gap-2 p-2">
                   {stepImageEl}
                   {dialogueLogEl}

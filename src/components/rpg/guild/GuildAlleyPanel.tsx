@@ -185,7 +185,6 @@ export function GuildAlleyContent({
 
   const {
     feed,
-    feedQuery,
     membership,
     hasActiveMembership,
     myActiveMembershipSlug,
@@ -239,52 +238,43 @@ export function GuildAlleyContent({
     return tabs;
   }, [membership, memberGuildDef]);
 
-  const guildListBody =
-    feedQuery.isFetching ? (
-      <p className={cn(RPG_UI_META, 'py-2 text-center')}>Updating…</p>
-    ) : !feedQuery.isFetched ? (
-      <p className={cn(RPG_UI_META, 'py-2 text-center')}>
-        Tap Update guilds to load guild roster from the village ledger.
-      </p>
-    ) : (
-      feed.guilds.map((guild) => {
-        const members = feed.membersBySlug[guild.slug] ?? [];
-        const iAmActive = myPubkey
-          ? members.some((m) => m.pubkey === myPubkey && m.status === 'active')
-          : false;
-        const joinDisabled =
-          !myPubkey ||
-          (hasActiveMembership && myActiveMembershipSlug !== guild.slug) ||
-          iAmActive;
-        let joinReason: string | undefined;
-        if (hasActiveMembership && myActiveMembershipSlug !== guild.slug) {
-          joinReason = 'Leave your current guild first.';
-        } else if (iAmActive) {
-          joinReason = 'You are already a member.';
-        }
+  const guildListBody = feed.guilds.map((guild) => {
+    const members = feed.membersBySlug[guild.slug] ?? [];
+    const iAmActive = myPubkey
+      ? members.some((m) => m.pubkey === myPubkey && m.status === 'active')
+      : false;
+    const joinDisabled =
+      !myPubkey ||
+      (hasActiveMembership && myActiveMembershipSlug !== guild.slug) ||
+      iAmActive;
+    let joinReason: string | undefined;
+    if (hasActiveMembership && myActiveMembershipSlug !== guild.slug) {
+      joinReason = 'Leave your current guild first.';
+    } else if (iAmActive) {
+      joinReason = 'You are already a member.';
+    }
 
-        return (
-          <GuildListRow
-            key={guild.slug}
-            guild={guild}
-            joinDisabled={joinDisabled}
-            joinReason={joinReason}
-            isJoinPending={joinGuild.isPending}
-            embedded={embedded}
-            onJoin={() =>
-              joinGuild.mutate(guild, {
-                onSuccess: () => setActiveTab(`guild-${guild.slug}`),
-                onError: (err) =>
-                  toast({
-                    title: 'Could not join',
-                    description: err instanceof Error ? err.message : 'Try again.',
-                  }),
-              })
-            }
-          />
-        );
-      })
+    return (
+      <GuildListRow
+        key={guild.slug}
+        guild={guild}
+        joinDisabled={joinDisabled}
+        joinReason={joinReason}
+        isJoinPending={joinGuild.isPending}
+        embedded={embedded}
+        onJoin={() =>
+          joinGuild.mutate(guild, {
+            onSuccess: () => setActiveTab(`guild-${guild.slug}`),
+            onError: (err) =>
+              toast({
+                title: 'Could not join',
+                description: err instanceof Error ? err.message : 'Try again.',
+              }),
+          })
+        }
+      />
     );
+  });
 
   return (
     <>
@@ -317,8 +307,6 @@ export function GuildAlleyContent({
             <PanelUpdateButton
               label="Update guilds"
               onClick={() => refreshFeed()}
-              isFetching={feedQuery.isFetching}
-              showLedgerHint={!feedQuery.isFetched}
               variant={embedded ? 'chip' : 'full'}
             />
             <div className={cn(embedded ? 'space-y-1' : 'min-h-0 flex-1')}>

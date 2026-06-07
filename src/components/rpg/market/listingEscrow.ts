@@ -19,12 +19,13 @@ export type PostListingInput = {
 
 export function listInventoryOptions(state: QuestState): InventoryOption[] {
   const out: InventoryOption[] = [];
-  for (const [key, qty] of Object.entries(state.modifiers)) {
-    if (!key.startsWith('item:') || qty <= 0) continue;
+  const modifiers = state.modifiers ?? {};
+  for (const [key, qty] of Object.entries(modifiers)) {
+    if (!key.startsWith('item:') || typeof qty !== 'number' || !Number.isFinite(qty) || qty <= 0) continue;
     out.push({ kind: 'modifierItem', key, label: toItemLabel(key), quantity: qty });
   }
-  for (const label of state.questItems) {
-    if (label.trim()) out.push({ kind: 'questItem', label });
+  for (const label of state.questItems ?? []) {
+    if (typeof label === 'string' && label.trim()) out.push({ kind: 'questItem', label });
   }
   return out;
 }

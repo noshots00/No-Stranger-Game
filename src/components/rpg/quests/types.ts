@@ -1,14 +1,18 @@
 export type ModifierMap = Record<string, number>;
 
 /** Single asset under `public/` (no leading slash), `https` URL, `data:` URL, or `/` root-relative. */
+export type QuestImageFit = 'cover' | 'contain';
+
 export type QuestImageRef = {
   src: string;
   alt?: string;
+  /** Default `cover` (portrait crop). Use `contain` for wide art shown letterboxed in the slot. */
+  fit?: QuestImageFit;
 };
 
 /** Structured layout beats appended to the dialogue log before step narration. */
 export type QuestVisualBeat =
-  | { kind: 'image'; src: string; alt?: string }
+  | { kind: 'image'; src: string; alt?: string; fit?: QuestImageFit }
   | { kind: 'image-row'; images: QuestImageRef[] };
 
 export type ChoiceEffect = {
@@ -83,6 +87,8 @@ export type MessageQuestStep = QuestStepBase & {
   type: 'message';
   nextStepId?: string;
   effects?: ChoiceEffect;
+  /** When true, choice resolution stops here until the player taps Continue (not auto-skipped). */
+  requireContinueTap?: boolean;
 };
 
 export type ChoiceQuestStep = QuestStepBase & {

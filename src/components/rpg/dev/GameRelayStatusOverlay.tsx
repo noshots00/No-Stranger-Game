@@ -12,6 +12,8 @@ type GameRelayStatusOverlayProps = {
   snapshot: GameRelayHealthSnapshot | undefined;
   isFetching: boolean;
   onRefresh: () => void;
+  /** `overlay` floats on narrow screens; `rail` fills the desktop side gutter. */
+  variant?: 'overlay' | 'rail';
 };
 
 type OverlayPanel = 'status' | 'activity';
@@ -79,14 +81,21 @@ export function GameRelayStatusOverlay({
   snapshot,
   isFetching,
   onRefresh,
+  variant = 'overlay',
 }: GameRelayStatusOverlayProps) {
   const [panel, setPanel] = useState<OverlayPanel>('status');
   const { entries, totals, clearLog } = useRelayInteractionLog();
   const relays = snapshot?.relays ?? [];
+  const isRail = variant === 'rail';
 
   return (
     <aside
-      className="pointer-events-auto fixed right-2 top-9 z-[60] flex w-[min(92vw,20rem)] max-h-[min(70vh,28rem)] flex-col rounded-md border border-[var(--candle-rule)]/80 bg-black/85 shadow-lg backdrop-blur-sm"
+      className={cn(
+        'pointer-events-auto flex flex-col rounded-md border border-[var(--candle-rule)]/80 bg-black/85 shadow-lg backdrop-blur-sm',
+        isRail
+          ? 'max-h-[min(calc(100dvh-2rem),40rem)] w-full'
+          : 'fixed right-2 top-9 z-[60] w-[min(92vw,20rem)] max-h-[min(70vh,28rem)] lg:hidden'
+      )}
       aria-label="Game relay status"
     >
       <div className="shrink-0 border-b border-[var(--candle-rule)]/50 px-2.5 py-2">

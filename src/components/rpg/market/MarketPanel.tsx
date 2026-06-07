@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import { Button } from '@/components/ui/button';
 import { GamePanelScroll } from '../GamePanelScroll';
 import { cn } from '@/lib/utils';
@@ -97,7 +98,7 @@ export function MarketPanel({
 }: MarketPanelProps) {
   const { toast } = useToast();
   const [postOpen, setPostOpen] = useState(false);
-  const { feed, feedQuery, postListing, cancelListing, buyListing } = market;
+  const { feed, feedQuery, postListing, cancelListing, buyListing, refreshFeed } = market;
   const walletCopper = getCopperFromModifiers(questState.modifiers);
 
   return (
@@ -155,6 +156,12 @@ export function MarketPanel({
             <p className="shrink-0 px-1 font-serif text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
               Player listings
             </p>
+
+            <PanelUpdateButton
+              label="Update listings"
+              variant="full"
+              onClick={() => refreshFeed()}
+            />
 
             <GamePanelScroll className="min-h-0 flex-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
               {feedQuery.isPending ? (

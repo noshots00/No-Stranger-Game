@@ -74,7 +74,7 @@ type VillagePlayTabProps = {
   blobbiFightMemories: ReturnType<typeof useBlobbiFightMemories>;
   onApplyModifiers: (delta: ModifierMap) => void;
   onSwitchJob: (jobSlug: string) => void;
-  onMayorVoteRecorded?: () => void;
+  onMayorVoteRecorded?: (candidateName: string) => void;
   onMayorVoteRetracted?: () => void;
 };
 

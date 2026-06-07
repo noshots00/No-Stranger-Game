@@ -3,7 +3,11 @@
  */
 
 import {
-  appendPair,
+  DOOR_APPROACH_HIDE_FLAG,
+  DOOR_APPROACH_KNOCK_FLAG,
+  DOOR_APPROACH_YELL_FLAG,
+} from '@/components/rpg/constants';
+import {
   type DialogueChoice,
   type TranscriptEntry,
 } from '@/components/rpg/merchant/merchantDialogueTree';
@@ -14,18 +18,26 @@ function nextId(): string {
   return `carl-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Opening narrator + player/Carl pair (replaces legacy `carl-intro` quest step). */
-export function seedCarlOpeningTranscript(): TranscriptEntry[] {
-  const n1: TranscriptEntry = {
-    id: nextId(),
-    role: 'narrator',
-    text: 'The air here remembers old decisions—yours is only the latest.',
-  };
-  return [n1, ...appendPair('(You move closer to the threshold.)', carlWelcomeLine())];
+export const CARL_OPENING_YELL = "Oit! Who be knockin' round me tree?";
+
+function resolveDoorApproachPhrase(playerFlags: readonly string[]): string {
+  const flags = new Set(playerFlags);
+  if (flags.has(DOOR_APPROACH_YELL_FLAG)) return 'yell out "Is there anyone home?"';
+  if (flags.has(DOOR_APPROACH_HIDE_FLAG)) return 'hide and wait to see if anyone comes';
+  if (flags.has(DOOR_APPROACH_KNOCK_FLAG)) return 'knock on the door';
+  return 'knock on the door';
 }
 
-function carlWelcomeLine(): string {
-  return 'Framed by old timber, Carl studies you. “If you came this far,” he says, “you may speak. Choose your words.”';
+/** Opening narrator line from the player's door approach (quest choice flags). */
+export function seedCarlOpeningTranscript(playerFlags: readonly string[]): TranscriptEntry[] {
+  const phrase = resolveDoorApproachPhrase(playerFlags);
+  return [
+    {
+      id: nextId(),
+      role: 'narrator',
+      text: `You ${phrase} and someone yells out, "Oit, who be knockin' round me tree?" What do you do?`,
+    },
+  ];
 }
 
 /** Flat hub choices (topics are one-shot via UI state). */

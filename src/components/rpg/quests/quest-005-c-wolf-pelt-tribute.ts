@@ -1,7 +1,7 @@
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
-const BATCH = 'art/converted/batch-2026-05-02_21-10-35';
+const BATCH = 'art/converted';
 const CARD_IMG = `${BATCH}/pleasant-forest.webp`;
 
 /** After smoke-test home: buy three wolf pelts at the merchant, then turn them in for a brass ring. */

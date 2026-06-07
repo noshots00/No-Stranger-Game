@@ -4,17 +4,17 @@
  */
 
 import { publicAsset } from '@/lib/publicAsset';
+import { VILLAGE_MAP_PATH } from '@/components/rpg/village/villageArt';
 import { allQuests } from '@/components/rpg/quests/registry';
 import { LEGACY_RACE_SLUG_REWRITES, RACES } from '@/components/rpg/races';
-import type { QuestDefinition, QuestStep } from '@/components/rpg/quests/types';
+import { resolveQuestEntryStepId } from '@/components/rpg/quests/engine';
+import type { QuestDefinition, QuestImageFit, QuestState, QuestStep, QuestVisualBeat } from '@/components/rpg/quests/types';
 
-/** Folder under `public/art/converted/` (no spaces — reliable on static hosts). */
-const BATCH_SEGMENT = 'batch-2026-05-02_21-10-35';
-
-const BATCH_PREFIX = `art/converted/${BATCH_SEGMENT}`;
+/** Flat converted art under `public/art/converted/` (no batch subfolders). */
+const CONVERTED_ART = 'art/converted';
 
 /**
- * All `.webp` files in `public/art/converted/batch-2026-05-02_21-10-35/`.
+ * Core portrait pool — files at `public/art/converted/<name>.webp`.
  * Keep alphabetically sorted for a deterministic pre-shuffle order.
  */
 const WEBP_FILENAMES: readonly string[] = [
@@ -101,7 +101,7 @@ function buildQuestTitleMap(): Record<string, string> {
   const map: Record<string, string> = {};
   for (let i = 0; i < allQuests.length; i++) {
     const q = allQuests[i]!;
-    map[q.title] = batchAsset(`${BATCH_PREFIX}/${fileAt(i)}`);
+    map[q.title] = batchAsset(`${CONVERTED_ART}/${fileAt(i)}`);
   }
   return map;
 }
@@ -111,7 +111,7 @@ function buildRaceSlugMap(): Record<string, string> {
   const map: Record<string, string> = {};
   const start = allQuests.length;
   for (let j = 0; j < races.length; j++) {
-    map[races[j]!.slug] = batchAsset(`${BATCH_PREFIX}/${fileAt(start + j)}`);
+    map[races[j]!.slug] = batchAsset(`${CONVERTED_ART}/${fileAt(start + j)}`);
   }
   return map;
 }
@@ -119,11 +119,43 @@ function buildRaceSlugMap(): Record<string, string> {
 const QUEST_TITLE_TO_SRC = buildQuestTitleMap();
 const RACE_SLUG_TO_SRC = buildRaceSlugMap();
 
-const fallbackBatchPortraitSrc = batchAsset(`${BATCH_PREFIX}/${fileAt(0)}`);
-const QUEST_TITLE_OVERRIDES: Record<string, string> = {
-  'You find yourself in the forest.': batchAsset('art/converted/batch-2026-05-31_13-04-39/nswoods.webp'),
+const fallbackBatchPortraitSrc = batchAsset(`${CONVERTED_ART}/${fileAt(0)}`);
+
+type QuestTitleArtOverride = {
+  path: string;
+  fit?: QuestImageFit;
 };
+
+const QUEST_TITLE_ART_OVERRIDES: Record<string, QuestTitleArtOverride> = {
+  'You find yourself in the forest.': { path: `${CONVERTED_ART}/nswoods.webp` },
+  Sunset: { path: `${CONVERTED_ART}/sophus-jacobsen-sunset-in-the-forest-1878.webp` },
+  "Dyer's Crypt": {
+    path: `${CONVERTED_ART}/monastery-graveyard-under-snow-caspar-david-friedrich.webp`,
+  },
+  'Abandoned Shelter': { path: `${CONVERTED_ART}/a-hut-richard-bergholz.webp` },
+  'The Cave': { path: `${CONVERTED_ART}/courbet-forest-cave-c-1865-o-773.webp` },
+};
+
+function questTitleArtOverride(title: string): QuestTitleArtOverride | null {
+  return QUEST_TITLE_ART_OVERRIDES[title] ?? null;
+}
+
 const genericQuestPlaceholderSrc = fallbackBatchPortraitSrc;
+
+function firstAuthoredImageBeatForStep(
+  quest: QuestDefinition,
+  stepId: string
+): Extract<QuestVisualBeat, { kind: 'image' }> | null {
+  const beats = quest.stepVisuals?.[stepId];
+  if (!beats || beats.length === 0) return null;
+  for (const beat of beats) {
+    if (beat.kind === 'image') {
+      const src = beat.src.trim();
+      if (src.length > 0) return beat;
+    }
+  }
+  return null;
+}
 
 function firstAuthoredVisualImageSrc(quest: QuestDefinition): string | null {
   const beats = quest.stepVisuals?.[quest.startStepId];
@@ -159,15 +191,61 @@ function firstAuthoredVisualImageSrcForStep(quest: QuestDefinition, stepId: stri
   return null;
 }
 
+function firstAuthoredVisualImageSrcAnyStep(quest: QuestDefinition): string | null {
+  if (!quest.stepVisuals) return null;
+  for (const beats of Object.values(quest.stepVisuals)) {
+    if (!beats || beats.length === 0) continue;
+    for (const beat of beats) {
+      if (beat.kind === 'image') {
+        const src = beat.src.trim();
+        if (src.length > 0) return batchAsset(src);
+      }
+      if (beat.kind === 'image-row') {
+        const first = beat.images.find((img) => img.src.trim().length > 0);
+        if (first) return batchAsset(first.src);
+      }
+    }
+  }
+  return null;
+}
+
 /** Resolved URL for a quest illustration keyed by quest title (dialogue log lines use titles). */
 export function getQuestImageSrcForTitle(title: string): string {
-  if (QUEST_TITLE_OVERRIDES[title]) return QUEST_TITLE_OVERRIDES[title];
+  const override = questTitleArtOverride(title);
+  if (override) return batchAsset(override.path);
   return QUEST_TITLE_TO_SRC[title] ?? fallbackBatchPortraitSrc;
 }
 
-/** Card/Popup image source from quest-authored visuals with generic placeholder fallback. */
-export function getQuestCardImageSrc(quest: QuestDefinition): string {
-  return firstAuthoredVisualImageSrc(quest) ?? genericQuestPlaceholderSrc;
+function entryStepArtFromFlags(quest: QuestDefinition, playerFlags?: readonly string[]): string | null {
+  if (!playerFlags || !quest.resolveInitialStepId) return null;
+  const stepId = resolveQuestEntryStepId(quest, { flags: [...playerFlags] } as QuestState);
+  return firstAuthoredVisualImageSrcForStep(quest, stepId);
+}
+
+/** Card/Popup image source — branch entry art, title override, then start-step art, then any step art. */
+export function getQuestCardImageSrc(
+  quest: QuestDefinition,
+  playerFlags?: readonly string[]
+): string {
+  const entryArt = entryStepArtFromFlags(quest, playerFlags);
+  if (entryArt) return entryArt;
+  const override = questTitleArtOverride(quest.title);
+  if (override) return batchAsset(override.path);
+  return (
+    firstAuthoredVisualImageSrc(quest) ??
+    firstAuthoredVisualImageSrcAnyStep(quest) ??
+    genericQuestPlaceholderSrc
+  );
+}
+
+/** Letterbox vs crop for quest card / scene background art. */
+export function getQuestCardImageFit(quest: QuestDefinition): QuestImageFit {
+  const override = questTitleArtOverride(quest.title);
+  if (override?.fit) return override.fit;
+  return (
+    firstAuthoredImageBeatForStep(quest, quest.startStepId)?.fit ??
+    'cover'
+  );
 }
 
 export function getGenericQuestPlaceholderSrc(): string {
@@ -177,6 +255,18 @@ export function getGenericQuestPlaceholderSrc(): string {
 /** Popup/inline image source from the current step visuals only; returns null if step has no image. */
 export function getQuestStepImageSrc(quest: QuestDefinition, stepId: string): string | null {
   return firstAuthoredVisualImageSrcForStep(quest, stepId);
+}
+
+/** Letterbox vs portrait crop for step art (`contain` keeps wide images uncropped). */
+export function getQuestStepImageFit(quest: QuestDefinition, stepId: string): QuestImageFit {
+  const stepBeat = firstAuthoredImageBeatForStep(quest, stepId);
+  if (stepBeat?.fit) return stepBeat.fit;
+  const startBeat = firstAuthoredImageBeatForStep(quest, quest.startStepId);
+  if (startBeat?.fit) return startBeat.fit;
+  if (!firstAuthoredVisualImageSrcForStep(quest, stepId)) {
+    return getQuestCardImageFit(quest);
+  }
+  return 'cover';
 }
 
 /** Location/NPC-style popup portrait — current step, then quest open beat, then card art. */
@@ -190,11 +280,25 @@ export function getQuestPopupPortraitSrc(quest: QuestDefinition, stepId: string)
 
 /** Quest-scene NPC portraits (step `npcTalkId` → art). */
 export const NPC_PORTRAIT_BY_ID: Record<string, string> = {
-  carl: publicAsset(`${BATCH_PREFIX}/atlantian-artist.webp`),
+  carl: publicAsset(`${CONVERTED_ART}/atlantian-artist.webp`),
+  shannon: publicAsset(`${CONVERTED_ART}/wa195531.webp`),
+};
+
+/** Hero background for NPC talk scenes (portrait uses `NPC_PORTRAIT_BY_ID`). */
+export const NPC_TALK_BACKGROUND_BY_ID: Record<string, string> = {
+  shannon: batchAsset(VILLAGE_MAP_PATH),
 };
 
 export function getNpcPortraitSrc(npcTalkId: string): string {
   return NPC_PORTRAIT_BY_ID[npcTalkId] ?? fallbackBatchPortraitSrc;
+}
+
+export function getNpcTalkBackgroundSrc(
+  npcTalkId: string,
+  quest: QuestDefinition,
+  stepId: string
+): string {
+  return NPC_TALK_BACKGROUND_BY_ID[npcTalkId] ?? getQuestPopupPortraitSrc(quest, stepId);
 }
 
 /** Quest scene portrait — NPC talk id wins; else step/start/card art chain. */
@@ -205,6 +309,7 @@ export function getQuestScenePortraitSrc(quest: QuestDefinition, step: QuestStep
 
 export function getQuestScenePortraitAlt(quest: QuestDefinition, step: QuestStep): string {
   if (step.npcTalkId === 'carl') return 'Carl';
+  if (step.npcTalkId === 'shannon') return 'Shannon';
   return `${quest.title} scene`;
 }
 

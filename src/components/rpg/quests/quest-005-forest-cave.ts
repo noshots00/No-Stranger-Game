@@ -16,7 +16,24 @@ import {
 } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 import { forestCaveVignetteSteps } from './quest-005-forest-cave-vignettes';
-import type { QuestState } from './types';
+import type { QuestState, QuestVisualBeat } from './types';
+
+const BATCH = 'art/converted';
+const CAVE_MOUTH_IMG = `${BATCH}/courbet-forest-cave-c-1865-o-773.webp`;
+const CAVE_INTERIOR_IMG = `${BATCH}/4-the-blue-grotto-capri-albert-bierstadt.webp`;
+
+const caveMouthVisual: QuestVisualBeat = {
+  kind: 'image',
+  src: CAVE_MOUTH_IMG,
+  alt: 'A forest cave mouth in shadow',
+};
+
+const caveInteriorVisual: QuestVisualBeat = {
+  kind: 'image',
+  src: CAVE_INTERIOR_IMG,
+  alt: 'Deep blue light inside the cave',
+  fit: 'contain',
+};
 
 export const CONTEXT_FALLBACK = 'cave-fallback';
 export const CONTEXT_WATER = 'cave-water';
@@ -43,12 +60,49 @@ export const WAKE_GENERIC = 'wake-generic';
 const WAKE_ROUTE = 'wake-route';
 const CAVE_CLOSE = 'cave-close';
 
-const PRIMARY_SUNSET_FLAGS = [
-  FIRST_NIGHT_FLAG_WATER,
-  FIRST_NIGHT_FLAG_TRAILS,
-  FIRST_NIGHT_FLAG_FOOD,
-  FIRST_NIGHT_FLAG_HIGH_GROUND,
+const CAVE_OPENER_STEP_IDS = [
+  CONTEXT_WATER,
+  CONTEXT_TRAILS,
+  CONTEXT_FOOD,
+  CONTEXT_HIGH_GROUND,
+  CONTEXT_SHELTER,
+  CONTEXT_TREE,
+  CONTEXT_POCKETS,
+  CONTEXT_CALL_HELP,
+  CONTEXT_FALLBACK,
 ] as const;
+
+const CAVE_INTERIOR_STEP_IDS = [
+  KNOCKOUT_WATER,
+  KNOCKOUT_TRAILS,
+  KNOCKOUT_FOOD,
+  KNOCKOUT_HIGH_GROUND,
+  KNOCKOUT_GENERIC,
+  'dream-bridge',
+  'vignette-market-coin',
+  'vignette-stranger-in-need',
+  'vignette-witness-to-lies',
+  'vignette-oath-to-power',
+  'vignette-last-witness',
+  WAKE_ROUTE,
+  WAKE_WATER,
+  WAKE_TRAILS,
+  WAKE_FOOD,
+  WAKE_HIGH_GROUND,
+  WAKE_GENERIC,
+  CAVE_CLOSE,
+] as const;
+
+function buildCaveStepVisuals(): Partial<Record<string, QuestVisualBeat[]>> {
+  const visuals: Partial<Record<string, QuestVisualBeat[]>> = {};
+  for (const stepId of CAVE_OPENER_STEP_IDS) {
+    visuals[stepId] = [caveMouthVisual];
+  }
+  for (const stepId of CAVE_INTERIOR_STEP_IDS) {
+    visuals[stepId] = [caveInteriorVisual];
+  }
+  return visuals;
+}
 
 /** Priority-ordered primary Sunset flag → knockout / wake step. */
 export function resolveForestCavePrimaryKnockoutStepId(flags: readonly string[]): string {
@@ -115,6 +169,7 @@ export const quest005ForestCave = createQuestDefinition({
     })
   ),
   journalSummaryFallback: 'You entered a cave and woke a day later, changed by strange memories.',
+  stepVisuals: buildCaveStepVisuals(),
   steps: [
     {
       id: CONTEXT_WATER,
@@ -207,41 +262,9 @@ export const quest005ForestCave = createQuestDefinition({
       text: 'The memories release you.',
       choices: [
         {
-          id: 'route-wake-water',
-          label: 'Continue',
-          nextStepId: WAKE_WATER,
-          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_WATER],
-        },
-        {
-          id: 'route-wake-trails',
-          label: 'Continue',
-          nextStepId: WAKE_TRAILS,
-          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_TRAILS],
-          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_WATER],
-        },
-        {
-          id: 'route-wake-food',
-          label: 'Continue',
-          nextStepId: WAKE_FOOD,
-          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_FOOD],
-          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_WATER, FIRST_NIGHT_FLAG_TRAILS],
-        },
-        {
-          id: 'route-wake-high-ground',
-          label: 'Continue',
-          nextStepId: WAKE_HIGH_GROUND,
-          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_HIGH_GROUND],
-          disabledIfAnyFlags: [
-            FIRST_NIGHT_FLAG_WATER,
-            FIRST_NIGHT_FLAG_TRAILS,
-            FIRST_NIGHT_FLAG_FOOD,
-          ],
-        },
-        {
-          id: 'route-wake-generic',
+          id: 'route-wake-continue',
           label: 'Continue',
           nextStepId: WAKE_GENERIC,
-          disabledIfAnyFlags: [...PRIMARY_SUNSET_FLAGS],
         },
       ],
     },

@@ -16,7 +16,7 @@ type MayorsHutContentProps = {
   mayorsHut: ReturnType<typeof useMayorsHut>;
   /** When true, omit outer dialog chrome (Town Hall tab). */
   embedded?: boolean;
-  onVoteRecorded?: () => void;
+  onVoteRecorded?: (candidateName: string) => void;
   onVoteRetracted?: () => void;
 };
 
@@ -28,7 +28,6 @@ export function MayorsHutContent({
   onVoteRetracted,
 }: MayorsHutContentProps) {
   const {
-    feedQuery,
     election,
     myActiveCandidacy,
     myVote,
@@ -132,7 +131,7 @@ export function MayorsHutContent({
                   }
                   if (voteUiLocked || myVote) return;
                   castVote.mutate(candidate.pubkey, {
-                    onSuccess: () => onVoteRecorded?.(),
+                    onSuccess: () => onVoteRecorded?.(candidate.name),
                   });
                 }}
               />
@@ -152,13 +151,7 @@ export function MayorsHutContent({
   );
 
   const ballotBody =
-    feedQuery.isFetching ? (
-      <p className={cn(RPG_UI_META, 'py-3 text-center')}>Updating…</p>
-    ) : !feedQuery.isFetched ? (
-      <p className={cn(RPG_UI_META, 'px-1 py-3 text-center')}>
-        Tap Update ballot to load candidates and votes.
-      </p>
-    ) : election.activeCandidates.length === 0 ? (
+    election.activeCandidates.length === 0 ? (
       <p className={cn(RPG_UI_META, 'px-1 py-3 text-center')}>No candidates yet.</p>
     ) : (
       ballotList
@@ -194,8 +187,6 @@ export function MayorsHutContent({
       <PanelUpdateButton
         label="Update ballot"
         onClick={() => refreshFeed()}
-        isFetching={feedQuery.isFetching}
-        showLedgerHint={!feedQuery.isFetched}
         variant={embedded ? 'chip' : 'full'}
       />
 

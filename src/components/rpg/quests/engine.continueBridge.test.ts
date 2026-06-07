@@ -67,10 +67,10 @@ describe('continue bridge message steps', () => {
     expect(bands.response).toContain('harder than it looks');
   });
 
-  it('stores fall outcome when climbing higher and shows it on the hub prompt', () => {
+  it('stores fall outcome when going back down and shows it on the hub prompt', () => {
     let state = firstNightAtHub();
     state = applyChoice(state, quest002FirstNight, 'q2-climb-tree');
-    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
+    state = applyChoice(state, quest002FirstNight, 'q2-tree-go-down');
     const step = getCurrentStep(state, quest002FirstNight);
     const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
     const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
@@ -79,6 +79,22 @@ describe('continue bridge message steps', () => {
     expect(progress?.lastBeatResponse).toContain('fall from the tree');
     expect(bands.response).toContain('fall from the tree');
     expect(bands.prompt).toContain('What do you do now');
+  });
+
+  it('allows climbing higher three times before only going back down', () => {
+    let state = firstNightAtHub();
+    state = applyChoice(state, quest002FirstNight, 'q2-climb-tree');
+    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
+    expect(getCurrentStep(state, quest002FirstNight).id).toBe('flavor-tree-fork-2');
+    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
+    expect(getCurrentStep(state, quest002FirstNight).id).toBe('flavor-tree-fork-3');
+    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
+    const step = getCurrentStep(state, quest002FirstNight);
+    expect(step.id).toBe('flavor-tree-fork-4');
+    expect(step.type).toBe('choice');
+    if (step.type === 'choice') {
+      expect(step.choices.map((c) => c.label)).toEqual(['Go back down']);
+    }
   });
 
   it('stores high-ground narration before the boar prompt', () => {
@@ -92,6 +108,22 @@ describe('continue bridge message steps', () => {
     expect(progress?.lastBeatResponse).toContain('steepen');
     expect(bands.response).toContain('steepen');
     expect(bands.prompt).toContain('boar charges');
+  });
+
+  it('pauses on boar aftermath until Continue after casting a spell', () => {
+    let state = firstNightAtHub();
+    state = applyChoice(state, quest002FirstNight, 'q2-high-ground');
+    state = applyChoice(state, quest002FirstNight, 'q1-origin-boar-spark');
+    const step = getCurrentStep(state, quest002FirstNight);
+    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
+
+    expect(step.id).toBe('boar-aftermath-spark');
+    expect(step.type).toBe('message');
+    if (step.type === 'message') {
+      expect(step.requireContinueTap).toBe(true);
+      expect(step.text).toContain('using magic');
+    }
+    expect(progress?.isCompleted).toBe(false);
   });
 
   it('collects bridge texts along the chain', () => {

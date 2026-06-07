@@ -14,10 +14,10 @@ function firstInHistory(history: string[], ids: readonly string[]): string | nul
 const TREE_FALL_LINE = 'You fell from a tree and twisted your ankle.';
 
 const BOAR_LINES: Record<string, string> = {
-  'q1-origin-boar-strike': 'You fended off a boar by attacking it.',
-  'q1-origin-boar-spark': 'You fended off a boar by using magic.',
-  'q1-origin-boar-dodge': 'You fended off a boar by dodging it.',
-  'q1-origin-boar-run': 'You fended off a boar by running from it.',
+  'q1-origin-boar-strike': 'You fended off the boar by attacking it.',
+  'q1-origin-boar-spark': 'You fended off the boar by using magic.',
+  'q1-origin-boar-dodge': 'You fended off the boar by dodging it.',
+  'q1-origin-boar-run': 'You fended off the boar by running from it.',
 };
 
 const BOAR_CHOICE_IDS = Object.keys(BOAR_LINES);
@@ -51,7 +51,7 @@ const DIRECTION_MATCHERS: { ids: readonly string[]; line: string }[] = [
 const SHELTER_LINE = 'You built a primitive shelter and rested for the night.';
 
 function buildTreeFallClause(history: string[]): string | null {
-  if (has(history, 'q2-tree-climb-higher')) return TREE_FALL_LINE;
+  if (has(history, 'q2-tree-go-down')) return TREE_FALL_LINE;
   return null;
 }
 

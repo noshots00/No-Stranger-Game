@@ -7,6 +7,7 @@ import {
   QUEST_004_B_THE_DOOR_ID,
   VILLAGE_PHASE_FLAG,
 } from '../constants';
+import { VILLAGE_MAP_PATH } from '../village/villageArt';
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
@@ -26,6 +27,7 @@ export const quest036TheVillage = createQuestDefinition({
       id: 'village-arrival',
       type: 'choice',
       text: 'Congratulations you reached the village!',
+      visuals: [{ kind: 'image', src: VILLAGE_MAP_PATH, alt: 'Strange Village', fit: 'contain' }],
       choices: [
         {
           id: 'village-approach',

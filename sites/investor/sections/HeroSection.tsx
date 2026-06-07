@@ -1,7 +1,7 @@
 import { FadeIn } from "@investor/components/FadeIn";
 import { publicAsset } from "@investor/lib/publicAsset";
 
-const HERO_ART = publicAsset("/art/converted/batch-2026-05-31_13-04-39/nswoods.webp");
+const HERO_ART = publicAsset("/art/converted/nswoods.webp");
 
 export function HeroSection() {
   return (

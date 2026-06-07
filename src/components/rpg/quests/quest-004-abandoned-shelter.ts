@@ -2,6 +2,14 @@ import { QUEST_DYERS_CRYPT_ID } from '../constants';
 import { makeQuestUnveilEligibility, meetsMinDay } from './branching-quest-template';
 import type { QuestDefinition } from './types';
 
+const ABANDONED_SHELTER_ART = 'art/converted/a-hut-richard-bergholz.webp';
+
+const shelterVisual = {
+  kind: 'image' as const,
+  src: ABANDONED_SHELTER_ART,
+  alt: 'An abandoned hut in the woods',
+};
+
 /** Merged into Dyer's Crypt; kept for legacy saves. */
 const LEGACY_WANDERING_SKELETON_QUEST_ID = 'quest-006-wandering-skeleton';
 
@@ -19,6 +27,11 @@ export const quest004AbandonedShelter: QuestDefinition = {
   isUnveilEligible: makeQuestUnveilEligibility({
     requiresAnyCompletedQuestIds: [QUEST_DYERS_CRYPT_ID, LEGACY_WANDERING_SKELETON_QUEST_ID],
   }),
+  stepVisuals: {
+    'shelter-intro': [shelterVisual],
+    'shelter-shout-bridge': [shelterVisual],
+    'shelter-loot': [shelterVisual],
+  },
   steps: {
     'shelter-intro': {
       id: 'shelter-intro',

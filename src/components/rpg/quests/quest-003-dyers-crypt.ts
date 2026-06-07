@@ -26,6 +26,14 @@ import {
 import { createQuestDefinition } from './quest-authoring-tool';
 import type { QuestState } from './types';
 
+const DYERS_CRYPT_ART = 'art/converted/monastery-graveyard-under-snow-caspar-david-friedrich.webp';
+
+const dyersCryptVisual = {
+  kind: 'image' as const,
+  src: DYERS_CRYPT_ART,
+  alt: 'A snow-covered graveyard and ruined abbey',
+};
+
 export const DYERS_CRYPT_MUSHROOM_EAT_1_FLAG = 'dyers-crypt-mushroom-eat-1';
 export const DYERS_CRYPT_MUSHROOM_EAT_2_FLAG = 'dyers-crypt-mushroom-eat-2';
 export const DYERS_CRYPT_MUSHROOM_EAT_3_FLAG = 'dyers-crypt-mushroom-eat-3';
@@ -290,6 +298,7 @@ export const quest003DyersCrypt = createQuestDefinition({
       id: 'skeleton-flee-into-cemetery',
       type: 'message',
       text: 'You bolt through the forest, heart pounding—and run straight into an iron picket fence. A massive gate stands open before you: a cemetery, and the skeleton is already inside.',
+      visuals: [dyersCryptVisual],
       nextStepId: 'skeleton-inside-gate',
       effects: {
         flagsSet: [ANCIENT_CEMETERY_DISCOVERED_FLAG],
@@ -300,6 +309,7 @@ export const quest003DyersCrypt = createQuestDefinition({
       id: 'skeleton-cemetery-approach',
       type: 'choice',
       text: 'You follow the skeleton to a cemetary surrounded by an iron picket fence. A massive gate lies open in front of you and an ancient trail leads over a hill. You wonder how large the cemetary could be.',
+      visuals: [dyersCryptVisual],
       choices: [
         {
           id: 'skeleton-follow-inside',
@@ -326,6 +336,7 @@ export const quest003DyersCrypt = createQuestDefinition({
       id: 'skeleton-inside-gate',
       type: 'choice',
       text: 'Once inside the gate skeletons began climbing out of the earth.',
+      visuals: [dyersCryptVisual],
       choices: [
         {
           id: 'skeleton-fight',
@@ -371,6 +382,7 @@ export const quest003DyersCrypt = createQuestDefinition({
       id: 'skeleton-find-cemetery',
       type: 'message',
       text: 'You wander on and find a cemetery surrounded by an iron picket fence. A massive gate lies open in front of you and an ancient trail leads over a hill. You wonder how large the cemetery could be.',
+      visuals: [dyersCryptVisual],
       nextStepId: 'skeleton-cemetery-found',
       effects: {
         flagsSet: [ANCIENT_CEMETERY_DISCOVERED_FLAG],
@@ -380,6 +392,7 @@ export const quest003DyersCrypt = createQuestDefinition({
       id: 'skeleton-cemetery-found',
       type: 'choice',
       text: 'The woods are quiet. The open gate waits.',
+      visuals: [dyersCryptVisual],
       choices: [
         {
           id: 'skeleton-found-enter',

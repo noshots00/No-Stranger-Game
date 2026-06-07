@@ -6,6 +6,7 @@ import type {
   QuestChoice,
   QuestContext,
   QuestDefinition,
+  QuestImageFit,
   QuestImageRef,
   MessageQuestStep,
   PlayDayRollStaging,
@@ -50,6 +51,7 @@ import {
   AIRSHIP_FLAG,
   JOB_SLUG_EXPLORER,
   QUEST_VILLAGE_ARRIVAL_ID,
+  QUEST_MAYOR_SHANNON_ID,
   QUEST_MAYOR_ID,
   QUEST_PICK_A_JOB_ID,
   VILLAGE_CHOOSEABLE_JOB_SLUGS,
@@ -58,7 +60,10 @@ import {
 } from '../constants';
 import { resolveCharacterCreatedAtAppVersion } from '../characterSaveVersion';
 import { questById } from './registry';
-import { resolveForestCavePrimaryKnockoutStepId } from './quest-005-forest-cave';
+import {
+  resolveForestCavePrimaryKnockoutStepId,
+  resolveForestCavePrimaryWakeStepId,
+} from './quest-005-forest-cave';
 import { unlockJobSlug } from '../jobs/unlockJob';
 import { SKILL_EVENT_LABEL, SKILL_XP_KEYS } from './skills-config';
 import { LEGACY_RACE_SLUG_REWRITES, getRaceDefinition, type RaceDefinition } from '../races';
@@ -77,12 +82,20 @@ const parseTimestampFromDialogueId = (id: string): number | null => {
   return Number(m[1]);
 };
 
+const parseQuestImageFit = (raw: unknown): QuestImageFit | undefined =>
+  raw === 'contain' || raw === 'cover' ? raw : undefined;
+
 const normalizeQuestImageRef = (raw: unknown): QuestImageRef | null => {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   if (typeof o.src !== 'string' || o.src.trim().length === 0) return null;
   const alt = typeof o.alt === 'string' && o.alt.trim().length > 0 ? o.alt : undefined;
-  return alt !== undefined ? { src: o.src.trim(), alt } : { src: o.src.trim() };
+  const fit = parseQuestImageFit(o.fit);
+  return {
+    src: o.src.trim(),
+    ...(alt !== undefined ? { alt } : {}),
+    ...(fit !== undefined ? { fit } : {}),
+  };
 };
 
 const normalizeVisualBeat = (raw: unknown): QuestVisualBeat | undefined => {
@@ -92,9 +105,13 @@ const normalizeVisualBeat = (raw: unknown): QuestVisualBeat | undefined => {
   if (kind === 'image') {
     if (typeof o.src !== 'string' || o.src.trim().length === 0) return undefined;
     const alt = typeof o.alt === 'string' && o.alt.trim().length > 0 ? o.alt : undefined;
-    return alt !== undefined
-      ? { kind: 'image', src: o.src.trim(), alt }
-      : { kind: 'image', src: o.src.trim() };
+    const fit = parseQuestImageFit(o.fit);
+    return {
+      kind: 'image',
+      src: o.src.trim(),
+      ...(alt !== undefined ? { alt } : {}),
+      ...(fit !== undefined ? { fit } : {}),
+    };
   }
   if (kind === 'image-row') {
     if (!Array.isArray(o.images)) return undefined;
@@ -241,6 +258,12 @@ const LEGACY_ORIGIN_FOREST_STEP_IDS = new Set([
   'flavor-tree-start',
   'flavor-tree-vista',
   'flavor-tree-fork',
+  'flavor-tree-vista-2',
+  'flavor-tree-fork-2',
+  'flavor-tree-vista-3',
+  'flavor-tree-fork-3',
+  'flavor-tree-vista-4',
+  'flavor-tree-fork-4',
   'flavor-stream',
   'flavor-still',
   'flavor-orient',
@@ -251,6 +274,10 @@ const LEGACY_ORIGIN_FOREST_STEP_IDS = new Set([
   'compass-four',
   'boar-encounter',
   'boar-aftermath',
+  'boar-aftermath-strike',
+  'boar-aftermath-spark',
+  'boar-aftermath-dodge',
+  'boar-aftermath-run',
   'dusk-choice',
   'shelter-lean-end',
   'dark-pitch',
@@ -1252,6 +1279,27 @@ export function introduceVillageQuestAfterTheDoor(state: QuestState): QuestState
   return next;
 }
 
+/** Unveils and starts Mayor Shannon after The Village (village onboarding). */
+export function introduceShannonQuestAfterVillage(state: QuestState): QuestState {
+  const quest = questById[QUEST_MAYOR_SHANNON_ID];
+  if (!quest) return state;
+  if (getCompletedQuestIds(state).includes(QUEST_MAYOR_SHANNON_ID)) return state;
+  if (!getCompletedQuestIds(state).includes(QUEST_VILLAGE_ARRIVAL_ID)) return state;
+
+  let next = state;
+  if (!next.unveiledQuestIds.includes(QUEST_MAYOR_SHANNON_ID)) {
+    next = {
+      ...next,
+      unveiledQuestIds: [...next.unveiledQuestIds, QUEST_MAYOR_SHANNON_ID],
+    };
+  }
+  const progress = next.progressByQuestId[QUEST_MAYOR_SHANNON_ID];
+  if (!progress || progress.isCompleted) {
+    next = startQuest(ensureQuestProgress(next, quest), quest);
+  }
+  return next;
+}
+
 /** Unveils and starts the Mayor quest after Pick a job (vote at Town Hall completes it). */
 export function introduceMayorQuestAfterPickJob(state: QuestState): QuestState {
   const quest = questById[QUEST_MAYOR_ID];
@@ -1680,6 +1728,9 @@ const moveToStep = (
   const currentProgress = state.progressByQuestId[quest.id];
   const clearActive = Boolean(choice.effects?.clearActiveQuest);
   let resolvedNextStepId = choice.nextStepId ?? currentStepId;
+  if (quest.id === QUEST_FOREST_CAVE_ID && currentStepId === 'wake-route') {
+    resolvedNextStepId = resolveForestCavePrimaryWakeStepId(state.flags);
+  }
   if (!clearActive && choice.randomBranch) {
     const p = choice.randomBranch.probability ?? 0.5;
     resolvedNextStepId =
@@ -1796,6 +1847,7 @@ export const autoAdvanceContinueBridgeSteps = (
   for (let i = 0; i < 32; i++) {
     const step = getCurrentStep(next, quest);
     if (!isContinueBridgeMessageStep(step)) break;
+    if (step.requireContinueTap) break;
     const advanced = advanceQuestMessage(next, quest);
     if (!advanced) break;
     next = advanced;

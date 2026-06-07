@@ -17,9 +17,10 @@ type GameHeaderProps = {
   formatLocationLabel?: (location: string) => string;
   locationIndicatorClass: string;
   travelMenuItems: readonly TravelMenuItem[];
-  locationMenuNotify?: boolean;
   onTravelLocationSelect: (location: string) => void;
   showHeaderDevTools?: boolean;
+  /** When true, dev panel lives in the desktop left gutter (hide header flyout on lg+). */
+  devToolsInSideRail?: boolean;
   devToolsPanel?: ReactNode;
   devToolsMenuOpen?: boolean;
   onDevToolsMenuOpenChange?: (open: boolean) => void;
@@ -36,9 +37,9 @@ export function GameHeader({
   formatLocationLabel = (loc) => loc,
   locationIndicatorClass,
   travelMenuItems,
-  locationMenuNotify = false,
   onTravelLocationSelect,
   showHeaderDevTools = false,
+  devToolsInSideRail = false,
   devToolsPanel,
   devToolsMenuOpen = false,
   onDevToolsMenuOpenChange,
@@ -75,7 +76,6 @@ export function GameHeader({
       )}
     >
       <span className="truncate">{locationLabel}</span>
-      {locationMenuNotify ? <NewDot className="ml-0.5" /> : null}
     </span>
   );
 
@@ -88,7 +88,6 @@ export function GameHeader({
         )}
       >
         {locationLabel}
-        {locationMenuNotify ? <NewDot className="ml-0.5" /> : null}
       </span>
     ) : selectableDestinations === 1 ? (
       <button
@@ -101,7 +100,7 @@ export function GameHeader({
           'relative inline-flex min-w-0 max-w-full items-center justify-end gap-0.5 truncate rounded-sm font-sans text-[9px] uppercase leading-none tracking-[0.14em] outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--candle-flame-soft)] focus-visible:ring-offset-0',
           locationIndicatorClass
         )}
-        aria-label={locationMenuNotify ? 'Travel (new place available)' : 'Travel'}
+        aria-label="Travel"
       >
         {locationTrigger}
       </button>
@@ -109,7 +108,7 @@ export function GameHeader({
       <HeaderFlyout
         open={locationMenuOpen}
         onOpenChange={setLocationMenuOpen}
-        ariaLabel={locationMenuNotify ? 'Choose location (new places available)' : 'Choose location'}
+        ariaLabel="Choose location"
         align="end"
         trigger={locationTrigger}
       >
@@ -141,16 +140,25 @@ export function GameHeader({
 
   const versionCell =
     showHeaderDevTools && devToolsPanel ? (
-      <HeaderFlyout
-        open={devToolsMenuOpen}
-        onOpenChange={(open) => onDevToolsMenuOpenChange?.(open)}
-        ariaLabel={`Health ${health}; open developer tools`}
-        align="center"
-        panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
-        trigger={<HeaderHealthBar health={health} hideMeterSemantics className="cursor-pointer" />}
-      >
-        {devToolsPanel}
-      </HeaderFlyout>
+      <>
+        {devToolsInSideRail ? (
+          <div className="mx-auto hidden w-full max-w-[4.75rem] lg:block">
+            <HeaderHealthBar health={health} hideMeterSemantics className="px-0.5" />
+          </div>
+        ) : null}
+        <div className={devToolsInSideRail ? 'lg:hidden' : undefined}>
+          <HeaderFlyout
+            open={devToolsMenuOpen}
+            onOpenChange={(open) => onDevToolsMenuOpenChange?.(open)}
+            ariaLabel={`Health ${health}; open developer tools`}
+            align="center"
+            panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
+            trigger={<HeaderHealthBar health={health} hideMeterSemantics className="cursor-pointer" />}
+          >
+            {devToolsPanel}
+          </HeaderFlyout>
+        </div>
+      </>
     ) : (
       <button
         type="button"

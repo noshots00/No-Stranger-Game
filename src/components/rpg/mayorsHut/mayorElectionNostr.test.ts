@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
+  applyMayorElectionEventToSnapshot,
   buildMayorElectionSnapshot,
+  buildMayorVoteDraft,
   buildMayorVoteWithdrawDraft,
+  mergeMayorElectionSnapshots,
   parseMayorVote,
 } from './mayorElectionNostr';
 
@@ -84,5 +87,68 @@ describe('mayor election snapshot', () => {
     const snapshot = buildMayorElectionSnapshot([candidateEvent], [voteEvent, withdrawnEvent]);
     expect(snapshot.votes).toHaveLength(0);
     expect(snapshot.voteCountByCandidate[candidatePubkey]).toBe(0);
+  });
+
+  it('applies a local vote immediately before relay refresh', () => {
+    const empty = buildMayorElectionSnapshot([candidateEvent], []);
+    const voteEvent: NostrEvent = {
+      ...buildMayorVoteDraft({ candidatePubkey, voterName: 'Bob' }),
+      id: 'v1',
+      pubkey: voterPubkey,
+      sig: 'sig',
+      created_at: 101,
+    };
+    const patched = applyMayorElectionEventToSnapshot(empty, voteEvent);
+    expect(patched.votes).toHaveLength(1);
+    expect(patched.voteCountByCandidate[candidatePubkey]).toBe(1);
+  });
+
+  it('keeps a local vote when relay refresh is still stale', () => {
+    const voteEvent: NostrEvent = {
+      ...buildMayorVoteDraft({ candidatePubkey, voterName: 'Bob' }),
+      id: 'v1',
+      pubkey: voterPubkey,
+      sig: 'sig',
+      created_at: 101,
+    };
+    const local = applyMayorElectionEventToSnapshot(
+      buildMayorElectionSnapshot([candidateEvent], []),
+      voteEvent
+    );
+    const remote = buildMayorElectionSnapshot([candidateEvent], []);
+    const merged = mergeMayorElectionSnapshots(local, remote);
+    expect(merged.votes).toHaveLength(1);
+    expect(merged.voteCountByCandidate[candidatePubkey]).toBe(1);
+  });
+
+  it('keeps a local withdraw when relay refresh is still stale', () => {
+    const voteEvent: NostrEvent = {
+      id: 'v1',
+      pubkey: voterPubkey,
+      kind: 30339,
+      created_at: 101,
+      tags: [
+        ['d', 'village-mayor-vote'],
+        ['t', 'village'],
+        ['t', 'mayor-vote'],
+        ['status', 'active'],
+        ['candidate', candidatePubkey],
+        ['voter-name', 'Bob'],
+      ],
+      content: '',
+      sig: 'sig',
+    };
+    const remoteWithVote = buildMayorElectionSnapshot([candidateEvent], [voteEvent]);
+    const withdrawnEvent: NostrEvent = {
+      ...buildMayorVoteWithdrawDraft({ voterName: 'Bob' }),
+      id: 'v2',
+      pubkey: voterPubkey,
+      sig: 'sig',
+      created_at: 102,
+    };
+    const local = applyMayorElectionEventToSnapshot(remoteWithVote, withdrawnEvent);
+    const merged = mergeMayorElectionSnapshots(local, remoteWithVote);
+    expect(merged.votes).toHaveLength(0);
+    expect(merged.voteCountByCandidate[candidatePubkey]).toBe(0);
   });
 });

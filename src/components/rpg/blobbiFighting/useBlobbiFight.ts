@@ -106,11 +106,14 @@ export function useBlobbiFight(args: {
   ownerName: string;
   onAfterFeedRefresh?: () => void;
 }) {
+  const { myPubkey, ownerName, onAfterFeedRefresh } = args;
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
   const queryClient = useQueryClient();
   const resolveInFlightRef = useRef(false);
+  const onAfterFeedRefreshRef = useRef(onAfterFeedRefresh);
+  onAfterFeedRefreshRef.current = onAfterFeedRefresh;
   const [isResolvingMatch, setIsResolvingMatch] = useState(false);
 
   const feedQuery = useQuery({
@@ -129,14 +132,14 @@ export function useBlobbiFight(args: {
       matches: [],
       consumedRegistrationIds: new Set<string>(),
     };
-    const myOpen = args.myPubkey
-      ? findMyOpenRegistration(base.openRegistrations, args.myPubkey)
+    const myOpen = myPubkey
+      ? findMyOpenRegistration(base.openRegistrations, myPubkey)
       : undefined;
-    const myLatestMatch = args.myPubkey
-      ? findMyLatestMatch(base.matches, args.myPubkey)
+    const myLatestMatch = myPubkey
+      ? findMyLatestMatch(base.matches, myPubkey)
       : undefined;
     return { ...base, myOpen, myLatestMatch };
-  }, [feedQuery.data, args.myPubkey]);
+  }, [feedQuery.data, myPubkey]);
 
   const completeMatch = useCallback(
     async (parsedMatch: BlobbiFightMatchResult | null, myPubkey: string) => {
@@ -191,15 +194,15 @@ export function useBlobbiFight(args: {
     if (result.data) {
       await tryResolvePendingMatch(result.data);
     }
-    args.onAfterFeedRefresh?.();
-  }, [feedQuery, tryResolvePendingMatch, args.onAfterFeedRefresh]);
+    onAfterFeedRefreshRef.current?.();
+  }, [feedQuery, tryResolvePendingMatch]);
 
   const register = useMutation({
     mutationFn: async (selectedBlobbi: BlobbiSnapshot) => {
       if (!user?.pubkey) throw new Error('You must be logged in to find a match.');
       if (!selectedBlobbi) throw new Error('Select a Blobbi first.');
 
-      const playerName = args.ownerName.trim() || 'Stranger';
+      const playerName = ownerName.trim() || 'Stranger';
 
       const latest = await fetchBlobbiFightFeed(nostr);
       const myOpen = findMyOpenRegistration(latest.openRegistrations, user.pubkey);

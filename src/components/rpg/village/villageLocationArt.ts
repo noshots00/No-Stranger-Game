@@ -10,7 +10,7 @@ export type VillageLocationBanner = {
   leaveLabel: string;
 };
 
-const BATCH = 'art/converted/batch-2026-05-31_13-04-39';
+const BATCH = 'art/converted';
 
 export const VILLAGE_LOCATION_BANNERS: Record<VillagePanelId, VillageLocationBanner> = {
   tavern: {

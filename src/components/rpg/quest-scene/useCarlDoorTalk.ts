@@ -1,10 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useCombatEncounter } from '@/components/rpg/combat/useCombatEncounter';
+import {
+  DOOR_APPROACH_HIDE_FLAG,
+  DOOR_APPROACH_KNOCK_FLAG,
+  DOOR_APPROACH_YELL_FLAG,
+} from '@/components/rpg/constants';
 import { appendPair, type DialogueChoice, type TranscriptEntry } from '@/components/rpg/merchant/merchantDialogueTree';
 import { CARL_MAIN_CHOICES, seedCarlOpeningTranscript } from '@/components/rpg/quests/carlDoorDialogueTree';
 
 type UseCarlDoorTalkOptions = {
   stepId: string;
+  playerFlags: readonly string[];
   playerHealth: number;
   onPlayerHealthChange?: (health: number) => void;
   onCombatChromeChange?: (active: boolean) => void;
@@ -13,6 +19,7 @@ type UseCarlDoorTalkOptions = {
 
 export function useCarlDoorTalk({
   stepId,
+  playerFlags,
   playerHealth,
   onPlayerHealthChange,
   onCombatChromeChange,
@@ -38,12 +45,20 @@ export function useCarlDoorTalk({
 
   const combat = { isCombatMode, startCombat, resetCombat, ...combatRest };
 
+  const doorApproachKey = playerFlags.includes(DOOR_APPROACH_YELL_FLAG)
+    ? 'yell'
+    : playerFlags.includes(DOOR_APPROACH_HIDE_FLAG)
+      ? 'hide'
+      : playerFlags.includes(DOOR_APPROACH_KNOCK_FLAG)
+        ? 'knock'
+        : 'default';
+
   useEffect(() => {
     resetCombat();
-    setTranscript(seedCarlOpeningTranscript());
+    setTranscript(seedCarlOpeningTranscript(playerFlags));
     setAskedDoor(false);
     setAskedSelf(false);
-  }, [stepId, resetCombat]);
+  }, [stepId, doorApproachKey, resetCombat]);
 
   useLayoutEffect(() => {
     if (isCombatMode) return;

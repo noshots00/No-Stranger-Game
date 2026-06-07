@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import { VillageLocationScreen } from '../village/VillageLocationScreen';
 import {
   RPG_COMMAND_CHIP,
@@ -97,7 +98,7 @@ export function MarketScreen({
 }: MarketScreenProps) {
   const { toast } = useToast();
   const [postOpen, setPostOpen] = useState(false);
-  const { feed, feedQuery, postListing, cancelListing, buyListing } = market;
+  const { feed, feedQuery, postListing, cancelListing, buyListing, refreshFeed } = market;
   const walletCopper = getCopperFromModifiers(questState.modifiers);
 
   return (
@@ -161,6 +162,11 @@ export function MarketScreen({
         </section>
 
         <p className={cn(RPG_UI_CAPTION, 'uppercase tracking-[0.14em]')}>Player listings</p>
+
+        <PanelUpdateButton
+          label="Update listings"
+          onClick={() => refreshFeed()}
+        />
 
         <div className="rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
           {feedQuery.isPending ? (

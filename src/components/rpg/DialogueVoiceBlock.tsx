@@ -1,6 +1,7 @@
 import type { DialogueLogEntry, QuestVisualBeat } from './quests/types';
 import { publicAsset } from '@/lib/publicAsset';
 import { getQuestImageSrcForTitle } from './rpgArtAssignments';
+import { questVisualImageClassName } from './questVisualImage';
 import type { DialogueVoice } from './dialogueFormat';
 import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
 import { isReportInfographicTitle } from './dialogueFormat';
@@ -33,7 +34,7 @@ function QuestVisualBeatView({ beat }: { beat: QuestVisualBeat }) {
         <img
           src={resolveQuestAssetUrl(beat.src)}
           alt={beat.alt ?? ''}
-          className="mx-auto aspect-[3/4] w-full max-w-[200px] rounded-md border border-[var(--candle-rule)] object-cover"
+          className={questVisualImageClassName(beat.fit ?? 'cover', 'inline')}
           loading="lazy"
         />
       </div>

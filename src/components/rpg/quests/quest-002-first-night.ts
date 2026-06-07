@@ -2,6 +2,63 @@ import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 import type { QuestChoice } from './types';
 
+const SUNSET_QUEST_ART = 'art/converted/sophus-jacobsen-sunset-in-the-forest-1878.webp';
+const TREE_CLIMB_ART = 'art/converted/treetops-against-sky-met-dt287184.webp';
+const WATER_STREAM_ART = 'art/converted/gustave-courbet-stream-in-the-forest-55982-museum-of-fine-arts.webp';
+const WILD_BOAR_ART = 'art/converted/eb1911-painting-plate-ii-fig-4.webp';
+
+const treeClimbVisual = {
+  kind: 'image' as const,
+  src: TREE_CLIMB_ART,
+  alt: 'Treetops against the sky',
+};
+
+const waterStreamVisual = {
+  kind: 'image' as const,
+  src: WATER_STREAM_ART,
+  alt: 'A stream in the forest',
+};
+
+const wildBoarVisual = {
+  kind: 'image' as const,
+  src: WILD_BOAR_ART,
+  alt: 'Cave painting of a wild boar',
+  fit: 'contain' as const,
+};
+
+const TREE_VISTA_TEXT = 'The trees are still too thick to see much.';
+
+function makeTreeGoDownChoice(): QuestChoice {
+  return {
+    id: 'q2-tree-go-down',
+    label: 'Go back down',
+    nextStepId: 'flavor-tree-fall',
+    effects: {
+      flagsSet: [FIRST_NIGHT_FLAG_TREE],
+    },
+    journalSummaryLineAdd: 'You fell from a tree and twisted your ankle.',
+  };
+}
+
+function makeTreeClimbHigherChoice(nextStepId: string): QuestChoice {
+  return {
+    id: 'q2-tree-climb-higher',
+    label: 'Climb higher',
+    nextStepId,
+  };
+}
+
+function makeBoarAftermathStep(id: string, outcomeLine: string) {
+  return {
+    id,
+    type: 'message' as const,
+    text: `${outcomeLine}\n\nThe boar misses and vanishes into the woods.`,
+    requireContinueTap: true,
+    nextStepId: 'night-router',
+    visuals: [wildBoarVisual],
+  };
+}
+
 export const FIRST_NIGHT_FLAG_SHELTER = 'quest-002-first-night-shelter';
 export const FIRST_NIGHT_FLAG_POCKETS = 'quest-002-first-night-pockets';
 export const FIRST_NIGHT_FLAG_TREE = 'quest-002-first-night-tree';
@@ -99,12 +156,26 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-five',
       type: 'choice',
       text: 'What do you do now?',
+      visuals: [
+        {
+          kind: 'image',
+          src: SUNSET_QUEST_ART,
+          alt: 'Sunset in the winter forest',
+        },
+      ],
       choices: buildFirstNightMainChoices(),
     },
     {
       id: 'flavor-five-hub',
       type: 'choice',
       text: 'What do you do now?',
+      visuals: [
+        {
+          kind: 'image',
+          src: SUNSET_QUEST_ART,
+          alt: 'Sunset in the winter forest',
+        },
+      ],
       choices: buildFirstNightMainChoices(),
     },
     {
@@ -184,51 +255,79 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-tree-start',
       type: 'message',
       text: 'This is harder than it looks...',
+      visuals: [treeClimbVisual],
       nextStepId: 'flavor-tree-vista',
     },
     {
       id: 'flavor-tree-vista',
       type: 'message',
-      text:
-        'The trees are still too thick to see much.',
+      text: TREE_VISTA_TEXT,
+      visuals: [treeClimbVisual],
       nextStepId: 'flavor-tree-fork',
     },
     {
       id: 'flavor-tree-fork',
       type: 'choice',
       text: '',
-      choices: [
-        {
-          id: 'q2-tree-climb-higher',
-          label: 'Climb higher',
-          nextStepId: 'flavor-tree-fall',
-          effects: {
-            flagsSet: [FIRST_NIGHT_FLAG_TREE],
-
-          },
-          journalSummaryLineAdd: 'You fell from a tree and twisted your ankle.',
-        },
-        {
-          id: 'q2-tree-go-down',
-          label: 'Go back down',
-          nextStepId: 'flavor-tree-safe-down',
-          effects: {
-            flagsSet: [FIRST_NIGHT_FLAG_TREE],
-          },
-        },
-      ],
+      visuals: [treeClimbVisual],
+      choices: [makeTreeClimbHigherChoice('flavor-tree-vista-2'), makeTreeGoDownChoice()],
+    },
+    {
+      id: 'flavor-tree-vista-2',
+      type: 'message',
+      text: TREE_VISTA_TEXT,
+      visuals: [treeClimbVisual],
+      nextStepId: 'flavor-tree-fork-2',
+    },
+    {
+      id: 'flavor-tree-fork-2',
+      type: 'choice',
+      text: '',
+      visuals: [treeClimbVisual],
+      choices: [makeTreeClimbHigherChoice('flavor-tree-vista-3'), makeTreeGoDownChoice()],
+    },
+    {
+      id: 'flavor-tree-vista-3',
+      type: 'message',
+      text: TREE_VISTA_TEXT,
+      visuals: [treeClimbVisual],
+      nextStepId: 'flavor-tree-fork-3',
+    },
+    {
+      id: 'flavor-tree-fork-3',
+      type: 'choice',
+      text: '',
+      visuals: [treeClimbVisual],
+      choices: [makeTreeClimbHigherChoice('flavor-tree-vista-4'), makeTreeGoDownChoice()],
+    },
+    {
+      id: 'flavor-tree-vista-4',
+      type: 'message',
+      text: TREE_VISTA_TEXT,
+      visuals: [treeClimbVisual],
+      nextStepId: 'flavor-tree-fork-4',
+    },
+    {
+      id: 'flavor-tree-fork-4',
+      type: 'choice',
+      text: '',
+      visuals: [treeClimbVisual],
+      choices: [makeTreeGoDownChoice()],
     },
     {
       id: 'flavor-tree-fall',
       type: 'message',
       text:
         'You fall from the tree and twist your ankle.',
+      visuals: [treeClimbVisual],
       nextStepId: 'flavor-five-hub',
     },
+    /** Legacy — old saves that chose a safe descent before go-back-down always fell. */
     {
       id: 'flavor-tree-safe-down',
       type: 'message',
       text: 'You return safely to the ground.',
+      visuals: [treeClimbVisual],
       nextStepId: 'flavor-five-hub',
     },
     {
@@ -273,6 +372,7 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'flavor-look-water',
       type: 'message',
       text: 'You listen for running water and catch the faint sound of a trickle to the west.',
+      visuals: [waterStreamVisual],
       nextStepId: 'dir-west-stream',
     },
     /** Legacy step id — old saves only. */
@@ -286,6 +386,7 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'dir-west-stream',
       type: 'choice',
       text: 'You soon find a trickling stream.\n\nWhat now?',
+      visuals: [waterStreamVisual],
       choices: [
         {
           id: 'q2-west-drink',
@@ -314,6 +415,7 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'dir-west-drink',
       type: 'message',
       text: 'You kneel and drink from the stream.',
+      visuals: [waterStreamVisual],
       nextStepId: 'dir-west-stream',
     },
     {
@@ -385,12 +487,13 @@ export const quest002FirstNight = createQuestDefinition({
       id: 'boar-encounter',
       type: 'choice',
       text: 'A wild boar charges straight at you!',
+      visuals: [wildBoarVisual],
       choices: [
         {
           id: 'q1-origin-boar-strike',
           label: 'Attack',
-          nextStepId: 'boar-aftermath',
-          journalSummaryLineAdd: 'You fended off a boar by attacking it.',
+          nextStepId: 'boar-aftermath-strike',
+          journalSummaryLineAdd: 'You fended off the boar by attacking it.',
           effects: {
 
           },
@@ -398,8 +501,8 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'q1-origin-boar-spark',
           label: 'Cast a spell',
-          nextStepId: 'boar-aftermath',
-          journalSummaryLineAdd: 'You fended off a boar by using magic.',
+          nextStepId: 'boar-aftermath-spark',
+          journalSummaryLineAdd: 'You fended off the boar by using magic.',
           effects: {
 
           },
@@ -407,8 +510,8 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'q1-origin-boar-dodge',
           label: 'Dodge',
-          nextStepId: 'boar-aftermath',
-          journalSummaryLineAdd: 'You fended off a boar by dodging it.',
+          nextStepId: 'boar-aftermath-dodge',
+          journalSummaryLineAdd: 'You fended off the boar by dodging it.',
           effects: {
 
           },
@@ -416,18 +519,25 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'q1-origin-boar-run',
           label: 'Run',
-          nextStepId: 'boar-aftermath',
-          journalSummaryLineAdd: 'You fended off a boar by running from it.',
+          nextStepId: 'boar-aftermath-run',
+          journalSummaryLineAdd: 'You fended off the boar by running from it.',
           effects: {
 
           },
         },
       ],
     },
+    makeBoarAftermathStep('boar-aftermath-strike', 'You fended off the boar by attacking it.'),
+    makeBoarAftermathStep('boar-aftermath-spark', 'You fended off the boar by using magic.'),
+    makeBoarAftermathStep('boar-aftermath-dodge', 'You fended off the boar by dodging it.'),
+    makeBoarAftermathStep('boar-aftermath-run', 'You fended off the boar by running from it.'),
+    /** Legacy — old saves mid-boar beat. */
     {
       id: 'boar-aftermath',
       type: 'message',
       text: "The boar misses and vanishes into the woods.",
+      requireContinueTap: true,
+      visuals: [wildBoarVisual],
       nextStepId: 'night-router',
     },
     {

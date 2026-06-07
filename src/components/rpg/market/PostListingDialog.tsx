@@ -1,14 +1,8 @@
 import { useMemo, useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { formatCoinShort, getCopperFromModifiers, splitCopperIntoCoins } from '../helpers';
 import { listInventoryOptions, type PostListingInput } from './listingEscrow';
 import type { QuestState } from '../quests/types';
@@ -32,7 +26,7 @@ export function PostListingDialog({
   const [priceCopper, setPriceCopper] = useState('12');
 
   const itemChoices = useMemo(() => listInventoryOptions(questState), [questState]);
-  const walletCopper = getCopperFromModifiers(questState.modifiers);
+  const walletCopper = getCopperFromModifiers(questState.modifiers ?? {});
 
   const reset = () => {
     setItemSelection('');
@@ -66,86 +60,83 @@ export function PostListingDialog({
   const pricePreview = buildPrice();
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange} modal={false}>
-      <DialogContent
-        className="z-[70] max-h-[90dvh] overflow-y-auto border border-[var(--candle-rule)] bg-[var(--candle-hearth)] text-[var(--candle-ink)] sm:max-w-md"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader>
-          <DialogTitle className="font-cormorant text-lg text-[var(--candle-wax)]">List item for sale</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-1">
-          <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
-            Wallet: {formatCoinShort(splitCopperIntoCoins(walletCopper))}
-          </p>
-          <div className="space-y-1">
-            <Label htmlFor="ml-item" className="font-serif text-xs">
-              Item (escrowed when listed)
-            </Label>
-            <select
-              id="ml-item"
-              className="w-full rounded border border-[var(--candle-rule)] bg-black/30 px-2 py-1.5 font-serif text-sm text-[var(--candle-ink)]"
-              value={itemSelection}
-              onChange={(e) => setItemSelection(e.target.value)}
-              disabled={itemChoices.length === 0}
-            >
-              <option value="">Select item…</option>
-              {itemChoices.map((o) => {
-                if (o.kind === 'questItem') {
-                  return (
-                    <option key={`q-${o.label}`} value={o.label}>
-                      {o.label}
-                    </option>
-                  );
-                }
+    <GamePanelDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      ariaLabel="List item for sale"
+      panelClassName="h-auto max-h-[90dvh] w-full max-w-md gap-3 overflow-y-auto p-4 pt-8"
+    >
+      <GamePanelDialogTitle className="text-lg">List item for sale</GamePanelDialogTitle>
+      <div className="space-y-3 py-1">
+        <p className="font-serif text-xs text-[var(--candle-ink-faint)]">
+          Wallet: {formatCoinShort(splitCopperIntoCoins(walletCopper))}
+        </p>
+        <div className="space-y-1">
+          <Label htmlFor="ml-item" className="font-serif text-xs">
+            Item (escrowed when listed)
+          </Label>
+          <select
+            id="ml-item"
+            className="w-full rounded border border-[var(--candle-rule)] bg-black/30 px-2 py-1.5 font-serif text-sm text-[var(--candle-ink)]"
+            value={itemSelection}
+            onChange={(e) => setItemSelection(e.target.value)}
+            disabled={itemChoices.length === 0}
+          >
+            <option value="">Select item…</option>
+            {itemChoices.map((o) => {
+              if (o.kind === 'questItem') {
                 return (
-                  <option key={o.key} value={o.key}>
-                    {o.label} ×{o.quantity}
+                  <option key={`q-${o.label}`} value={o.label}>
+                    {o.label}
                   </option>
                 );
-              })}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="ml-price" className="font-serif text-xs">
-              Price (copper)
-            </Label>
-            <Input
-              id="ml-price"
-              type="number"
-              min={1}
-              value={priceCopper}
-              onChange={(e) => setPriceCopper(e.target.value)}
-              className="border-[var(--candle-rule)] bg-black/30 font-serif"
-            />
-            {pricePreview ? (
-              <p className="font-serif text-[0.6rem] text-[var(--candle-ink-faint)]">
-                ≈ {formatCoinShort(splitCopperIntoCoins(pricePreview))}
-              </p>
-            ) : null}
-          </div>
+              }
+              return (
+                <option key={o.key} value={o.key}>
+                  {o.label} ×{o.quantity}
+                </option>
+              );
+            })}
+          </select>
         </div>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button type="button" variant="outline" className="font-serif" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="font-serif"
-            disabled={!canSubmit || isPending}
-            onClick={() => {
-              const goods = buildGoods();
-              const copper = buildPrice();
-              if (!goods || copper === null) return;
-              onSubmit({ goods, priceCopper: copper });
-              reset();
-            }}
-          >
-            {isPending ? 'Listing…' : 'List for sale'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="space-y-1">
+          <Label htmlFor="ml-price" className="font-serif text-xs">
+            Price (copper)
+          </Label>
+          <Input
+            id="ml-price"
+            type="number"
+            min={1}
+            value={priceCopper}
+            onChange={(e) => setPriceCopper(e.target.value)}
+            className="border-[var(--candle-rule)] bg-black/30 font-serif"
+          />
+          {pricePreview ? (
+            <p className="font-serif text-[0.6rem] text-[var(--candle-ink-faint)]">
+              ≈ {formatCoinShort(splitCopperIntoCoins(pricePreview))}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="outline" className="font-serif" onClick={() => handleOpenChange(false)}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          className="font-serif"
+          disabled={!canSubmit || isPending}
+          onClick={() => {
+            const goods = buildGoods();
+            const copper = buildPrice();
+            if (!goods || copper === null) return;
+            onSubmit({ goods, priceCopper: copper });
+            reset();
+          }}
+        >
+          {isPending ? 'Listing…' : 'List for sale'}
+        </Button>
+      </div>
+    </GamePanelDialog>
   );
 }

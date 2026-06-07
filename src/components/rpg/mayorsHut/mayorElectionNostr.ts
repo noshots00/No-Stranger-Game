@@ -37,6 +37,8 @@ export type MayorElectionSnapshot = {
   mayorName: string;
   mayorPubkey: string | null;
   isPlaceholderMayor: boolean;
+  /** Local withdraw timestamps by voter pubkey (optimistic / not yet on relay). */
+  voteWithdrawals?: Record<string, number>;
 };
 
 const tagValue = (event: NostrEvent, name: string): string | undefined =>
@@ -132,20 +134,20 @@ export function latestMayorVotes(events: readonly NostrEvent[]): MayorVoteView[]
   return votes;
 }
 
-export function buildMayorElectionSnapshot(
-  candidateEvents: readonly NostrEvent[],
-  voteEvents: readonly NostrEvent[]
+function finalizeMayorElectionFromViews(
+  candidates: MayorCandidateView[],
+  votes: MayorVoteView[],
+  voteWithdrawals?: Record<string, number>
 ): MayorElectionSnapshot {
-  const candidates = latestMayorCandidates(candidateEvents);
   const activeCandidates = candidates.filter((c) => c.status === 'active');
   const activePubkeys = new Set(activeCandidates.map((c) => c.pubkey));
-  const votes = latestMayorVotes(voteEvents).filter((v) => activePubkeys.has(v.candidatePubkey));
+  const activeVotes = votes.filter((v) => activePubkeys.has(v.candidatePubkey));
 
   const voteCountByCandidate: Record<string, number> = {};
   for (const c of activeCandidates) {
     voteCountByCandidate[c.pubkey] = 0;
   }
-  for (const v of votes) {
+  for (const v of activeVotes) {
     voteCountByCandidate[v.candidatePubkey] = (voteCountByCandidate[v.candidatePubkey] ?? 0) + 1;
   }
 
@@ -172,12 +174,89 @@ export function buildMayorElectionSnapshot(
   return {
     candidates,
     activeCandidates,
-    votes,
+    votes: activeVotes,
     voteCountByCandidate,
     mayorName,
     mayorPubkey: isPlaceholderMayor ? null : mayorPubkey,
     isPlaceholderMayor,
+    voteWithdrawals,
   };
+}
+
+export function buildMayorElectionSnapshot(
+  candidateEvents: readonly NostrEvent[],
+  voteEvents: readonly NostrEvent[]
+): MayorElectionSnapshot {
+  const candidates = latestMayorCandidates(candidateEvents);
+  const activePubkeys = new Set(candidates.filter((c) => c.status === 'active').map((c) => c.pubkey));
+  const votes = latestMayorVotes(voteEvents).filter((v) => activePubkeys.has(v.candidatePubkey));
+  return finalizeMayorElectionFromViews(candidates, votes);
+}
+
+/** Merge relay snapshot with local optimistic edits (prefer newer rows). */
+export function mergeMayorElectionSnapshots(
+  local: MayorElectionSnapshot | undefined,
+  remote: MayorElectionSnapshot
+): MayorElectionSnapshot {
+  if (!local) return remote;
+
+  const candByPubkey = new Map<string, MayorCandidateView>();
+  for (const c of remote.candidates) candByPubkey.set(c.pubkey, c);
+  for (const c of local.candidates) {
+    const prev = candByPubkey.get(c.pubkey);
+    if (!prev || c.updatedAt >= prev.updatedAt) candByPubkey.set(c.pubkey, c);
+  }
+  const candidates = Array.from(candByPubkey.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+  const voteWithdrawals = { ...remote.voteWithdrawals, ...local.voteWithdrawals };
+  const voteByVoter = new Map<string, MayorVoteView>();
+  for (const v of remote.votes) {
+    const withdrawnAt = voteWithdrawals[v.voterPubkey];
+    if (withdrawnAt != null && v.updatedAt <= withdrawnAt) continue;
+    voteByVoter.set(v.voterPubkey, v);
+  }
+  for (const v of local.votes) {
+    const prev = voteByVoter.get(v.voterPubkey);
+    if (!prev || v.updatedAt >= prev.updatedAt) voteByVoter.set(v.voterPubkey, v);
+  }
+
+  return finalizeMayorElectionFromViews(candidates, Array.from(voteByVoter.values()), voteWithdrawals);
+}
+
+/** Apply a freshly published mayor election event to the cached snapshot. */
+export function applyMayorElectionEventToSnapshot(
+  prev: MayorElectionSnapshot,
+  event: NostrEvent
+): MayorElectionSnapshot {
+  if (event.kind === NSG_MAYOR_CANDIDATE_KIND) {
+    const row = parseMayorCandidate(event);
+    if (!row) return prev;
+    const candidates = [...prev.candidates];
+    const idx = candidates.findIndex((c) => c.pubkey === row.pubkey);
+    if (idx >= 0) {
+      if (event.created_at < candidates[idx].updatedAt) return prev;
+      candidates[idx] = row;
+    } else {
+      candidates.push(row);
+    }
+    candidates.sort((a, b) => a.name.localeCompare(b.name));
+    return finalizeMayorElectionFromViews(candidates, prev.votes, prev.voteWithdrawals);
+  }
+
+  if (event.kind === NSG_MAYOR_VOTE_KIND) {
+    const voteWithdrawals = { ...prev.voteWithdrawals };
+    let votes = prev.votes.filter((v) => v.voterPubkey !== event.pubkey);
+    const row = parseMayorVote(event);
+    if (row) {
+      delete voteWithdrawals[event.pubkey];
+      votes.push(row);
+    } else if (parseMayorVoteStatus(event) === 'withdrawn') {
+      voteWithdrawals[event.pubkey] = event.created_at;
+    }
+    return finalizeMayorElectionFromViews(prev.candidates, votes, voteWithdrawals);
+  }
+
+  return prev;
 }
 
 export function buildMayorCandidateDraft(args: {

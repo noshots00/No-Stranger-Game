@@ -1,7 +1,7 @@
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
-const BATCH = 'art/converted/batch-2026-05-02_21-10-35';
+const BATCH = 'art/converted';
 
 /** Unlock after quest 2b; introduces traveling merchant + location travel. */
 export const quest003BMeetMerchant = createQuestDefinition({

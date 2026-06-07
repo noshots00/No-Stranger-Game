@@ -1,4 +1,4 @@
-import { QUEST_VILLAGE_ARRIVAL_ID, VILLAGE_PHASE_FLAG } from '../constants';
+import { QUEST_MAYOR_SHANNON_ID, VILLAGE_PHASE_FLAG } from '../constants';
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
@@ -12,7 +12,7 @@ export const quest040PickAJob = createQuestDefinition({
   requiredPlayLocation: 'Village',
   isAvailable: makeQuestAvailability({
     requiresAnyFlags: [VILLAGE_PHASE_FLAG],
-    requiresAnyCompletedQuestIds: [QUEST_VILLAGE_ARRIVAL_ID],
+    requiresAnyCompletedQuestIds: [QUEST_MAYOR_SHANNON_ID],
   }),
   journalSummaryFallback: 'You chose a profession at the Jobs Hall.',
   steps: [

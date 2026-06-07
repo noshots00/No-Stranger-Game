@@ -7,14 +7,14 @@ const STEPS = [
     phase: "01",
     title: "Awaken",
     body: "You wake in the Forest with no memory. Branching quests teach choices. Every decision applies modifiers — stats, traits, race leanings, class leanings. The opening arc is bingeable: hook players before the idle clock starts.",
-    art: "/art/converted/batch-2026-05-31_13-04-39/waterfall2.webp",
+    art: "/art/converted/waterfall2.webp",
     artAlt: "A forest waterfall — one of the early exploration locations",
   },
   {
     phase: "02",
     title: "Idle",
     body: "After village arrival, the game respects your calendar. About two new quests unveil per in-game day. Skills advance at daily rollover. When there is nothing urgent, you chat, walk the world, read your chronicle, or wait for tomorrow.",
-    art: "/art/converted/batch-2026-05-31_13-04-39/witches-pool.webp",
+    art: "/art/converted/witches-pool.webp",
     artAlt: "A still forest pool — where the player's race is revealed and locked at Silver Lake",
   },
   {

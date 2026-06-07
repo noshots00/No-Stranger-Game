@@ -7,17 +7,17 @@ import { VillageActionChip, VillageActionRow, VillageActionRowItem } from './vil
 type PanelUpdateButtonProps = {
   label: string;
   onClick: () => void;
-  isFetching?: boolean;
+  /** Optional first-visit hint (hidden once ledger data has loaded). */
   showLedgerHint?: boolean;
   className?: string;
   /** Legacy dialog panels: full-width bar. Embedded village uses chip (default). */
   variant?: 'chip' | 'full';
 };
 
+/** Manual ledger refresh — no loading spinner; cached data stays visible during refetch. */
 export function PanelUpdateButton({
   label,
   onClick,
-  isFetching = false,
   showLedgerHint = false,
   className,
   variant = 'chip',
@@ -33,10 +33,9 @@ export function PanelUpdateButton({
           size="sm"
           variant="outline"
           className="w-full font-serif text-xs uppercase tracking-[0.1em]"
-          disabled={isFetching}
           onClick={onClick}
         >
-          {isFetching ? 'Updating…' : label}
+          {label}
         </Button>
       </div>
     );
@@ -49,9 +48,7 @@ export function PanelUpdateButton({
       ) : null}
       <VillageActionRow>
         <VillageActionRowItem>
-          <VillageActionChip disabled={isFetching} onClick={onClick}>
-            {isFetching ? 'Updating…' : label}
-          </VillageActionChip>
+          <VillageActionChip onClick={onClick}>{label}</VillageActionChip>
         </VillageActionRowItem>
       </VillageActionRow>
     </div>

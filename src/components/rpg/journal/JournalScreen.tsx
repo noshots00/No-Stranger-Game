@@ -70,16 +70,18 @@ export function JournalScreen({
         const firstLine = segment.lines[0];
         if (!firstLine) return null;
         if (!/^Day\s+\d+\s+Report$/i.test(firstLine.text.trim())) return null;
-        return { atMs: firstLine.atMs, key: `report-${index}-${firstLine.id}` };
+        const lastLine = segment.lines[segment.lines.length - 1];
+        const endAtMs = lastLine?.atMs ?? firstLine.atMs;
+        return { atMs: firstLine.atMs, endAtMs, key: `report-${index}-${firstLine.id}` };
       })
-      .filter((entry): entry is { atMs: number; key: string } => entry !== null)
+      .filter((entry): entry is { atMs: number; endAtMs: number; key: string } => entry !== null)
       .sort((a, b) => a.atMs - b.atMs);
 
     const sortedJournalEntries = [...playJournalLines].sort((a, b) => a.atMs - b.atMs);
     const entriesByReport = new Map<string, JournalLogEntry[]>();
     const trailingEntries: JournalLogEntry[] = [];
     for (const entry of sortedJournalEntries) {
-      const matchingReport = dayReports.find((report) => entry.atMs <= report.atMs);
+      const matchingReport = dayReports.find((report) => entry.atMs <= report.endAtMs);
       if (!matchingReport) {
         trailingEntries.push(entry);
         continue;
@@ -94,7 +96,8 @@ export function JournalScreen({
       rows.push({
         kind: 'journal_group',
         entries,
-        sortMs: entries[0].atMs,
+        // Quest recap is written just before the day report; keep it above the report block.
+        sortMs: report.atMs - 1,
         groupKey: report.key,
         seq: seq++,
       });
@@ -222,12 +225,17 @@ export function JournalScreen({
             );
           })}
 
+        </div>
+      </div>
+
+      {questCardRows.length > 0 ? (
+        <div className="shrink-0 space-y-1 bg-black/20 px-[16px] py-1.5">
           {questCardRows.map((quest) => {
             const isNew = newQuestIds.includes(quest.id);
             const briefingText = resolveQuestBriefing(quest.id, quest.briefing);
             const questCardInteractive = quest.questCardInteractive !== false;
             return (
-              <div key={`quest-card-${quest.id}`} className="py-1">
+              <div key={`quest-card-${quest.id}`} className="py-0.5">
                 <QuestCardHeader
                   quest={quest}
                   title={quest.title}
@@ -235,12 +243,13 @@ export function JournalScreen({
                   isNew={isNew}
                   interactive={questCardInteractive}
                   onOpen={questCardInteractive ? () => onOpenQuest(quest.id) : undefined}
+                  playerFlags={playerFlags}
                 />
               </div>
             );
           })}
         </div>
-      </div>
+      ) : null}
 
       {locationActionsBlock}
     </section>

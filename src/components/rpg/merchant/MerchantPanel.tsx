@@ -40,7 +40,7 @@ import {
 } from '@/components/rpg/merchant/merchantDialogueTree';
 
 const MERCHANT_PORTRAIT_SRC = publicAsset(
-  'art/converted/batch-2026-05-02_21-10-35/the-ogre-king.webp'
+  'art/converted/the-ogre-king.webp'
 );
 
 type MerchantPanelProps = {

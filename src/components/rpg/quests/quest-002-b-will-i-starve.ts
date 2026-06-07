@@ -9,7 +9,7 @@ import {
 import { makeQuestAvailability, makeQuestUnveilEligibility } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 
-const BATCH = 'art/converted/batch-2026-05-02_21-10-35';
+const BATCH = 'art/converted';
 const WELL_IMG = `${BATCH}/forest-gnome-drinking-from-pond.webp`;
 
 const WELL_DESCRIPTION =

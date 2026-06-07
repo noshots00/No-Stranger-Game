@@ -25,6 +25,7 @@ import {
   shouldShowDayInHeader,
   catchUpVillageQuestAfterTheDoor,
   introduceVillageQuestAfterTheDoor,
+  introduceShannonQuestAfterVillage,
   introduceMayorQuestAfterPickJob,
   reconcileVillagePhaseState,
   restartQuestProgress,
@@ -38,11 +39,19 @@ import {
   catchUpManualSagaUnveilIds,
   catchUpMayorQuestUnveilId,
   catchUpPickJobQuestUnveilId,
+  catchUpShannonQuestUnveilId,
   catchUpSagaUnveilIds,
   catchUpVillageUnveilId,
   computeNextUnveilIdsAfterCompletion,
 } from '@/components/rpg/quests/quest-saga';
-import { mergeJournalRecapOnQuestComplete } from '@/components/rpg/quests/journalSummary';
+import {
+  appendJournalRecapEntry,
+  mergeJournalRecapOnQuestComplete,
+} from '@/components/rpg/quests/journalSummary';
+import {
+  fetchMayorElection,
+  MAYORS_HUT_FEED_KEY,
+} from '@/components/rpg/mayorsHut/useMayorElectionQuery';
 import type { ModifierMap, QuestDefinition, QuestState } from '@/components/rpg/quests/types';
 import {
   APP_VERSION,
@@ -63,6 +72,7 @@ import {
   QUEST_003B_MEET_MERCHANT_ID,
   QUEST_004_B_THE_DOOR_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
+  QUEST_MAYOR_SHANNON_ID,
   QUEST_PICK_A_JOB_ID,
   QUEST_MAYOR_ID,
   JOB_SLUG_EXPLORER,
@@ -167,7 +177,7 @@ import { useTavern } from './tavern/useTavern';
 import { useMarket } from './market/useMarket';
 import { useMayorsHut } from './mayorsHut/useMayorsHut';
 import { switchActiveJob } from './jobs/applyJobAction';
-import { getJobDefinition } from './jobs/registry';
+import { formatProfessionChoicePrint, getJobDefinition } from './jobs/registry';
 import { getVillageJournalQuests } from './village/villageJournal';
 import {
   isTownHallTutorialContinueChoice,
@@ -234,23 +244,20 @@ function mergeDiscoveryUnveils(
   if (add.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
     next = introduceVillageQuestAfterTheDoor(next);
   }
+  if (add.includes(QUEST_MAYOR_SHANNON_ID)) {
+    next = introduceShannonQuestAfterVillage(next);
+  }
   if (add.includes(QUEST_MAYOR_ID)) {
     next = introduceMayorQuestAfterPickJob(next);
   }
   return next;
 }
 
-function notifyVillageQuestAvailable(toast: ReturnType<typeof useToast>['toast']) {
-  toast({
-    title: 'New quest',
-    description: 'The Village — open it from your quest list.',
-  });
-}
-
 function finishMayorQuestIfInProgress(
   prev: QuestState,
   state: QuestState,
-  dayCounter: number
+  dayCounter: number,
+  candidateName: string
 ): QuestState | null {
   const mayorQuest = questById[QUEST_MAYOR_ID];
   if (!mayorQuest) return null;
@@ -260,13 +267,14 @@ function finishMayorQuestIfInProgress(
   const marked = markQuestCompleted(state, QUEST_MAYOR_ID);
   if (!marked) return null;
 
+  const trimmedName = candidateName.trim() || 'a candidate';
+  const votePrint = `You voted for ${trimmedName} for mayor of the village.`;
   let merged: QuestState = {
     ...marked,
-    worldEventLog: appendUniqueWorldEntries(marked.worldEventLog, [
-      'You cast your vote for village mayor.',
-    ]),
+    worldEventLog: appendUniqueWorldEntries(marked.worldEventLog, [votePrint]),
   };
   merged = mergeJournalRecapOnQuestComplete(prev, merged, mayorQuest);
+  merged = appendJournalRecapEntry(merged, QUEST_MAYOR_ID, votePrint, { replaceText: true });
   merged = applyQuestLevelMilestoneIfNeeded(prev, merged, QUEST_MAYOR_ID);
   merged = mergeDiscoveryUnveils(merged, QUEST_MAYOR_ID, resolveDisplayDay(merged, dayCounter));
   return merged;
@@ -506,12 +514,6 @@ export function RPGInterface() {
     }
     return items;
   }, [formatLocationLabel, merchantTravelUnlocked, questState]);
-  const locationMenuNotify = useMemo(() => {
-    if (questState.flags.includes(VILLAGE_PHASE_FLAG)) {
-      return !hasAcknowledgedTravelLocation(questState, 'Village');
-    }
-    return forestTravelPings.header;
-  }, [forestTravelPings.header, questState]);
   const interpolateQuestCopy = useCallback((text: string, state: QuestState) => {
     const thrown = thrownItemLabelFromFlags(state.flags);
     return interpolateStepText(text, state.playerName, thrown ? { thrownItem: thrown } : undefined);
@@ -603,6 +605,7 @@ export function RPGInterface() {
     enabled: activeVillagePanel === 'market' && canShowGame,
     questState,
     myPubkey: user?.pubkey,
+    getQuestState,
     setQuestState,
     persistQuestCheckpoint,
   });
@@ -848,9 +851,9 @@ export function RPGInterface() {
               onChange={(e) => setShowRelayStatusOverlay(e.target.checked)}
             />
             <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
-              Show relay status overlay
+              Show relay status panel
               <span className="mt-0.5 block text-[0.6rem] text-[var(--candle-ink-faint)]">
-                Floating up/down indicator for game relays (top right).
+                Desktop: right gutter. Narrow screens: floating overlay.
               </span>
             </span>
           </label>
@@ -902,9 +905,13 @@ export function RPGInterface() {
       if (activeQuest && !completedSet.has(activeQuest.id) && !ackSet.has(activeQuest.id)) {
         ids.add(activeQuest.id);
       }
+      // Origin stays "New" until completed — opening the scene should not clear it pre-naming.
+      if (!completedSet.has(QUEST_ORIGIN_ID) && questState.unveiledQuestIds.includes(QUEST_ORIGIN_ID)) {
+        ids.add(QUEST_ORIGIN_ID);
+      }
       return [...ids];
     },
-    [completedQuestIds, acknowledgedNewQuestIds, activeQuest]
+    [completedQuestIds, acknowledgedNewQuestIds, activeQuest, questState.unveiledQuestIds]
   );
   /** Unveiled, incomplete quests the player has not opened yet. */
   const newQuestIds = useMemo(() => buildNewQuestIds(visibleQuests), [buildNewQuestIds, visibleQuests]);
@@ -971,35 +978,40 @@ export function RPGInterface() {
     (jobSlug: string) => {
       const pickJobQuest = questById[QUEST_PICK_A_JOB_ID];
       setQuestState((prev) => {
+        if (prev.activeJobSlug === jobSlug) return prev;
+
         const switched = switchActiveJob(prev, jobSlug);
         if (!switched) return prev;
 
-        const pickProg = switched.progressByQuestId[QUEST_PICK_A_JOB_ID];
-        const pickJobInProgress = Boolean(pickProg && !pickProg.isCompleted);
-        const isProfession = jobSlug !== JOB_SLUG_EXPLORER;
-
-        if (!pickJobInProgress || !isProfession || !pickJobQuest) {
-          window.queueMicrotask(() => void persistQuestCheckpoint(switched));
-          return switched;
-        }
-
-        const marked = markQuestCompleted(switched, QUEST_PICK_A_JOB_ID);
-        if (!marked) {
-          window.queueMicrotask(() => void persistQuestCheckpoint(switched));
-          return switched;
-        }
-
         const job = getJobDefinition(jobSlug);
-        let merged: QuestState = job
+        const professionPrint = job ? formatProfessionChoicePrint(job) : null;
+        let next: QuestState = professionPrint
           ? {
-              ...marked,
-              worldEventLog: appendUniqueWorldEntries(marked.worldEventLog, [
-                `You took up work as a ${job.displayName}.`,
-              ]),
+              ...switched,
+              worldEventLog: appendUniqueWorldEntries(switched.worldEventLog, [professionPrint]),
             }
-          : marked;
+          : switched;
 
+        const pickProg = next.progressByQuestId[QUEST_PICK_A_JOB_ID];
+        const completingPickJob =
+          Boolean(pickProg && !pickProg.isCompleted && jobSlug !== JOB_SLUG_EXPLORER && pickJobQuest);
+
+        if (!completingPickJob) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(next));
+          return next;
+        }
+
+        const marked = markQuestCompleted(next, QUEST_PICK_A_JOB_ID);
+        if (!marked) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(next));
+          return next;
+        }
+
+        let merged: QuestState = marked;
         merged = mergeJournalRecapOnQuestComplete(prev, merged, pickJobQuest);
+        if (professionPrint) {
+          merged = appendJournalRecapEntry(merged, QUEST_PICK_A_JOB_ID, professionPrint, { replaceText: true });
+        }
         merged = applyQuestLevelMilestoneIfNeeded(prev, merged, QUEST_PICK_A_JOB_ID);
         merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, pickJobQuest, dayCounter);
         merged = mergeDiscoveryUnveils(
@@ -1018,17 +1030,20 @@ export function RPGInterface() {
     [setQuestState, persistQuestCheckpoint, dayCounter]
   );
 
-  const handleMayorVoteRecorded = useCallback(() => {
-    setQuestState((prev) => {
-      const merged = finishMayorQuestIfInProgress(prev, prev, dayCounter);
-      if (!merged) return prev;
-      window.queueMicrotask(() => {
-        void persistQuestCheckpoint(merged);
-        setPlaySceneQuestId(null);
+  const handleMayorVoteRecorded = useCallback(
+    (candidateName: string) => {
+      setQuestState((prev) => {
+        const merged = finishMayorQuestIfInProgress(prev, prev, dayCounter, candidateName);
+        if (!merged) return prev;
+        window.queueMicrotask(() => {
+          void persistQuestCheckpoint(merged);
+          setPlaySceneQuestId(null);
+        });
+        return merged;
       });
-      return merged;
-    });
-  }, [setQuestState, persistQuestCheckpoint, dayCounter]);
+    },
+    [setQuestState, persistQuestCheckpoint, dayCounter]
+  );
 
   const handleMayorVoteRetracted = useCallback(() => {
     setQuestState((prev) => {
@@ -1155,6 +1170,10 @@ export function RPGInterface() {
           return village ? [village] : [];
         })(),
         ...(() => {
+          const shannon = catchUpShannonQuestUnveilId(prev.unveiledQuestIds, completed, ctx);
+          return shannon ? [shannon] : [];
+        })(),
+        ...(() => {
           const pickJob = catchUpPickJobQuestUnveilId(prev.unveiledQuestIds, completed, ctx);
           return pickJob ? [pickJob] : [];
         })(),
@@ -1172,6 +1191,9 @@ export function RPGInterface() {
       }
       if (catchUp.includes(QUEST_VILLAGE_ARRIVAL_ID)) {
         next = introduceVillageQuestAfterTheDoor(next);
+      }
+      if (catchUp.includes(QUEST_MAYOR_SHANNON_ID)) {
+        next = introduceShannonQuestAfterVillage(next);
       }
       if (catchUp.includes(QUEST_MAYOR_ID)) {
         next = introduceMayorQuestAfterPickJob(next);
@@ -1290,6 +1312,8 @@ export function RPGInterface() {
     setDevDayOffsetMs(0);
     setRapidDaySimulation(false);
     await resetQuestStateAndSync();
+    setAcknowledgedNewQuestIds([]);
+    setPlaySceneQuestId(null);
     setNameInput('');
     setNameInputError(null);
   };
@@ -1300,6 +1324,8 @@ export function RPGInterface() {
     setDevDayOffsetMs(0);
     setRapidDaySimulation(false);
     await resetQuestStateAndSync();
+    setAcknowledgedNewQuestIds([]);
+    setPlaySceneQuestId(null);
     setNameInput('');
     setNameInputError(null);
     window.location.reload();
@@ -1407,8 +1433,23 @@ export function RPGInterface() {
       }
       if (villageQuestUnveiled) {
         window.queueMicrotask(() => {
-          notifyVillageQuestAvailable(toast);
           setPlaySceneQuestId(QUEST_VILLAGE_ARRIVAL_ID);
+          setActiveTab('play');
+        });
+      }
+      const shannonQuestUnveiled =
+        !wasCompleted &&
+        isCompleted &&
+        activeQuest.id === QUEST_VILLAGE_ARRIVAL_ID &&
+        merged.unveiledQuestIds.includes(QUEST_MAYOR_SHANNON_ID) &&
+        !prev.unveiledQuestIds.includes(QUEST_MAYOR_SHANNON_ID);
+      if (shannonQuestUnveiled) {
+        void queryClient.prefetchQuery({
+          queryKey: MAYORS_HUT_FEED_KEY,
+          queryFn: () => fetchMayorElection(nostr),
+        });
+        window.queueMicrotask(() => {
+          setPlaySceneQuestId(QUEST_MAYOR_SHANNON_ID);
           setActiveTab('play');
         });
       }
@@ -1622,7 +1663,9 @@ export function RPGInterface() {
   };
 
   const handleOpenQuest = (questId: string) => {
-    setAcknowledgedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
+    if (questId !== QUEST_ORIGIN_ID) {
+      setAcknowledgedNewQuestIds((prev) => (prev.includes(questId) ? prev : [...prev, questId]));
+    }
     if (questId === 'quest-001-origin' && !questState.flags.includes(ORIGIN_QUEST_OPENED_FLAG)) {
       const nextFlags = [...questState.flags, ORIGIN_QUEST_OPENED_FLAG];
       const nextState = { ...questState, flags: nextFlags };
@@ -1832,7 +1875,28 @@ export function RPGInterface() {
 
   return (
     <>
-    <GamePortraitViewport>
+    <GamePortraitViewport
+      leftRail={
+        showHeaderDevTools ? (
+          <div className="space-y-2">
+            <p className="font-serif text-[0.65rem] uppercase tracking-[0.16em] text-[var(--candle-wax)]">
+              Developer tools
+            </p>
+            {headerDevPanel}
+          </div>
+        ) : undefined
+      }
+      rightRail={
+        showRelayHealthOverlay ? (
+          <GameRelayStatusOverlay
+            variant="rail"
+            snapshot={relayHealthQuery.data}
+            isFetching={relayHealthQuery.isFetching}
+            onRefresh={() => void relayHealthQuery.refetch()}
+          />
+        ) : undefined
+      }
+    >
     <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
       <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-0.5 px-0 pt-[max(0px,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom,0px)+var(--rpg-bottom-nav-clearance,2.5rem))]">
@@ -1862,9 +1926,9 @@ export function RPGInterface() {
           formatLocationLabel={formatLocationLabel}
           locationIndicatorClass={locationIndicatorClass}
           travelMenuItems={travelMenuItems}
-          locationMenuNotify={locationMenuNotify}
           onTravelLocationSelect={handleTravelLocationSelect}
           showHeaderDevTools={showHeaderDevTools}
+          devToolsInSideRail={showHeaderDevTools}
           devToolsPanel={headerDevPanel}
           devToolsMenuOpen={devToolsMenuOpen}
           onDevToolsMenuOpenChange={setDevToolsMenuOpen}
@@ -1873,6 +1937,7 @@ export function RPGInterface() {
         />
         {showRelayHealthOverlay ? (
           <GameRelayStatusOverlay
+            variant="overlay"
             snapshot={relayHealthQuery.data}
             isFetching={relayHealthQuery.isFetching}
             onRefresh={() => void relayHealthQuery.refetch()}

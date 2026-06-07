@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import type { QuestState } from '../quests/types';
@@ -16,6 +16,7 @@ import {
   villageProjectContributionFilter,
   villageProjectDefinitionFilter,
 } from './villageProjectNostr';
+import { keepQueryDataIfUnchanged, LEDGER_QUERY_OPTIONS } from '../ledgerQuery';
 
 const VILLAGE_PROJECTS_FEED_KEY = ['village-projects'] as const;
 
@@ -29,29 +30,31 @@ export function useVillageProjects(args: {
 }) {
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
+  const queryClient = useQueryClient();
 
   const mayorPubkey = args.election.isPlaceholderMayor ? null : args.election.mayorPubkey;
   const isMayor = Boolean(args.myPubkey && mayorPubkey && args.myPubkey === mayorPubkey);
+  const feedQueryKey = [...VILLAGE_PROJECTS_FEED_KEY, mayorPubkey ?? 'none'] as const;
 
   const feedQuery = useQuery({
-    queryKey: [...VILLAGE_PROJECTS_FEED_KEY, mayorPubkey ?? 'none'],
+    queryKey: feedQueryKey,
     queryFn: async () => {
+      const prev = queryClient.getQueryData<ReturnType<typeof buildVillageProjectProgress>>(feedQueryKey);
       const defEvents = (await nostr.query([
         villageProjectDefinitionFilter(mayorPubkey),
       ])) as NostrEvent[];
       const progress = buildVillageProjectProgress(defEvents, []);
       const projectId = progress.definition?.projectId ?? null;
-      if (!projectId) return progress;
+      if (!projectId) {
+        return keepQueryDataIfUnchanged(prev, progress);
+      }
       const contributionEvents = (await nostr.query([
         villageProjectContributionFilter(projectId),
       ])) as NostrEvent[];
-      return buildVillageProjectProgress(defEvents, contributionEvents);
+      const next = buildVillageProjectProgress(defEvents, contributionEvents);
+      return keepQueryDataIfUnchanged(prev, next);
     },
-    enabled: false,
-    staleTime: Infinity,
-    retry: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    ...LEDGER_QUERY_OPTIONS,
   });
 
   const progress = feedQuery.data ?? buildVillageProjectProgress([], []);
@@ -59,7 +62,7 @@ export function useVillageProjects(args: {
 
   const refreshFeed = useCallback(() => {
     void feedQuery.refetch();
-  }, [feedQuery]);
+  }, [feedQuery.refetch]);
 
   const catalogById = useMemo(() => {
     const m = new Map<string, (typeof VILLAGE_PROJECT_CATALOG)[number]>();

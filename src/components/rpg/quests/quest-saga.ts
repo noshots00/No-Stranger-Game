@@ -9,6 +9,7 @@ import {
   QUEST_004_B_THE_DOOR_ID,
   QUEST_FOREST_CAVE_ID,
   QUEST_MAYOR_ID,
+  QUEST_MAYOR_SHANNON_ID,
   QUEST_PICK_A_JOB_ID,
   QUEST_VILLAGE_ARRIVAL_ID,
 } from '../constants';
@@ -127,6 +128,20 @@ export function computeNextUnveilIdsAfterCompletion(
         if (unveilEligible(q, context)) return [villageId];
       }
     }
+    if (completedQuestId === QUEST_VILLAGE_ARRIVAL_ID) {
+      const shannonId = QUEST_MAYOR_SHANNON_ID;
+      if (!completed.has(shannonId) && !unveiled.has(shannonId)) {
+        const q = questById[shannonId];
+        if (unveilEligible(q, context)) return [shannonId];
+      }
+    }
+    if (completedQuestId === QUEST_MAYOR_SHANNON_ID) {
+      const pickJobId = QUEST_PICK_A_JOB_ID;
+      if (!completed.has(pickJobId) && !unveiled.has(pickJobId)) {
+        const q = questById[pickJobId];
+        if (unveilEligible(q, context)) return [pickJobId];
+      }
+    }
     if (completedQuestId === QUEST_PICK_A_JOB_ID) {
       const mayorId = QUEST_MAYOR_ID;
       if (!completed.has(mayorId) && !unveiled.has(mayorId)) {
@@ -158,6 +173,14 @@ export function computeNextUnveilIdsAfterCompletion(
   }
 
   if (completedQuestId === QUEST_VILLAGE_ARRIVAL_ID) {
+    const shannonId = QUEST_MAYOR_SHANNON_ID;
+    if (!completed.has(shannonId) && !unveiled.has(shannonId)) {
+      const q = questById[shannonId];
+      if (unveilEligible(q, context)) return [shannonId];
+    }
+  }
+
+  if (completedQuestId === QUEST_MAYOR_SHANNON_ID) {
     const pickJobId = QUEST_PICK_A_JOB_ID;
     if (!completed.has(pickJobId) && !unveiled.has(pickJobId)) {
       const q = questById[pickJobId];
@@ -243,13 +266,27 @@ export function catchUpVillageUnveilId(
   return villageId;
 }
 
-/** On login: surface Pick a job when village arrival is already complete. */
-export function catchUpPickJobQuestUnveilId(
+/** On login: surface Mayor Shannon when village arrival is already complete. */
+export function catchUpShannonQuestUnveilId(
   unveiledQuestIds: readonly string[],
   completedQuestIds: readonly string[],
   context: QuestContext
 ): string | null {
   if (!completedQuestIds.includes(QUEST_VILLAGE_ARRIVAL_ID)) return null;
+  if (completedQuestIds.includes(QUEST_MAYOR_SHANNON_ID)) return null;
+  if (unveiledQuestIds.includes(QUEST_MAYOR_SHANNON_ID)) return null;
+  const q = questById[QUEST_MAYOR_SHANNON_ID];
+  if (!unveilEligible(q, context)) return null;
+  return QUEST_MAYOR_SHANNON_ID;
+}
+
+/** On login: surface Pick a job when Mayor Shannon is already complete. */
+export function catchUpPickJobQuestUnveilId(
+  unveiledQuestIds: readonly string[],
+  completedQuestIds: readonly string[],
+  context: QuestContext
+): string | null {
+  if (!completedQuestIds.includes(QUEST_MAYOR_SHANNON_ID)) return null;
   if (completedQuestIds.includes(QUEST_PICK_A_JOB_ID)) return null;
   if (unveiledQuestIds.includes(QUEST_PICK_A_JOB_ID)) return null;
   const q = questById[QUEST_PICK_A_JOB_ID];
@@ -288,6 +325,8 @@ export function catchUpManualSagaUnveilIds(
     [QUEST_DAY_TWO_DREAM_ID, QUEST_FOREST_CAVE_ID],
     [QUEST_FOREST_CAVE_ID, QUEST_004_B_THE_DOOR_ID],
     [QUEST_004_B_THE_DOOR_ID, QUEST_VILLAGE_ARRIVAL_ID],
+    [QUEST_VILLAGE_ARRIVAL_ID, QUEST_MAYOR_SHANNON_ID],
+    [QUEST_MAYOR_SHANNON_ID, QUEST_PICK_A_JOB_ID],
   ] as const;
   for (const [prevId, nextId] of chain) {
     if (!completed.has(prevId)) continue;

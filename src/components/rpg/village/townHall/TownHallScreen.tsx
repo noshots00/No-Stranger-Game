@@ -12,8 +12,7 @@ import { RPG_UI_CAPTION } from '../../typography/rpgUiTypography';
 import { VillageProjectsContent } from '../../villageProjects/VillageProjectsPanel';
 import type { useVillageProjects } from '../../villageProjects/useVillageProjects';
 import { VillageLocationScreen } from '../VillageLocationScreen';
-
-type TownHallSection = 'mayor' | 'projects' | 'jobs' | 'guild';
+import { useTownHallSectionFeed, type TownHallSection } from './useTownHallSectionFeed';
 
 const SECTIONS: ReadonlyArray<{ id: TownHallSection; label: string }> = [
   { id: 'mayor', label: "Mayor's Hut" },
@@ -31,7 +30,7 @@ type TownHallScreenProps = {
   guildAlley: ReturnType<typeof useGuildAlley>;
   questState: QuestState;
   onSwitchJob: (jobSlug: string) => void;
-  onMayorVoteRecorded?: () => void;
+  onMayorVoteRecorded?: (candidateName: string) => void;
   onMayorVoteRetracted?: () => void;
 };
 
@@ -48,6 +47,8 @@ export function TownHallScreen({
   onMayorVoteRetracted,
 }: TownHallScreenProps) {
   const [section, setSection] = useState<TownHallSection>('mayor');
+
+  useTownHallSectionFeed(section, { villageProjects, guildAlley });
 
   return (
     <VillageLocationScreen panel="townHall" className={className} onClose={onClose}>

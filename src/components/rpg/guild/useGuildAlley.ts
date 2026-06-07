@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import type { GuildMembership, ModifierMap, QuestState } from '../quests/types';
@@ -22,6 +22,7 @@ import {
 } from './guildNostr';
 import type { GuildDefinitionView } from './defaultGuild';
 import type { GuildMemberRow } from './guildNostr';
+import { keepQueryDataIfUnchanged, LEDGER_QUERY_OPTIONS } from '../ledgerQuery';
 
 const GUILD_FEED_KEY = ['guild-alley-feed'] as const;
 
@@ -70,6 +71,7 @@ export function useGuildAlley(args: {
 }) {
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
+  const queryClient = useQueryClient();
 
   const membership = args.questState.guildMembership ?? null;
   const hasActiveMembership = membership !== null && membership.leftAtMs === undefined;
@@ -77,21 +79,18 @@ export function useGuildAlley(args: {
   const feedQuery = useQuery({
     queryKey: GUILD_FEED_KEY,
     queryFn: async () => {
-      const initial = await fetchGuildFeed(nostr);
-      return initial;
+      const prev = queryClient.getQueryData<GuildAlleyFeed>(GUILD_FEED_KEY);
+      const next = await fetchGuildFeed(nostr);
+      return keepQueryDataIfUnchanged(prev, next);
     },
-    enabled: false,
-    staleTime: Infinity,
-    retry: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    ...LEDGER_QUERY_OPTIONS,
   });
 
   const feed = feedQuery.data ?? { guilds: [DEFAULT_GUILD], membersBySlug: {} };
 
   const refreshFeed = useCallback(() => {
     void feedQuery.refetch();
-  }, [feedQuery]);
+  }, [feedQuery.refetch]);
 
   const setMembership = useCallback(
     (next: GuildMembership | null) => {

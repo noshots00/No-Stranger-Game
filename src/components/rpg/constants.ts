@@ -75,6 +75,9 @@ export function thrownItemFlagForLabel(label: string): string {
 /** Quest 4b — Carl at the door (NPC dialog template). */
 export const QUEST_004_B_THE_DOOR_ID = 'quest-004-b-the-door';
 export const QUEST_004_B_CARL_HUB_STEP_ID = 'carl-hub';
+export const DOOR_APPROACH_YELL_FLAG = 'door-approach-yell';
+export const DOOR_APPROACH_KNOCK_FLAG = 'door-approach-knock';
+export const DOOR_APPROACH_HIDE_FLAG = 'door-approach-hide';
 /** Set when the player submits their name on origin (distinct from `quest001-complete`). */
 export const QUEST001_NAMED_FLAG = 'quest001-named';
 /** Matches quest choice / transcript CSS in `index.css` (`.choice-fade-out`, `.quest-body-*`, `.quest-transcript-burn-in`). */
@@ -257,6 +260,7 @@ export const RESOURCE_ADVENTURES = 'adventures';
 
 export const QUEST_018_SILVER_LAKE_REFLECTION_ID = 'quest-018-silver-lake-reflection';
 export const QUEST_VILLAGE_ARRIVAL_ID = 'quest-036-the-village';
+export const QUEST_MAYOR_SHANNON_ID = 'quest-042-mayor-shannon';
 export const QUEST_PICK_A_JOB_ID = 'quest-040-pick-a-job';
 export const QUEST_MAYOR_ID = 'quest-041-mayor';
 

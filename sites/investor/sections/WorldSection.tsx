@@ -45,7 +45,7 @@ export function WorldSection() {
       <FadeIn className="mt-8">
         <figure className="overflow-hidden rounded-xl border border-[var(--candle-rule)]">
           <img
-            src={publicAsset("/art/converted/batch-2026-05-31_13-04-39/the-lantern-bearers.webp")}
+            src={publicAsset("/art/converted/the-lantern-bearers.webp")}
             alt="Lantern bearers walking through a twilight landscape — the folktale tone of the world"
             className="aspect-[21/9] w-full object-cover"
             width={1400}

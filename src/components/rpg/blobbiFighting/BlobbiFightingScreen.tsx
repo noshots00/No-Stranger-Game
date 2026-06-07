@@ -6,7 +6,6 @@ import {
   RPG_COMMAND_CHIP,
   RPG_COMMAND_CHIP_LABEL,
   RPG_UI_CAPTION,
-  RPG_UI_META,
 } from '../typography/rpgUiTypography';
 import { pubkeysEqual } from '@/lib/nostrPubkey';
 import { computeBlobbiArenaRecord } from './blobbiCareerNostr';

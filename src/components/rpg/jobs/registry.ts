@@ -65,3 +65,8 @@ export const JOB_REGISTRY: Record<string, JobDefinition> = {
 export function getJobDefinition(slug: string): JobDefinition | undefined {
   return JOB_REGISTRY[slug];
 }
+
+/** Play/journal print when the player chooses a Jobs Hall profession. */
+export function formatProfessionChoicePrint(job: JobDefinition): string {
+  return `You took on the profession of ${job.displayName.toLowerCase()}.`;
+}

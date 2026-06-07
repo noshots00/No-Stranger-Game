@@ -1,10 +1,16 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { toItemLabel } from '../helpers';
-import { applyListEscrow, applyPurchase, reconcileSellerPayouts, refundListingEscrow, type PostListingInput } from './listingEscrow';
+import {
+  applyListEscrow,
+  applyPurchase,
+  reconcileSellerPayouts,
+  refundListingEscrow,
+  type PostListingInput,
+} from './listingEscrow';
 import {
   buildMarketListingDraft,
   latestMarketListings,
@@ -15,6 +21,7 @@ import {
 import type { QuestState } from '../quests/types';
 
 const MARKET_FEED_KEY = ['market-listings'] as const;
+const UNPUBLISHED_ESCROW_RECOVERY_MS = 25_000;
 
 export type MarketFeed = {
   openListings: MarketListingView[];
@@ -34,23 +41,25 @@ export function useMarket(args: {
   enabled: boolean;
   questState: QuestState;
   myPubkey: string | undefined;
+  getQuestState: () => QuestState;
   setQuestState: React.Dispatch<React.SetStateAction<QuestState>>;
   persistQuestCheckpoint: (state: QuestState) => void | Promise<void>;
 }) {
   const { nostr } = useNostr();
   const { mutateAsync: publish } = useNostrPublish();
-  const queryClient = useQueryClient();
+
+  const { enabled, myPubkey, getQuestState, setQuestState, persistQuestCheckpoint } = args;
 
   const feedQuery = useQuery({
     queryKey: MARKET_FEED_KEY,
     queryFn: () => fetchMarketFeed(nostr),
-    enabled: args.enabled,
+    enabled,
     staleTime: Infinity,
   });
 
   const feed = feedQuery.data ?? { openListings: [], allListings: [] };
 
-  const { enabled, myPubkey, setQuestState, persistQuestCheckpoint } = args;
+  const publishedListingIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!enabled || !feedQuery.data || !myPubkey) return;
@@ -62,65 +71,96 @@ export function useMarket(args: {
     });
   }, [enabled, myPubkey, feedQuery.data, setQuestState, persistQuestCheckpoint]);
 
-  const invalidateFeed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: MARKET_FEED_KEY });
-  }, [queryClient]);
+  /** Refund escrow rows that never appeared on relays (e.g. after a failed publish). */
+  useEffect(() => {
+    if (!enabled || !feedQuery.isFetched || !myPubkey) return;
+
+    const timer = window.setTimeout(() => {
+      const myListingIds = new Set(
+        feed.allListings.filter((l) => l.pubkey === myPubkey).map((l) => l.listingId)
+      );
+      for (const id of publishedListingIdsRef.current) myListingIds.add(id);
+
+      const escrowIds = Object.keys(getQuestState().marketEscrowByListingId ?? {});
+      const orphans = escrowIds.filter((id) => !myListingIds.has(id));
+      if (orphans.length === 0) return;
+
+      setQuestState((prev) => {
+        let next = prev;
+        for (const id of orphans) next = refundListingEscrow(next, id);
+        if (next === prev) return prev;
+        void persistQuestCheckpoint(next);
+        return next;
+      });
+    }, UNPUBLISHED_ESCROW_RECOVERY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    enabled,
+    myPubkey,
+    getQuestState,
+    setQuestState,
+    persistQuestCheckpoint,
+    feed.allListings,
+    feedQuery.isFetched,
+    feedQuery.dataUpdatedAt,
+  ]);
+
+  const refreshFeed = useCallback(() => {
+    void feedQuery.refetch();
+  }, [feedQuery]);
 
   const postListing = useMutation({
     mutationFn: async (input: { goods: PostListingInput; priceCopper: number }) => {
-      if (!args.myPubkey) throw new Error('You must be logged in to list an item.');
+      if (!myPubkey) throw new Error('You must be logged in to list an item.');
 
       const listingId = newMarketListingId();
-      const outcome = { error: null as string | null, next: null as QuestState | null, sellerName: 'Stranger' };
+      const beforePost = getQuestState();
+      const sellerName = beforePost.playerName.trim() || 'Stranger';
+      const escrowResult = applyListEscrow(beforePost, listingId, input.goods, input.priceCopper);
+      if ('error' in escrowResult) throw new Error(escrowResult.error);
 
-      args.setQuestState((prev) => {
-        outcome.sellerName = prev.playerName.trim() || 'Stranger';
-        const escrowResult = applyListEscrow(prev, listingId, input.goods, input.priceCopper);
-        if ('error' in escrowResult) {
-          outcome.error = escrowResult.error;
-          return prev;
-        }
-        outcome.next = escrowResult.state;
-        return escrowResult.state;
-      });
-
-      if (outcome.error) throw new Error(outcome.error);
-      if (!outcome.next) throw new Error('Failed to escrow item.');
+      const nextState = escrowResult.state;
+      setQuestState(nextState);
 
       const itemLabel =
         input.goods.questItemLabel ??
         (input.goods.modifierItemKey ? toItemLabel(input.goods.modifierItemKey) : 'Item');
 
-      await publish(
-        buildMarketListingDraft({
-          listingId,
-          itemLabel,
-          itemKey: input.goods.modifierItemKey,
-          itemQty: input.goods.modifierItemQty ?? 1,
-          priceCopper: input.priceCopper,
-          sellerName: outcome.sellerName,
-          status: 'open',
-        })
-      );
+      try {
+        await publish(
+          buildMarketListingDraft({
+            listingId,
+            itemLabel,
+            itemKey: input.goods.modifierItemKey,
+            itemQty: input.goods.modifierItemQty ?? 1,
+            priceCopper: input.priceCopper,
+            sellerName,
+            status: 'open',
+          })
+        );
+      } catch (error) {
+        const refunded = refundListingEscrow(nextState, listingId);
+        setQuestState(refunded);
+        await persistQuestCheckpoint(refunded);
+        throw error;
+      }
 
-      void args.persistQuestCheckpoint(outcome.next);
+      publishedListingIdsRef.current.add(listingId);
+      await persistQuestCheckpoint(nextState);
       return listingId;
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => void feedQuery.refetch(),
   });
 
   const cancelListing = useMutation({
     mutationFn: async (listing: MarketListingView) => {
-      if (!args.myPubkey || listing.pubkey !== args.myPubkey) {
+      if (!myPubkey || listing.pubkey !== myPubkey) {
         throw new Error('Only the seller can cancel this listing.');
       }
-      const outcome = { next: null as QuestState | null };
-      args.setQuestState((prev) => {
-        outcome.next = refundListingEscrow(prev, listing.listingId);
-        return outcome.next;
-      });
-      if (!outcome.next) throw new Error('Failed to cancel listing.');
-      void args.persistQuestCheckpoint(outcome.next);
+      const refunded = refundListingEscrow(getQuestState(), listing.listingId);
+      setQuestState(refunded);
+      await persistQuestCheckpoint(refunded);
 
       await publish(
         buildMarketListingDraft({
@@ -134,46 +174,45 @@ export function useMarket(args: {
         })
       );
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => void feedQuery.refetch(),
   });
 
   const buyListing = useMutation({
     mutationFn: async (listing: MarketListingView) => {
-      if (!args.myPubkey) throw new Error('You must be logged in to buy.');
-      if (listing.pubkey === args.myPubkey) throw new Error('You cannot buy your own listing.');
+      if (!myPubkey) throw new Error('You must be logged in to buy.');
+      if (listing.pubkey === myPubkey) throw new Error('You cannot buy your own listing.');
 
-      const outcome = { error: null as string | null, next: null as QuestState | null };
-      args.setQuestState((prev) => {
-        const purchaseResult = applyPurchase(prev, listing);
-        if ('error' in purchaseResult) {
-          outcome.error = purchaseResult.error;
-          return prev;
-        }
-        outcome.next = purchaseResult.state;
-        return purchaseResult.state;
-      });
+      const beforeBuy = getQuestState();
+      const purchaseResult = applyPurchase(beforeBuy, listing);
+      if ('error' in purchaseResult) throw new Error(purchaseResult.error);
 
-      if (outcome.error) throw new Error(outcome.error);
-      if (!outcome.next) throw new Error('Failed to complete purchase.');
+      const nextState = purchaseResult.state;
+      setQuestState(nextState);
 
-      const buyerName = outcome.next.playerName.trim() || 'Stranger';
-      await publish(
-        buildMarketListingDraft({
-          listingId: listing.listingId,
-          itemLabel: listing.itemLabel,
-          itemKey: listing.itemKey || undefined,
-          itemQty: listing.itemQty,
-          priceCopper: listing.priceCopper,
-          sellerName: listing.sellerName,
-          status: 'sold',
-          buyerPubkey: args.myPubkey,
-          buyerName,
-        })
-      );
+      const buyerName = nextState.playerName.trim() || 'Stranger';
+      try {
+        await publish(
+          buildMarketListingDraft({
+            listingId: listing.listingId,
+            itemLabel: listing.itemLabel,
+            itemKey: listing.itemKey || undefined,
+            itemQty: listing.itemQty,
+            priceCopper: listing.priceCopper,
+            sellerName: listing.sellerName,
+            status: 'sold',
+            buyerPubkey: myPubkey,
+            buyerName,
+          })
+        );
+      } catch (error) {
+        setQuestState(beforeBuy);
+        await persistQuestCheckpoint(beforeBuy);
+        throw error;
+      }
 
-      void args.persistQuestCheckpoint(outcome.next);
+      await persistQuestCheckpoint(nextState);
     },
-    onSuccess: () => invalidateFeed(),
+    onSuccess: () => void feedQuery.refetch(),
   });
 
   return {
@@ -182,6 +221,6 @@ export function useMarket(args: {
     postListing,
     cancelListing,
     buyListing,
-    invalidateFeed,
+    refreshFeed,
   };
 }

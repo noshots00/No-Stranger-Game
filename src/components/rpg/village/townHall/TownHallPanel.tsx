@@ -12,8 +12,7 @@ import type { useMayorsHut } from '../../mayorsHut/useMayorsHut';
 import type { QuestState } from '../../quests/types';
 import { VillageProjectsContent } from '../../villageProjects/VillageProjectsPanel';
 import type { useVillageProjects } from '../../villageProjects/useVillageProjects';
-
-type TownHallSection = 'mayor' | 'projects' | 'jobs' | 'guild';
+import { useTownHallSectionFeed, type TownHallSection } from './useTownHallSectionFeed';
 
 const SECTIONS: ReadonlyArray<{ id: TownHallSection; label: string }> = [
   { id: 'mayor', label: "Mayor's Hut" },
@@ -31,7 +30,7 @@ type TownHallPanelProps = {
   guildAlley: ReturnType<typeof useGuildAlley>;
   questState: QuestState;
   onSwitchJob: (jobSlug: string) => void;
-  onMayorVoteRecorded?: () => void;
+  onMayorVoteRecorded?: (candidateName: string) => void;
   onMayorVoteRetracted?: () => void;
 };
 
@@ -48,6 +47,8 @@ export function TownHallPanel({
   onMayorVoteRetracted,
 }: TownHallPanelProps) {
   const [section, setSection] = useState<TownHallSection>('mayor');
+
+  useTownHallSectionFeed(section, { villageProjects, guildAlley }, { active: open });
 
   return (
     <GamePanelDialog

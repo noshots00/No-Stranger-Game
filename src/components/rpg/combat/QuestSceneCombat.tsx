@@ -1,5 +1,7 @@
 import type { RefObject } from 'react';
 import { cn } from '@/lib/utils';
+import { QuestSceneActionBox } from '../quest-scene/QuestSceneActionBox';
+import { QuestSceneContentPanel } from '../quest-scene/QuestSceneContentPanel';
 import {
   QUEST_SCENE_CONTINUE,
   QUEST_SCENE_META,
@@ -18,6 +20,7 @@ type QuestSceneCombatProps = {
   enemyMaxHp: number;
   onFlee: () => void;
   fleeDisabled?: boolean;
+  actionBoxRef?: RefObject<HTMLDivElement | null>;
 };
 
 function hpPercent(current: number, max: number): number {
@@ -75,9 +78,10 @@ export function QuestSceneCombat({
   enemyMaxHp,
   onFlee,
   fleeDisabled = false,
+  actionBoxRef,
 }: QuestSceneCombatProps) {
   return (
-    <>
+    <QuestSceneContentPanel>
       <div
         className="quest-scene-text-box rpg-panel rpg-combat-log facsimile-scroll border-x-0 px-2.5 py-2"
         role="log"
@@ -108,8 +112,7 @@ export function QuestSceneCombat({
         </div>
       </div>
 
-      <div className="quest-scene-action-box rpg-panel facsimile-scroll px-1.5 py-1">
-        <div className="quest-scene-action-inner space-y-1">
+      <QuestSceneActionBox ref={actionBoxRef} innerClassName="space-y-1">
           <p className={cn(RPG_UI_EMPHASIS, 'px-0.5')}>Battle — {displayName}</p>
           <div className="flex gap-2 px-0.5">
             <CombatHpBar label="You" current={playerHp} max={playerMaxHp} variant="player" />
@@ -125,8 +128,7 @@ export function QuestSceneCombat({
               Flee
             </button>
           </div>
-        </div>
-      </div>
-    </>
+      </QuestSceneActionBox>
+    </QuestSceneContentPanel>
   );
 }

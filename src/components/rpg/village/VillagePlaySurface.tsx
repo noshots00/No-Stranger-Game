@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type RefObject } from 'react';
+import type { RefObject } from 'react';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -23,8 +23,6 @@ import type {
 import { VillageDistrictList } from './VillageDistrictList';
 import { VillagePlayTab } from './VillagePlayTab';
 import type { VillagePanelId } from './villageCatalog';
-import type { VillageLotOccupancyView } from './villageLotNostr';
-import { useVillageLots } from './useVillageLots';
 
 type VillagePlaySurfaceProps = {
   questFlags: string[];
@@ -72,7 +70,7 @@ type VillagePlaySurfaceProps = {
   blobbiFightMemories: ReturnType<typeof useBlobbiFightMemories>;
   onApplyModifiers: (delta: ModifierMap) => void;
   onSwitchJob: (jobSlug: string) => void;
-  onMayorVoteRecorded?: () => void;
+  onMayorVoteRecorded?: (candidateName: string) => void;
   onMayorVoteRetracted?: () => void;
   onTravelToLocation: (locationId: string) => void;
 };
@@ -129,36 +127,12 @@ export function VillagePlaySurface({
 }: VillagePlaySurfaceProps) {
   const { user } = useCurrentUser();
   const displayName = playerName.trim() || 'Stranger';
-  const [lotsFeedEnabled, setLotsFeedEnabled] = useState(false);
-  const requestLotsFeed = useCallback(() => {
-    setLotsFeedEnabled(true);
-  }, []);
-
-  const { occupancyByLotId: occupancyFromFeed, claimLot, buildLot } = useVillageLots({
-    enabled: lotsFeedEnabled,
-    ownerName: displayName,
-    myPubkey: user?.pubkey,
-  });
-
-  const emptyLots = useMemo(() => new Map<string, VillageLotOccupancyView>(), []);
-  const occupancyByLotId = occupancyFromFeed ?? emptyLots;
 
   const districtsPane = (
     <VillageDistrictList
       questFlags={questFlags}
-      myPubkey={user?.pubkey}
-      occupancyByLotId={occupancyByLotId}
-      isClaimPending={claimLot.isPending}
-      isBuildPending={buildLot.isPending}
-      onClaimLot={async (input) => {
-        await claimLot.mutateAsync(input);
-      }}
-      onBuildLot={async (lotId) => {
-        await buildLot.mutateAsync({ lotId });
-      }}
       onOpenPanel={onOpenVillagePanel}
       onTravelToLocation={onTravelToLocation}
-      onRequestLotsFeed={requestLotsFeed}
       townHallPing={townHallPing}
     />
   );

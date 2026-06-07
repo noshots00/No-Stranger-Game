@@ -37,8 +37,14 @@ export function VillageProjectsContent({
   villageProjects,
   embedded = false,
 }: VillageProjectsContentProps) {
-  const { feedQuery, progress, catalog, isMayor, setActiveProject, contribute, refreshFeed } =
-    villageProjects;
+  const {
+    progress,
+    catalog,
+    isMayor,
+    setActiveProject,
+    contribute,
+    refreshFeed,
+  } = villageProjects;
   const def = progress.definition;
   const resources = questState.resources ?? {};
   const goalResources = def
@@ -50,18 +56,10 @@ export function VillageProjectsContent({
       <PanelUpdateButton
         label="Update projects"
         onClick={() => refreshFeed()}
-        isFetching={feedQuery.isFetching}
-        showLedgerHint={!feedQuery.isFetched}
         variant={embedded ? 'chip' : 'full'}
       />
 
-      {feedQuery.isFetching ? (
-        <p className={cn(RPG_UI_META, 'text-center')}>Updating…</p>
-      ) : !feedQuery.isFetched ? (
-        <p className={RPG_UI_META}>
-          Tap Update projects to load the mayor&apos;s active build from the village ledger.
-        </p>
-      ) : def ? (
+      {def ? (
         <div className="rounded-md border border-[var(--candle-flame-soft)]/30 bg-black/20 px-2 py-1.5">
           <p className={cn(RPG_UI_UI, 'font-medium text-[var(--candle-wax)]')}>{def.title}</p>
           <p className={cn(RPG_UI_CAPTION, 'mt-0.5')}>{def.description}</p>
