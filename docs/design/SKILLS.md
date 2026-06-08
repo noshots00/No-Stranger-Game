@@ -19,15 +19,18 @@ For each spell, capture:
 
 ## Combat skills
 
-Combat skills are martial techniques used in encounters. Examples already in code as modifier keys: `ClimbingSkill`, `Evasion`, `Dodge`.
+Combat skills are martial techniques used in encounters. Runtime behavior is defined in [`src/components/rpg/combat/skillRegistry.ts`](../../src/components/rpg/combat/skillRegistry.ts).
 
-_TBD — Cliff to author._
+**Authoring checklist** (add a `SkillDef` entry in `skillRegistry.ts`):
 
-For each combat skill, capture:
+| Field | Notes |
+|-------|--------|
+| `id` | Canonical key, e.g. `skill:combat:bash` |
+| `aliases` | Organic keys (`BashSkill`, …) |
+| `kind` | `active` (slotted), `defensive` (on incoming hit), or `passive` (always on, no slot) |
+| Behavior | Damage bonus, random range, debuff, miss/parry % — implement in `resolveActiveSkill` / `resolveDefense` |
 
-- Stance / weapon family / unarmed
-- Class affinity
-- How it interacts with the (future) health system.
+Players equip two **active** skills/spells on the character sheet loadout; passives (Evasion, Dodge as passive, etc.) apply without a slot.
 
 ## Job skills
 

@@ -18,8 +18,8 @@ type QuestSceneCombatProps = {
   playerMaxHp: number;
   enemyHp: number;
   enemyMaxHp: number;
-  onFlee: () => void;
-  fleeDisabled?: boolean;
+  onFastForward: () => void;
+  fastForwardDisabled?: boolean;
   actionBoxRef?: RefObject<HTMLDivElement | null>;
 };
 
@@ -76,8 +76,8 @@ export function QuestSceneCombat({
   playerMaxHp,
   enemyHp,
   enemyMaxHp,
-  onFlee,
-  fleeDisabled = false,
+  onFastForward,
+  fastForwardDisabled = false,
   actionBoxRef,
 }: QuestSceneCombatProps) {
   return (
@@ -92,6 +92,7 @@ export function QuestSceneCombat({
           {combatLog.map((entry) => (
             <p
               key={entry.id}
+              title={entry.detail}
               className={cn(
                 entry.tone === 'narrator' && `${RPG_UI_LOG_LINE} italic text-[var(--candle-ink-faint)]`,
                 entry.tone === 'player' && `${QUEST_SCENE_RESPONSE} text-[var(--candle-wax)]`,
@@ -113,25 +114,25 @@ export function QuestSceneCombat({
       </div>
 
       <QuestSceneActionBox ref={actionBoxRef} innerClassName="space-y-1">
-          <div className="flex items-center justify-between gap-2 px-0.5">
-            <p className={cn(RPG_UI_EMPHASIS, 'min-w-0 truncate')}>Battle — {displayName}</p>
-            <button
-              type="button"
-              disabled={fleeDisabled}
-              onClick={onFlee}
-              className={cn(
-                QUEST_SCENE_CONTINUE,
-                'shrink-0',
-                fleeDisabled && 'cursor-not-allowed opacity-50'
-              )}
-            >
-              Flee
-            </button>
-          </div>
-          <div className="flex gap-2 px-0.5">
-            <CombatHpBar label="You" current={playerHp} max={playerMaxHp} variant="player" />
-            <CombatHpBar label={displayName} current={enemyHp} max={enemyMaxHp} variant="enemy" />
-          </div>
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <p className={cn(RPG_UI_EMPHASIS, 'min-w-0 truncate')}>Battle — {displayName}</p>
+          <button
+            type="button"
+            disabled={fastForwardDisabled}
+            onClick={onFastForward}
+            className={cn(
+              QUEST_SCENE_CONTINUE,
+              'shrink-0',
+              fastForwardDisabled && 'cursor-not-allowed opacity-50'
+            )}
+          >
+            Fast-forward
+          </button>
+        </div>
+        <div className="flex gap-2 px-0.5">
+          <CombatHpBar label="You" current={playerHp} max={playerMaxHp} variant="player" />
+          <CombatHpBar label={displayName} current={enemyHp} max={enemyMaxHp} variant="enemy" />
+        </div>
       </QuestSceneActionBox>
     </QuestSceneContentPanel>
   );

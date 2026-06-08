@@ -52,7 +52,6 @@ type VillagePlaySurfaceProps = {
   questItems: string[];
   onInventoryPickSubmit?: (itemLabel: string) => void;
   showQuestChoiceEffects?: boolean;
-  playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
   activeVillagePanel: VillagePanelId | null;
@@ -106,7 +105,6 @@ export function VillagePlaySurface({
   questItems,
   onInventoryPickSubmit,
   showQuestChoiceEffects = false,
-  playerHealth = 100,
   onPlayerHealthChange,
   questProgress,
   activeVillagePanel,
@@ -176,7 +174,6 @@ export function VillagePlaySurface({
         questItems={questItems}
         onInventoryPickSubmit={onInventoryPickSubmit}
         showQuestChoiceEffects={showQuestChoiceEffects}
-        playerHealth={playerHealth}
         onPlayerHealthChange={onPlayerHealthChange}
         questProgress={questProgress}
         activeVillagePanel={activeVillagePanel}

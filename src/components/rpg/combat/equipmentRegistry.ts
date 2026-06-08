@@ -1,0 +1,39 @@
+type EquipmentDef = {
+  damageBonus?: number;
+  damageReduction?: number;
+  slot: 'weapon' | 'other';
+};
+
+const EQUIPMENT: Record<string, EquipmentDef> = {
+  'item:short-sword': { slot: 'weapon', damageBonus: 1 },
+  'item:iron-sword': { slot: 'weapon', damageBonus: 2 },
+  'item:wooden-shield': { slot: 'other', damageReduction: 1 },
+  'item:leather-armor': { slot: 'other', damageReduction: 2 },
+};
+
+export function getEquipmentDef(itemKey: string | undefined): EquipmentDef | undefined {
+  if (!itemKey) return undefined;
+  return EQUIPMENT[itemKey];
+}
+
+export function getEquipmentDamageBonus(itemKey: string | undefined): number {
+  return getEquipmentDef(itemKey)?.damageBonus ?? 0;
+}
+
+export function getEquipmentDamageReduction(itemKey: string | undefined): number {
+  return getEquipmentDef(itemKey)?.damageReduction ?? 0;
+}
+
+export function isWeaponItemKey(key: string): boolean {
+  const def = EQUIPMENT[key];
+  return def?.slot === 'weapon';
+}
+
+export function isOtherEquipmentItemKey(key: string): boolean {
+  const def = EQUIPMENT[key];
+  return def?.slot === 'other';
+}
+
+export function listEquipmentKeys(): string[] {
+  return Object.keys(EQUIPMENT);
+}

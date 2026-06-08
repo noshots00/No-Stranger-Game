@@ -9,6 +9,8 @@ export type GamePanelDialogProps = {
   ariaLabel: string;
   children: ReactNode;
   panelClassName?: string;
+  /** Hide the corner close (X) control; backdrop click and Escape still close. */
+  hideCloseButton?: boolean;
 };
 
 /**
@@ -20,6 +22,7 @@ export function GamePanelDialog({
   ariaLabel,
   children,
   panelClassName,
+  hideCloseButton = false,
 }: GamePanelDialogProps) {
   useEffect(() => {
     if (!open) return;
@@ -56,14 +59,16 @@ export function GamePanelDialog({
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <button
-          type="button"
-          className="absolute right-3 top-3 z-10 rounded-sm p-0.5 text-[var(--candle-ink-soft)] opacity-70 transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--candle-flame-soft)]"
-          aria-label="Close"
-          onClick={() => onOpenChange(false)}
-        >
-          <X className="size-5" aria-hidden />
-        </button>
+        {hideCloseButton ? null : (
+          <button
+            type="button"
+            className="absolute right-3 top-3 z-10 rounded-sm p-0.5 text-[var(--candle-ink-soft)] opacity-70 transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--candle-flame-soft)]"
+            aria-label="Close"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="size-5" aria-hidden />
+          </button>
+        )}
         {children}
       </div>
     </div>

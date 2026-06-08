@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useCombatEncounter } from '@/components/rpg/combat/useCombatEncounter';
+import type { QuestState } from '@/components/rpg/quests/types';
 import {
   DOOR_APPROACH_HIDE_FLAG,
   DOOR_APPROACH_KNOCK_FLAG,
@@ -11,7 +12,7 @@ import { CARL_MAIN_CHOICES, seedCarlOpeningTranscript } from '@/components/rpg/q
 type UseCarlDoorTalkOptions = {
   stepId: string;
   playerFlags: readonly string[];
-  playerHealth: number;
+  questState: QuestState;
   onPlayerHealthChange?: (health: number) => void;
   onCombatChromeChange?: (active: boolean) => void;
   onCombatVictory?: () => void;
@@ -20,7 +21,7 @@ type UseCarlDoorTalkOptions = {
 export function useCarlDoorTalk({
   stepId,
   playerFlags,
-  playerHealth,
+  questState,
   onPlayerHealthChange,
   onCombatChromeChange,
   onCombatVictory,
@@ -37,7 +38,7 @@ export function useCarlDoorTalk({
     ...combatRest
   } = useCombatEncounter({
     encounterId: 'carl',
-    playerHealth,
+    questState,
     onPlayerHealthChange,
     onCombatChromeChange,
     onVictory: onCombatVictory,

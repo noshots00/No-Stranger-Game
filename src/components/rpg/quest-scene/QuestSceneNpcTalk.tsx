@@ -20,7 +20,7 @@ import {
 
 } from '@/components/rpg/rpgArtAssignments';
 
-import type { QuestDefinition, QuestStep } from '@/components/rpg/quests/types';
+import type { QuestDefinition, QuestState, QuestStep } from '@/components/rpg/quests/types';
 
 import { NpcTalkSceneLayout } from '@/components/rpg/npc/NpcTalkSceneLayout';
 
@@ -54,7 +54,7 @@ type QuestSceneNpcTalkProps = {
 
   step: QuestStep;
 
-  playerHealth: number;
+  questState: QuestState;
 
   onPlayerHealthChange?: (health: number) => void;
 
@@ -78,7 +78,7 @@ export function QuestSceneNpcTalk({
 
   step,
 
-  playerHealth,
+  questState,
 
   onPlayerHealthChange,
 
@@ -104,7 +104,7 @@ export function QuestSceneNpcTalk({
 
         playerFlags={playerFlags}
 
-        playerHealth={playerHealth}
+        questState={questState}
 
         onPlayerHealthChange={onPlayerHealthChange}
 
@@ -158,7 +158,7 @@ function QuestSceneCarlTalk({
 
   playerFlags,
 
-  playerHealth,
+  questState,
 
   onPlayerHealthChange,
 
@@ -176,7 +176,7 @@ function QuestSceneCarlTalk({
 
   playerFlags: string[];
 
-  playerHealth: number;
+  questState: QuestState;
 
   onPlayerHealthChange?: (health: number) => void;
 
@@ -196,7 +196,7 @@ function QuestSceneCarlTalk({
 
       playerFlags,
 
-      playerHealth,
+      questState,
 
       onPlayerHealthChange,
 
@@ -238,9 +238,9 @@ function QuestSceneCarlTalk({
 
         enemyMaxHp={combat.enemyMaxHp}
 
-        onFlee={combat.flee}
+        onFastForward={combat.fastForward}
 
-        fleeDisabled={combat.phase === 'entering'}
+        fastForwardDisabled={combat.phase === 'entering'}
 
         actionBoxRef={actionBoxRef}
 

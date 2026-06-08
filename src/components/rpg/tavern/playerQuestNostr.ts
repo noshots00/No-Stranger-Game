@@ -21,6 +21,10 @@ export type PlayerQuestView = {
   rewardItemLabel: string;
   rewardItemKey: string;
   rewardItemQty: number;
+  /** Total fulfillments posted (escrow slots). */
+  rewardSlots: number;
+  /** Open slots left on the board. */
+  slotsRemaining: number;
   fulfillerPubkey?: string;
   fulfillerName?: string;
   createdAt: number;
@@ -39,20 +43,28 @@ export function parsePlayerQuest(event: NostrEvent): PlayerQuestView | null {
   if (!d?.startsWith(PLAYER_QUEST_D_PREFIX)) return null;
   if (!event.tags.some(([n, v]) => n === 't' && v === PLAYER_QUEST_TAG)) return null;
 
-  const title = tagValue(event, 'title')?.trim();
   const bounty = tagValue(event, 'bounty')?.trim();
+  const title = tagValue(event, 'title')?.trim() ?? bounty;
   const posterName = tagValue(event, 'poster-name')?.trim() ?? 'Stranger';
   const statusRaw = tagValue(event, 'status');
   const status: PlayerQuestStatus =
     statusRaw === 'fulfilled' || statusRaw === 'cancelled' ? statusRaw : 'open';
 
-  if (!title || !bounty) return null;
+  if (!bounty) return null;
 
   const description = tagValue(event, 'desc')?.trim() ?? event.content.trim();
   const rewardGold = Number.parseInt(tagValue(event, 'reward-gold') ?? '0', 10);
   const rewardItemLabel = tagValue(event, 'reward-item')?.trim() ?? '';
   const rewardItemKey = tagValue(event, 'reward-item-key')?.trim() ?? '';
   const rewardItemQty = Number.parseInt(tagValue(event, 'reward-item-qty') ?? '1', 10);
+  const rewardSlotsRaw = Number.parseInt(tagValue(event, 'reward-slots') ?? '1', 10);
+  const rewardSlots = Number.isFinite(rewardSlotsRaw) ? Math.max(1, rewardSlotsRaw) : 1;
+  const slotsRemainingRaw = tagValue(event, 'slots-remaining');
+  const slotsRemainingParsed =
+    slotsRemainingRaw !== undefined ? Number.parseInt(slotsRemainingRaw, 10) : rewardSlots;
+  const slotsRemaining = Number.isFinite(slotsRemainingParsed)
+    ? Math.max(0, Math.min(rewardSlots, slotsRemainingParsed))
+    : rewardSlots;
 
   return {
     questId: d,
@@ -67,6 +79,8 @@ export function parsePlayerQuest(event: NostrEvent): PlayerQuestView | null {
     rewardItemLabel,
     rewardItemKey,
     rewardItemQty: Number.isFinite(rewardItemQty) ? Math.max(0, rewardItemQty) : 0,
+    rewardSlots,
+    slotsRemaining,
     fulfillerPubkey: tagValue(event, 'fulfiller'),
     fulfillerName: tagValue(event, 'fulfiller-name'),
     createdAt: event.created_at,
@@ -105,6 +119,8 @@ export function buildPlayerQuestDraft(args: {
   rewardItemLabel?: string;
   rewardItemKey?: string;
   rewardItemQty?: number;
+  rewardSlots?: number;
+  slotsRemaining?: number;
   status?: PlayerQuestStatus;
   fulfillerPubkey?: string;
   fulfillerName?: string;
@@ -121,6 +137,8 @@ export function buildPlayerQuestDraft(args: {
     ['status', args.status ?? 'open'],
     ['poster-name', args.posterName],
     ['reward-gold', String(Math.max(0, args.rewardGold))],
+    ['reward-slots', String(Math.max(1, args.rewardSlots ?? 1))],
+    ['slots-remaining', String(Math.max(0, args.slotsRemaining ?? args.rewardSlots ?? 1))],
     ['alt', 'Player-posted tavern quest for No Stranger Game'],
   ];
   if (args.rewardItemLabel) tags.push(['reward-item', args.rewardItemLabel]);

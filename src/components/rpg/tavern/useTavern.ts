@@ -31,7 +31,7 @@ async function fetchTavernFeed(
 ): Promise<TavernFeed> {
   const events = (await nostr.query([playerQuestFilter()])) as NostrEvent[];
   const allQuests = latestPlayerQuests(events);
-  const openQuests = allQuests.filter((q) => q.status === 'open');
+  const openQuests = allQuests.filter((q) => q.status === 'open' && q.slotsRemaining > 0);
   return { openQuests, allQuests };
 }
 
@@ -103,8 +103,6 @@ export function useTavern(args: {
 
   const postQuest = useMutation({
     mutationFn: async (input: {
-      title: string;
-      description: string;
       bounty: string;
       rewards: PostRewardInput;
     }) => {
@@ -113,22 +111,33 @@ export function useTavern(args: {
       const questId = newPlayerQuestId();
       const beforePost = getQuestState();
       const posterName = beforePost.playerName.trim() || 'Stranger';
-      const escrowResult = applyPostEscrow(beforePost, questId, input.rewards);
+      const bounty = input.bounty.trim();
+      const slotCount = Math.max(1, input.rewards.slotCount ?? 1);
+      const goldPerUnit =
+        input.rewards.goldPerUnit ??
+        (input.rewards.goldAmount && slotCount === 1 ? input.rewards.goldAmount : 0);
+
+      const escrowResult = applyPostEscrow(beforePost, questId, {
+        ...input.rewards,
+        goldPerUnit: goldPerUnit > 0 ? goldPerUnit : undefined,
+        slotCount: goldPerUnit > 0 ? slotCount : undefined,
+      });
       if ('error' in escrowResult) throw new Error(escrowResult.error);
 
       const nextState = escrowResult.state;
       setQuestState(nextState);
 
-      const gold = input.rewards.goldAmount ?? 0;
       try {
         await publish(
           buildPlayerQuestDraft({
             questId,
-            title: input.title.trim(),
-            description: input.description.trim(),
-            bounty: input.bounty.trim(),
+            title: bounty,
+            description: '',
+            bounty,
             posterName,
-            rewardGold: gold,
+            rewardGold: goldPerUnit,
+            rewardSlots: slotCount,
+            slotsRemaining: slotCount,
             rewardItemLabel: input.rewards.questItemLabel,
             rewardItemKey: input.rewards.modifierItemKey,
             rewardItemQty: input.rewards.modifierItemQty ?? 1,
@@ -165,6 +174,8 @@ export function useTavern(args: {
           bounty: quest.bounty,
           posterName: quest.posterName,
           rewardGold: quest.rewardGold,
+          rewardSlots: quest.rewardSlots,
+          slotsRemaining: quest.slotsRemaining,
           rewardItemLabel: quest.rewardItemLabel || undefined,
           rewardItemKey: quest.rewardItemKey || undefined,
           rewardItemQty: quest.rewardItemQty || undefined,
@@ -187,6 +198,9 @@ export function useTavern(args: {
       setQuestState(next);
 
       const fulfillerName = next.playerName.trim() || 'Stranger';
+      const remaining = Math.max(0, quest.slotsRemaining - 1);
+      const fulfilled = remaining === 0;
+
       await publish(
         buildPlayerQuestDraft({
           questId: quest.questId,
@@ -195,12 +209,14 @@ export function useTavern(args: {
           bounty: quest.bounty,
           posterName: quest.posterName,
           rewardGold: quest.rewardGold,
+          rewardSlots: quest.rewardSlots,
+          slotsRemaining: remaining,
           rewardItemLabel: quest.rewardItemLabel || undefined,
           rewardItemKey: quest.rewardItemKey || undefined,
           rewardItemQty: quest.rewardItemQty || undefined,
-          status: 'fulfilled',
-          fulfillerPubkey: myPubkey,
-          fulfillerName,
+          status: fulfilled ? 'fulfilled' : 'open',
+          fulfillerPubkey: fulfilled ? myPubkey : undefined,
+          fulfillerName: fulfilled ? fulfillerName : undefined,
         })
       );
 

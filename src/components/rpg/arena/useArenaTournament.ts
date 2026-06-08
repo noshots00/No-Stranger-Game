@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { getCombatRating, rollFightWinner } from './combatRating';
+import { buildArenaFighterSnapshot, simulateArenaMatch } from './arenaCombat';
 import {
   arenaMatchFilter,
   arenaOpenFilter,
@@ -14,6 +15,7 @@ import {
   getConsumedRegistrationIds,
   listActiveOpenRegistrations,
   parseArenaMatchResult,
+  type ArenaFighterSnapshot,
   type ArenaMatchResult,
   type ArenaOpenRegistration,
 } from './arenaNostr';
@@ -57,6 +59,14 @@ async function fetchArenaFeed(nostr: { query: (filters: import('@nostrify/nostri
   };
 }
 
+function toArenaFighterRow(
+  pubkey: string,
+  name: string,
+  combatRating: number
+): ArenaFighterSnapshot {
+  return { pubkey, name, combatRating };
+}
+
 export function useArenaTournament(args: {
   enabled: boolean;
   questState: QuestState;
@@ -95,6 +105,7 @@ export function useArenaTournament(args: {
       if (!user?.pubkey) throw new Error('You must be logged in to register.');
       const playerName = args.questState.playerName.trim() || 'Stranger';
       const combatRating = getCombatRating(args.questState);
+      const myFighterSnapshot = buildArenaFighterSnapshot(args.questState, user.pubkey);
 
       const latest = await fetchArenaFeed(nostr);
       const myOpen = findMyOpenRegistration(latest.openRegistrations, user.pubkey);
@@ -104,30 +115,59 @@ export function useArenaTournament(args: {
 
       const opponent = findOldestOpponentOpen(latest.openRegistrations, user.pubkey);
       if (opponent) {
-        const me = { pubkey: user.pubkey, name: playerName, combatRating };
-        const winnerPubkey = rollFightWinner(me, opponent);
-        const fighterA = opponent;
-        const fighterB = me;
-        const winnerFighter = winnerPubkey === opponent.pubkey ? opponent : me;
-        const loserFighter = winnerPubkey === opponent.pubkey ? me : opponent;
-        const prob = winProbabilityForWinner(winnerPubkey, fighterA, fighterB);
-        const summary = buildMatchSummaryContent(
-          winnerFighter.name,
-          loserFighter.name,
-          winnerFighter.combatRating,
-          loserFighter.combatRating,
-          prob
-        );
-        await publish(
-          buildMatchResultDraft({
-            fighterA: opponent,
-            fighterB: me,
-            winnerPubkey,
-            registrationEventId: opponent.eventId,
-            summary,
-            winProbabilityForWinner: prob,
-          })
-        );
+        const opponentSnapshot = opponent.fighterSnapshot;
+        const fighterA = toArenaFighterRow(opponent.pubkey, opponent.name, opponent.combatRating);
+        const fighterB = toArenaFighterRow(user.pubkey, playerName, combatRating);
+
+        if (opponentSnapshot) {
+          const payload = simulateArenaMatch(opponentSnapshot, myFighterSnapshot);
+          const winnerPubkey = payload.winner;
+          const winnerFighter = winnerPubkey === opponent.pubkey ? fighterA : fighterB;
+          const loserFighter = winnerPubkey === opponent.pubkey ? fighterB : fighterA;
+          const prob = 0.5;
+          const summary = buildMatchSummaryContent(
+            winnerFighter.name,
+            loserFighter.name,
+            winnerFighter.combatRating,
+            loserFighter.combatRating,
+            prob
+          );
+          payload.summary = summary;
+          await publish(
+            buildMatchResultDraft({
+              fighterA,
+              fighterB,
+              winnerPubkey,
+              registrationEventId: opponent.eventId,
+              summary,
+              winProbabilityForWinner: prob,
+              matchPayload: payload,
+            })
+          );
+        } else {
+          const me = { pubkey: user.pubkey, name: playerName, combatRating };
+          const winnerPubkey = rollFightWinner(me, opponent);
+          const winnerFighter = winnerPubkey === opponent.pubkey ? opponent : me;
+          const loserFighter = winnerPubkey === opponent.pubkey ? me : opponent;
+          const prob = winProbabilityForWinner(winnerPubkey, fighterA, fighterB);
+          const summary = buildMatchSummaryContent(
+            winnerFighter.name,
+            loserFighter.name,
+            winnerFighter.combatRating,
+            loserFighter.combatRating,
+            prob
+          );
+          await publish(
+            buildMatchResultDraft({
+              fighterA,
+              fighterB,
+              winnerPubkey,
+              registrationEventId: opponent.eventId,
+              summary,
+              winProbabilityForWinner: prob,
+            })
+          );
+        }
         return { action: 'matched' as const };
       }
 
@@ -135,6 +175,7 @@ export function useArenaTournament(args: {
         buildOpenRegistrationDraft({
           playerName,
           combatRating,
+          fighterSnapshot: myFighterSnapshot,
         })
       );
       return { action: 'queued' as const };

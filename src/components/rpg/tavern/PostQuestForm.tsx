@@ -2,15 +2,12 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { RPG_UI_BODY, RPG_UI_META } from '../typography/rpgUiTypography';
 import { listRewardOptions, type PostRewardInput } from './questEscrow';
 import type { QuestState } from '../quests/types';
 
 export type PostQuestPayload = {
-  title: string;
-  description: string;
   bounty: string;
   rewards: PostRewardInput;
 };
@@ -30,11 +27,9 @@ export function PostQuestForm({
   onSubmit,
   onCancel,
 }: PostQuestFormProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [bounty, setBounty] = useState('');
-  const [useGold, setUseGold] = useState(false);
-  const [goldAmount, setGoldAmount] = useState('1');
+  const [goldPerUnit, setGoldPerUnit] = useState('1');
+  const [slotCount, setSlotCount] = useState('1');
   const [useItem, setUseItem] = useState(false);
   const [itemSelection, setItemSelection] = useState('');
 
@@ -44,12 +39,23 @@ export function PostQuestForm({
     [rewardOptions]
   );
 
+  const parsedGoldPerUnit = Number.parseInt(goldPerUnit, 10);
+  const parsedSlotCount = Number.parseInt(slotCount, 10);
+  const totalGoldEscrow =
+    Number.isFinite(parsedGoldPerUnit) &&
+    Number.isFinite(parsedSlotCount) &&
+    parsedGoldPerUnit > 0 &&
+    parsedSlotCount > 0
+      ? parsedGoldPerUnit * parsedSlotCount
+      : 0;
+
   const buildRewards = (): PostRewardInput | null => {
     const rewards: PostRewardInput = {};
-    if (useGold) {
-      const g = Number.parseInt(goldAmount, 10);
-      if (!Number.isFinite(g) || g <= 0) return null;
-      rewards.goldAmount = g;
+    const per = Number.parseInt(goldPerUnit, 10);
+    const slots = Number.parseInt(slotCount, 10);
+    if (Number.isFinite(per) && per > 0 && Number.isFinite(slots) && slots > 0) {
+      rewards.goldPerUnit = per;
+      rewards.slotCount = slots;
     }
     if (useItem && itemSelection) {
       const opt = itemChoices.find((o) => {
@@ -64,12 +70,11 @@ export function PostQuestForm({
         rewards.modifierItemQty = 1;
       }
     }
-    if (!rewards.goldAmount && !rewards.questItemLabel && !rewards.modifierItemKey) return null;
+    if (!rewards.goldPerUnit && !rewards.questItemLabel && !rewards.modifierItemKey) return null;
     return rewards;
   };
 
   const canSubmit =
-    title.trim().length > 0 &&
     bounty.trim().length > 0 &&
     buildRewards() !== null &&
     (!useItem || itemSelection.length > 0);
@@ -77,56 +82,50 @@ export function PostQuestForm({
   return (
     <div className="space-y-2 rounded-md border border-[var(--candle-rule)]/70 bg-black/20 p-2">
       <div className="space-y-1">
-        <Label htmlFor="pq-title" className={RPG_UI_META}>
-          Title
-        </Label>
-        <Input
-          id="pq-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="h-8 border-[var(--candle-rule)] bg-black/30 text-[13px]"
-          maxLength={80}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="pq-desc" className={RPG_UI_META}>
-          Description
-        </Label>
-        <Textarea
-          id="pq-desc"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="min-h-[60px] border-[var(--candle-rule)] bg-black/30 text-[13px]"
-          maxLength={500}
-        />
-      </div>
-      <div className="space-y-1">
         <Label htmlFor="pq-bounty" className={RPG_UI_META}>
-          Bounty object
+          Bounty item
         </Label>
         <Input
           id="pq-bounty"
           value={bounty}
           onChange={(e) => setBounty(e.target.value)}
-          placeholder="wolf hide, brass ring, …"
+          placeholder="wolf pelts"
           className="h-8 border-[var(--candle-rule)] bg-black/30 text-[13px]"
           maxLength={64}
         />
       </div>
       <div className="space-y-1.5 rounded-md border border-[var(--candle-rule)]/50 bg-black/15 p-2">
         <p className={cn(RPG_UI_META, 'uppercase tracking-[0.1em]')}>Reward (escrowed now)</p>
-        <label className={cn('flex items-center gap-2', RPG_UI_BODY)}>
-          <input type="checkbox" checked={useGold} onChange={(e) => setUseGold(e.target.checked)} />
-          Gold
-        </label>
-        {useGold ? (
-          <Input
-            type="number"
-            min={1}
-            value={goldAmount}
-            onChange={(e) => setGoldAmount(e.target.value)}
-            className="h-8 border-[var(--candle-rule)] bg-black/30 text-[13px]"
-          />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="pq-gold-per" className={RPG_UI_META}>
+              Gold each
+            </Label>
+            <Input
+              id="pq-gold-per"
+              type="number"
+              min={1}
+              value={goldPerUnit}
+              onChange={(e) => setGoldPerUnit(e.target.value)}
+              className="h-8 border-[var(--candle-rule)] bg-black/30 text-[13px]"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pq-slots" className={RPG_UI_META}>
+              How many
+            </Label>
+            <Input
+              id="pq-slots"
+              type="number"
+              min={1}
+              value={slotCount}
+              onChange={(e) => setSlotCount(e.target.value)}
+              className="h-8 border-[var(--candle-rule)] bg-black/30 text-[13px]"
+            />
+          </div>
+        </div>
+        {totalGoldEscrow > 0 ? (
+          <p className={cn(RPG_UI_META, 'text-[var(--candle-wax)]')}>{totalGoldEscrow} gold escrowed</p>
         ) : null}
         <label className={cn('flex items-center gap-2', RPG_UI_BODY)}>
           <input
@@ -135,7 +134,7 @@ export function PostQuestForm({
             onChange={(e) => setUseItem(e.target.checked)}
             disabled={itemChoices.length === 0}
           />
-          Item from inventory
+          Also add item reward (per turn-in)
         </label>
         {useItem ? (
           <select
@@ -187,8 +186,6 @@ export function PostQuestForm({
             const rewards = buildRewards();
             if (!rewards) return;
             onSubmit({
-              title: title.trim(),
-              description: description.trim(),
               bounty: bounty.trim(),
               rewards,
             });

@@ -42,6 +42,8 @@ import { CharacterScreenCornerControls } from './CharacterScreenCornerControls';
 import type { CharacterScreenCornerControlsProps } from './CharacterScreenCornerControls';
 import { CharacterAbilityTileGrid } from './CharacterAbilityTileGrid';
 import { CharacterInventoryDialog } from './CharacterInventoryDialog';
+import { CharacterLoadoutSlots } from './CharacterLoadoutSlots';
+import type { CombatLoadout } from '../combat/combatTypes';
 import {
   CHAR_SHEET_ACTION,
   CHAR_BODY,
@@ -69,6 +71,7 @@ type CharacterTabProps = {
   /** Kindred count from social layer (logged-in only). */
   kindredSpirits?: number;
   onOpenChronicle: () => void;
+  onLoadoutChange: (loadout: CombatLoadout) => void;
 } & CharacterScreenCornerControlsProps;
 
 /** Profile placeholder until guild titles ship. */
@@ -192,6 +195,7 @@ export function CharacterTab({
   guildDisplayName,
   kindredSpirits,
   onOpenChronicle,
+  onLoadoutChange,
   showModifierDetails,
   showDevTools,
   onShowModifierDetailsChange,
@@ -568,6 +572,8 @@ export function CharacterTab({
             })}
           </tbody>
         </table>
+
+        <CharacterLoadoutSlots questState={questState} onLoadoutChange={onLoadoutChange} />
 
         <section className="space-y-2.5 pt-1.5" aria-label="Skills and traits">
           <CharacterAbilityTileGrid tiles={combatTiles} label="Combat skills" />

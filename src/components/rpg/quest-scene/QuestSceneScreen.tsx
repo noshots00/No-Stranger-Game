@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { thrownItemLabelFromFlags } from '../constants';
 import { isContinueBridgeMessageStep, resolveQuestSceneTextBands } from '../quests/engine';
 import { isTownHallTutorialAwaitStep } from '../village/villageTutorialQuests';
-import type { ModifierMap, QuestChoice, QuestDefinition, QuestProgress, QuestStep } from '../quests/types';
+import type { ModifierMap, QuestChoice, QuestDefinition, QuestProgress, QuestState, QuestStep } from '../quests/types';
 import {
   getQuestCardImageFit,
   getQuestPopupPortraitSrc,
@@ -56,7 +56,7 @@ export type QuestSceneScreenProps = {
   onAdvanceQuestMessage?: () => void;
   onDismissQuestScene?: () => void;
   showQuestChoiceEffects?: boolean;
-  playerHealth?: number;
+  questState: QuestState;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
 };
@@ -78,7 +78,7 @@ export function QuestSceneScreen({
   onAdvanceQuestMessage,
   onDismissQuestScene,
   showQuestChoiceEffects = false,
-  playerHealth = 100,
+  questState,
   onPlayerHealthChange,
   questProgress,
 }: QuestSceneScreenProps) {
@@ -194,7 +194,7 @@ export function QuestSceneScreen({
           quest={quest}
           step={step}
           playerFlags={playerFlags}
-          playerHealth={playerHealth}
+          questState={questState}
           onPlayerHealthChange={onPlayerHealthChange}
           onCombatChromeChange={handleCombatChromeChange}
           onStepChoice={onStepChoice}

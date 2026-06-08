@@ -3,7 +3,10 @@ import { UI_VERSION_LABEL } from './constants';
 import { cn } from '@/lib/utils';
 
 type HeaderHealthBarProps = {
+  /** Current HP (absolute, not 0–100). */
   health: number;
+  /** Max HP for fill percentage. */
+  maxHealth: number;
   /** Centered inside the bar (defaults to app version). */
   label?: ReactNode;
   className?: string;
@@ -14,11 +17,14 @@ type HeaderHealthBarProps = {
 /** Compact HP meter with version label centered inside the track. */
 export function HeaderHealthBar({
   health,
+  maxHealth,
   label = UI_VERSION_LABEL,
   className,
   hideMeterSemantics = false,
 }: HeaderHealthBarProps) {
-  const pct = Math.max(0, Math.min(100, Math.floor(health)));
+  const safeMax = maxHealth > 0 ? maxHealth : 1;
+  const safeHealth = Number.isFinite(health) ? Math.max(0, Math.min(safeMax, health)) : safeMax;
+  const pct = Math.max(0, Math.min(100, Math.round((safeHealth / safeMax) * 100)));
 
   return (
     <div
@@ -28,9 +34,9 @@ export function HeaderHealthBar({
         : {
             role: 'meter' as const,
             'aria-label': 'Health',
-            'aria-valuenow': pct,
+            'aria-valuenow': safeHealth,
             'aria-valuemin': 0,
-            'aria-valuemax': 100,
+            'aria-valuemax': safeMax,
           })}
     >
       <div

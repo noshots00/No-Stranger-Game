@@ -4,6 +4,8 @@ export type CombatLogLine = {
   id: string;
   text: string;
   tone: CombatLogTone;
+  /** Numeric detail for tooltip / on-demand view. */
+  detail?: string;
 };
 
 export function nextCombatLogId(): string {

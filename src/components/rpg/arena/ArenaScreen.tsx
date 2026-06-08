@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { GamePanelExpandable } from '../GamePanelExpandable';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import { VillageLocationScreen } from '../village/VillageLocationScreen';
 import {
   RPG_COMMAND_CHIP,
@@ -15,6 +16,8 @@ import {
   TRAINER_LEAVE_LABEL,
 } from './arenaTrainerDialogueTree';
 import { useArenaTrainerTalk } from './useArenaTrainerTalk';
+import { ArenaFightCard } from './ArenaFightCard';
+import { buildArenaFighterSnapshot } from './arenaCombat';
 import { getCombatRating } from './combatRating';
 import { formatArenaFightLine, createEmptyArenaRecord } from './arenaRecord';
 import type { ArenaMatchResult, ArenaOpenRegistration } from './arenaNostr';
@@ -27,7 +30,6 @@ type ArenaScreenProps = {
   questState: QuestState;
   myPubkey: string | undefined;
   tournament: ReturnType<typeof useArenaTournament>;
-  playerHealth: number;
   onPlayerHealthChange?: (health: number) => void;
 };
 
@@ -46,15 +48,31 @@ function BracketRow({
   match?: ArenaMatchResult;
   defaultOpen?: boolean;
 }) {
+  const payload = match?.matchPayload;
   return (
     <GamePanelExpandable label={<span className="truncate">{label}</span>} defaultOpen={defaultOpen}>
-      <div className={cn(RPG_UI_CAPTION, 'leading-relaxed')}>
+      <div className={cn(RPG_UI_CAPTION, 'leading-relaxed space-y-2')}>
         {match ? (
           <>
             <p className="text-[var(--candle-ink-soft)]">{match.summary}</p>
             <p className="mt-0.5">
-              Winner odds ~{Math.round(match.winProbabilityForWinner * 100)}% · {formatMatchTime(match.atMs)}
+              {payload ? 'Combat simulation' : `Winner odds ~${Math.round(match.winProbabilityForWinner * 100)}%`} ·{' '}
+              {formatMatchTime(match.atMs)}
             </p>
+            {payload ? (
+              <div className="flex gap-2">
+                <ArenaFightCard
+                  fighter={payload.fighterA}
+                  currentHp={payload.finalHp[payload.fighterA.id]}
+                  sideLabel="Fighter A"
+                />
+                <ArenaFightCard
+                  fighter={payload.fighterB}
+                  currentHp={payload.finalHp[payload.fighterB.id]}
+                  sideLabel="Fighter B"
+                />
+              </div>
+            ) : null}
           </>
         ) : (
           <p>Waiting for an opponent to register…</p>
@@ -96,14 +114,13 @@ export function ArenaScreen({
   questState,
   myPubkey,
   tournament,
-  playerHealth,
   onPlayerHealthChange,
 }: ArenaScreenProps) {
   const [arenaTab, setArenaTab] = useState<'tournament' | 'stats'>('tournament');
   const [trainerTalkOpen, setTrainerTalkOpen] = useState(false);
   const combatRating = getCombatRating(questState);
   const arenaRecord: ArenaRecord = questState.arenaRecord ?? createEmptyArenaRecord();
-  const { feed, feedQuery, register } = tournament;
+  const { feed, feedQuery, register, invalidateFeed } = tournament;
   const registerError =
     register.error instanceof Error ? register.error.message : register.isError ? 'Registration failed.' : null;
 
@@ -122,7 +139,7 @@ export function ArenaScreen({
 
   const trainerTalk = useArenaTrainerTalk({
     active: trainerTalkOpen,
-    playerHealth,
+    questState,
     onPlayerHealthChange,
     onLeave: () => setTrainerTalkOpen(false),
   });
@@ -214,15 +231,30 @@ export function ArenaScreen({
         </button>
       </div>
 
+      <PanelUpdateButton label="Update arena" onClick={() => invalidateFeed()} />
+
       {arenaTab === 'tournament' ? (
         <div className="space-y-1">
           {registerError ? (
             <p className="text-center text-xs text-red-300/90">{registerError}</p>
           ) : null}
           {feed.myOpen ? (
-            <p className={cn(RPG_UI_CAPTION, 'text-center italic')}>
-              You are in the queue. The next registrant will be your opponent.
-            </p>
+            <div className="space-y-1">
+              <p className={cn(RPG_UI_CAPTION, 'text-center italic')}>
+                You are in the queue. The next registrant will be your opponent.
+              </p>
+              {myPubkey ? (
+                <div className="flex justify-center">
+                  <ArenaFightCard
+                    fighter={
+                      feed.myOpen.fighterSnapshot ??
+                      buildArenaFighterSnapshot(questState, myPubkey)
+                    }
+                    sideLabel="Your fight card"
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="space-y-1 rounded-md border border-[var(--candle-rule)]/60 bg-black/20 p-1">

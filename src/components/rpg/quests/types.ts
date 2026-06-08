@@ -1,3 +1,5 @@
+import type { CombatLoadout } from '../combat/combatTypes';
+
 export type ModifierMap = Record<string, number>;
 
 /** Single asset under `public/` (no leading slash), `https` URL, `data:` URL, or `/` root-relative. */
@@ -293,8 +295,10 @@ export type QuestState = {
   unveiledQuestIds: string[];
   /** Travel-menu location ids the player has selected (clears “new” pings). */
   acknowledgedTravelLocationIds?: string[];
-  /** Player health 0-100. Placeholder; reserved for future combat. */
+  /** Current HP (absolute; max from level + CON). */
   health: number;
+  /** Combat loadout: weapon, other equipment, two active skills/spells. */
+  loadout: CombatLoadout;
   /**
    * Eastern calendar date (America/New_York, `yyyy-MM-dd`) when the player submitted their name
    * on the origin quest — immutable for this playthrough; used for day pacing and future verification.

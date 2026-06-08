@@ -1,4 +1,5 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { FighterSnapshot } from '../combat/combatTypes';
 import {
   ARENA_COMMUNITY_TAG,
   ARENA_MATCH_TAG,
@@ -9,6 +10,7 @@ import {
   NSG_ARENA_MATCH_KIND,
   NSG_ARENA_OPEN_KIND,
 } from './constants';
+import { type ArenaMatchPayloadV1, parseArenaMatchPayload } from './arenaCombat';
 
 export type ArenaFighterSnapshot = {
   pubkey: string;
@@ -22,6 +24,7 @@ export type ArenaOpenRegistration = {
   name: string;
   combatRating: number;
   createdAt: number;
+  fighterSnapshot?: FighterSnapshot;
 };
 
 export type ArenaMatchResult = {
@@ -34,6 +37,7 @@ export type ArenaMatchResult = {
   summary: string;
   winProbabilityForWinner: number;
   atMs: number;
+  matchPayload?: ArenaMatchPayloadV1;
 };
 
 const tagValue = (event: NostrEvent, name: string): string | undefined =>
@@ -41,6 +45,22 @@ const tagValue = (event: NostrEvent, name: string): string | undefined =>
 
 const tagValues = (event: NostrEvent, name: string): string[] =>
   event.tags.filter(([n]) => n === name).map((t) => t[1]).filter(Boolean) as string[];
+
+function parseFighterSnapshotFromContent(content: string): FighterSnapshot | undefined {
+  if (!content.trim()) return undefined;
+  try {
+    const raw = JSON.parse(content) as { fighter?: FighterSnapshot };
+    if (raw.fighter && typeof raw.fighter === 'object' && raw.fighter.name) {
+      return raw.fighter;
+    }
+    if ((raw as FighterSnapshot).name && (raw as FighterSnapshot).stats) {
+      return raw as FighterSnapshot;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
 
 const fighterFromEvent = (
   event: NostrEvent,
@@ -70,6 +90,7 @@ export function parseArenaOpenRegistration(event: NostrEvent): ArenaOpenRegistra
     name,
     combatRating,
     createdAt: event.created_at,
+    fighterSnapshot: parseFighterSnapshotFromContent(event.content),
   };
 }
 
@@ -88,6 +109,12 @@ export function parseArenaMatchResult(event: NostrEvent): ArenaMatchResult | nul
   const winProbabilityForWinner =
     probRaw !== undefined ? Number.parseInt(probRaw, 10) / 100 : 0.5;
 
+  const matchPayload = parseArenaMatchPayload(event.content);
+  const summary =
+    matchPayload?.summary?.trim() ||
+    (event.content.trim().startsWith('{') ? `${fighterA.name} vs ${fighterB.name}` : event.content.trim()) ||
+    `${fighterA.name} vs ${fighterB.name}`;
+
   return {
     eventId: event.id,
     pubkey: event.pubkey,
@@ -95,9 +122,10 @@ export function parseArenaMatchResult(event: NostrEvent): ArenaMatchResult | nul
     fighterB,
     winnerPubkey,
     registrationEventId,
-    summary: event.content.trim() || `${fighterA.name} vs ${fighterB.name}`,
+    summary,
     winProbabilityForWinner: Number.isFinite(winProbabilityForWinner) ? winProbabilityForWinner : 0.5,
     atMs: event.created_at * 1000,
+    matchPayload: matchPayload ?? undefined,
   };
 }
 
@@ -150,12 +178,13 @@ export function findOldestOpponentOpen(
 export function buildOpenRegistrationDraft(args: {
   playerName: string;
   combatRating: number;
+  fighterSnapshot: FighterSnapshot;
   createdAtSec?: number;
 }): Omit<NostrEvent, 'id' | 'pubkey' | 'sig'> {
   const created_at = args.createdAtSec ?? Math.floor(Date.now() / 1000);
   return {
     kind: NSG_ARENA_OPEN_KIND,
-    content: '',
+    content: JSON.stringify({ fighter: args.fighterSnapshot }),
     created_at,
     tags: [
       ['d', ARENA_OPEN_D_TAG],
@@ -175,13 +204,17 @@ export function buildMatchResultDraft(args: {
   registrationEventId: string;
   summary: string;
   winProbabilityForWinner: number;
+  matchPayload?: ArenaMatchPayloadV1;
   createdAtSec?: number;
 }): Omit<NostrEvent, 'id' | 'pubkey' | 'sig'> {
   const created_at = args.createdAtSec ?? Math.floor(Date.now() / 1000);
   const winPct = Math.round(args.winProbabilityForWinner * 100);
+  const content = args.matchPayload
+    ? JSON.stringify({ ...args.matchPayload, summary: args.summary })
+    : args.summary;
   return {
     kind: NSG_ARENA_MATCH_KIND,
-    content: args.summary,
+    content,
     created_at,
     tags: [
       ['t', ARENA_COMMUNITY_TAG],

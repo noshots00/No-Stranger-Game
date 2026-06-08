@@ -16,6 +16,11 @@ export type TavernEscrowEntry = {
 };
 
 export type PostRewardInput = {
+  /** Gold paid per fulfillment. */
+  goldPerUnit?: number;
+  /** How many times this quest can be fulfilled. */
+  slotCount?: number;
+  /** @deprecated Lump-sum gold escrow (treated as one slot). */
   goldAmount?: number;
   modifierItemKey?: string;
   modifierItemQty?: number;
@@ -41,8 +46,13 @@ export function listRewardOptions(state: QuestState): RewardOption[] {
 
 function buildRewardsFromInput(input: PostRewardInput): EscrowedReward[] {
   const rewards: EscrowedReward[] = [];
-  const gold = input.goldAmount ?? 0;
-  if (gold > 0) rewards.push({ kind: 'gold', amount: Math.floor(gold) });
+  const goldPerUnit = input.goldPerUnit ?? 0;
+  const slotCount = input.slotCount ?? 0;
+  if (goldPerUnit > 0 && slotCount > 0) {
+    rewards.push({ kind: 'gold', amount: Math.floor(goldPerUnit) * Math.floor(slotCount) });
+  } else if ((input.goldAmount ?? 0) > 0) {
+    rewards.push({ kind: 'gold', amount: Math.floor(input.goldAmount!) });
+  }
   if (input.modifierItemKey && (input.modifierItemQty ?? 0) > 0) {
     rewards.push({
       kind: 'modifierItem',
@@ -175,6 +185,27 @@ export function formatRewardSummary(quest: PlayerQuestView): string {
   if (quest.rewardItemLabel) parts.push(quest.rewardItemLabel);
   else if (quest.rewardItemKey) parts.push(toItemLabel(quest.rewardItemKey));
   return parts.length > 0 ? parts.join(' + ') : 'None';
+}
+
+/** Compact reward line for the tavern quest board (e.g. `1gold`). */
+export function formatQuestBoardRewardLine(quest: PlayerQuestView): string {
+  const parts: string[] = [];
+  if (quest.rewardGold > 0) parts.push(`${quest.rewardGold}gold`);
+  if (quest.rewardItemLabel) parts.push(quest.rewardItemLabel);
+  else if (quest.rewardItemKey) parts.push(toItemLabel(quest.rewardItemKey));
+  return parts.length > 0 ? parts.join(', ') : '—';
+}
+
+/** Board title: bounty item with open-slot multiplier (e.g. `Wolf Pelts x18`). */
+export function questBoardTitle(quest: PlayerQuestView): string {
+  const slots = Math.max(0, quest.slotsRemaining);
+  if (slots > 1) return `${quest.bounty} x${slots}`;
+  return quest.bounty;
+}
+
+/** Board reward line (e.g. `Reward: 1gold`). */
+export function formatQuestBoardRewardLabel(quest: PlayerQuestView): string {
+  return `Reward: ${formatQuestBoardRewardLine(quest)}`;
 }
 
 export function goldCopperAmount(gold: number): number {

@@ -140,6 +140,9 @@ import {
   devRestartFromQuest,
   MAIN_B_ARC_QUEST_IDS,
 } from './dev/devStoryCheckpoints';
+import type { CombatLoadout } from './combat/combatTypes';
+import { sanitizeLoadoutSelection } from './combat/loadoutHelpers';
+import { clampPlayerHealth, getPlayerMaxHp } from './combat/playerHealth';
 import { GameHeader } from './GameHeader';
 import { CharacterTab } from './tabs/CharacterTab';
 import { ChronicleTab } from './tabs/ChronicleTab';
@@ -1796,6 +1799,12 @@ export function RPGInterface() {
             guildDisplayName={guildDisplayName}
             kindredSpirits={user ? socialStats.kindredSpirits : undefined}
             onOpenChronicle={() => setActiveTab('chronicle')}
+            onLoadoutChange={(loadout: CombatLoadout) => {
+              setQuestState((prev) => ({
+                ...prev,
+                loadout: sanitizeLoadoutSelection(loadout, prev),
+              }));
+            }}
             showModifierDetails={showModifierDetails}
             showDevTools={showHeaderDevTools}
             onShowModifierDetailsChange={setShowModifierDetails}
@@ -1852,17 +1861,18 @@ export function RPGInterface() {
               questItems={questState.questItems}
               onInventoryPickSubmit={handleInventoryPickSubmit}
               showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
-              playerHealth={
-                typeof questState.health === 'number' && Number.isFinite(questState.health)
-                  ? questState.health
-                  : 100
-              }
               onPlayerHealthChange={(health) => {
                 if (!Number.isFinite(health)) return;
-                setQuestState((prev) => ({
-                  ...prev,
-                  health: Math.max(0, Math.min(100, Math.floor(health))),
-                }));
+                setQuestState((prev) => {
+                  const next = {
+                    ...prev,
+                    health: clampPlayerHealth(prev, health),
+                  };
+                  if (next.health !== prev.health) {
+                    window.queueMicrotask(() => void persistQuestCheckpoint(next));
+                  }
+                  return next;
+                });
               }}
               questProgress={
                 activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
@@ -1920,17 +1930,19 @@ export function RPGInterface() {
             questItems={questState.questItems}
             onInventoryPickSubmit={handleInventoryPickSubmit}
             showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
-            playerHealth={
-              typeof questState.health === 'number' && Number.isFinite(questState.health)
-                ? questState.health
-                : 100
-            }
+            questState={questState}
             onPlayerHealthChange={(health) => {
               if (!Number.isFinite(health)) return;
-              setQuestState((prev) => ({
-                ...prev,
-                health: Math.max(0, Math.min(100, Math.floor(health))),
-              }));
+              setQuestState((prev) => {
+                const next = {
+                  ...prev,
+                  health: clampPlayerHealth(prev, health),
+                };
+                if (next.health !== prev.health) {
+                  window.queueMicrotask(() => void persistQuestCheckpoint(next));
+                }
+                return next;
+              });
             }}
             questProgress={
               activeQuest ? questState.progressByQuestId[activeQuest.id] : undefined
@@ -2020,8 +2032,9 @@ export function RPGInterface() {
           health={
             typeof questState.health === 'number' && Number.isFinite(questState.health)
               ? questState.health
-              : 100
+              : getPlayerMaxHp(questState)
           }
+          maxHealth={getPlayerMaxHp(questState)}
           walletCopper={walletCopper}
           relayHealthFlyoutOpen={relayHealthFlyoutOpen}
           onRelayHealthFlyoutOpenChange={setRelayHealthFlyoutOpen}

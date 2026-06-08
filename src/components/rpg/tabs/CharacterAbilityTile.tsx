@@ -24,7 +24,7 @@ export function CharacterAbilityTile({ tile, className }: CharacterAbilityTilePr
       title={tile.placeholder ? `${tile.name} (placeholder)` : tile.name}
     >
       <span className={CHAR_TILE_NAME}>{tile.name}</span>
-      <span className={CHAR_TILE_LEVEL}>Lv {tile.level}</span>
+      {!tile.placeholder ? <span className={CHAR_TILE_LEVEL}>Lv {tile.level}</span> : null}
     </div>
   );
 }

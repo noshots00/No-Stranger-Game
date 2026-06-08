@@ -1,3 +1,5 @@
+import type { CombatLoadout } from '../combat/combatTypes';
+import { clampPlayerHealth, normalizeSavedHealth } from '../combat/playerHealth';
 import type {
   ChoiceEffect,
   DialogueLogEntry,
@@ -521,6 +523,7 @@ export const createInitialQuestState = (): QuestState => ({
   lockedClassSlug: null,
   unveiledQuestIds: ['quest-001-origin'],
   health: 100,
+  loadout: {},
   characterCreationDateEastern: null,
   characterCreatedAtAppVersion: null,
   arenaRecord: { wins: 0, losses: 0, fights: [] },
@@ -596,10 +599,6 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   }
 
   const rawHealth = (state as { health?: unknown }).health;
-  const health =
-    typeof rawHealth === 'number' && Number.isFinite(rawHealth)
-      ? Math.max(0, Math.min(100, Math.floor(rawHealth)))
-      : initial.health;
 
   const rawCreation = (state as { characterCreationDateEastern?: unknown }).characterCreationDateEastern;
   const characterCreationDateEastern =
@@ -963,6 +962,15 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     }
   }
 
+  const rawLoadout = (state as { loadout?: unknown }).loadout;
+  const loadout = normalizeCombatLoadout(rawLoadout);
+
+  const healthCandidate =
+    typeof rawHealth === 'number' && Number.isFinite(rawHealth)
+      ? Math.floor(rawHealth)
+      : initial.health;
+  const health = normalizeSavedHealth(healthCandidate, normalizedModifiers, progressByQuestId);
+
   return {
     ...initial,
     ...state,
@@ -988,6 +996,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     activeQuestId: migrated.activeQuestId,
     playerName: resolvedPlayerName,
     health,
+    loadout,
     characterCreationDateEastern,
     characterCreatedAtAppVersion,
     arenaRecord,
@@ -1145,11 +1154,20 @@ function questAdvanceScore(state: QuestState): number {
 
 function mergeHydratedHealth(relayHealth: unknown, localHealth: unknown): number {
   const toScore = (value: unknown): number =>
-    typeof value === 'number' && Number.isFinite(value)
-      ? Math.max(0, Math.min(100, Math.floor(value)))
-      : -1;
+    typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : -1;
   const merged = Math.max(toScore(relayHealth), toScore(localHealth));
   return merged >= 0 ? merged : 100;
+}
+
+function normalizeCombatLoadout(raw: unknown): CombatLoadout {
+  if (!raw || typeof raw !== 'object') return {};
+  const o = raw as Record<string, unknown>;
+  const out: CombatLoadout = {};
+  if (typeof o.weapon === 'string' && o.weapon.trim()) out.weapon = o.weapon.trim();
+  if (typeof o.other === 'string' && o.other.trim()) out.other = o.other.trim();
+  if (typeof o.skillA === 'string' && o.skillA.trim()) out.skillA = o.skillA.trim();
+  if (typeof o.skillB === 'string' && o.skillB.trim()) out.skillB = o.skillB.trim();
+  return out;
 }
 
 function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
@@ -1170,6 +1188,7 @@ function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
     journalLog: journalSource.journalLog,
     experience: Math.max(relay.experience, local.experience),
     health: mergeHydratedHealth(relay.health, local.health),
+    loadout: Object.keys(local.loadout ?? {}).length > 0 ? local.loadout : relay.loadout,
     skills: {
       explorationXp: Math.max(relay.skills.explorationXp, local.skills.explorationXp),
       foragingXp: Math.max(relay.skills.foragingXp, local.skills.foragingXp),
@@ -1679,10 +1698,10 @@ export const applyHealthFromChoiceEffect = (state: QuestState, effect?: ChoiceEf
     }
   }
   if (typeof effect.healthDelta === 'number' && Number.isFinite(effect.healthDelta)) {
-    health = Math.max(0, Math.min(100, Math.floor(health + effect.healthDelta)));
+    health = clampPlayerHealth(state, health + effect.healthDelta);
   }
   if (typeof effect.healthSet === 'number' && Number.isFinite(effect.healthSet)) {
-    health = Math.max(0, Math.min(100, Math.floor(effect.healthSet)));
+    health = clampPlayerHealth(state, effect.healthSet);
   }
   return health === state.health ? state : { ...state, health };
 };

@@ -12,12 +12,13 @@ export function TavernGraffitiViewer({ open, onOpenChange }: TavernGraffitiViewe
       open={open}
       onOpenChange={onOpenChange}
       ariaLabel="Tavern graffiti"
-      panelClassName="h-auto max-h-[min(88dvh,720px)] gap-2 p-3 pt-7"
+      hideCloseButton
+      panelClassName="h-auto max-h-none w-auto max-w-none border-0 bg-transparent p-0 shadow-none"
     >
       <img
         src={TAVERN_GRAFFITI_SRC}
         alt="Graffiti carved into the tavern restroom wall"
-        className="mx-auto max-h-[min(75dvh,640px)] w-full rounded-md border border-[var(--candle-rule)] object-contain shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        className="mx-auto block max-h-[min(34dvh,200px)] max-w-[min(72vw,220px)] w-auto object-contain shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
       />
     </GamePanelDialog>
   );

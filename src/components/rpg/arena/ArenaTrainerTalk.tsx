@@ -36,8 +36,8 @@ export function ArenaTrainerTalkView({
           playerMaxHp={combat.playerMaxHp}
           enemyHp={combat.enemyHp}
           enemyMaxHp={combat.enemyMaxHp}
-          onFlee={combat.flee}
-          fleeDisabled={combat.phase === 'entering'}
+          onFastForward={combat.fastForward}
+          fastForwardDisabled={combat.phase === 'entering'}
           actionBoxRef={actionBoxRef}
         />
       </div>

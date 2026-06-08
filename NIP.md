@@ -16,7 +16,7 @@ Replaceable per author with `d` tag `arena-open`. One active queue slot per play
 | `rating` | yes | Combat rating at registration time |
 | `alt` | yes | Human-readable description |
 
-`content` is empty.
+`content` holds JSON: `{ "fighter": <FighterSnapshot> }` — level, stats, maxHp, loadout, passives, and skill levels at registration time (for combat replay).
 
 ## Kind 10050 — Arena match result (regular)
 
@@ -32,7 +32,22 @@ Immutable result when a matcher pairs with an open registration.
 | `win-pct` | yes | Winner's win chance × 100 (integer) |
 | `alt` | yes | Human-readable description |
 
-`content` holds a short summary line for UI.
+`content` is JSON when `v` is present:
+
+```json
+{
+  "v": 1,
+  "seed": "<hex>",
+  "winner": "<pubkey hex>",
+  "fighterA": { "...": "FighterSnapshot" },
+  "fighterB": { "...": "FighterSnapshot" },
+  "log": ["…"],
+  "finalHp": { "<fighterId>": 0 },
+  "summary": "Alice defeated Bob"
+}
+```
+
+Legacy rows may use a plain-text summary line in `content` (pre–combat-engine matches). Clients fall back to tag-only parsing for W/L stats.
 
 ## Kind 30343 — Blobbi Fighting open registration (addressable)
 
@@ -113,7 +128,9 @@ Replaceable per poster with `d` tag `player-quest-{uuid}`.
 | `bounty` | yes | Free-text bounty item name |
 | `status` | yes | `open`, `fulfilled`, or `cancelled` |
 | `poster-name` | yes | Poster display name |
-| `reward-gold` | yes | Gold escrowed (integer, 0 if none) |
+| `reward-gold` | yes | Gold reward **per fulfillment** (integer, 0 if none) |
+| `reward-slots` | optional | Total fulfillments posted (default 1) |
+| `slots-remaining` | optional | Open slots left (default `reward-slots`) |
 | `reward-item` | optional | Quest item label reward |
 | `reward-item-key` | optional | Canonical `item:*` key if from inventory |
 | `reward-item-qty` | optional | Item quantity (default 1) |

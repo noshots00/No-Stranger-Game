@@ -38,7 +38,7 @@ type PlayTabProps = {
   questItems: string[];
   onInventoryPickSubmit?: (itemLabel: string) => void;
   showQuestChoiceEffects?: boolean;
-  playerHealth?: number;
+  questState: QuestState;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
   activeJobSlug?: string | null;
@@ -76,7 +76,7 @@ export function PlayTab({
   questItems,
   onInventoryPickSubmit,
   showQuestChoiceEffects = false,
-  playerHealth = 100,
+  questState,
   onPlayerHealthChange,
   questProgress,
   activeJobSlug = null,
@@ -110,7 +110,7 @@ export function PlayTab({
         onInventoryPickSubmit={onInventoryPickSubmit}
         onAdvanceQuestMessage={onAdvanceQuestMessage}
         showQuestChoiceEffects={showQuestChoiceEffects}
-        playerHealth={playerHealth}
+        questState={questState}
         onPlayerHealthChange={onPlayerHealthChange}
         questProgress={questProgress}
       />

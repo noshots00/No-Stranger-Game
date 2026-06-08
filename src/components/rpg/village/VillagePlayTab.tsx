@@ -56,7 +56,6 @@ type VillagePlayTabProps = {
   questItems: string[];
   onInventoryPickSubmit?: (itemLabel: string) => void;
   showQuestChoiceEffects?: boolean;
-  playerHealth?: number;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
   activeVillagePanel: VillagePanelId | null;
@@ -109,7 +108,6 @@ export function VillagePlayTab({
   questItems,
   onInventoryPickSubmit,
   showQuestChoiceEffects = false,
-  playerHealth = 100,
   onPlayerHealthChange,
   questProgress,
   activeVillagePanel,
@@ -159,7 +157,7 @@ export function VillagePlayTab({
           onAdvanceQuestMessage={onAdvanceQuestMessage}
           onDismissQuestScene={onDismissQuestScene}
           showQuestChoiceEffects={showQuestChoiceEffects}
-          playerHealth={playerHealth}
+          questState={questState}
           onPlayerHealthChange={onPlayerHealthChange}
           questProgress={questProgress}
         />
@@ -177,7 +175,6 @@ export function VillagePlayTab({
             questState={questState}
             myPubkey={myPubkey}
             tournament={arenaTournament}
-            playerHealth={playerHealth}
             onPlayerHealthChange={onPlayerHealthChange}
           />
         );
@@ -199,6 +196,7 @@ export function VillagePlayTab({
             questState={questState}
             myPubkey={myPubkey}
             tavern={tavern}
+            onPlayerHealthChange={onPlayerHealthChange}
             onClose={onCloseVillagePanel}
           />
         );

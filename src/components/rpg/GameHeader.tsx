@@ -35,6 +35,7 @@ type GameHeaderProps = {
   onDevToolsMenuOpenChange?: (open: boolean) => void;
   onEnableDevTools?: () => void;
   health?: number;
+  maxHealth?: number;
   walletCopper?: number;
   relayHealthFlyoutOpen?: boolean;
   onRelayHealthFlyoutOpenChange?: (open: boolean) => void;
@@ -60,6 +61,7 @@ export function GameHeader({
   onDevToolsMenuOpenChange,
   onEnableDevTools,
   health = 100,
+  maxHealth = 100,
   walletCopper = 0,
   relayHealthFlyoutOpen = false,
   onRelayHealthFlyoutOpenChange,
@@ -167,7 +169,7 @@ export function GameHeader({
       healthControl = (
         <>
           <div className="hidden min-w-0 flex-1 lg:block">
-            <HeaderHealthBar health={health} hideMeterSemantics className={healthBarClassName} />
+            <HeaderHealthBar health={health} maxHealth={maxHealth} hideMeterSemantics className={healthBarClassName} />
           </div>
           <div className="min-w-0 flex-1 lg:hidden">
             <HeaderFlyout
@@ -177,7 +179,7 @@ export function GameHeader({
               align="center"
               panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
               trigger={
-                <HeaderHealthBar health={health} hideMeterSemantics className={`cursor-pointer ${healthBarClassName}`} />
+                <HeaderHealthBar health={health} maxHealth={maxHealth} hideMeterSemantics className={`cursor-pointer ${healthBarClassName}`} />
               }
             >
               {devToolsPanel}
@@ -195,7 +197,7 @@ export function GameHeader({
             align="center"
             panelClassName="max-h-[min(70vh,28rem)] w-[min(92vw,20rem)] overflow-y-auto p-2"
             trigger={
-              <HeaderHealthBar health={health} hideMeterSemantics className={`cursor-pointer ${healthBarClassName}`} />
+              <HeaderHealthBar health={health} maxHealth={maxHealth} hideMeterSemantics className={`cursor-pointer ${healthBarClassName}`} />
             }
           >
             {devToolsPanel}
@@ -211,7 +213,7 @@ export function GameHeader({
         aria-label="Health and version"
         onClick={handleDevUnlockTap}
       >
-        <HeaderHealthBar health={health} hideMeterSemantics className={healthBarClassName} />
+        <HeaderHealthBar health={health} maxHealth={maxHealth} hideMeterSemantics className={healthBarClassName} />
       </button>
     );
   }

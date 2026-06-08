@@ -1,17 +1,17 @@
 import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { GamePanelExpandable } from '../GamePanelExpandable';
+import { clampPlayerHealth, getPlayerMaxHp } from '../combat/playerHealth';
+import { PanelUpdateButton } from '../PanelUpdateButton';
 import {
   RPG_COMMAND_CHIP,
   RPG_COMMAND_CHIP_LABEL,
   RPG_UI_CAPTION,
   RPG_UI_META,
-  RPG_UI_UI,
 } from '../typography/rpgUiTypography';
 import { VillageLocationScreen } from '../village/VillageLocationScreen';
-import { VillageActionChip, VillageActionRow, VillageActionRowItem } from '../village/VillageActionChip';
 import { playerOwnsBounty } from './bountyMatch';
-import { formatRewardSummary } from './questEscrow';
+import { formatQuestBoardRewardLabel, questBoardTitle } from './questEscrow';
 import { PostQuestForm } from './PostQuestForm';
 import { TavernGraffitiViewer } from './TavernGraffitiViewer';
 import type { PlayerQuestView } from './playerQuestNostr';
@@ -25,6 +25,7 @@ type TavernScreenProps = {
   myPubkey: string | undefined;
   tavern: ReturnType<typeof useTavern>;
   onClose: () => void;
+  onPlayerHealthChange?: (health: number) => void;
   className?: string;
 };
 
@@ -45,50 +46,62 @@ function PlayerQuestRow({
   isFulfillPending: boolean;
   isCancelPending: boolean;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const isPoster = myPubkey === quest.pubkey;
-  const canFulfill = !isPoster && playerOwnsBounty(questState, quest.bounty);
-  const rewardLabel = formatRewardSummary(quest);
+  const ownsBounty = playerOwnsBounty(questState, quest.bounty);
+  const canFulfill = !isPoster && ownsBounty;
 
   return (
-    <GamePanelExpandable
-      triggerClassName="flex-col items-start gap-0.5 py-1"
-      label={
-        <>
-          <span className={cn(RPG_UI_UI, 'min-w-0 truncate font-medium')}>{quest.title}</span>
-          <span className={RPG_UI_CAPTION}>
-            {quest.posterName} · Bounty: {quest.bounty} · Reward: {rewardLabel}
-          </span>
-        </>
-      }
-    >
-      <div className="space-y-1">
-        {quest.description ? (
-          <p className={cn(RPG_UI_META, 'leading-relaxed')}>{quest.description}</p>
-        ) : null}
-        <VillageActionRow>
-          <VillageActionRowItem>
-            {isPoster ? (
-              <VillageActionChip disabled={isCancelPending} onClick={onCancelPoster}>
-                {isCancelPending ? 'Cancelling…' : 'Cancel quest'}
-              </VillageActionChip>
-            ) : (
-              <VillageActionChip
-                className={!canFulfill ? 'line-through opacity-50' : undefined}
-                disabled={!canFulfill || isFulfillPending}
-                onClick={onFulfill}
-              >
-                {isFulfillPending ? 'Fulfilling…' : 'Fulfill'}
-              </VillageActionChip>
+    <li className="border-b border-[var(--candle-rule)]/45 last:border-b-0">
+      <div className="flex items-center gap-0.5 py-1">
+        <button
+          type="button"
+          className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded-sm text-[var(--candle-ink-faint)] transition-colors hover:text-[var(--candle-wax)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--candle-flame-soft)]"
+          aria-expanded={detailsOpen}
+          aria-label={detailsOpen ? 'Hide poster' : 'Show poster'}
+          onClick={() => setDetailsOpen((open) => !open)}
+        >
+          <ChevronDown
+            className={cn('size-3.5 transition-transform', detailsOpen && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        <p className="rpg-font-ui min-w-0 flex-1 truncate text-[12px] leading-tight text-[var(--candle-ink-soft)]">
+          <span className="font-medium text-[var(--candle-ink)]">{questBoardTitle(quest)}</span>
+          <span className="text-[var(--candle-wax)]"> {formatQuestBoardRewardLabel(quest)}</span>
+        </p>
+        {isPoster ? (
+          <button
+            type="button"
+            className={cn(RPG_COMMAND_CHIP, 'h-6 shrink-0 px-2 py-0')}
+            disabled={isCancelPending}
+            onClick={onCancelPoster}
+          >
+            <span className={cn(RPG_COMMAND_CHIP_LABEL, 'text-[10px]')}>
+              {isCancelPending ? '…' : 'Cancel'}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              RPG_COMMAND_CHIP,
+              'h-6 shrink-0 px-2 py-0',
+              !canFulfill && 'line-through opacity-50'
             )}
-          </VillageActionRowItem>
-        </VillageActionRow>
-        {!isPoster && !canFulfill ? (
-          <p className={cn(RPG_UI_CAPTION, 'text-center')}>
-            You need the bounty item in inventory to fulfill.
-          </p>
-        ) : null}
+            disabled={!canFulfill || isFulfillPending}
+            onClick={onFulfill}
+          >
+            <span className={cn(RPG_COMMAND_CHIP_LABEL, 'text-[10px]')}>
+              {isFulfillPending ? '…' : 'Fulfill'}
+            </span>
+          </button>
+        )}
       </div>
-    </GamePanelExpandable>
+      {detailsOpen ? (
+        <p className={cn(RPG_UI_CAPTION, 'pb-1 pl-5 text-[var(--candle-ink-faint)]')}>{quest.posterName}</p>
+      ) : null}
+    </li>
   );
 }
 
@@ -97,6 +110,7 @@ export function TavernScreen({
   myPubkey,
   tavern,
   onClose,
+  onPlayerHealthChange,
   className,
 }: TavernScreenProps) {
   const [area, setArea] = useState<TavernArea>('main');
@@ -104,7 +118,10 @@ export function TavernScreen({
   const [postFormOpen, setPostFormOpen] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
 
-  const { feed, feedQuery, postQuest, cancelQuest, fulfillQuest } = tavern;
+  const { feed, feedQuery, postQuest, cancelQuest, fulfillQuest, invalidateFeed } = tavern;
+  const maxHp = getPlayerMaxHp(questState);
+  const currentHp = clampPlayerHealth(questState, questState.health);
+  const atFullHealth = currentHp >= maxHp;
 
   const postQuestError =
     postQuest.error instanceof Error
@@ -123,6 +140,16 @@ export function TavernScreen({
           <>
             {area === 'main' ? (
               <>
+                <li>
+                  <button
+                    type="button"
+                    className={RPG_COMMAND_CHIP}
+                    disabled={atFullHealth || !onPlayerHealthChange}
+                    onClick={() => onPlayerHealthChange?.(maxHp)}
+                  >
+                    <span className={RPG_COMMAND_CHIP_LABEL}>Have a drink</span>
+                  </button>
+                </li>
                 {!postFormOpen ? (
                   <li>
                     <button
@@ -164,38 +191,44 @@ export function TavernScreen({
           </p>
         ) : (
           <>
-            <div className="space-y-0.5 rounded-md border border-[var(--candle-rule)]/60 bg-black/15 p-1">
-              {feedQuery.isPending ? (
-                <p className={cn(RPG_UI_META, 'py-2 text-center')}>Loading quests…</p>
-              ) : feed.openQuests.length === 0 ? (
-                <p className={cn(RPG_UI_META, 'py-2 text-center')}>No open quests posted yet.</p>
-              ) : (
-                feed.openQuests.map((quest) => (
-                  <PlayerQuestRow
-                    key={quest.questId}
-                    quest={quest}
-                    myPubkey={myPubkey}
-                    questState={questState}
-                    isFulfillPending={fulfillQuest.isPending}
-                    isCancelPending={cancelQuest.isPending}
-                    onFulfill={() =>
-                      fulfillQuest.mutate(quest, {
-                        onError: () => {
-                          /* inline row state only */
-                        },
-                      })
-                    }
-                    onCancelPoster={() =>
-                      cancelQuest.mutate(quest, {
-                        onError: () => {
-                          /* inline row state only */
-                        },
-                      })
-                    }
-                  />
-                ))
-              )}
-            </div>
+            <section className="space-y-1">
+              <PanelUpdateButton label="Update board" onClick={() => invalidateFeed()} />
+
+              <div className="rounded-md border border-[var(--candle-rule)]/60 bg-black/20">
+                {feedQuery.isPending ? (
+                  <p className={cn(RPG_UI_META, 'py-3 text-center')}>Loading quests…</p>
+                ) : feed.openQuests.length === 0 ? (
+                  <p className={cn(RPG_UI_META, 'py-3 text-center')}>No open quests posted yet.</p>
+                ) : (
+                  <ul className="list-none px-2 py-1">
+                    {feed.openQuests.map((quest) => (
+                      <PlayerQuestRow
+                        key={quest.questId}
+                        quest={quest}
+                        myPubkey={myPubkey}
+                        questState={questState}
+                        isFulfillPending={fulfillQuest.isPending}
+                        isCancelPending={cancelQuest.isPending}
+                        onFulfill={() =>
+                          fulfillQuest.mutate(quest, {
+                            onError: () => {
+                              /* inline row state only */
+                            },
+                          })
+                        }
+                        onCancelPoster={() =>
+                          cancelQuest.mutate(quest, {
+                            onError: () => {
+                              /* inline row state only */
+                            },
+                          })
+                        }
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
 
             {postFormOpen ? (
               <PostQuestForm
