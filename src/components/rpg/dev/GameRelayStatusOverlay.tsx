@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameRelayHealthSnapshot, GameRelayProbeResult } from '@/lib/probeGameRelay';
 import { GAME_RELAY_URLS } from '@/lib/gameRelays';
@@ -107,26 +106,22 @@ export function GameRelayStatusOverlay({
           </p>
           <div className="flex gap-1">
             {panel === 'status' ? (
-              <Button
+              <button
                 type="button"
-                size="sm"
-                variant="outline"
-                className="h-6 px-2 font-serif text-[0.6rem] uppercase tracking-[0.08em]"
+                className="rpg-mini-btn h-6 px-2 font-serif text-[0.6rem] uppercase tracking-[0.08em]"
                 disabled={isFetching}
                 onClick={onRefresh}
               >
                 {isFetching ? '…' : 'Probe'}
-              </Button>
+              </button>
             ) : (
-              <Button
+              <button
                 type="button"
-                size="sm"
-                variant="outline"
-                className="h-6 px-2 font-serif text-[0.6rem] uppercase tracking-[0.08em]"
+                className="rpg-mini-btn h-6 px-2 font-serif text-[0.6rem] uppercase tracking-[0.08em]"
                 onClick={clearLog}
               >
                 Clear
-              </Button>
+              </button>
             )}
           </div>
         </div>
@@ -159,7 +154,7 @@ export function GameRelayStatusOverlay({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto candlelit-scroll px-2.5 py-2">
         {panel === 'status' ? (
           <>
             <ul className="space-y-1.5">

@@ -18,7 +18,7 @@ const portraitShellStyle = {
 function GamePortraitShell({ children }: { children: ReactNode }) {
   return (
     <div
-      className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[var(--game-portrait-width)] shrink-0 flex-col overflow-hidden shadow-[0_28px_100px_rgba(0,0,0,0.55)]"
+      className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[var(--game-portrait-width)] shrink-0 flex-col overflow-hidden border-0"
       style={portraitShellStyle}
     >
       {children}
@@ -36,7 +36,7 @@ function FixedSideRail({
   return (
     <aside
       className={cn(
-        'fixed top-0 z-10 hidden h-[100dvh] overflow-y-auto border-[var(--candle-rule)]/25 bg-[var(--candle-void)] px-3 py-4 lg:block',
+        'candlelit-chrome fixed top-0 z-10 hidden h-[100dvh] overflow-y-auto candlelit-scroll border-[var(--candle-rule)]/25 bg-[var(--candle-void)] px-3 py-4 lg:block',
         'w-[max(0px,calc((100vw-var(--game-portrait-width))/2))]',
         side === 'left' ? 'left-0 border-r' : 'right-0 border-l'
       )}
@@ -62,7 +62,7 @@ function FixedSideRail({
 export function GamePortraitViewport({ children, leftRail, rightRail }: GamePortraitViewportProps) {
   return (
     <div
-      className="relative flex min-h-[100dvh] w-full justify-center bg-[var(--candle-void)]"
+      className="candlelit-chrome relative flex min-h-[100dvh] w-full justify-center bg-[var(--candle-void)]"
       style={portraitShellStyle}
     >
       {leftRail ? <FixedSideRail side="left">{leftRail}</FixedSideRail> : null}

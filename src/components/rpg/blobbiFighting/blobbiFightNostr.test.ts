@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  findMatchForRegistration,
   isOpenRegistrationSupersededByMatch,
+  isRegistrationConsumed,
   listActiveOpenRegistrations,
   type BlobbiFightMatchResult,
   type BlobbiFightOpenRegistration,
@@ -124,5 +126,23 @@ describe('listActiveOpenRegistrations', () => {
     ];
     const active = listActiveOpenRegistrations(events, new Set(), matches);
     expect(active).toHaveLength(0);
+  });
+});
+
+describe('queue pairing helpers', () => {
+  it('isRegistrationConsumed tracks consumed opponent opens only', () => {
+    const consumed = new Set(['open-joiner']);
+    expect(isRegistrationConsumed(consumed, 'open-joiner')).toBe(true);
+    expect(isRegistrationConsumed(consumed, 'open-other')).toBe(false);
+  });
+
+  it('findMatchForRegistration finds match by opponent registration id', () => {
+    const match = matchRow({
+      eventId: 'm1',
+      atSec: 103,
+      registrationEventId: 'open-joiner',
+    });
+    expect(findMatchForRegistration([match], 'open-joiner')?.eventId).toBe('m1');
+    expect(findMatchForRegistration([match], 'missing')).toBeUndefined();
   });
 });

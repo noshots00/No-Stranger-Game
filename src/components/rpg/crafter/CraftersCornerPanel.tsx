@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import { GamePanelScroll } from '../GamePanelScroll';
 import { useToast } from '@/hooks/useToast';
+import { ItemName } from '../items/ItemName';
 import { canCraft, craftModifierDelta, listCrafterMaterials } from './craftingEngine';
 import { CRAFT_RECIPES } from './craftingConfig';
 import type { QuestState } from '../quests/types';
@@ -67,7 +68,7 @@ export function CraftersCornerPanel({
                       onClick={() => setExpandedKey(expanded ? null : row.itemKey)}
                     >
                       <span>
-                        <span className="text-[var(--candle-wax)]">{row.label}</span>
+                        <ItemName label={row.label} itemKey={row.itemKey} category="material" />
                         <span className="text-[var(--candle-ink-faint)]"> ×{row.quantity}</span>
                       </span>
                       {row.recipes.length > 0 ? (

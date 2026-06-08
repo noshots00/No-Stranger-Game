@@ -1,0 +1,37 @@
+---
+
+description: RPG UI borders — candle palette only, no shadcn blue-gray chrome
+
+globs: src/components/rpg/**/*
+
+alwaysApply: false
+
+---
+
+
+
+# RPG borders & list chrome
+
+
+
+**Canonical spec:** [`docs/design/UI_TOKENS.md`](../../docs/design/UI_TOKENS.md) § Borders & focus.
+
+
+
+## Quick rules
+
+
+
+- **Lists / boards:** `rounded-md bg-black/20` + compact `<li>` rows — **no** per-row bordered expandables.
+
+- **Borders:** `border-[var(--candle-rule)]` (or `/25` seams) — **never** bare `border`, `border-border`, or shadcn `outline` buttons in game UI.
+
+- **Commands:** `RPG_COMMAND_CHIP` / `.rpg-mini-btn` — not `Button variant="outline"`.
+
+- **Expand rows:** arena pattern — toggle inline summary under the row, not `GamePanelExpandable` stacks.
+
+
+
+Match `ArenaScreen` before inventing new fight/queue layouts.
+
+

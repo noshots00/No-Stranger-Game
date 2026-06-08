@@ -41,6 +41,7 @@ import { nip19 } from 'nostr-tools';
 import { CharacterScreenCornerControls } from './CharacterScreenCornerControls';
 import type { CharacterScreenCornerControlsProps } from './CharacterScreenCornerControls';
 import { CharacterAbilityTileGrid } from './CharacterAbilityTileGrid';
+import { ItemNameList } from '../items/ItemName';
 import { CharacterInventoryDialog } from './CharacterInventoryDialog';
 import { CharacterLoadoutSlots } from './CharacterLoadoutSlots';
 import type { CombatLoadout } from '../combat/combatTypes';
@@ -203,6 +204,7 @@ export function CharacterTab({
   onShowQuestChoiceEffectsChange,
   devUnlockAllQuests,
   onDevUnlockAllQuestsChange,
+  onDevGrantCoins,
   onLogout,
   onResetStory,
 }: CharacterTabProps) {
@@ -357,7 +359,9 @@ export function CharacterTab({
   if (questState.questItems.length > 0) {
     columnACells.push(
       <ColumnBlock key="quest-items" label="Quest items:">
-        <span>{questState.questItems.join(', ')}</span>
+        <ItemNameList
+          items={questState.questItems.map((label) => ({ label, category: 'quest' as const }))}
+        />
       </ColumnBlock>
     );
   }
@@ -646,6 +650,7 @@ export function CharacterTab({
         onShowQuestChoiceEffectsChange={onShowQuestChoiceEffectsChange}
         devUnlockAllQuests={devUnlockAllQuests}
         onDevUnlockAllQuestsChange={onDevUnlockAllQuestsChange}
+        onDevGrantCoins={onDevGrantCoins}
         onLogout={onLogout}
         onResetStory={onResetStory}
       />

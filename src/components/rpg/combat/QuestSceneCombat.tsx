@@ -12,6 +12,10 @@ import type { CombatLogLine } from './combatLog';
 
 type QuestSceneCombatProps = {
   displayName: string;
+  /** Defaults to "You". */
+  playerLabel?: string;
+  /** Defaults to `displayName`. */
+  enemyLabel?: string;
   combatLog: CombatLogLine[];
   logEndRef: RefObject<HTMLDivElement | null>;
   playerHp: number;
@@ -70,6 +74,8 @@ function CombatHpBar({
 
 export function QuestSceneCombat({
   displayName,
+  playerLabel = 'You',
+  enemyLabel,
   combatLog,
   logEndRef,
   playerHp,
@@ -80,6 +86,7 @@ export function QuestSceneCombat({
   fastForwardDisabled = false,
   actionBoxRef,
 }: QuestSceneCombatProps) {
+  const enemyName = enemyLabel ?? displayName;
   return (
     <QuestSceneContentPanel>
       <div
@@ -115,7 +122,9 @@ export function QuestSceneCombat({
 
       <QuestSceneActionBox ref={actionBoxRef} innerClassName="space-y-1">
         <div className="flex items-center justify-between gap-2 px-0.5">
-          <p className={cn(RPG_UI_EMPHASIS, 'min-w-0 truncate')}>Battle — {displayName}</p>
+          <p className={cn(RPG_UI_EMPHASIS, 'min-w-0 truncate')}>
+            Battle — {playerLabel} vs {enemyName}
+          </p>
           <button
             type="button"
             disabled={fastForwardDisabled}
@@ -130,8 +139,8 @@ export function QuestSceneCombat({
           </button>
         </div>
         <div className="flex gap-2 px-0.5">
-          <CombatHpBar label="You" current={playerHp} max={playerMaxHp} variant="player" />
-          <CombatHpBar label={displayName} current={enemyHp} max={enemyMaxHp} variant="enemy" />
+          <CombatHpBar label={playerLabel} current={playerHp} max={playerMaxHp} variant="player" />
+          <CombatHpBar label={enemyName} current={enemyHp} max={enemyMaxHp} variant="enemy" />
         </div>
       </QuestSceneActionBox>
     </QuestSceneContentPanel>

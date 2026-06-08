@@ -966,6 +966,10 @@ import { Card, CardContent } from '@/components/ui/card';
 
 ## CRITICAL Design Standards
 
+**Canonical RPG UI spec:** [`docs/design/UI_TOKENS.md`](docs/design/UI_TOKENS.md) (type scale, candle palette, **borders — no blue shadcn chrome**, `.candlelit-scroll` on scroll regions, command chips). Match existing patterns before inventing new chrome.
+
+**Relay / network sync:** No interval polling — fetch on user action, panel open, or a single post-publish confirmation. See [`.cursor/rules/no-auto-polling.mdc`](.cursor/rules/no-auto-polling.mdc).
+
 - Create breathtaking, immersive designs that feel like bespoke masterpieces, rivaling the polish of Apple, Stripe, or luxury brands
 - Designs must be production-ready, fully featured, with no placeholders unless explicitly requested, ensuring every element serves a functional and aesthetic purpose
 - Avoid generic or templated aesthetics at all costs; every design must have a unique, brand-specific visual signature that feels custom-crafted

@@ -1,7 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-import { RPG_UI_CAPTION } from './typography/rpgUiTypography';
+import { RPG_COMMAND_CHIP, RPG_COMMAND_CHIP_LABEL, RPG_UI_CAPTION } from './typography/rpgUiTypography';
 import { VillageActionChip, VillageActionRow, VillageActionRowItem } from './village/VillageActionChip';
 
 type PanelUpdateButtonProps = {
@@ -28,15 +27,9 @@ export function PanelUpdateButton({
         {showLedgerHint ? (
           <p className={RPG_UI_CAPTION}>Tap Update to load from the village ledger.</p>
         ) : null}
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-full font-serif text-xs uppercase tracking-[0.1em]"
-          onClick={onClick}
-        >
-          {label}
-        </Button>
+        <button type="button" className={cn(RPG_COMMAND_CHIP, 'w-full min-h-[var(--rpg-command-min-h)]')} onClick={onClick}>
+          <span className={RPG_COMMAND_CHIP_LABEL}>{label}</span>
+        </button>
       </div>
     );
   }

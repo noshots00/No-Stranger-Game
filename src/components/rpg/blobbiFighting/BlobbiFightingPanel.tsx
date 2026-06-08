@@ -9,8 +9,6 @@ import { computeBlobbiArenaRecord } from './blobbiCareerNostr';
 import { BlobbiProfileCard } from './BlobbiProfileCard';
 import { FightMatchSummary, FightMatchVersusLabel } from './FightMatchDisplay';
 import {
-  matchInvolvesOwner,
-  myFighterInMatch,
   type BlobbiFightMatchResult,
   type BlobbiFightOpenRegistration,
 } from './blobbiFightNostr';
@@ -31,20 +29,12 @@ type BlobbiFightingPanelProps = {
 function BracketRow({
   match,
   defaultOpen,
-  myPubkey,
   myBlobbi,
 }: {
   match?: BlobbiFightMatchResult;
   defaultOpen?: boolean;
-  myPubkey?: string;
   myBlobbi?: BlobbiSnapshot;
 }) {
-  const myBlobbiId =
-    match && myPubkey && matchInvolvesOwner(match, myPubkey)
-      ? myFighterInMatch(match, myPubkey)?.blobbiId
-      : undefined;
-  const showFightLink = Boolean(match && myBlobbiId);
-
   const label = match ? (
     <FightMatchVersusLabel match={match} myBlobbi={myBlobbi} />
   ) : (
@@ -59,7 +49,7 @@ function BracketRow({
       className="border-[var(--candle-rule)]/50"
     >
       {match ? (
-        <FightMatchSummary match={match} myBlobbi={myBlobbi} showFightLink={showFightLink} />
+        <FightMatchSummary match={match} myBlobbi={myBlobbi} />
       ) : (
         <p className="font-serif text-[0.7rem] text-[var(--candle-ink-faint)]">Waiting…</p>
       )}
@@ -102,7 +92,8 @@ export function BlobbiFightingPanel({
   blobbiFightMemories,
 }: BlobbiFightingPanelProps) {
   const { blobbis, query: blobbisQuery } = playerBlobbis;
-  const { feed, feedQuery, register, refreshFeed, isResolvingMatch } = blobbiFight;
+  const { feed, feedQuery, register, withdrawFromQueue, refreshFeed, isResolvingMatch } =
+    blobbiFight;
   const { memories } = blobbiFightMemories;
 
   const myBlobbi = blobbis[0];
@@ -139,6 +130,7 @@ export function BlobbiFightingPanel({
 
   const statusLine = (() => {
     if (registerError) return registerError;
+    if (withdrawFromQueue.isPending) return 'Leaving queue…';
     if (isResolvingMatch) return 'Pairing fighters…';
     if (register.isPending) return 'Joining queue…';
     if (register.isSuccess && register.data?.action === 'matched') {
@@ -206,11 +198,7 @@ export function BlobbiFightingPanel({
                 {myMatchOutcome === 'won' ? 'Victory' : 'Defeat'}
               </span>
             </p>
-            <FightMatchSummary
-              match={myLatestMatch}
-              myBlobbi={myBlobbi}
-              showFightLink={Boolean(myPubkey && matchInvolvesOwner(myLatestMatch, myPubkey))}
-            />
+            <FightMatchSummary match={myLatestMatch} myBlobbi={myBlobbi} />
           </div>
         ) : null}
 
@@ -231,7 +219,6 @@ export function BlobbiFightingPanel({
                     key={row.key}
                     match={row.match}
                     defaultOpen={i === 0}
-                    myPubkey={myPubkey}
                     myBlobbi={myBlobbi}
                   />
                 ) : (
@@ -253,29 +240,44 @@ export function BlobbiFightingPanel({
         </div>
 
         <div className="shrink-0 grid grid-cols-2 gap-1.5 border-t border-[var(--candle-rule)]/40 pt-2">
+          {feed.myOpen ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 font-serif text-[0.65rem] uppercase tracking-[0.08em]"
+              disabled={!myPubkey || withdrawFromQueue.isPending || isResolvingMatch}
+              onClick={() => void withdrawFromQueue.mutate()}
+            >
+              {withdrawFromQueue.isPending ? 'Leaving…' : 'Leave queue'}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 font-serif text-[0.65rem] uppercase tracking-[0.08em]"
+              disabled={
+                !myPubkey ||
+                !myBlobbi ||
+                register.isPending ||
+                isResolvingMatch
+              }
+              onClick={() => {
+                if (myBlobbi) register.mutate(myBlobbi);
+              }}
+            >
+              Find match
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"
             className="h-8 font-serif text-[0.65rem] uppercase tracking-[0.08em]"
             disabled={
-              !myPubkey ||
-              !myBlobbi ||
-              register.isPending ||
+              feedQuery.isFetching ||
               isResolvingMatch ||
-              Boolean(feed.myOpen)
+              register.isPending ||
+              withdrawFromQueue.isPending
             }
-            onClick={() => {
-              if (myBlobbi) register.mutate(myBlobbi);
-            }}
-          >
-            {feed.myOpen ? 'Waiting…' : 'Find match'}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 font-serif text-[0.65rem] uppercase tracking-[0.08em]"
-            disabled={feedQuery.isFetching || isResolvingMatch}
             onClick={() => void refreshFeed()}
           >
             {feedQuery.isFetching || isResolvingMatch ? 'Updating…' : 'Update fights'}

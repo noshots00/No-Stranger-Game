@@ -1,6 +1,4 @@
-import { dittoNeventUrl } from '@/lib/dittoExplorerUrl';
 import { pubkeysEqual } from '@/lib/nostrPubkey';
-import { NSG_BLOBBI_FIGHT_MATCH_KIND } from './constants';
 import { fighterNameColor } from './fighterNameColor';
 import type { BlobbiFighterSnapshot, BlobbiFightMatchResult } from './blobbiFightNostr';
 import type { BlobbiSnapshot } from './blobbiStateNostr';
@@ -56,32 +54,12 @@ export function FightMatchVersusLabel({
   );
 }
 
-export function FightEventLink({ match }: { match: BlobbiFightMatchResult }) {
-  return (
-    <a
-      href={dittoNeventUrl({
-        eventId: match.eventId,
-        authorPubkey: match.pubkey,
-        kind: NSG_BLOBBI_FIGHT_MATCH_KIND,
-      })}
-      target="_blank"
-      rel="noreferrer"
-      className="mt-1 inline-block font-serif text-[0.65rem] text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-2 transition-colors hover:decoration-[var(--candle-flame-soft)]"
-      onClick={(e) => e.stopPropagation()}
-    >
-      View fight on Ditto
-    </a>
-  );
-}
-
 export function FightMatchSummary({
   match,
   myBlobbi,
-  showFightLink,
 }: {
   match: BlobbiFightMatchResult;
   myBlobbi?: Pick<BlobbiSnapshot, 'id' | 'baseColor'>;
-  showFightLink?: boolean;
 }) {
   const { winner, loser } = winnerAndLoser(match);
   const pct = Math.round(match.winProbabilityForWinner * 100);
@@ -96,7 +74,6 @@ export function FightMatchSummary({
       <p className="mt-0.5">
         ~{pct}% · HP {winner.health} vs {loser.health} · {formatMatchTime(match.atMs)}
       </p>
-      {showFightLink ? <FightEventLink match={match} /> : null}
     </div>
   );
 }

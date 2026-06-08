@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { GamePanelScroll } from '../GamePanelScroll';
 import { cn } from '@/lib/utils';
 import { formatCoinShort, getCopperFromModifiers, splitCopperIntoCoins } from '../helpers';
-import { formatListingItem, formatListingPrice } from './listingEscrow';
+import { ItemName } from '../items/ItemName';
+import { formatListingPrice } from './listingEscrow';
 import { PostListingDialog } from './PostListingDialog';
 import { VILLAGE_MARKET_SUPPLIES, villageSupplyBuyDelta } from './villageSupplies';
 import type { MarketListingView } from './marketListingNostr';
@@ -57,7 +58,12 @@ function ListingRow({
         {' · '}
         <span className="text-[var(--candle-ink-faint)]">{listing.sellerName}</span>
         {' · '}
-        {formatListingItem(listing)}
+        <ItemName
+          label={listing.itemLabel}
+          itemKey={listing.itemKey || undefined}
+          category={listing.itemKey ? undefined : 'quest'}
+        />
+        {listing.itemQty > 1 ? ` ×${listing.itemQty}` : ''}
         {' · '}
         <span className="text-[var(--candle-wax)]">{formatListingPrice(listing)}</span>
       </p>
@@ -124,7 +130,9 @@ export function MarketPanel({
                       className="flex items-center justify-between gap-2 border-b border-[var(--candle-rule)]/30 py-1.5 font-serif text-xs last:border-b-0"
                     >
                       <span className="text-[var(--candle-ink-soft)]">
-                        {good.label} · {formatCoinShort(splitCopperIntoCoins(good.priceCopper))}
+                        <ItemName label={good.label} itemKey={good.itemKey} />
+                        {' · '}
+                        {formatCoinShort(splitCopperIntoCoins(good.priceCopper))}
                       </span>
                       <Button
                         type="button"

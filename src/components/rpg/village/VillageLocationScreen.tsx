@@ -18,6 +18,10 @@ type VillageLocationScreenProps = {
   className?: string;
   /** Override banner caption (defaults to art map tagline). */
   tagline?: string;
+  /** Replaces the default tagline row under the banner. */
+  headerSlot?: ReactNode;
+  /** Drop banner strip border-y for a cleaner inline panel. */
+  bareBanner?: boolean;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
@@ -31,6 +35,8 @@ export function VillageLocationScreen({
   panel,
   className,
   tagline,
+  headerSlot,
+  bareBanner = false,
   onClose,
   children,
   footer,
@@ -43,7 +49,13 @@ export function VillageLocationScreen({
   return (
     <section className={cn('village-location-screen relative flex h-full min-h-0 flex-col gap-1', className)}>
       <header className="shrink-0 space-y-0.5 px-0.5">
-        <div className={cn(RPG_VILLAGE_HUB_BANNER, 'relative')}>
+        <div
+          className={cn(
+            RPG_VILLAGE_HUB_BANNER,
+            'relative',
+            bareBanner && 'border-y-0 shadow-none'
+          )}
+        >
           <img
             src={banner.src}
             alt=""
@@ -51,7 +63,9 @@ export function VillageLocationScreen({
             style={banner.objectPosition ? { objectPosition: banner.objectPosition } : undefined}
           />
         </div>
-        <p className={cn(RPG_UI_CAPTION, 'text-center text-[var(--candle-wax)]')}>{displayTagline}</p>
+        {headerSlot ?? (
+          <p className={cn(RPG_UI_CAPTION, 'text-center text-[var(--candle-wax)]')}>{displayTagline}</p>
+        )}
       </header>
 
       <div

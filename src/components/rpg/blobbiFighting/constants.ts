@@ -23,4 +23,4 @@ export const BLOBBI_FIGHT_QUERY_LIMIT_MATCHES = 25;
 export const BLOBBI_FIGHT_MEMORY_QUERY_LIMIT = 40;
 
 /** Wait after publish before refetching fight feed so relays can index the event. */
-export const BLOBBI_RELAY_SETTLE_MS = 1500;
+export const BLOBBI_RELAY_SETTLE_MS = 2000;

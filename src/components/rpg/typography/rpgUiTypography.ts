@@ -58,7 +58,7 @@ export const RPG_PLAY_CONTENT_GUTTER = RPG_PLAY_JOURNAL_GUTTER;
 
 /** Full-bleed village hub strip — location cloud + earning indicator. */
 export const RPG_VILLAGE_HUB_STRIP =
-  'h-[4.75rem] w-full overflow-hidden border-y border-[var(--candle-rule)] shadow-[0_4px_16px_rgba(0,0,0,0.35)]';
+  'h-[4.75rem] w-full overflow-hidden';
 
 /** Compact village hub strip — location cloud + inline location screens. */
 export const RPG_VILLAGE_HUB_BANNER = RPG_VILLAGE_HUB_STRIP;

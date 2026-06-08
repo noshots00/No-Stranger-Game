@@ -8,6 +8,7 @@ import {
 } from '../combat/loadoutHelpers';
 import { getSkillDisplayName } from '../combat/skillRegistry';
 import { formatModifierKeyForCharacterSheet } from '../helpers';
+import { ItemName } from '../items/ItemName';
 import type { QuestState } from '../quests/types';
 import { HeaderFlyout } from '../HeaderFlyout';
 import { CharacterAbilityTile } from './CharacterAbilityTile';
@@ -47,6 +48,7 @@ function slotTile(
     id: `loadout-${kind}-${key}`,
     name: label ?? key,
     level: level ?? 1,
+    itemCategory: kind === 'weapon' || kind === 'other' ? 'equipment' : undefined,
   };
 }
 
@@ -97,7 +99,11 @@ function LoadoutSlotPicker({
       </button>
       {options.map((opt) => (
         <button key={opt.key} type="button" className={menuItemClass} onClick={() => pick(opt.key)}>
-          {opt.label}
+          <ItemName
+            label={opt.label}
+            itemKey={kind === 'weapon' || kind === 'other' ? opt.key : undefined}
+            category={kind === 'weapon' || kind === 'other' ? 'equipment' : undefined}
+          />
           {opt.level !== undefined ? ` (Lv ${opt.level})` : ''}
         </button>
       ))}

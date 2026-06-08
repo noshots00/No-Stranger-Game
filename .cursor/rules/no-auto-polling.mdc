@@ -1,0 +1,43 @@
+---
+description: No interval polling — fetch relays only on meaningful conditions
+alwaysApply: true
+---
+
+# No polling — event-driven server communication
+
+**Maintainer policy:** We do **not** use auto-polling (no `refetchInterval`, no `setInterval` refetch loops, no “every N seconds while panel open”).
+
+Instead, **think through the conditions** and hit relays **only when something actually warrants a read or write**.
+
+## Use these triggers (pick what fits the feature)
+
+| Trigger | Example |
+|---------|---------|
+| **User action** | “Update fights”, “Update arena”, login, submit |
+| **After our publish** | One settle delay → **one** refetch to confirm indexing (not a retry loop) |
+| **Panel / tab opens** | Single `enabled: isOpen` fetch (no interval) |
+| **Mutation lifecycle** | `onSuccess` / `onSettled` → invalidate or refetch once |
+| **State transition** | Queue → visible opponent → publish match (joiner only) |
+| **Explicit subscribe** | Nostr `req` subscription with cleanup when panel closes — only if the feature needs live updates and the user asked for it |
+
+## Never add
+
+- `refetchInterval` on TanStack Query for game/relay data
+- Background timers that refetch “to keep the board fresh”
+- Multi-attempt fetch loops inside mutations (e.g. 6× sleep-and-query) unless the user explicitly designed that retry policy
+
+## If you think polling is needed
+
+**Stop.** Propose **which condition** should trigger the fetch and **what the user sees** between triggers. Do not implement interval polling as a default or fallback.
+
+## Allowed (not polling)
+
+- **UI-only timers** (clocks, combat round pacing, animations) — no network
+- **One delayed refetch** after publish (e.g. 8s timer **once** to replace optimistic rows) — not recurring
+- **Bounded work inside one user gesture** that completes before the UI unlocks (single fetch after publish, not a loop)
+
+## Legacy code
+
+Chat and other areas may still have old `refetchInterval`. Do **not** extend that pattern. When touching those files, prefer event-driven sync unless the user specifies otherwise.
+
+When in doubt: **manual refresh + clear status copy**, or **one fetch on the condition that changed**.

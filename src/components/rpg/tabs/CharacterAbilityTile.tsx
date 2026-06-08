@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import type { CharacterAbilityTileData } from '../helpers';
+import { itemNameClassName, itemNameColorStyle } from '../items/itemDisplay';
 import { CHAR_TILE_LEVEL, CHAR_TILE_NAME } from './characterSheetTypography';
 
 type CharacterAbilityTileProps = {
@@ -23,7 +24,15 @@ export function CharacterAbilityTile({ tile, className }: CharacterAbilityTilePr
       )}
       title={tile.placeholder ? `${tile.name} (placeholder)` : tile.name}
     >
-      <span className={CHAR_TILE_NAME}>{tile.name}</span>
+      <span
+        className={cn(
+          CHAR_TILE_NAME,
+          !tile.placeholder && tile.itemCategory ? itemNameClassName(tile.itemCategory) : null
+        )}
+        style={!tile.placeholder && tile.itemCategory ? itemNameColorStyle(tile.itemCategory) : undefined}
+      >
+        {tile.name}
+      </span>
       {!tile.placeholder ? <span className={CHAR_TILE_LEVEL}>Lv {tile.level}</span> : null}
     </div>
   );

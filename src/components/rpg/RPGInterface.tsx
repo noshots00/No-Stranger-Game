@@ -63,7 +63,6 @@ import {
   DAY_IN_MS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
   DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY,
-  DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY,
   DEV_USE_QUEST_POPUP_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
@@ -132,6 +131,7 @@ import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
 import { useGameRelayHealth } from '@/hooks/useGameRelayHealth';
 import { DevTimeToolsPanel } from './dev/DevTimeToolsPanel';
+import { DEV_COIN_STIPEND_DELTA } from './dev/devEconomy';
 import { GameRelayStatusOverlay } from './dev/GameRelayStatusOverlay';
 import { QuestCheckpointRestoreDialog } from './dev/QuestCheckpointRestoreDialog';
 import { questCheckpointDisplayDay, type QuestCheckpointRecord } from './gameProfile';
@@ -325,12 +325,8 @@ export function RPGInterface() {
     creationDateEastern,
     dayCounter,
     devDayOffsetMs,
-    devFiveMinuteDays,
-    setDevFiveMinuteDays,
     setDevDayOffsetMs,
     resetTimestamp,
-    rapidDaySimulation,
-    setRapidDaySimulation,
     isPacingResolved,
     nextDayResetMs,
   } = useDayCounter({ questCreationDateEastern: questState.characterCreationDateEastern });
@@ -580,6 +576,10 @@ export function RPGInterface() {
     [setQuestState, persistQuestCheckpoint]
   );
 
+  const handleDevGrantCoins = useCallback(() => {
+    handleMerchantApplyModifiers(DEV_COIN_STIPEND_DELTA);
+  }, [handleMerchantApplyModifiers]);
+
   const guildAlley = useGuildAlley({
     enabled: activeVillagePanel === 'townHall' && canShowGame,
     questState,
@@ -643,15 +643,11 @@ export function RPGInterface() {
   );
 
   const [devHeaderToolsFromStorage, setDevHeaderToolsFromStorage] = useState(false);
-  const [showRelayStatusOverlay, setShowRelayStatusOverlay] = useState(false);
   const [checkpointRestoreOpen, setCheckpointRestoreOpen] = useState(false);
   const [restoringCheckpointEventId, setRestoringCheckpointEventId] = useState<string | null>(null);
   useEffect(() => {
     try {
       if (localStorage.getItem(DEV_HEADER_TOOLS_STORAGE_KEY) === '1') setDevHeaderToolsFromStorage(true);
-      if (localStorage.getItem(DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY) === '1') {
-        setShowRelayStatusOverlay(true);
-      }
     } catch {
       /* private / blocked storage */
     }
@@ -665,15 +661,11 @@ export function RPGInterface() {
       /* private / blocked storage */
     }
   }, [devHeaderToolsFromStorage]);
-  useEffect(() => {
-    localStorage.setItem(DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY, showRelayStatusOverlay ? '1' : '0');
-  }, [showRelayStatusOverlay]);
   const handleEnableDevTools = useCallback(() => {
     setDevHeaderToolsFromStorage(true);
     toast({ title: 'Developer tools enabled' });
   }, [toast]);
   const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
-  const showRelayHealthOverlay = showHeaderDevTools && showRelayStatusOverlay;
   const relayHealthQuery = useGameRelayHealth();
   const [devToolsMenuOpen, setDevToolsMenuOpen] = useState(false);
   const [relayHealthFlyoutOpen, setRelayHealthFlyoutOpen] = useState(false);
@@ -813,10 +805,6 @@ export function RPGInterface() {
                 Test
               </button>
             </div>
-            <p className="text-[0.6rem] leading-snug text-[var(--candle-ink-faint)]">
-              Restart from rewinds story progress and modifiers to before this quest (later quests cleared).
-              Test replays one quest without clearing later progress.
-            </p>
           </div>
         </div>
         <div>
@@ -830,9 +818,6 @@ export function RPGInterface() {
             />
             <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
               Show choice modifiers &amp; flags
-              <span className="mt-0.5 block text-[0.6rem] text-[var(--candle-ink-faint)]">
-                Lists modifiersDelta, flagsSet, and gating under each quest choice.
-              </span>
             </span>
           </label>
         </div>
@@ -847,28 +832,6 @@ export function RPGInterface() {
           >
             Restore kind 10032 checkpoint…
           </button>
-          <p className="mt-1 text-[0.6rem] leading-snug text-[var(--candle-ink-faint)]">
-            Lists relay save history for your npub; loading one re-publishes it as the newest checkpoint.
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">
-            Network
-          </p>
-          <label className="flex cursor-pointer items-start gap-2 rounded border border-[var(--candle-rule)]/60 bg-black/25 px-2 py-1.5">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={showRelayStatusOverlay}
-              onChange={(e) => setShowRelayStatusOverlay(e.target.checked)}
-            />
-            <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
-              Show relay status panel
-              <span className="mt-0.5 block text-[0.6rem] text-[var(--candle-ink-faint)]">
-                Header dot opens Status/Activity; this checkbox also pins the panel in the right gutter (desktop) or overlay (mobile).
-              </span>
-            </span>
-          </label>
         </div>
       </div>
     );
@@ -880,7 +843,6 @@ export function RPGInterface() {
     devQuestSelection,
     completedQuestIds,
     showQuestChoiceEffects,
-    showRelayStatusOverlay,
   ]);
 
   const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
@@ -1322,7 +1284,6 @@ export function RPGInterface() {
     localStorage.setItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY, '1');
     await resetTimestamp();
     setDevDayOffsetMs(0);
-    setRapidDaySimulation(false);
     await resetQuestStateAndSync();
     setAcknowledgedNewQuestIds([]);
     setPlaySceneQuestId(null);
@@ -1334,7 +1295,6 @@ export function RPGInterface() {
     localStorage.setItem(CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY, '1');
     await resetTimestamp();
     setDevDayOffsetMs(0);
-    setRapidDaySimulation(false);
     await resetQuestStateAndSync();
     setAcknowledgedNewQuestIds([]);
     setPlaySceneQuestId(null);
@@ -1350,7 +1310,7 @@ export function RPGInterface() {
     const nextDayCounter = computeGameDayCounterFromCreationYmd(
       creationDateEastern,
       Date.now() + nextOffsetMs,
-      devFiveMinuteDays
+      false
     );
 
     setQuestState((prev) => {
@@ -1384,7 +1344,6 @@ export function RPGInterface() {
   }, [
     creationDateEastern,
     devDayOffsetMs,
-    devFiveMinuteDays,
     persistQuestCheckpoint,
     setDevDayOffsetMs,
     setQuestState,
@@ -1812,6 +1771,7 @@ export function RPGInterface() {
             onShowQuestChoiceEffectsChange={setShowQuestChoiceEffects}
             devUnlockAllQuests={devUnlockAllQuests}
             onDevUnlockAllQuestsChange={setDevUnlockAllQuests}
+            onDevGrantCoins={showHeaderDevTools ? handleDevGrantCoins : undefined}
             onLogout={handleLogout}
             onResetStory={handleResetStory}
           />
@@ -1967,35 +1927,24 @@ export function RPGInterface() {
               Developer tools
             </p>
             {headerDevPanel}
+            <DevTimeToolsPanel dayCounter={dayCounter} onAdvanceDay={handleDevAdvanceDay} />
           </div>
         ) : undefined
       }
       rightRail={
         showHeaderDevTools ? (
-          <div className="flex w-full max-w-[20rem] flex-col gap-4">
-            <DevTimeToolsPanel
-              dayCounter={dayCounter}
-              onAdvanceDay={handleDevAdvanceDay}
-              devFiveMinuteDays={devFiveMinuteDays}
-              onDevFiveMinuteDaysChange={setDevFiveMinuteDays}
-              rapidDaySimulation={rapidDaySimulation}
-              onRapidDaySimulationChange={setRapidDaySimulation}
-            />
-            {showRelayHealthOverlay ? (
-              <GameRelayStatusOverlay
-                variant="rail"
-                snapshot={relayHealthQuery.data}
-                isFetching={relayHealthQuery.isFetching}
-                onRefresh={() => void relayHealthQuery.refetch()}
-              />
-            ) : null}
-          </div>
+          <GameRelayStatusOverlay
+            variant="rail"
+            snapshot={relayHealthQuery.data}
+            isFetching={relayHealthQuery.isFetching}
+            onRefresh={() => void relayHealthQuery.refetch()}
+          />
         ) : undefined
       }
     >
     <main className="candlelit-shell relative flex h-full min-h-0 w-full flex-col overflow-x-hidden overflow-y-hidden">
       <div className="pointer-events-none absolute inset-0 candle-flicker-ambient" aria-hidden />
-      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-0.5 px-0 pt-[max(0px,env(safe-area-inset-top))] pb-[calc(env(safe-area-inset-bottom,0px)+var(--rpg-bottom-nav-clearance,2.5rem))]">
+      <div className="relative z-[2] mx-auto flex min-h-0 flex-1 w-full flex-col gap-0.5 px-0 pt-[max(0px,env(safe-area-inset-top))]">
         {!hasShownGameOnce && !isQuestStateHydrated ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-0 text-center">
             <p className="font-serif text-lg text-[var(--candle-ink-soft)]">Loading your ledger…</p>
@@ -2042,14 +1991,6 @@ export function RPGInterface() {
           relayHealthFetching={relayHealthQuery.isFetching}
           onRelayHealthProbe={() => void relayHealthQuery.refetch()}
         />
-        {showRelayHealthOverlay ? (
-          <GameRelayStatusOverlay
-            variant="overlay"
-            snapshot={relayHealthQuery.data}
-            isFetching={relayHealthQuery.isFetching}
-            onRefresh={() => void relayHealthQuery.refetch()}
-          />
-        ) : null}
         <div
           className={`min-h-0 flex-1 ${
             activeTab === 'play'
@@ -2066,9 +2007,8 @@ export function RPGInterface() {
           </>
         )}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
-        <nav
-          className="candlelit-bottom-nav pointer-events-auto w-full"
+      <nav
+          className="candlelit-bottom-nav relative z-40 w-full shrink-0"
           style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
           aria-label="Primary game navigation"
         >
@@ -2090,8 +2030,7 @@ export function RPGInterface() {
                 );
               })
             : null}
-        </nav>
-      </div>
+      </nav>
       {canShowGame ? (
         <>
           {questState.currentLocation === 'Merchant' ? (
@@ -2105,17 +2044,17 @@ export function RPGInterface() {
           ) : null}
         </>
       ) : null}
+      {showHeaderDevTools ? (
+        <QuestCheckpointRestoreDialog
+          open={checkpointRestoreOpen}
+          onOpenChange={setCheckpointRestoreOpen}
+          myPubkey={user?.pubkey}
+          restoringEventId={restoringCheckpointEventId}
+          onRestore={handleRestoreCheckpoint}
+        />
+      ) : null}
     </main>
     </GamePortraitViewport>
-    {showHeaderDevTools ? (
-      <QuestCheckpointRestoreDialog
-        open={checkpointRestoreOpen}
-        onOpenChange={setCheckpointRestoreOpen}
-        myPubkey={user?.pubkey}
-        restoringEventId={restoringCheckpointEventId}
-        onRestore={handleRestoreCheckpoint}
-      />
-    ) : null}
     </>
   );
 }

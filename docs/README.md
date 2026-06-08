@@ -15,6 +15,7 @@ The living index for No Stranger Game design and reference docs.
 These are human-curated; Cliff fills them in over time.
 
 - [Vision](./design/VISION.md) — artistic and philosophical north star, idle options, main quest, chat defaults, privacy stance.
+- [UI tokens / style guide](./design/UI_TOKENS.md) — typography, colors, scrollbars (`.candlelit-scroll`), command chips, dev rails; code mirrors in `src/index.css` and `rpgUiTypography.ts`.
 - [Features](./design/FEATURES.md) — every feature in the game, one section each.
 - [Races (design)](./design/RACES_DESIGN.md) — narrative and philosophy of races. Canonical machine-readable list lives at [RACES.md](./RACES.md).
 - [Classes (design)](./design/CLASSES_DESIGN.md) — narrative and philosophy of classes. Canonical machine-readable list lives at [CLASSES.md](./CLASSES.md).

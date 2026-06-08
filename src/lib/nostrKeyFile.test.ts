@@ -14,10 +14,11 @@ describe('buildNostrKeyFileContent', () => {
 
     expect(text).toContain(SAMPLE_NSEC);
     expect(text).toContain(SAMPLE_NPUB);
-    expect(text).toContain('LIKE YOUR PASSWORD');
-    expect(text).toContain('cannot be changed');
-    expect(text).toContain('impossible to regain control');
-    expect(text).toContain('HOW TO LOG IN');
+    expect(text).toContain('entire Nostr identity');
+    expect(text).toContain('no password reset');
+    expect(text).toContain('Soapbox Signer');
+    expect(text).toContain('Upload key file');
+    expect(text).toContain('LOG IN TO NO STRANGER GAME');
   });
 });
 

@@ -11,6 +11,7 @@ import {
   RPG_UI_LOG_LINE,
   RPG_UI_PROMPT,
 } from './typography/rpgUiTypography';
+import { DayReportLineText } from './items/DayReportLineText';
 
 function resolveQuestAssetUrl(src: string): string {
   const t = src.trim();
@@ -75,7 +76,7 @@ export const PLAY_TAB_PLAYER_LINE_TEXT =
 
 /** Shared “UI / dev note” chrome (PlayTab hints, Dev Message dialogue). */
 export const DIALOGUE_DEV_MESSAGE_CLASSES =
-  'rounded-lg border border-sky-400/40 bg-sky-500/10 px-3 py-2 font-mono text-[0.8125rem] not-italic leading-relaxed text-sky-300 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.10)]';
+  'rounded-lg border border-amber-500/25 bg-amber-950/40 px-3 py-2 font-mono text-[0.8125rem] not-italic leading-relaxed text-amber-100/85';
 
 export function DialogueVoiceBlock({
   role,
@@ -158,7 +159,9 @@ export function DialogueVoiceBlock({
               className={`mt-0.5 list-disc space-y-0 pl-4 ${presentation === 'play' ? RPG_UI_BODY : 'font-serif text-xs leading-snug text-[var(--candle-ink-soft)]'}`}
             >
               {reportBodyLines.map((line) => (
-                <li key={line.id}>{line.text}</li>
+                <li key={line.id}>
+                  <DayReportLineText text={line.text} />
+                </li>
               ))}
             </ul>
           ) : null}

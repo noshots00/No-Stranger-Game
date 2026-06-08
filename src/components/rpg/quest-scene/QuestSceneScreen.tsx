@@ -328,7 +328,7 @@ export function QuestSceneScreen({
                 value={nameInput}
                 onChange={(event) => onNameInputChange(event.target.value)}
                 placeholder={step.placeholder}
-                className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-1 font-serif text-[12px] text-[var(--candle-ink)] placeholder:text-sky-300/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
+                className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-1 font-serif text-[12px] text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)]/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
               />
               {nameInputError ? (
                 <p className="font-serif text-[10px] text-rose-300/90">{nameInputError}</p>

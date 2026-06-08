@@ -19,6 +19,8 @@ import {
   SKILL_MODIFIER_CATEGORY_ORDER,
 } from './constants';
 import { CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE } from './quests/engine';
+import type { ItemNameCategory } from './items/itemDisplay';
+import { getItemCategoryFromKey } from './items/itemDisplay';
 
 const PRIMARY_STAT_SLUGS = new Set(Object.values(PRIMARY_STAT_MODIFIER_LABEL));
 
@@ -367,19 +369,29 @@ export function formatResourceLabel(key: string): string {
   return formatOrganicSlugForDisplay(key);
 }
 
-export type InventoryEntry = { label: string; quantity: number };
+export type InventoryEntry = {
+  label: string;
+  quantity: number;
+  category: ItemNameCategory;
+  itemKey?: string;
+};
 
 /** Character-sheet inventory rows (items + village resources). */
 export function buildInventoryEntries(state: QuestState): InventoryEntry[] {
   const out: InventoryEntry[] = [];
   for (const [key, value] of Object.entries(state.modifiers)) {
     if (isItemModifierKey(key) && Math.abs(value) !== 0) {
-      out.push({ label: toItemLabel(key), quantity: value });
+      out.push({
+        label: toItemLabel(key),
+        quantity: value,
+        category: getItemCategoryFromKey(key),
+        itemKey: key,
+      });
     }
   }
   for (const [key, amount] of Object.entries(state.resources ?? {})) {
     if (amount > 0) {
-      out.push({ label: formatResourceLabel(key), quantity: amount });
+      out.push({ label: formatResourceLabel(key), quantity: amount, category: 'material' });
     }
   }
   return out;
@@ -421,6 +433,7 @@ export type CharacterAbilityTileData = {
   name: string;
   level: number;
   placeholder?: boolean;
+  itemCategory?: ItemNameCategory;
 };
 
 export const getRewardLines = (

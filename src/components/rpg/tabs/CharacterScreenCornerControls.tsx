@@ -11,6 +11,7 @@ export type CharacterScreenCornerControlsProps = {
   onShowQuestChoiceEffectsChange?: (enabled: boolean) => void;
   devUnlockAllQuests: boolean;
   onDevUnlockAllQuestsChange: (enabled: boolean) => void;
+  onDevGrantCoins?: () => void;
   onLogout: () => void;
   onResetStory: () => void;
 };
@@ -30,6 +31,7 @@ export function CharacterScreenCornerControls({
   onShowQuestChoiceEffectsChange,
   devUnlockAllQuests,
   onDevUnlockAllQuestsChange,
+  onDevGrantCoins,
   onLogout,
   onResetStory,
 }: CharacterScreenCornerControlsProps) {
@@ -114,6 +116,18 @@ export function CharacterScreenCornerControls({
               />
               <span>Show all quests</span>
             </label>
+            {onDevGrantCoins ? (
+              <button
+                type="button"
+                className={menuItemClass}
+                onClick={() => {
+                  onDevGrantCoins();
+                  closeMenu();
+                }}
+              >
+                Grant 10g 10s 10c
+              </button>
+            ) : null}
             <div className="my-1 h-px bg-[var(--candle-rule)]" role="separator" />
           </>
         ) : null}

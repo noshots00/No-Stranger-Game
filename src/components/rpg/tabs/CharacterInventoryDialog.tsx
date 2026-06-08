@@ -1,5 +1,6 @@
 import { GamePanelDialog, GamePanelDialogTitle } from '../GamePanelDialog';
 import type { InventoryEntry } from '../helpers';
+import { ItemName } from '../items/ItemName';
 
 type CharacterInventoryDialogProps = {
   open: boolean;
@@ -30,7 +31,9 @@ export function CharacterInventoryDialog({
                 key={entry.label}
                 className="flex justify-between gap-3 border-b border-[var(--candle-rule)]/40 pb-1"
               >
-                <span className="text-[var(--candle-ink)]">{entry.label}</span>
+                <span>
+                  <ItemName label={entry.label} itemKey={entry.itemKey} category={entry.category} />
+                </span>
                 <span className="font-mono tabular-nums text-[var(--candle-wax)]">×{entry.quantity}</span>
               </li>
             ))}

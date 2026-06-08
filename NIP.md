@@ -62,6 +62,7 @@ Replaceable per author with `d` tag `blobbi-fight-open`. One active queue slot p
 | `blobbi-name` | yes | Blobbi display name |
 | `stage` | yes | Life stage at registration |
 | `health` | yes | Health stat at registration |
+| `status` | no | `active` (default) or `withdrawn` — latest replaceable row removes player from queue |
 | `alt` | yes | Human-readable description |
 
 `content` is empty.

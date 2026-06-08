@@ -476,7 +476,7 @@ export function QuestPopup({
               value={nameInput}
               onChange={(event) => onNameInputChange(event.target.value)}
               placeholder={step.placeholder}
-              className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-sky-300/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
+              className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)]/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
             />
             {nameInputError ? (
               <p className="font-serif text-xs text-rose-300/90">{nameInputError}</p>

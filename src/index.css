@@ -119,6 +119,9 @@
     --rpg-text-command: 14px;
     --rpg-panel-border: var(--candle-rule);
     --rpg-panel-bg: rgba(0, 0, 0, 0.45);
+    --rpg-item-material: #c8945a;
+    --rpg-item-equipment: #6eb5e8;
+    --rpg-item-quest: #e8c878;
     --rpg-command-min-h: 36px;
     --rpg-command-ink: rgba(167, 243, 208, 0.92);
     --rpg-command-ink-hover: rgba(167, 243, 208, 1);
@@ -142,29 +145,29 @@
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 30 8% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 30 8% 14%;
+    --muted-foreground: 30 10% 62%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 30 10% 20%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 30 8% 18%;
+    --input: 30 8% 18%;
+    --ring: 32 55% 48%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 30 8% 18%;
+    --sidebar-ring: 32 55% 48%;
     --facsimile-bg-start: var(--candle-void);
     --facsimile-bg-end: var(--candle-hearth);
     --facsimile-panel: rgba(15, 12, 10, 0.58);
@@ -212,9 +215,20 @@
 
 @layer utilities {
   /* --- Candlelit shell (full viewport, vignette, slow glow flicker) --- */
-  .candlelit-shell {
+  .candlelit-shell,
+  .candlelit-chrome {
     /* Nav strip: top pad + button min-height + bottom pad + small buffer */
     --rpg-bottom-nav-clearance: calc(0.15rem + 1.75rem + 0.225rem + 0.5rem);
+    /* Shadcn border/ring: warm neutrals inside game chrome (never blue-gray) */
+    --border: 30 8% 14%;
+    --input: 30 8% 14%;
+    --ring: 32 55% 48%;
+    --secondary: 30 8% 16%;
+    --muted: 30 8% 14%;
+    --accent: 30 10% 20%;
+  }
+
+  .candlelit-shell {
     position: relative;
     isolation: isolate;
     min-height: 100dvh;
@@ -264,6 +278,7 @@
     padding: 0.15rem 0 calc(env(safe-area-inset-bottom, 0px) + 0.225rem);
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(6px);
+    border: none;
   }
 
   .candlelit-nav-btn {
@@ -289,7 +304,7 @@
   .candlelit-nav-btn.is-active {
     color: var(--candle-ink);
     background: rgba(0, 0, 0, 0.22);
-    border-color: rgba(230, 161, 87, 0.22);
+    border-color: transparent;
   }
 
   .candlelit-nav-btn.is-active::after {
@@ -665,7 +680,8 @@
     }
   }
 
-  .facsimile-scroll {
+  .facsimile-scroll,
+  .candlelit-scroll {
     scrollbar-width: thin;
     scrollbar-color: var(--facsimile-scrollbar-thumb) transparent;
     /* Avoid browser scroll anchoring fighting programmatic snap-to-latest on refresh. */
@@ -677,28 +693,34 @@
     overflow-anchor: auto;
   }
 
-  .facsimile-scroll:hover {
+  .facsimile-scroll:hover,
+  .candlelit-scroll:hover {
     scrollbar-color: var(--facsimile-scrollbar-thumb-hover) transparent;
   }
 
-  .facsimile-scroll::-webkit-scrollbar {
+  .facsimile-scroll::-webkit-scrollbar,
+  .candlelit-scroll::-webkit-scrollbar {
     width: var(--facsimile-scrollbar-width);
   }
 
-  .facsimile-scroll::-webkit-scrollbar-track {
+  .facsimile-scroll::-webkit-scrollbar-track,
+  .candlelit-scroll::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .facsimile-scroll::-webkit-scrollbar-thumb {
+  .facsimile-scroll::-webkit-scrollbar-thumb,
+  .candlelit-scroll::-webkit-scrollbar-thumb {
     background: var(--facsimile-scrollbar-thumb);
     border-radius: 9999px;
   }
 
-  .facsimile-scroll:hover::-webkit-scrollbar-thumb {
+  .facsimile-scroll:hover::-webkit-scrollbar-thumb,
+  .candlelit-scroll:hover::-webkit-scrollbar-thumb {
     background: var(--facsimile-scrollbar-thumb-hover);
   }
 
-  .facsimile-scroll::-webkit-scrollbar-thumb:hover {
+  .facsimile-scroll::-webkit-scrollbar-thumb:hover,
+  .candlelit-scroll::-webkit-scrollbar-thumb:hover {
     background: var(--facsimile-scrollbar-thumb-active);
   }
 
@@ -893,6 +915,19 @@
     white-space: pre-line;
   }
 
+  /* Item name tiers — inline styles on `.rpg-item-name` nodes are primary; these backstop. */
+  .rpg-item-name--material {
+    color: var(--rpg-item-material) !important;
+  }
+
+  .rpg-item-name--equipment {
+    color: var(--rpg-item-equipment) !important;
+  }
+
+  .rpg-item-name--quest {
+    color: var(--rpg-item-quest) !important;
+  }
+
   .rpg-display {
     font-family: var(--rpg-font-display);
     font-size: var(--rpg-text-display);
@@ -956,6 +991,34 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
+  }
+
+  .rpg-mini-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--candle-rule) 65%, transparent);
+    border-radius: 0.25rem;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--candle-ink-soft);
+    font-family: var(--rpg-font-ui);
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+
+  .rpg-mini-btn:hover:not(:disabled),
+  .rpg-mini-btn:focus-visible {
+    border-color: color-mix(in srgb, var(--candle-flame-soft) 45%, transparent);
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--candle-wax);
+    outline: none;
+  }
+
+  .rpg-mini-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .rpg-choice-grid,
@@ -1037,13 +1100,13 @@
   .village-location-cloud-panel .rpg-command-chip {
     color: var(--candle-wax);
     background: rgba(8, 6, 5, 0.78);
-    border-color: color-mix(in srgb, var(--candle-rule) 72%, transparent);
+    border-color: transparent;
   }
 
   .village-location-cloud-panel .rpg-command-chip:hover,
   .village-location-cloud-panel .rpg-command-chip:focus-visible {
     color: var(--candle-ink);
-    border-color: color-mix(in srgb, var(--candle-flame-soft) 55%, transparent);
+    border-color: transparent;
     background: rgba(8, 6, 5, 0.9);
   }
 
@@ -1079,7 +1142,7 @@
   .village-location-chip--muted:hover,
   .village-location-chip--muted:focus-visible {
     color: var(--rpg-command-ink);
-    border-color: color-mix(in srgb, var(--candle-rule) 50%, transparent);
+    border-color: transparent;
     background: rgba(0, 0, 0, 0.3);
   }
 

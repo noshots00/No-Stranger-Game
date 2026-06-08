@@ -119,3 +119,40 @@ export function winProbabilityForWinner(
   }
   return getWinProbability(fighterB.combatRating, fighterA.combatRating);
 }
+
+export function headToHeadPairKey(pubkeyA: string, pubkeyB: string): string {
+  return pubkeyA < pubkeyB ? `${pubkeyA}:${pubkeyB}` : `${pubkeyB}:${pubkeyA}`;
+}
+
+export type HeadToHeadWins = Record<string, number>;
+
+/** Cumulative head-to-head wins for each fighter after each match, in chronological order. */
+export function buildHeadToHeadWinCountsByMatchId(
+  matches: readonly ArenaMatchResult[]
+): Map<string, HeadToHeadWins> {
+  const chronological = [...matches].sort((a, b) => {
+    if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+    return a.eventId.localeCompare(b.eventId);
+  });
+
+  const runningByPair = new Map<string, Map<string, number>>();
+  const byMatchId = new Map<string, HeadToHeadWins>();
+
+  for (const match of chronological) {
+    const pairKey = headToHeadPairKey(match.fighterA.pubkey, match.fighterB.pubkey);
+    let running = runningByPair.get(pairKey);
+    if (!running) {
+      running = new Map();
+      runningByPair.set(pairKey, running);
+    }
+
+    running.set(match.winnerPubkey, (running.get(match.winnerPubkey) ?? 0) + 1);
+
+    byMatchId.set(match.eventId, {
+      [match.fighterA.pubkey]: running.get(match.fighterA.pubkey) ?? 0,
+      [match.fighterB.pubkey]: running.get(match.fighterB.pubkey) ?? 0,
+    });
+  }
+
+  return byMatchId;
+}

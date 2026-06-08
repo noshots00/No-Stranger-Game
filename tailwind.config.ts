@@ -11,6 +11,11 @@ export default {
 		"./sites/investor/**/*.{ts,tsx}",
 	],
 	prefix: "",
+	safelist: [
+		'!text-[var(--rpg-item-material)]',
+		'!text-[var(--rpg-item-equipment)]',
+		'!text-[var(--rpg-item-quest)]',
+	],
 	theme: {
 		container: {
 			center: true,

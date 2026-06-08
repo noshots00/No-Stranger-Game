@@ -15,6 +15,7 @@ import {
   splitCopperIntoCoins,
 } from '@/components/rpg/helpers';
 import { getRaceDefinition } from '@/components/rpg/races';
+import { ItemNameList } from '@/components/rpg/items/ItemName';
 import { useOptionalKind0Metadata } from '@/hooks/useOptionalKind0Metadata';
 
 type PlayerBioDialogProps = {
@@ -78,7 +79,9 @@ export function PlayerBioDialog({
               <p className="mb-1 text-[0.65rem] uppercase tracking-[0.14em] text-[var(--candle-ink-faint)]">
                 Quest items
               </p>
-              <p>{questState.questItems.join(', ')}</p>
+              <ItemNameList
+                items={questState.questItems.map((label) => ({ label, category: 'quest' as const }))}
+              />
             </div>
           ) : null}
 

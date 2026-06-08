@@ -10,7 +10,8 @@ import {
 } from '../typography/rpgUiTypography';
 import { VillageActionChip, VillageActionRow, VillageActionRowItem } from '../village/VillageActionChip';
 import { formatCoinShort, getCopperFromModifiers, splitCopperIntoCoins } from '../helpers';
-import { formatListingItem, formatListingPrice } from './listingEscrow';
+import { ItemName } from '../items/ItemName';
+import { formatListingPrice } from './listingEscrow';
 import { PostListingDialog } from './PostListingDialog';
 import { VILLAGE_MARKET_SUPPLIES, villageSupplyBuyDelta } from './villageSupplies';
 import type { MarketListingView } from './marketListingNostr';
@@ -62,7 +63,12 @@ function ListingRow({
         {' · '}
         <span className="text-[var(--candle-ink-faint)]">{listing.sellerName}</span>
         {' · '}
-        {formatListingItem(listing)}
+        <ItemName
+          label={listing.itemLabel}
+          itemKey={listing.itemKey || undefined}
+          category={listing.itemKey ? undefined : 'quest'}
+        />
+        {listing.itemQty > 1 ? ` ×${listing.itemQty}` : ''}
         {' · '}
         <span className="text-[var(--candle-wax)]">{formatListingPrice(listing)}</span>
       </p>
@@ -135,7 +141,9 @@ export function MarketScreen({
                   className="flex items-center justify-between gap-2 border-b border-[var(--candle-rule)]/30 py-1 last:border-b-0"
                 >
                   <span className={RPG_UI_CAPTION}>
-                    {good.label} · {formatCoinShort(splitCopperIntoCoins(good.priceCopper))}
+                    <ItemName label={good.label} itemKey={good.itemKey} />
+                    {' · '}
+                    {formatCoinShort(splitCopperIntoCoins(good.priceCopper))}
                   </span>
                   <VillageActionChip
                     disabled={!myPubkey || !canAfford}

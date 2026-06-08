@@ -173,13 +173,16 @@ export function JournalScreen({
       </div>
     ) : null;
 
+  const showBottomDock = showActiveStateCard || visibleLocationActions.length > 0;
+
   return (
-    <section className={cn('relative flex h-full min-h-0 flex-col gap-1.5', className)}>
-      <div
-        ref={dialogueScrollRef}
-        onScroll={onDialogueScroll}
-        className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0 [scroll-padding-bottom:min(8dvh,80px)]"
-      >
+    <section className={cn('relative flex h-full min-h-0 flex-col', className)}>
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+        <div
+          ref={dialogueScrollRef}
+          onScroll={onDialogueScroll}
+          className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0 [scroll-padding-bottom:min(8dvh,80px)]"
+        >
         <div
           className={cn(
             'play-feed-scroll-inner facsimile-scroll-dialogue-inner space-y-1',
@@ -274,21 +277,23 @@ export function JournalScreen({
           })}
         </div>
       ) : null}
+      </div>
 
-      {showActiveStateCard && activeJobSlug && skills ? (
-        <div className="w-full shrink-0">
-          <ActiveStateCard
-            activeJobSlug={activeJobSlug}
-            skills={skills}
-            dayCounter={dayCounter}
-            dayPacingActive={dayPacingActive}
-            nextDayResetMs={nextDayResetMs}
-            communityProject={communityProject}
-          />
+      {showBottomDock ? (
+        <div className="mt-auto shrink-0">
+          {showActiveStateCard && activeJobSlug && skills ? (
+            <ActiveStateCard
+              activeJobSlug={activeJobSlug}
+              skills={skills}
+              dayCounter={dayCounter}
+              dayPacingActive={dayPacingActive}
+              nextDayResetMs={nextDayResetMs}
+              communityProject={communityProject}
+            />
+          ) : null}
+          {locationActionsBlock}
         </div>
       ) : null}
-
-      {locationActionsBlock}
     </section>
   );
 }

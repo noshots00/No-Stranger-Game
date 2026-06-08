@@ -81,6 +81,8 @@ export function parseBlobbiFightOpenRegistration(
   if (event.kind !== NSG_BLOBBI_FIGHT_OPEN_KIND) return null;
   const d = tagValue(event, 'd');
   if (d !== BLOBBI_FIGHT_OPEN_D_TAG) return null;
+  const statusRaw = tagValue(event, 'status');
+  if (statusRaw === 'withdrawn') return null;
   const ownerName = tagValue(event, 'owner-name')?.trim();
   const blobbiId = tagValue(event, 'blobbi-id')?.trim();
   const blobbiName = tagValue(event, 'blobbi-name')?.trim();
@@ -219,6 +221,21 @@ export function shouldInitiateBlobbiMatch(
   return normalizePubkeyHex(myOpen.pubkey) > normalizePubkeyHex(opponentOpen.pubkey);
 }
 
+export function findMatchForRegistration(
+  matches: readonly BlobbiFightMatchResult[],
+  registrationEventId: string
+): BlobbiFightMatchResult | undefined {
+  return matches.find((match) => match.registrationEventId === registrationEventId);
+}
+
+export function isRegistrationConsumed(
+  consumedIds: ReadonlySet<string>,
+  registrationEventId: string
+): boolean {
+  return consumedIds.has(registrationEventId);
+}
+
+/** @deprecated Prefer isRegistrationConsumed — blocks rematches even after a new queue. */
 export function matchAlreadyExistsBetween(
   matches: readonly BlobbiFightMatchResult[],
   pubkeyA: string,
@@ -257,12 +274,33 @@ export function buildOpenRegistrationDraft(args: {
       ['d', BLOBBI_FIGHT_OPEN_D_TAG],
       ['t', BLOBBI_FIGHT_COMMUNITY_TAG],
       ['t', BLOBBI_FIGHT_OPEN_QUEUE_TAG],
+      ['status', 'active'],
       ['owner-name', args.ownerName],
       ['blobbi-id', args.blobbiId],
       ['blobbi-name', args.blobbiName],
       ['stage', args.stage],
       ['health', String(args.health)],
       ['alt', 'Blobbi Fighting open registration for No Stranger Game'],
+    ],
+  };
+}
+
+export function buildOpenRegistrationWithdrawDraft(args: {
+  ownerName: string;
+  createdAtSec?: number;
+}): Omit<NostrEvent, 'id' | 'pubkey' | 'sig'> {
+  const created_at = args.createdAtSec ?? Math.floor(Date.now() / 1000);
+  return {
+    kind: NSG_BLOBBI_FIGHT_OPEN_KIND,
+    content: '',
+    created_at,
+    tags: [
+      ['d', BLOBBI_FIGHT_OPEN_D_TAG],
+      ['t', BLOBBI_FIGHT_COMMUNITY_TAG],
+      ['t', BLOBBI_FIGHT_OPEN_QUEUE_TAG],
+      ['status', 'withdrawn'],
+      ['owner-name', args.ownerName],
+      ['alt', 'Blobbi Fighting queue withdrawal for No Stranger Game'],
     ],
   };
 }

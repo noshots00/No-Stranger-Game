@@ -36,6 +36,31 @@ Keep existing candle / facsimile variables in [`src/index.css`](../../src/index.
 | `--candle-wax` | Player line / highlights |
 | `--candle-rule` | Borders (panels, chips) |
 
+## Borders & focus (no blue chrome)
+
+The global shadcn reset applies `border-border` to every element. **`.dark` uses warm HSL tokens** (not blue-gray 217°). `.candlelit-shell` / `.candlelit-chrome` tighten them further for in-game surfaces. Dev side rails use `.candlelit-chrome`.
+
+### Do
+
+| Pattern | Example |
+|---------|---------|
+| List / board background only | `rounded-md bg-black/20` — arena, tavern, blobbi fight board |
+| Explicit candle border when needed | `border border-[var(--candle-rule)]` or `border-[var(--candle-rule)]/25` for a single seam |
+| RPG commands | `.rpg-command-chip` / `RPG_COMMAND_CHIP` — not shadcn `Button variant="outline"` |
+| Dev / relay mini actions | `.rpg-mini-btn` |
+| Focus | `outline-[var(--candle-flame-soft)]` or inherit from chip styles |
+
+### Do not
+
+| Anti-pattern | Why |
+|--------------|-----|
+| `border-border`, bare `border` without a candle color | Inherits blue-gray |
+| `Button variant="outline"` / `ring-ring` on in-game surfaces | Cool shadcn outline |
+| Nested bordered cards per list row (`GamePanelExpandable` in a feed) | Reads as stacked blue boxes — use compact `<li>` rows (see `ArenaScreen` `TournamentRow`) |
+| Extra outer border **and** inner bordered rows on the same list | One soft fill (`bg-black/20`) is enough |
+
+**Reference lists:** [`ArenaScreen.tsx`](../../src/components/rpg/arena/ArenaScreen.tsx) tournament board, [`BlobbiFightingScreen.tsx`](../../src/components/rpg/blobbiFighting/BlobbiFightingScreen.tsx) fight board.
+
 ## Type scale (fixed px — not `rem` from `html { 118% }`)
 
 | Role | px | Face | Tailwind / class |
@@ -61,6 +86,34 @@ Keep existing candle / facsimile variables in [`src/index.css`](../../src/index.
 | `--rpg-command-min-h` | `36px` | Location command buttons |
 | `.rpg-choice-grid` | flex, `space-evenly` | Quest scene, journal locations, inline quest popup |
 | `.rpg-choice-stack` | flex column, full-width chips | NPC / merchant talk panes |
+
+## Scrollbars (required on themed surfaces)
+
+**Do not ship default OS scrollbars** on in-game panels, dev rails, dialogs, or any candlelit surface. They clash with the palette and read as “broken UI.”
+
+| Class | When to use |
+|-------|-------------|
+| `.candlelit-scroll` | **Default** for any `overflow-y-auto` / `overflow-x-auto` region (dev rails, relay panel, modals, lists). |
+| `.facsimile-scroll` | Play feed, journal, and other facsimile parchment columns (same thumb styling; may add layout-specific padding). |
+| `@/components/ui/scroll-area` | Radix `ScrollArea` — themed by default via `.candlelit-scroll` on the root. |
+
+**CSS variables** (defined in [`src/index.css`](../../src/index.css)):
+
+| Variable | Default behavior |
+|----------|------------------|
+| `--facsimile-scrollbar-width` | `3px` track width |
+| `--facsimile-scrollbar-thumb` | transparent until hover |
+| `--facsimile-scrollbar-thumb-hover` | `var(--candle-flame-soft)` |
+| `--facsimile-scrollbar-thumb-active` | flame mix at 62% |
+
+**Agent rule:** when adding a scrollable container, add `candlelit-scroll` (or use `ScrollArea` / `GamePanelScroll` / `.facsimile-scroll` where those patterns already exist). Never leave bare `overflow-auto` on RPG chrome.
+
+## Dev desktop rails (lg+)
+
+| Side | Content |
+|------|---------|
+| Left | Developer tools (quest restart/test, play toggles, checkpoint restore, **Advance 24 hours**) |
+| Right | Game relay status + activity log only |
 
 ## Components
 

@@ -95,10 +95,6 @@ export function characterCreationDateStorageKeyForPubkey(pubkey: string): string
 /** After "Reset story", ignore relay kind 10031 until a new creation date exists in quest state. */
 export const CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY = 'nsg:character-creation-reset-pending';
 export const DEV_DAY_OFFSET_STORAGE_KEY = 'nsg:dev-day-offset-ms';
-/** Dev-only: use 5-minute game days (must also be Vite dev). */
-export const DEV_FIVE_MINUTE_DAYS_STORAGE_KEY = 'nsg:dev-five-minute-days';
-/** When enabled in the game menu, advances in-game time by one day every 2s (dev only). */
-export const DEV_RAPID_DAY_SIM_STORAGE_KEY = 'nsg:dev-rapid-day-simulation';
 /** When enabled in the game menu, shows quest modifier breakdown on the Character tab. */
 export const DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY = 'nsg:dev-show-modifier-details';
 /** When enabled, quest choices show modifiersDelta, flagsSet, and gating flags (dev only). */
@@ -107,14 +103,11 @@ export const DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY = 'nsg:dev-show-quest-cho
 export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';
 /** When enabled, Play quest interactions use the legacy modal popup instead of inline expansion. */
 export const DEV_USE_QUEST_POPUP_STORAGE_KEY = 'nsg:dev-use-quest-popup';
-/** When enabled (with dev header tools), show floating relay up/down overlay. */
-export const DEV_RELAY_STATUS_OVERLAY_STORAGE_KEY = 'nsg:dev-relay-status-overlay';
 /** Quest step back arrow on choice/message panes (dev testing). */
 /** Dev quest-step rewind UI (removed from Play; logic remains in `questStepBack.ts`). */
 export const SHOW_QUEST_STEP_BACK = false;
 /** Set once the player opens quest 1 at least once this run/save. */
 export const ORIGIN_QUEST_OPENED_FLAG = 'quest001-opened';
-export const DEV_RAPID_DAY_SIM_INTERVAL_MS = 2000;
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 export const DAILY_XP = 1440;
 /** When false, end-of-day rolls advance `lastDailyXpDay` only (no character XP or skill XP). */

@@ -12,6 +12,7 @@ import type { ModifierMap } from '@/components/rpg/quests/types';
 import { formatCoinShort, splitCopperIntoCoins } from '@/components/rpg/helpers';
 import { publicAsset } from '@/lib/publicAsset';
 import { cn } from '@/lib/utils';
+import { ItemName } from '@/components/rpg/items/ItemName';
 import { NpcTalkScrollPanes } from '@/components/rpg/npc/NpcTalkScrollPanes';
 import {
   RPG_CHOICE_STACK,
@@ -235,8 +236,8 @@ export function MerchantPanel({
                           className="border-b border-[var(--candle-rule)]/80 px-3 py-3 last:border-b-0"
                         >
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <span className="font-cormorant text-base font-semibold text-[var(--candle-ink)]">
-                              {good.label}
+                            <span className="font-cormorant text-base font-semibold">
+                              <ItemName label={good.label} itemKey={good.itemKey} />
                             </span>
                             <span className="font-mono text-xs text-[var(--candle-ink-soft)]">
                               {priceLabelFor(good)} each

@@ -16,11 +16,7 @@ import {
   CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY,
   CHARACTER_START_TS_STORAGE_KEY,
   characterCreationDateStorageKeyForPubkey,
-  DAY_IN_MS,
   DEV_DAY_OFFSET_STORAGE_KEY,
-  DEV_FIVE_MINUTE_DAYS_STORAGE_KEY,
-  DEV_RAPID_DAY_SIM_INTERVAL_MS,
-  DEV_RAPID_DAY_SIM_STORAGE_KEY,
 } from '../constants';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -54,40 +50,10 @@ export type UseDayCounterArgs = {
 export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const [devFiveMinuteDays, setDevFiveMinuteDays] = useState(false);
-
-  useEffect(() => {
-    const raw = localStorage.getItem(DEV_FIVE_MINUTE_DAYS_STORAGE_KEY);
-    if (raw === '1') setDevFiveMinuteDays(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(DEV_FIVE_MINUTE_DAYS_STORAGE_KEY, devFiveMinuteDays ? '1' : '0');
-  }, [devFiveMinuteDays]);
-
-  const useFiveMinuteTestPeriods = devFiveMinuteDays;
 
   const [creationDateEastern, setCreationDateEastern] = useState<string | null>(null);
   const [devDayOffsetMs, setDevDayOffsetMs] = useState(0);
-  const [rapidDaySimulation, setRapidDaySimulation] = useState(false);
   const [isPacingResolved, setIsPacingResolved] = useState(false);
-
-  useEffect(() => {
-    const raw = localStorage.getItem(DEV_RAPID_DAY_SIM_STORAGE_KEY);
-    if (raw === '1') setRapidDaySimulation(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(DEV_RAPID_DAY_SIM_STORAGE_KEY, rapidDaySimulation ? '1' : '0');
-  }, [rapidDaySimulation]);
-
-  useEffect(() => {
-    if (!rapidDaySimulation) return;
-    const id = window.setInterval(() => {
-      setDevDayOffsetMs((prev) => prev + DAY_IN_MS);
-    }, DEV_RAPID_DAY_SIM_INTERVAL_MS);
-    return () => window.clearInterval(id);
-  }, [rapidDaySimulation]);
 
   useEffect(() => {
     const raw = localStorage.getItem(DEV_DAY_OFFSET_STORAGE_KEY);
@@ -170,13 +136,13 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   const dayCounter = computeGameDayCounterFromCreationYmd(
     creationDateEastern,
     effectiveNow,
-    useFiveMinuteTestPeriods
+    false
   );
 
   const nextDayResetUtc = computeNextGameResetUtcFromCreationYmd(
     creationDateEastern,
     effectiveNow,
-    useFiveMinuteTestPeriods
+    false
   );
   const nextDayResetMs =
     nextDayResetUtc !== null ? nextDayResetUtc - devDayOffsetMs : null;
@@ -194,15 +160,10 @@ export function useDayCounter({ questCreationDateEastern }: UseDayCounterArgs) {
   return {
     creationDateEastern,
     dayCounter,
-    useFiveMinuteTestPeriods,
-    devFiveMinuteDays,
-    setDevFiveMinuteDays,
     devDayOffsetMs,
     setDevDayOffsetMs,
     resetTimestamp,
     nextDayResetMs,
-    rapidDaySimulation,
-    setRapidDaySimulation,
     isPacingResolved,
   };
 }
