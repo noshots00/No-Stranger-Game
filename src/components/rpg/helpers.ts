@@ -550,6 +550,15 @@ export const getQuestItemGainLines = (prevItems: readonly string[], nextItems: r
     .map((label) => label.trim());
 };
 
+export const DAY_REPORT_QUEST_ITEMS_PREFIX = 'Gained items: ';
+
+/** Single day-report line listing new quest items, or null when none gained. */
+export function formatQuestItemGainReportLine(gained: readonly string[]): string | null {
+  const labels = gained.map((label) => label.trim()).filter((label) => label.length > 0);
+  if (labels.length === 0) return null;
+  return `${DAY_REPORT_QUEST_ITEMS_PREFIX}${labels.join(', ')}`;
+}
+
 /** Day-report lines for passive village resources (`QuestState.resources`). */
 export const getResourceGainLines = (prevState: QuestState, nextState: QuestState): string[] => {
   const prev = prevState.resources ?? {};
@@ -579,8 +588,11 @@ export function buildDayReportDialogueLines(
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }
 
-  for (const text of getQuestItemGainLines(prevState.questItems, nextState.questItems)) {
-    lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
+  const questItemLine = formatQuestItemGainReportLine(
+    getQuestItemGainLines(prevState.questItems, nextState.questItems)
+  );
+  if (questItemLine) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, questItemLine));
   }
 
   for (const text of getResourceGainLines(prevState, nextState)) {

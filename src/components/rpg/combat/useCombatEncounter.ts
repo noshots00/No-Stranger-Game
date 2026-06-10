@@ -6,14 +6,15 @@ import { type CombatLogLine, nextCombatLogId } from './combatLog';
 import type { CombatLogEntry } from './combatTypes';
 import { generateCombatSeed } from './combatRng';
 import { getPlayerMaxHp } from './playerHealth';
+import { getRacePortraitSrc } from '@/components/rpg/rpgArtAssignments';
 import { createCombatRuntime, runSingleRound } from './runCombat';
 import type { CombatRuntimeState } from './combatTypes';
 
-export type CombatPhase = 'talk' | 'entering' | 'combat' | 'ended';
+export type CombatPhase = 'talk' | 'entering' | 'combat' | 'resolution';
+export type CombatResolutionOutcome = 'victory' | 'defeat';
 
 const ENTER_DELAY_MS = 400;
 const ROUND_DELAY_MS = 2000;
-const VICTORY_RETURN_MS = 1200;
 
 type UseCombatEncounterOptions = {
   encounterId: CombatEncounterId;
@@ -21,6 +22,7 @@ type UseCombatEncounterOptions = {
   onPlayerHealthChange?: (health: number) => void;
   onCombatChromeChange?: (active: boolean) => void;
   onVictory?: () => void;
+  onDefeat?: () => void;
 };
 
 function logEntryToLine(entry: CombatLogEntry, playerIsA: boolean): CombatLogLine {
@@ -44,6 +46,7 @@ export function useCombatEncounter({
   onPlayerHealthChange,
   onCombatChromeChange,
   onVictory,
+  onDefeat,
 }: UseCombatEncounterOptions) {
   const def = getCombatEncounter(encounterId);
   const [phase, setPhase] = useState<CombatPhase>('talk');
@@ -51,8 +54,14 @@ export function useCombatEncounter({
   const [enemyHp, setEnemyHp] = useState(def.fighter.maxHp ?? 0);
   const [playerHp, setPlayerHp] = useState(questState.health);
   const [playerMaxHp, setPlayerMaxHp] = useState(getPlayerMaxHp(questState));
+  const [isPaused, setIsPaused] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const [resolutionOutcome, setResolutionOutcome] = useState<CombatResolutionOutcome | null>(null);
+  const [resolutionLines, setResolutionLines] = useState<readonly string[]>([]);
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const endingRef = useRef(false);
+  const isPausedRef = useRef(false);
+  const pausedDuringEnteringRef = useRef(false);
   const enterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const roundTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runtimeRef = useRef<CombatRuntimeState | null>(null);
@@ -60,10 +69,15 @@ export function useCombatEncounter({
   const onPlayerHealthChangeRef = useRef(onPlayerHealthChange);
   const onCombatChromeChangeRef = useRef(onCombatChromeChange);
   const onVictoryRef = useRef(onVictory);
+  const onDefeatRef = useRef(onDefeat);
+  const questStateHealthRef = useRef(questState.health);
+  const resolutionOutcomeRef = useRef<CombatResolutionOutcome | null>(null);
 
   onPlayerHealthChangeRef.current = onPlayerHealthChange;
   onCombatChromeChangeRef.current = onCombatChromeChange;
   onVictoryRef.current = onVictory;
+  onDefeatRef.current = onDefeat;
+  questStateHealthRef.current = questState.health;
 
   const enemyMaxHp = def.fighter.maxHp ?? def.fighter.stats.con * 10 + def.fighter.level + 10;
 
@@ -77,58 +91,74 @@ export function useCombatEncounter({
     onPlayerHealthChangeRef.current?.(pHp);
   }, []);
 
-  const finishCombat = useCallback(() => {
-    endingRef.current = false;
+  const clearRoundTimer = useCallback(() => {
     if (roundTimerRef.current) {
       clearInterval(roundTimerRef.current);
       roundTimerRef.current = null;
     }
+  }, []);
+
+  const finishCombat = useCallback(() => {
+    endingRef.current = false;
+    isPausedRef.current = false;
+    pausedDuringEnteringRef.current = false;
+    if (enterTimerRef.current) {
+      clearTimeout(enterTimerRef.current);
+      enterTimerRef.current = null;
+    }
+    clearRoundTimer();
     runtimeRef.current = null;
+    setIsPaused(false);
+    setIsEnding(false);
+    setResolutionOutcome(null);
+    setResolutionLines([]);
+    resolutionOutcomeRef.current = null;
     setPhase('talk');
     setCombatLog([]);
     setEnemyHp(enemyMaxHp);
-    setPlayerHp(questState.health);
+    setPlayerHp(questStateHealthRef.current);
     setPlayerMaxHp(getPlayerMaxHp(questState));
     onCombatChromeChangeRef.current?.(false);
-  }, [enemyMaxHp, questState.health]);
+  }, [clearRoundTimer, enemyMaxHp, questState]);
+
+  const enterResolution = useCallback(
+    (outcome: CombatResolutionOutcome, lines: readonly string[]) => {
+      if (endingRef.current) return;
+      endingRef.current = true;
+      setIsEnding(true);
+      isPausedRef.current = false;
+      setIsPaused(false);
+      if (enterTimerRef.current) {
+        clearTimeout(enterTimerRef.current);
+        enterTimerRef.current = null;
+      }
+      clearRoundTimer();
+      setResolutionOutcome(outcome);
+      setResolutionLines(lines);
+      resolutionOutcomeRef.current = outcome;
+      setPhase('resolution');
+    },
+    [clearRoundTimer]
+  );
 
   const scheduleVictoryReturn = useCallback(() => {
-    if (endingRef.current) return;
-    endingRef.current = true;
-    if (roundTimerRef.current) {
-      clearInterval(roundTimerRef.current);
-      roundTimerRef.current = null;
-    }
-    window.setTimeout(() => onVictoryRef.current?.(), 0);
-    setCombatLog((prev) => [
-      ...prev,
-      ...def.victoryLines.map((text) => ({
-        id: nextCombatLogId(),
-        text,
-        tone: 'enemy' as const,
-      })),
-    ]);
-    window.setTimeout(() => finishCombat(), VICTORY_RETURN_MS);
-  }, [def.victoryLines, finishCombat]);
+    enterResolution('victory', def.victoryLines);
+  }, [def.victoryLines, enterResolution]);
 
   const scheduleDefeatReturn = useCallback(() => {
-    if (endingRef.current) return;
-    endingRef.current = true;
-    if (roundTimerRef.current) {
-      clearInterval(roundTimerRef.current);
-      roundTimerRef.current = null;
+    enterResolution('defeat', def.defeatLines);
+  }, [def.defeatLines, enterResolution]);
+
+  const dismissResolution = useCallback(() => {
+    const outcome = resolutionOutcomeRef.current;
+    if (!outcome) return;
+    if (outcome === 'victory') {
+      onVictoryRef.current?.();
+    } else {
+      onDefeatRef.current?.();
     }
-    syncHpFromRuntime();
-    setCombatLog((prev) => [
-      ...prev,
-      ...def.defeatLines.map((text) => ({
-        id: nextCombatLogId(),
-        text,
-        tone: 'narrator' as const,
-      })),
-    ]);
-    window.setTimeout(() => finishCombat(), VICTORY_RETURN_MS);
-  }, [def.defeatLines, finishCombat, syncHpFromRuntime]);
+    finishCombat();
+  }, [finishCombat]);
 
   const checkEnd = useCallback(() => {
     const rt = runtimeRef.current;
@@ -147,16 +177,70 @@ export function useCombatEncounter({
 
   const advanceRound = useCallback(() => {
     const rt = runtimeRef.current;
-    if (!rt || endingRef.current || rt.over) return;
+    if (!rt || endingRef.current || rt.over || isPausedRef.current) return;
     const { log } = runSingleRound(rt, seedRef.current);
     setCombatLog((prev) => [...prev, ...log.map((e) => logEntryToLine(e, true))]);
     syncHpFromRuntime();
     checkEnd();
   }, [checkEnd, syncHpFromRuntime]);
 
+  const startRoundTimer = useCallback(() => {
+    if (roundTimerRef.current || isPausedRef.current || endingRef.current) return;
+    roundTimerRef.current = setInterval(() => advanceRound(), ROUND_DELAY_MS);
+  }, [advanceRound]);
+
+  const beginActiveCombat = useCallback(() => {
+    setPhase('combat');
+    setCombatLog((prev) => [
+      ...prev,
+      { id: nextCombatLogId(), text: 'Battle joined—your strikes land on their own rhythm.', tone: 'narrator' },
+    ]);
+    advanceRound();
+    startRoundTimer();
+  }, [advanceRound, startRoundTimer]);
+
+  const resumeEntering = useCallback(() => {
+    enterTimerRef.current = setTimeout(() => {
+      enterTimerRef.current = null;
+      beginActiveCombat();
+    }, ENTER_DELAY_MS);
+  }, [beginActiveCombat]);
+
+  const togglePause = useCallback(() => {
+    if (endingRef.current || (phase !== 'entering' && phase !== 'combat')) return;
+
+    if (!isPausedRef.current) {
+      isPausedRef.current = true;
+      setIsPaused(true);
+      if (phase === 'entering' && enterTimerRef.current) {
+        clearTimeout(enterTimerRef.current);
+        enterTimerRef.current = null;
+        pausedDuringEnteringRef.current = true;
+      } else if (phase === 'combat') {
+        clearRoundTimer();
+      }
+      return;
+    }
+
+    isPausedRef.current = false;
+    setIsPaused(false);
+    if (pausedDuringEnteringRef.current) {
+      pausedDuringEnteringRef.current = false;
+      resumeEntering();
+    } else if (phase === 'combat') {
+      startRoundTimer();
+    }
+  }, [clearRoundTimer, phase, resumeEntering, startRoundTimer]);
+
   const startCombat = useCallback(() => {
     if (phase !== 'talk') return;
     endingRef.current = false;
+    isPausedRef.current = false;
+    pausedDuringEnteringRef.current = false;
+    setIsPaused(false);
+    setIsEnding(false);
+    setResolutionOutcome(null);
+    setResolutionLines([]);
     const maxHp = getPlayerMaxHp(questState);
     const playerFighter = buildFighterFromQuestState(questState, {
       id: 'player',
@@ -174,23 +258,19 @@ export function useCombatEncounter({
     onCombatChromeChangeRef.current?.(true);
 
     if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-    enterTimerRef.current = setTimeout(() => {
-      enterTimerRef.current = null;
-      setPhase('combat');
-      setCombatLog((prev) => [
-        ...prev,
-        { id: nextCombatLogId(), text: 'Battle joined—your strikes land on their own rhythm.', tone: 'narrator' },
-      ]);
-      roundTimerRef.current = setInterval(() => advanceRound(), ROUND_DELAY_MS);
-    }, ENTER_DELAY_MS);
-  }, [advanceRound, def, phase, questState]);
+    resumeEntering();
+  }, [def, phase, questState, resumeEntering]);
 
   const fastForward = useCallback(() => {
     if (phase !== 'combat' && phase !== 'entering') return;
+    isPausedRef.current = false;
+    pausedDuringEnteringRef.current = false;
+    setIsPaused(false);
     if (enterTimerRef.current) {
       clearTimeout(enterTimerRef.current);
       enterTimerRef.current = null;
     }
+    clearRoundTimer();
     if (phase === 'entering') {
       setPhase('combat');
     }
@@ -205,7 +285,7 @@ export function useCombatEncounter({
     setCombatLog((prev) => [...prev, ...newLines]);
     syncHpFromRuntime();
     checkEnd();
-  }, [checkEnd, phase, syncHpFromRuntime]);
+  }, [checkEnd, clearRoundTimer, phase, syncHpFromRuntime]);
 
   useEffect(() => {
     return () => {
@@ -218,11 +298,18 @@ export function useCombatEncounter({
     logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
   }, [combatLog]);
 
-  const isCombatMode = phase === 'entering' || phase === 'combat';
+  const isCombatMode = phase === 'entering' || phase === 'combat' || phase === 'resolution';
+  const isResolutionMode = phase === 'resolution';
+  const playerLabel = questState.playerName.trim() || 'You';
 
   return {
     phase,
     isCombatMode,
+    isResolutionMode,
+    isPaused,
+    isEnding,
+    resolutionOutcome,
+    resolutionLines,
     combatLog,
     logEndRef,
     enemyHp,
@@ -230,8 +317,15 @@ export function useCombatEncounter({
     playerHp,
     playerMaxHp,
     displayName: def.displayName,
+    playerLabel,
+    playerPortraitSrc: getRacePortraitSrc(questState.assignedRaceSlug),
+    playerPortraitAlt: playerLabel,
+    enemyPortraitSrc: def.portraitSrc,
+    enemyPortraitAlt: def.portraitAlt,
     startCombat,
     fastForward,
+    togglePause,
+    dismissResolution,
     resetCombat: finishCombat,
   };
 }

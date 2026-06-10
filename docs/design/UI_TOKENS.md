@@ -36,6 +36,13 @@ Keep existing candle / facsimile variables in [`src/index.css`](../../src/index.
 | `--candle-wax` | Player line / highlights |
 | `--candle-rule` | Borders (panels, chips) |
 
+### Play feed identity highlights
+
+| Class | Role |
+|-------|------|
+| `.player-name-mark` | Logged-in player name in prose — `--candle-wax`, weight 500, +0.04em tracking (distinct from `--candle-ink-soft` body). |
+| `.level-glint-mark` | “Level N” on level-up lines — shipped variant `--3` (ember sparks). FX arms when the log line scrolls into view (after `.dialogue-line-reveal` burn-in), once per line per session; then static `--candle-flame`. Dev preview: `--1` / `--2` / `--3`. |
+
 ## Borders & focus (no blue chrome)
 
 The global shadcn reset applies `border-border` to every element. **`.dark` uses warm HSL tokens** (not blue-gray 217°). `.candlelit-shell` / `.candlelit-chrome` tighten them further for in-game surfaces. Dev side rails use `.candlelit-chrome`.

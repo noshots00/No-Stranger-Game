@@ -283,12 +283,14 @@ export const NPC_PORTRAIT_BY_ID: Record<string, string> = {
   carl: publicAsset(`${CONVERTED_ART}/atlantian-artist.webp`),
   shannon: publicAsset(`${CONVERTED_ART}/wa195531.webp`),
   trainer: publicAsset(`${CONVERTED_ART}/river-kingdom-marching.webp`),
+  skeleton: publicAsset(`${CONVERTED_ART}/Batch 2026-06-10_01-01-02/skeleton2.webp`),
 };
 
 /** Hero background for NPC talk scenes (portrait uses `NPC_PORTRAIT_BY_ID`). */
 export const NPC_TALK_BACKGROUND_BY_ID: Record<string, string> = {
   shannon: batchAsset(VILLAGE_MAP_PATH),
   trainer: publicAsset(`${CONVERTED_ART}/ancient-war.webp`),
+  skeleton: publicAsset(`${CONVERTED_ART}/Batch 2026-06-10_01-01-02/skeleton2.webp`),
 };
 
 export function getNpcPortraitSrc(npcTalkId: string): string {
@@ -312,6 +314,7 @@ export function getQuestScenePortraitSrc(quest: QuestDefinition, step: QuestStep
 export function getQuestScenePortraitAlt(quest: QuestDefinition, step: QuestStep): string {
   if (step.npcTalkId === 'carl') return 'Carl';
   if (step.npcTalkId === 'shannon') return 'Shannon';
+  if (step.npcTalkId === 'skeleton') return 'Living skeleton';
   return `${quest.title} scene`;
 }
 

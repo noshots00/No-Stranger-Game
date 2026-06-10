@@ -7,6 +7,8 @@ export type CharacterScreenCornerControlsProps = {
   showDevTools?: boolean;
   showModifierDetails: boolean;
   onShowModifierDetailsChange: (enabled: boolean) => void;
+  showQuestChoiceModifiers?: boolean;
+  onShowQuestChoiceModifiersChange?: (enabled: boolean) => void;
   showQuestChoiceEffects?: boolean;
   onShowQuestChoiceEffectsChange?: (enabled: boolean) => void;
   devUnlockAllQuests: boolean;
@@ -27,6 +29,8 @@ export function CharacterScreenCornerControls({
   showDevTools = false,
   showModifierDetails,
   onShowModifierDetailsChange,
+  showQuestChoiceModifiers = false,
+  onShowQuestChoiceModifiersChange,
   showQuestChoiceEffects = false,
   onShowQuestChoiceEffectsChange,
   devUnlockAllQuests,
@@ -96,6 +100,17 @@ export function CharacterScreenCornerControls({
               />
               <span>Show modifier details</span>
             </label>
+            {onShowQuestChoiceModifiersChange ? (
+              <label className={menuCheckboxClass}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={showQuestChoiceModifiers}
+                  onChange={(e) => onShowQuestChoiceModifiersChange(e.target.checked)}
+                />
+                <span>Show choice modifiers &amp; items</span>
+              </label>
+            ) : null}
             {onShowQuestChoiceEffectsChange ? (
               <label className={menuCheckboxClass}>
                 <input
@@ -104,7 +119,7 @@ export function CharacterScreenCornerControls({
                   checked={showQuestChoiceEffects}
                   onChange={(e) => onShowQuestChoiceEffectsChange(e.target.checked)}
                 />
-                <span>Show choice modifiers &amp; flags</span>
+                <span>Show choice flags &amp; routing</span>
               </label>
             ) : null}
             <label className={menuCheckboxClass}>

@@ -29,6 +29,11 @@ function firstNightAtHub() {
 }
 
 describe('continue bridge message steps', () => {
+  it('starts Sunset on the skeleton encounter beat', () => {
+    const state = startQuest(createInitialQuestState(), quest002FirstNight);
+    expect(getCurrentStep(state, quest002FirstNight).id).toBe('skeleton-first-encounter');
+  });
+
   it('skips flavor-pockets and lands on pocket pick with narrative text', () => {
     let state = firstNightAtHub();
     state = {

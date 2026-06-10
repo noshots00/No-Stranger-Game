@@ -69,6 +69,11 @@
     --candle-flame-glow: rgba(230, 161, 87, 0.12);
     --candle-ember: #c25a2a;
     --candle-wax: #f5d19b;
+    --level-glint-spark: #60a5fa;
+    --level-glint-spark-soft: rgba(96, 165, 250, 0.88);
+    --level-glint-spark-glow: rgba(59, 130, 246, 0.55);
+    --combat-enemy-ink: #f97316;
+    --combat-enemy-ink-soft: #fb923c;
     --candle-rule: rgba(232, 226, 217, 0.08);
     --candle-x: 50%;
     /* Glow center on bottom edge: half the disc sits below the fold, lighting the bottom nav */
@@ -671,12 +676,96 @@
     animation: questTranscriptBurnIn 320ms cubic-bezier(0.2, 0.9, 0.35, 1) both;
   }
 
+  .player-name-mark {
+    color: var(--candle-wax);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  .level-glint-mark,
+  .level-glint-mark--1,
+  .level-glint-mark--2,
+  .level-glint-mark--3 {
+    display: inline;
+    font: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    vertical-align: baseline;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  .level-glint-mark--1.level-glint-mark--played:not(.level-glint-mark--fresh),
+  .level-glint-mark--2.level-glint-mark--played:not(.level-glint-mark--fresh),
+  .level-glint-mark--3.level-glint-mark--played:not(.level-glint-mark--fresh) {
+    color: var(--candle-flame);
+  }
+
+  .level-glint-mark--1:not(.level-glint-mark--played):not(.level-glint-mark--fresh),
+  .level-glint-mark--2:not(.level-glint-mark--played):not(.level-glint-mark--fresh),
+  .level-glint-mark--3:not(.level-glint-mark--played):not(.level-glint-mark--fresh) {
+    color: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+  }
+
+  .level-glint-mark--2:not(.level-glint-mark--fresh) {
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+  }
+
+  .level-glint-mark--1.level-glint-mark--played:not(.level-glint-mark--fresh) {
+    text-shadow:
+      0 0 2px var(--candle-wax),
+      0 0 4px var(--candle-flame),
+      0 0 8px rgba(230, 161, 87, 0.25);
+  }
+
+  .level-glint-mark--1.level-glint-mark--fresh {
+    color: var(--candle-ink-soft);
+    animation: levelGlowPulse 1.5s ease-out forwards;
+  }
+
+  .level-glint-mark--2.level-glint-mark--fresh {
+    color: transparent;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--candle-wax) 30%,
+      var(--candle-flame) 70%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: levelWaxFill 1.2s ease-out forwards;
+  }
+
+  .level-glint-mark--3.level-glint-mark--fresh {
+    color: var(--candle-ink-soft);
+    animation: levelEmberSparks 1.5s ease-out forwards;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .dialogue-line-reveal {
       animation: dialogueLineRevealReduced 180ms ease-out both;
     }
     .quest-transcript-burn-in {
       animation: questTranscriptBurnInReduced 220ms ease-out both;
+    }
+    .level-glint-mark--1.level-glint-mark--fresh,
+    .level-glint-mark--2.level-glint-mark--fresh,
+    .level-glint-mark--3.level-glint-mark--fresh {
+      animation: none;
+      color: var(--candle-flame);
+      background: none;
+      -webkit-background-clip: border-box;
+      background-clip: border-box;
+      text-shadow:
+        0 0 2px var(--candle-wax),
+        0 0 4px var(--candle-flame),
+        0 0 8px rgba(230, 161, 87, 0.25);
     }
   }
 
@@ -1305,6 +1394,83 @@
     background: linear-gradient(90deg, rgb(120 40 32), rgb(180 72 56));
   }
 
+  .rpg-combat-enemy-name {
+    color: var(--combat-enemy-ink);
+    font-weight: 600;
+  }
+
+  .rpg-combat-duel-strip {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 0;
+  }
+
+  .rpg-combat-duel-fighter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 42%;
+  }
+
+  .rpg-combat-duel-fighter--enemy .rpg-combat-duel-portrait {
+    border-color: color-mix(in srgb, var(--combat-enemy-ink) 55%, var(--candle-rule));
+    box-shadow:
+      0 8px 22px rgba(0, 0, 0, 0.5),
+      0 0 10px color-mix(in srgb, var(--combat-enemy-ink) 35%, transparent);
+  }
+
+  .rpg-combat-duel-portrait {
+    aspect-ratio: 3 / 4;
+    width: min(100%, 4.75rem);
+    border-radius: 0.375rem;
+    border: 1px solid color-mix(in srgb, var(--candle-flame) 35%, var(--candle-rule));
+    object-fit: cover;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  }
+
+  .rpg-combat-duel-vs {
+    align-self: center;
+    padding-bottom: 1.35rem;
+  }
+
+  .rpg-combat-resolution {
+    animation: rpgCombatResolutionIn 320ms cubic-bezier(0.2, 0.9, 0.35, 1) both;
+  }
+
+  .rpg-combat-resolution-headline {
+    font-family: var(--font-sans, 'Source Sans 3', system-ui, sans-serif);
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .rpg-combat-resolution--victory .rpg-combat-resolution-headline {
+    color: var(--candle-flame);
+    animation: rpgCombatVictoryHeadline 1.8s ease-out 320ms both;
+  }
+
+  .rpg-combat-resolution--defeat .rpg-combat-resolution-headline {
+    color: var(--combat-enemy-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rpg-combat-resolution {
+      animation: none;
+    }
+
+    .rpg-combat-resolution--victory .rpg-combat-resolution-headline {
+      animation: none;
+      text-shadow:
+        0 0 2px var(--candle-wax),
+        0 0 6px var(--candle-flame-soft);
+    }
+  }
+
   .rpg-command-chip--danger {
     border-color: color-mix(in srgb, rgb(180 72 56) 65%, var(--candle-rule));
     color: rgb(248 180 160);
@@ -1761,6 +1927,96 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes levelGlowPulse {
+  0% {
+    color: var(--candle-ink-soft);
+    text-shadow: none;
+  }
+  33% {
+    color: var(--candle-flame);
+    text-shadow:
+      0 0 2px var(--candle-wax),
+      0 0 6px var(--candle-flame),
+      0 0 12px rgba(230, 161, 87, 0.5);
+  }
+  50% {
+    text-shadow:
+      0 0 3px var(--candle-wax),
+      0 0 8px var(--candle-flame),
+      0 0 14px rgba(230, 161, 87, 0.45);
+  }
+  100% {
+    color: var(--candle-flame);
+    text-shadow:
+      0 0 2px var(--candle-wax),
+      0 0 4px var(--candle-flame),
+      0 0 8px rgba(230, 161, 87, 0.25);
+  }
+}
+
+@keyframes levelWaxFill {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes levelEmberSparks {
+  0% {
+    color: var(--candle-ink-soft);
+    text-shadow: none;
+  }
+  12% {
+    text-shadow: 1px 1px 3px var(--level-glint-spark-soft);
+  }
+  24% {
+    text-shadow: -1px 0 4px var(--level-glint-spark);
+  }
+  36% {
+    text-shadow: 0 -1px 3px var(--level-glint-spark-glow);
+  }
+  48% {
+    text-shadow: 2px -1px 4px var(--level-glint-spark-soft);
+  }
+  58% {
+    text-shadow: none;
+    color: var(--candle-ink-soft);
+  }
+  100% {
+    color: var(--candle-flame);
+    text-shadow: none;
+  }
+}
+
+@keyframes rpgCombatResolutionIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rpgCombatVictoryHeadline {
+  0% {
+    text-shadow: none;
+  }
+  40% {
+    text-shadow:
+      0 0 2px var(--candle-wax),
+      0 0 8px var(--candle-flame-soft);
+  }
+  100% {
+    text-shadow:
+      0 0 2px var(--candle-wax),
+      0 0 4px var(--candle-flame-soft);
   }
 }
 

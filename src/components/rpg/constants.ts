@@ -97,7 +97,9 @@ export const CHARACTER_CREATION_RESET_PENDING_STORAGE_KEY = 'nsg:character-creat
 export const DEV_DAY_OFFSET_STORAGE_KEY = 'nsg:dev-day-offset-ms';
 /** When enabled in the game menu, shows quest modifier breakdown on the Character tab. */
 export const DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY = 'nsg:dev-show-modifier-details';
-/** When enabled, quest choices show modifiersDelta, flagsSet, and gating flags (dev only). */
+/** When enabled, quest choices show modifiersDelta and quest items (dev only). */
+export const DEV_SHOW_QUEST_CHOICE_MODIFIERS_STORAGE_KEY = 'nsg:dev-show-quest-choice-modifiers';
+/** When enabled, quest choices show flags, routing, and non-modifier effects (dev only). */
 export const DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY = 'nsg:dev-show-quest-choice-effects';
 /** When enabled, Quests tab lists every quest for testing (dev only). */
 export const DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY = 'nsg:dev-unlock-all-quests';

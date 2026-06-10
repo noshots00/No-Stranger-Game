@@ -136,7 +136,7 @@ describe('Day 1 report after Sunset', () => {
       .map((line) => line.text)
       .join('\n');
     expect(body).toContain('Day 2 Report');
-    expect(body).toContain("It's a tiny buckler.");
+    expect(body).toContain("Gained items: It's a tiny buckler.");
     expect(body).toContain('Day 3 begins');
     expect(next.dayReportQuestItemsBaseline).toContain("It's a tiny buckler.");
   });

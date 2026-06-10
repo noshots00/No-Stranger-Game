@@ -5,7 +5,7 @@
 import { NPC_PORTRAIT_BY_ID } from '@/components/rpg/rpgArtAssignments';
 import type { CombatLoadout, FighterStats, PassiveSkillSlot } from './combatTypes';
 
-export type CombatEncounterId = 'carl' | 'trainer';
+export type CombatEncounterId = 'carl' | 'trainer' | 'skeleton';
 
 export type EncounterFighterDef = {
   level: number;
@@ -92,6 +92,28 @@ export const COMBAT_ENCOUNTERS: Record<CombatEncounterId, CombatEncounterDef> = 
     defeatLines: [
       'You drop to one knee, breath gone.',
       "The trainer offers a hand up. \"Again when you're ready.\"",
+    ],
+  },
+  skeleton: {
+    id: 'skeleton',
+    displayName: 'Living Skeleton',
+    portraitSrc: NPC_PORTRAIT_BY_ID.skeleton,
+    portraitAlt: 'Living skeleton',
+    fighter: {
+      level: 1,
+      stats: { str: 0, dex: 1, con: 1, int: 0, wis: 0, cha: 0 },
+      maxHp: 15,
+      loadout: {},
+      passives: [],
+      skillLevels: {},
+    },
+    enterLine: 'The skeleton turns its empty sockets toward you and raises brittle arms.',
+    fleeLine: 'You break away from the shambling bones.',
+    victoryLines: [
+      'The skeleton collapses into a clatter of bone and dust.',
+    ],
+    defeatLines: [
+      'You stumble back, winded—the bones keep shambling.',
     ],
   },
 };

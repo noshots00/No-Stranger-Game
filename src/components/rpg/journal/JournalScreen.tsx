@@ -1,6 +1,7 @@
 import { useMemo, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
+import { PlayerNameInText } from '../PlayerNameInText';
 import type { ChronicleSegment } from '../dialogueFormat';
 import type { JournalLogEntry, QuestDefinition } from '../quests/types';
 import {
@@ -8,6 +9,7 @@ import {
   WORLD_EVENT_PRINTS_ENABLED,
 } from '../constants';
 import { ActiveStateCard } from './ActiveStateCard';
+import { getQuestCardRows } from './questCardRows';
 import { QuestCardHeader } from './QuestCardHeader';
 import type { QuestState } from '../quests/types';
 import type { VillageProjectProgress } from '../villageProjects/villageProjectNostr';
@@ -45,6 +47,8 @@ export type JournalScreenProps = {
   dayPacingActive?: boolean;
   nextDayResetMs?: number | null;
   communityProject?: Pick<VillageProjectProgress, 'definition' | 'totals'> | null;
+  /** Logged-in character name for player-name highlighting in the feed. */
+  playerName?: string;
   /** Extra classes on the root section. */
   className?: string;
 };
@@ -69,6 +73,7 @@ export function JournalScreen({
   dayPacingActive = false,
   nextDayResetMs = null,
   communityProject = null,
+  playerName = '',
   className,
 }: JournalScreenProps) {
   const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
@@ -132,18 +137,11 @@ export function JournalScreen({
     return rows.map(({ seq: _seq, ...row }) => row);
   }, [playFeedSegments, playJournalLines]);
 
+  const questCardRows = useMemo(
+    () => getQuestCardRows(visibleQuests, completedQuestIds, activeQuest),
+    [visibleQuests, completedQuestIds, activeQuest]
+  );
   const completedQuestIdSet = useMemo(() => new Set(completedQuestIds), [completedQuestIds]);
-  const questCardRows = useMemo(() => {
-    const incomplete = visibleQuests.filter((q) => !completedQuestIdSet.has(q.id));
-    if (
-      activeQuest &&
-      !completedQuestIdSet.has(activeQuest.id) &&
-      !incomplete.some((q) => q.id === activeQuest.id)
-    ) {
-      return [activeQuest, ...incomplete];
-    }
-    return incomplete;
-  }, [visibleQuests, completedQuestIdSet, activeQuest]);
 
   const hasOpenedOriginQuest = playerFlags.includes(ORIGIN_QUEST_OPENED_FLAG);
   const resolveQuestBriefing = (questId: string, defaultBriefing: string): string =>
@@ -197,7 +195,7 @@ export function JournalScreen({
                 return (
                   <div key={`world-${wr.atMs}-${idx}-${wr.text.slice(0, 24)}`} className="dialogue-line-reveal py-0.5">
                     <p className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80">
-                      {wr.text}
+                      <PlayerNameInText text={wr.text} playerName={playerName} />
                     </p>
                   </div>
                 );
@@ -208,7 +206,12 @@ export function JournalScreen({
                   key={`${segment.role}-${first?.id ?? `b-${idx}`}`}
                   className="dialogue-line-reveal py-0.5"
                 >
-                  <DialogueVoiceBlock presentation="play" role={segment.role} lines={segment.lines} />
+                  <DialogueVoiceBlock
+                    presentation="play"
+                    role={segment.role}
+                    lines={segment.lines}
+                    playerName={playerName}
+                  />
                 </div>
               );
             }
@@ -229,7 +232,9 @@ export function JournalScreen({
                         ) : null}
                         {summaryText.length > 0 ? (
                           <div className={cn('space-y-1', showTitle && 'pt-1')}>
-                            <p className={`whitespace-pre-line ${RPG_UI_BODY}`}>{summaryText}</p>
+                            <p className={`whitespace-pre-line ${RPG_UI_BODY}`}>
+                              <PlayerNameInText text={summaryText} playerName={playerName} />
+                            </p>
                           </div>
                         ) : null}
                         {WORLD_EVENT_PRINTS_ENABLED && je.playMilestones && je.playMilestones.length > 0 ? (
@@ -239,7 +244,7 @@ export function JournalScreen({
                                 key={`${je.id}-milestone-${milestoneIdx}`}
                                 className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
                               >
-                                {line}
+                                <PlayerNameInText text={line} playerName={playerName} />
                               </p>
                             ))}
                           </div>

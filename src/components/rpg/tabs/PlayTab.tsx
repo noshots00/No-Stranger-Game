@@ -37,6 +37,7 @@ type PlayTabProps = {
   playerModifiers: ModifierMap;
   questItems: string[];
   onInventoryPickSubmit?: (itemLabel: string) => void;
+  showQuestChoiceModifiers?: boolean;
   showQuestChoiceEffects?: boolean;
   questState: QuestState;
   onPlayerHealthChange?: (health: number) => void;
@@ -75,6 +76,7 @@ export function PlayTab({
   playerModifiers,
   questItems,
   onInventoryPickSubmit,
+  showQuestChoiceModifiers = false,
   showQuestChoiceEffects = false,
   questState,
   onPlayerHealthChange,
@@ -109,6 +111,7 @@ export function PlayTab({
         onNameSubmit={onNameSubmit}
         onInventoryPickSubmit={onInventoryPickSubmit}
         onAdvanceQuestMessage={onAdvanceQuestMessage}
+        showQuestChoiceModifiers={showQuestChoiceModifiers}
         showQuestChoiceEffects={showQuestChoiceEffects}
         questState={questState}
         onPlayerHealthChange={onPlayerHealthChange}
@@ -138,6 +141,7 @@ export function PlayTab({
       dayCounter={dayCounter}
       dayPacingActive={dayPacingActive}
       nextDayResetMs={nextDayResetMs}
+      playerName={committedPlayerName}
     />
   );
 }

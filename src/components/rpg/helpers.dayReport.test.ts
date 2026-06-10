@@ -3,6 +3,7 @@ import { CLASS_UNLOCK_POINTS } from './constants';
 import {
   buildDayReportDialogueLines,
   getModifierLevelUpLines,
+  formatQuestItemGainReportLine,
   getQuestItemGainLines,
   shouldReportModifierGainInDayReport,
 } from './helpers';
@@ -71,6 +72,14 @@ describe('day report modifier visibility', () => {
     expect(lines.some((l) => /charisma/i.test(l))).toBe(true);
   });
 
+  it('formatQuestItemGainReportLine joins labels on one line', () => {
+    expect(formatQuestItemGainReportLine(["It's a tiny buckler."])).toBe(
+      "Gained items: It's a tiny buckler."
+    );
+    expect(formatQuestItemGainReportLine(['a flask', 'Fruit'])).toBe('Gained items: a flask, Fruit');
+    expect(formatQuestItemGainReportLine([])).toBeNull();
+  });
+
   it('getQuestItemGainLines lists new labels only', () => {
     const lines = getQuestItemGainLines([], ["It's a tiny buckler."]);
     expect(lines).toEqual(["It's a tiny buckler."]);
@@ -90,7 +99,7 @@ describe('day report modifier visibility', () => {
     const text = buildDayReportDialogueLines(2, prev, next)
       .map((line) => line.text)
       .join('\n');
-    expect(text).toContain("It's a tiny buckler.");
+    expect(text).toContain("Gained items: It's a tiny buckler.");
   });
 
   it('buildDayReportDialogueLines still includes exploration/foraging XP', () => {

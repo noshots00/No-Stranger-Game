@@ -30,6 +30,11 @@ export function ArenaTrainerTalkView({
       <div className={cn('quest-scene-root quest-scene-root--npc-talk quest-scene-root--combat h-full min-h-0', className)}>
         <QuestSceneCombat
           displayName={combat.displayName}
+          playerLabel={combat.playerLabel}
+          playerPortraitSrc={combat.playerPortraitSrc}
+          playerPortraitAlt={combat.playerPortraitAlt}
+          enemyPortraitSrc={combat.enemyPortraitSrc}
+          enemyPortraitAlt={combat.enemyPortraitAlt}
           combatLog={combat.combatLog}
           logEndRef={combat.logEndRef}
           playerHp={combat.playerHp}
@@ -38,6 +43,12 @@ export function ArenaTrainerTalkView({
           enemyMaxHp={combat.enemyMaxHp}
           onFastForward={combat.fastForward}
           fastForwardDisabled={combat.phase === 'entering'}
+          isPaused={combat.isPaused}
+          onTogglePause={combat.togglePause}
+          pauseDisabled={combat.isEnding}
+          resolutionOutcome={combat.resolutionOutcome}
+          resolutionLines={combat.resolutionLines}
+          onDismissResolution={combat.dismissResolution}
           actionBoxRef={actionBoxRef}
         />
       </div>

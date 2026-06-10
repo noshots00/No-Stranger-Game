@@ -5,7 +5,7 @@ type EquipmentDef = {
 };
 
 const EQUIPMENT: Record<string, EquipmentDef> = {
-  'item:short-sword': { slot: 'weapon', damageBonus: 1 },
+  'item:short-sword': { slot: 'weapon', damageBonus: 2 },
   'item:iron-sword': { slot: 'weapon', damageBonus: 2 },
   'item:wooden-shield': { slot: 'other', damageReduction: 1 },
   'item:leather-armor': { slot: 'other', damageReduction: 2 },

@@ -200,6 +200,8 @@ export function CharacterTab({
   showModifierDetails,
   showDevTools,
   onShowModifierDetailsChange,
+  showQuestChoiceModifiers,
+  onShowQuestChoiceModifiersChange,
   showQuestChoiceEffects,
   onShowQuestChoiceEffectsChange,
   devUnlockAllQuests,
@@ -646,6 +648,8 @@ export function CharacterTab({
         showDevTools={showDevTools}
         showModifierDetails={showModifierDetails}
         onShowModifierDetailsChange={onShowModifierDetailsChange}
+        showQuestChoiceModifiers={showQuestChoiceModifiers}
+        onShowQuestChoiceModifiersChange={onShowQuestChoiceModifiersChange}
         showQuestChoiceEffects={showQuestChoiceEffects}
         onShowQuestChoiceEffectsChange={onShowQuestChoiceEffectsChange}
         devUnlockAllQuests={devUnlockAllQuests}

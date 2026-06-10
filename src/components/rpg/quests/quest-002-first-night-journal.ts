@@ -48,7 +48,7 @@ const DIRECTION_MATCHERS: { ids: readonly string[]; line: string }[] = [
   },
 ];
 
-const SHELTER_LINE = 'You built a primitive shelter and rested for the night.';
+const SHELTER_LINE = 'You made it through the night.';
 
 function buildTreeFallClause(history: string[]): string | null {
   if (has(history, 'q2-tree-go-down')) return TREE_FALL_LINE;

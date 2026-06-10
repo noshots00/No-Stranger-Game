@@ -55,6 +55,7 @@ type VillagePlayTabProps = {
   playerModifiers: ModifierMap;
   questItems: string[];
   onInventoryPickSubmit?: (itemLabel: string) => void;
+  showQuestChoiceModifiers?: boolean;
   showQuestChoiceEffects?: boolean;
   onPlayerHealthChange?: (health: number) => void;
   questProgress?: QuestProgress;
@@ -107,6 +108,7 @@ export function VillagePlayTab({
   playerModifiers,
   questItems,
   onInventoryPickSubmit,
+  showQuestChoiceModifiers = false,
   showQuestChoiceEffects = false,
   onPlayerHealthChange,
   questProgress,
@@ -156,6 +158,7 @@ export function VillagePlayTab({
           onInventoryPickSubmit={onInventoryPickSubmit}
           onAdvanceQuestMessage={onAdvanceQuestMessage}
           onDismissQuestScene={onDismissQuestScene}
+          showQuestChoiceModifiers={showQuestChoiceModifiers}
           showQuestChoiceEffects={showQuestChoiceEffects}
           questState={questState}
           onPlayerHealthChange={onPlayerHealthChange}
@@ -266,6 +269,7 @@ export function VillagePlayTab({
           dayPacingActive={dayPacingActive}
           nextDayResetMs={nextDayResetMs}
           communityProject={villageProjects.progress}
+          playerName={questState.playerName}
         />
       )}
     </div>

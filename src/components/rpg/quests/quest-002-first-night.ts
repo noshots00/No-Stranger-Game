@@ -9,11 +9,18 @@ const WILD_BOAR_ART = 'art/converted/eb1911-painting-plate-ii-fig-4.webp';
 const DEER_TRAIL_ART = 'art/converted/deer-mountain-trail-saam-19801338-2.webp';
 const LEMON_TREE_ART =
   'art/converted/henry-scott-tuke-1858-1929-the-lemon-tree-1898-002-cartwright-hall-art-gallery.webp';
+const SKELETON_ENCOUNTER_ART = 'art/converted/Batch 2026-06-10_01-01-02/skeleton2.webp';
 
 const deerTrailVisual = {
   kind: 'image' as const,
   src: DEER_TRAIL_ART,
   alt: 'Deer on a mountain trail',
+};
+
+const skeletonEncounterVisual = {
+  kind: 'image' as const,
+  src: SKELETON_ENCOUNTER_ART,
+  alt: 'A living skeleton in the woods',
 };
 
 const lemonTreeVisual = {
@@ -41,7 +48,22 @@ const wildBoarVisual = {
   fit: 'contain' as const,
 };
 
-const TREE_VISTA_TEXT = 'The trees are still too thick to see much.';
+const sunsetVisual = {
+  kind: 'image' as const,
+  src: SUNSET_QUEST_ART,
+  alt: 'Sunset in the forest',
+};
+
+const TREE_VISTA_INITIAL_TEXT = 'The trees are still too thick to see much.';
+
+const TREE_CLIMB_VISTA_TEXTS = [
+  'You are dangerously high in the air, yet nowhere near the canopy.',
+  "Sweat stings your eyes. Your muscles burn. You're afraid to look down.",
+  "The tree begins to sway under your weight... you can't go any higher. Unfortunately, there's nothing to see around you but trees.",
+] as const;
+
+const TREE_FALL_TEXT =
+  "On the way down, you lose your grip and fall from the tree. Luckily, some branches broke your fall.";
 
 function makeTreeGoDownChoice(): QuestChoice {
   return {
@@ -51,7 +73,7 @@ function makeTreeGoDownChoice(): QuestChoice {
     effects: {
       flagsSet: [FIRST_NIGHT_FLAG_TREE],
     },
-    journalSummaryLineAdd: 'You fell from a tree and twisted your ankle.',
+    journalSummaryLineAdd: 'You fell from a tree on the way down.',
   };
 }
 
@@ -79,7 +101,7 @@ function makeBoarAftermathStep(id: string, outcomeLine: string) {
     type: 'message' as const,
     text: `${outcomeLine}\n\nThe boar misses and vanishes into the woods.`,
     requireContinueTap: true,
-    nextStepId: 'night-router',
+    nextStepId: 'nightfall-wait',
     visuals: [wildBoarVisual],
   };
 }
@@ -93,20 +115,17 @@ export const FIRST_NIGHT_FLAG_TRAILS = 'quest-002-first-night-trails';
 export const FIRST_NIGHT_FLAG_CALL_HELP = 'quest-002-first-night-call-help';
 export const FIRST_NIGHT_FLAG_FOOD = 'quest-002-first-night-food';
 export const FIRST_NIGHT_FLAG_HIGH_GROUND = 'quest-002-first-night-high-ground';
+export const FIRST_NIGHT_FLAG_POCKET_FLASK = 'quest-002-first-night-pocket-flask';
+export const FIRST_NIGHT_FLAG_POCKET_CIGARETTES = 'quest-002-first-night-pocket-cigarettes';
+export const FIRST_NIGHT_FLAG_POCKET_CELL_PHONE = 'quest-002-first-night-pocket-cell-phone';
+export const FIRST_NIGHT_FLAG_USED_FLASK = 'quest-002-first-night-used-flask';
+export const FIRST_NIGHT_FLAG_USED_CIGARETTES = 'quest-002-first-night-used-cigarettes';
+export const FIRST_NIGHT_FLAG_USED_CELL_PHONE = 'quest-002-first-night-used-cell-phone';
 /** @deprecated Legacy saves only */
 export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
 
 function buildFirstNightMainChoices(): QuestChoice[] {
   return [
-    {
-      id: 'q2-build-shelter',
-      label: 'Build a shelter',
-      nextStepId: 'flavor-build-shelter',
-      disabledIfAnyFlags: [FIRST_NIGHT_FLAG_SHELTER],
-      effects: {
-        flagsSet: [FIRST_NIGHT_FLAG_SHELTER],
-      },
-    },
     {
       id: 'q2-high-ground',
       label: 'Go to high ground',
@@ -170,13 +189,28 @@ export const quest002FirstNight = createQuestDefinition({
   briefing: 'Every choice is permanent.  Choose wisely.',
   createdAt: 2,
   mainDailyQuest: true,
-  startStepId: 'flavor-five',
+  startStepId: 'skeleton-first-encounter',
   questCardImageSide: 'right',
   isAvailable: makeQuestAvailability({
     requiresAnyCompletedQuestIds: ['quest-001-origin'],
   }),
   journalSummaryFallback: 'You had a strange night in the forest.',
   steps: [
+    {
+      id: 'skeleton-first-encounter',
+      type: 'choice',
+      npcTalkId: 'skeleton',
+      text: 'A horrible living skeleton is shambling through the woods.',
+      visuals: [skeletonEncounterVisual],
+      choices: [
+        {
+          id: 'skeleton-after-combat',
+          label: 'Continue',
+          nextStepId: 'flavor-five',
+          journalSummaryLineAdd: 'You fought a shambling skeleton in the woods.',
+        },
+      ],
+    },
     {
       id: 'flavor-five',
       type: 'choice',
@@ -233,7 +267,7 @@ export const quest002FirstNight = createQuestDefinition({
           label: 'a flask',
           nextStepId: 'flavor-pockets-found-flask',
           effects: {
-            flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
+            flagsSet: [FIRST_NIGHT_FLAG_POCKETS, FIRST_NIGHT_FLAG_POCKET_FLASK],
             questItemsAdd: ['a flask'],
           },
         },
@@ -242,7 +276,7 @@ export const quest002FirstNight = createQuestDefinition({
           label: 'cigarettes and a lighter',
           nextStepId: 'flavor-pockets-found-cigarettes',
           effects: {
-            flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
+            flagsSet: [FIRST_NIGHT_FLAG_POCKETS, FIRST_NIGHT_FLAG_POCKET_CIGARETTES],
             questItemsAdd: ['cigarettes and a lighter'],
           },
         },
@@ -251,7 +285,7 @@ export const quest002FirstNight = createQuestDefinition({
           label: 'a cell phone',
           nextStepId: 'flavor-pockets-cell-phone',
           effects: {
-            flagsSet: [FIRST_NIGHT_FLAG_POCKETS],
+            flagsSet: [FIRST_NIGHT_FLAG_POCKETS, FIRST_NIGHT_FLAG_POCKET_CELL_PHONE],
             questItemsAdd: ['a cell phone'],
 
           },
@@ -286,7 +320,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'flavor-tree-vista',
       type: 'message',
-      text: TREE_VISTA_TEXT,
+      text: TREE_VISTA_INITIAL_TEXT,
       visuals: [treeClimbVisual],
       nextStepId: 'flavor-tree-fork',
     },
@@ -300,7 +334,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'flavor-tree-vista-2',
       type: 'message',
-      text: TREE_VISTA_TEXT,
+      text: TREE_CLIMB_VISTA_TEXTS[0],
       visuals: [treeClimbVisual],
       nextStepId: 'flavor-tree-fork-2',
     },
@@ -314,7 +348,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'flavor-tree-vista-3',
       type: 'message',
-      text: TREE_VISTA_TEXT,
+      text: TREE_CLIMB_VISTA_TEXTS[1],
       visuals: [treeClimbVisual],
       nextStepId: 'flavor-tree-fork-3',
     },
@@ -328,7 +362,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'flavor-tree-vista-4',
       type: 'message',
-      text: TREE_VISTA_TEXT,
+      text: TREE_CLIMB_VISTA_TEXTS[2],
       visuals: [treeClimbVisual],
       nextStepId: 'flavor-tree-fork-4',
     },
@@ -342,8 +376,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'flavor-tree-fall',
       type: 'message',
-      text:
-        'You fall from the tree and twist your ankle.',
+      text: TREE_FALL_TEXT,
       visuals: [treeClimbVisual],
       nextStepId: 'flavor-five-hub',
     },
@@ -672,13 +705,77 @@ export const quest002FirstNight = createQuestDefinition({
       text: "The boar misses and vanishes into the woods.",
       requireContinueTap: true,
       visuals: [wildBoarVisual],
-      nextStepId: 'night-router',
+      nextStepId: 'nightfall-wait',
     },
     {
       id: 'night-router',
       type: 'message',
-      text: 'Dusk is closing in.  You build a primitive shelter and rest for the night.',
-      completeQuest: true,
+      text: 'The sun set quickly.  It is almost impossible to see.',
+      nextStepId: 'nightfall-wait',
+    },
+    {
+      id: 'nightfall-wait',
+      type: 'choice',
+      text: 'The sun set quickly.  It is almost impossible to see.',
+      visuals: [sunsetVisual],
+      choices: [
+        {
+          id: 'q2-night-use-flask',
+          label: 'Drink from your flask',
+          nextStepId: 'nightfall-flask',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_POCKET_FLASK],
+          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_USED_FLASK],
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_USED_FLASK],
+          },
+        },
+        {
+          id: 'q2-night-use-cigarettes',
+          label: 'Smoke a cigarette',
+          nextStepId: 'nightfall-cigarettes',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_POCKET_CIGARETTES],
+          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_USED_CIGARETTES],
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_USED_CIGARETTES],
+          },
+        },
+        {
+          id: 'q2-night-use-cell-phone',
+          label: 'Check your cell phone',
+          nextStepId: 'nightfall-cell-phone',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_POCKET_CELL_PHONE],
+          disabledIfAnyFlags: [FIRST_NIGHT_FLAG_USED_CELL_PHONE],
+          effects: {
+            flagsSet: [FIRST_NIGHT_FLAG_USED_CELL_PHONE],
+          },
+        },
+        {
+          id: 'q2-night-wait-morning',
+          label: 'Wait here until morning.',
+          completeQuest: true,
+        },
+      ],
+    },
+    {
+      id: 'nightfall-flask',
+      type: 'message',
+      text: 'You drink yourself to sleep and wake to the sound of morning birds.',
+      visuals: [sunsetVisual],
+      nextStepId: 'nightfall-wait',
+    },
+    {
+      id: 'nightfall-cigarettes',
+      type: 'message',
+      text: 'The forest at night was terrifying, but at least you had some cigarettes.  You stayed awake all night.',
+      visuals: [sunsetVisual],
+      nextStepId: 'nightfall-wait',
+    },
+    {
+      id: 'nightfall-cell-phone',
+      type: 'message',
+      text: 'You took comfort in your phone but you fretted about your battery.  You were afraid the light would draw attention to you so you kept it off most of the night.',
+      visuals: [sunsetVisual],
+      nextStepId: 'nightfall-wait',
     },
   ],
 });

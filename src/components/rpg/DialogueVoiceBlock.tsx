@@ -3,8 +3,10 @@ import { publicAsset } from '@/lib/publicAsset';
 import { getQuestImageSrcForTitle } from './rpgArtAssignments';
 import { questVisualImageClassName } from './questVisualImage';
 import type { DialogueVoice } from './dialogueFormat';
-import { PLAYER_ACTION_SPEAKER } from './dialogueFormat';
+import { isCharacterUpdateSpeaker, PLAYER_ACTION_SPEAKER } from './dialogueFormat';
 import { isReportInfographicTitle } from './dialogueFormat';
+import { CharacterUpdateLine } from './CharacterUpdateLine';
+import { PlayerNameInText } from './PlayerNameInText';
 import {
   RPG_UI_BODY,
   RPG_UI_EMPHASIS,
@@ -82,10 +84,13 @@ export function DialogueVoiceBlock({
   role,
   lines,
   presentation = 'chronicle',
+  playerName = '',
 }: {
   role: DialogueVoice;
   lines: DialogueLogEntry[];
   presentation?: 'play' | 'chronicle';
+  /** Logged-in character name — highlights real-player references in prose. */
+  playerName?: string;
 }) {
   const narratorClasses = presentation === 'play' ? RPG_UI_LOG_LINE : DIALOGUE_NARRATOR_CLASSES;
   const narratorPromptClasses =
@@ -99,10 +104,20 @@ export function DialogueVoiceBlock({
         <div className={presentation === 'play' ? 'rpg-panel rounded-sm px-2 py-1.5' : 'space-y-1.5'}>
           {lines.map((line) => (
             <p key={line.id} className={narratorPromptClasses}>
-              {line.text}
+              <PlayerNameInText text={line.text} playerName={playerName} />
             </p>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (role === 'character_update') {
+    return (
+      <div className="character-update-voice space-y-1 py-0.5">
+        {lines.map((line) => (
+          <CharacterUpdateLine key={line.id} line={line} playerName={playerName} presentation={presentation} />
+        ))}
       </div>
     );
   }
@@ -113,7 +128,7 @@ export function DialogueVoiceBlock({
         <div className="space-y-1">
           {lines.map((line) => (
             <p key={line.id} className={narratorClasses}>
-              {line.text}
+              <PlayerNameInText text={line.text} playerName={playerName} />
             </p>
           ))}
         </div>
@@ -202,7 +217,7 @@ export function DialogueVoiceBlock({
       <div className="space-y-1 py-0.5">
         {lines.map((line) => (
           <p key={line.id} className={bodyClass}>
-            {line.text}
+            <PlayerNameInText text={line.text} playerName={playerName} />
           </p>
         ))}
       </div>
@@ -220,11 +235,17 @@ export function DialogueVoiceBlock({
         {lines.map((line) => (
           <div key={line.id}>
             {line.speaker === PLAYER_ACTION_SPEAKER || line.speaker === 'You' ? (
-              <p className={playerBodyClasses}>{line.text}</p>
+              <p className={playerBodyClasses}>
+                <PlayerNameInText text={line.text} playerName={playerName} />
+              </p>
+            ) : isCharacterUpdateSpeaker(line.speaker) ? (
+              <p className={playerBodyClasses}>
+                <PlayerNameInText text={line.text} playerName={playerName} />
+              </p>
             ) : (
               <p className={playerBodyClasses}>
                 <span className="font-medium text-[var(--candle-flame-soft)]">{line.speaker}: </span>
-                {line.text}
+                <PlayerNameInText text={line.text} playerName={playerName} />
               </p>
             )}
           </div>

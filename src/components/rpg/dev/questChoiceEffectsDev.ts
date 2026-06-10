@@ -1,6 +1,6 @@
 import type { ChoiceEffect, ModifierMap, QuestChoice } from '../quests/types';
 
-function formatModifierMap(map: ModifierMap | undefined): string | null {
+export function formatModifierMap(map: ModifierMap | undefined): string | null {
   if (!map) return null;
   const entries = Object.entries(map).filter(([, v]) => typeof v === 'number' && Number.isFinite(v));
   if (entries.length === 0) return null;
@@ -13,7 +13,19 @@ function pushIf(lines: string[], label: string, value: string | null | undefined
   lines.push(`${label}: ${value}`);
 }
 
-/** Dev-only lines describing one quest choice's flags, modifiers, and routing. */
+/** Dev-only lines describing modifiers, stackable items, and quest-item grants on a choice. */
+export function formatQuestChoiceModifierDevLines(choice: QuestChoice): string[] {
+  const lines: string[] = [];
+  const fx: ChoiceEffect | undefined = choice.effects;
+  if (fx?.modifiersDelta) pushIf(lines, 'modifiersDelta', formatModifierMap(fx.modifiersDelta));
+  if (fx?.questItemsAdd?.length) pushIf(lines, 'questItemsAdd', fx.questItemsAdd.join(', '));
+  if (choice.disabledUnlessModifiersAtLeast) {
+    pushIf(lines, 'requires', formatModifierMap(choice.disabledUnlessModifiersAtLeast));
+  }
+  return lines;
+}
+
+/** Dev-only lines describing flags, routing, and non-modifier choice effects. */
 export function formatQuestChoiceDevLines(choice: QuestChoice): string[] {
   const lines: string[] = [];
   const fx: ChoiceEffect | undefined = choice.effects;
@@ -27,9 +39,7 @@ export function formatQuestChoiceDevLines(choice: QuestChoice): string[] {
     );
   }
 
-  if (fx?.modifiersDelta) pushIf(lines, 'modifiersDelta', formatModifierMap(fx.modifiersDelta));
   if (fx?.flagsSet?.length) pushIf(lines, 'flagsSet', fx.flagsSet.join(', '));
-  if (fx?.questItemsAdd?.length) pushIf(lines, 'questItemsAdd', fx.questItemsAdd.join(', '));
   if (fx?.assignRaceFromRaceModifiers) lines.push('assignRaceFromRaceModifiers');
   if (fx?.clearActiveQuest) lines.push('clearActiveQuest');
   if (fx?.setCurrentLocation) pushIf(lines, 'setCurrentLocation', fx.setCurrentLocation);
@@ -47,9 +57,6 @@ export function formatQuestChoiceDevLines(choice: QuestChoice): string[] {
   if (choice.enabledIfAnyFlags?.length) {
     pushIf(lines, 'enabledIfAnyFlags', choice.enabledIfAnyFlags.join(', '));
   }
-  if (choice.disabledUnlessModifiersAtLeast) {
-    pushIf(lines, 'disabledUnlessModifiersAtLeast', formatModifierMap(choice.disabledUnlessModifiersAtLeast));
-  }
   if (choice.disabledLabel !== undefined) {
     pushIf(lines, 'disabledLabel', JSON.stringify(choice.disabledLabel));
   }
@@ -60,7 +67,7 @@ export function formatQuestChoiceDevLines(choice: QuestChoice): string[] {
     pushIf(lines, 'journalSummaryLineAdd', choice.journalSummaryLineAdd);
   }
 
-  if (lines.length === 0) lines.push('(no modifiers, flags, or routing)');
+  if (lines.length === 0) lines.push('(no flags or routing)');
   return lines;
 }
 

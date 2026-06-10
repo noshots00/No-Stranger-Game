@@ -1637,7 +1637,7 @@ export const getCurrentStep = (state: QuestState, quest: QuestDefinition): Quest
   const progress = state.progressByQuestId[quest.id];
   let stepId = progress?.currentStepId ?? resolveQuestEntryStepId(quest, state);
   if (quest.id === QUEST_FIRST_NIGHT_ID && !quest.steps[stepId]) {
-    stepId = 'night-router';
+    stepId = 'nightfall-wait';
   }
   if (!quest.steps[stepId]) {
     stepId = quest.startStepId;

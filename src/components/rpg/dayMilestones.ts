@@ -1,4 +1,8 @@
 import { QUEST_ORIGIN_ID, WORLD_EVENT_PRINTS_ENABLED } from '@/components/rpg/constants';
+import {
+  formatCharacterLevelUpdateLine,
+  formatNameUpdateLine,
+} from './characterUpdates';
 import { getCharacterLevel } from './quests/engine';
 import { appendUniqueWorldEntries } from './helpers';
 import type { QuestState } from './quests/types';
@@ -11,17 +15,12 @@ export function formatDayBeginsLine(day: number): string {
   return `Day ${day} begins`;
 }
 
-function displayName(playerName: string): string {
-  const trimmed = playerName.trim();
-  return trimmed.length > 0 ? trimmed : 'Stranger';
-}
-
 export function formatNameMilestoneLine(playerName: string): string {
-  return `Your name is ${displayName(playerName)}.`;
+  return formatNameUpdateLine(playerName);
 }
 
-export function formatReachedLevelMilestoneLine(playerName: string, level: number): string {
-  return `${displayName(playerName)} reached level ${level}.`;
+export function formatReachedLevelMilestoneLine(level: number): string {
+  return formatCharacterLevelUpdateLine(level);
 }
 
 export function appendWorldMilestone(state: QuestState, text: string): QuestState {
@@ -79,7 +78,7 @@ export function applyQuestLevelMilestoneIfNeeded(
   if (completedQuestId === QUEST_ORIGIN_ID) {
     lines.push(formatNameMilestoneLine(next.playerName));
   }
-  lines.push(formatReachedLevelMilestoneLine(next.playerName, nextLevel));
+  lines.push(formatReachedLevelMilestoneLine(nextLevel));
 
   return appendJournalPlayMilestones(next, completedQuestId, lines);
 }

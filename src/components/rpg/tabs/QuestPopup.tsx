@@ -27,7 +27,13 @@ import {
   QUEST_NARRATOR_PROMPT_SPEAKER,
 } from '../dialogueFormat';
 import { QuestChoiceEffectsHint } from '../dev/QuestChoiceEffectsHint';
-import { formatChoiceStepDevLines, formatQuestChoiceDevLines } from '../dev/questChoiceEffectsDev';
+import { QuestChoiceModifiersHint } from '../dev/QuestChoiceModifiersHint';
+import { PlayerNameInText } from '../PlayerNameInText';
+import {
+  formatChoiceStepDevLines,
+  formatQuestChoiceDevLines,
+  formatQuestChoiceModifierDevLines,
+} from '../dev/questChoiceEffectsDev';
 import { QUEST_TRANSITION_MS } from '../constants';
 import { useChoicePaneScrollFallback } from '../quest-scene/useQuestSceneChoiceOverflow';
 
@@ -58,7 +64,9 @@ type QuestPopupProps = {
   onQuestChoiceVisualPhase?: (phase: 'start' | 'end') => void;
   /** Inline play feed: keep dialogue + options scrolled into view after layout changes. */
   onSnapPlayFeedBottom?: () => void;
-  /** Dev: show modifiersDelta / flagsSet / gating on each choice line. */
+  /** Dev: show modifiersDelta on each choice line. */
+  showQuestChoiceModifiers?: boolean;
+  /** Dev: show flagsSet / routing on each choice line. */
   showQuestChoiceEffects?: boolean;
 };
 
@@ -136,6 +144,7 @@ export function QuestPopup({
   questTranscript,
   questProgress,
   onQuestChoiceVisualPhase,
+  showQuestChoiceModifiers = false,
   showQuestChoiceEffects = false,
 }: QuestPopupProps) {
   const playerFlagSet = new Set(playerFlags);
@@ -301,7 +310,9 @@ export function QuestPopup({
                 role === 'neutral' && 'text-sm text-[var(--candle-ink-soft)]'
               )}
             >
-              {entry.text}
+              {entry.text.length > 0 ? (
+                <PlayerNameInText text={entry.text} playerName={committedPlayerName} />
+              ) : null}
             </p>
           );
         })
@@ -396,6 +407,7 @@ export function QuestPopup({
                     >
                       <span className={RPG_DIALOG_CHOICE_LABEL}>{renderedLabel}</span>
                     </button>
+                    {showQuestChoiceModifiers ? <QuestChoiceModifiersHint choice={choice} /> : null}
                     {showQuestChoiceEffects ? <QuestChoiceEffectsHint choice={choice} /> : null}
                   </li>
                 );
@@ -404,10 +416,27 @@ export function QuestPopup({
           </div>
         ) : null}
 
+        {step.type === 'inventoryPick' &&
+        showQuestChoiceModifiers &&
+        (step.effects?.modifiersDelta || step.effects?.questItemsAdd?.length) ? (
+          <div className="mb-2 rounded border border-emerald-500/30 bg-emerald-950/35 px-2 py-1 font-mono text-[0.625rem] text-emerald-100/90">
+            <ul className="list-none space-y-0.5">
+              {formatQuestChoiceModifierDevLines({
+                id: 'inventoryPick',
+                label: step.submitLabel,
+                nextStepId: step.nextStepId,
+                effects: step.effects,
+              }).map((line) => (
+                <li key={line} className="break-words">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {step.type === 'inventoryPick' && showQuestChoiceEffects && step.effects ? (
           <div className="mb-2 rounded border border-amber-500/25 bg-amber-950/30 px-2 py-1 font-mono text-[0.625rem] text-amber-100/80">
-            <p className="text-[0.6rem] uppercase tracking-[0.08em] text-amber-200/70">step {step.id}</p>
-            <ul className="mt-0.5 list-none space-y-0.5">
+            <ul className="list-none space-y-0.5">
               {formatQuestChoiceDevLines({
                 id: 'inventoryPick',
                 label: step.submitLabel,

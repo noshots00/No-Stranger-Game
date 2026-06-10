@@ -22,7 +22,12 @@ import {
   QUEST_SCENE_RESPONSE,
 } from '../typography/rpgDialogTypography';
 import { QuestChoiceEffectsHint } from '../dev/QuestChoiceEffectsHint';
-import { formatChoiceStepDevLines, formatQuestChoiceDevLines } from '../dev/questChoiceEffectsDev';
+import { QuestChoiceModifiersHint } from '../dev/QuestChoiceModifiersHint';
+import {
+  formatChoiceStepDevLines,
+  formatQuestChoiceDevLines,
+  formatQuestChoiceModifierDevLines,
+} from '../dev/questChoiceEffectsDev';
 import {
   choiceDisabledSuffix,
   choiceIsVisible,
@@ -55,6 +60,7 @@ export type QuestSceneScreenProps = {
   onInventoryPickSubmit?: (itemLabel: string) => void;
   onAdvanceQuestMessage?: () => void;
   onDismissQuestScene?: () => void;
+  showQuestChoiceModifiers?: boolean;
   showQuestChoiceEffects?: boolean;
   questState: QuestState;
   onPlayerHealthChange?: (health: number) => void;
@@ -77,6 +83,7 @@ export function QuestSceneScreen({
   onInventoryPickSubmit,
   onAdvanceQuestMessage,
   onDismissQuestScene,
+  showQuestChoiceModifiers = false,
   showQuestChoiceEffects = false,
   questState,
   onPlayerHealthChange,
@@ -250,6 +257,7 @@ export function QuestSceneScreen({
                       className={cn(spanFull && 'quest-scene-choice-span-full')}
                     >
                       {renderChoiceButton(choice, renderedLabel, lock.isLocked)}
+                      {showQuestChoiceModifiers ? <QuestChoiceModifiersHint choice={choice} /> : null}
                       {showQuestChoiceEffects ? <QuestChoiceEffectsHint choice={choice} /> : null}
                     </li>
                   );
@@ -272,10 +280,27 @@ export function QuestSceneScreen({
             </button>
           ) : null}
 
+          {step.type === 'inventoryPick' &&
+          showQuestChoiceModifiers &&
+          (step.effects?.modifiersDelta || step.effects?.questItemsAdd?.length) ? (
+            <div className="mb-1 rounded border border-emerald-500/30 bg-emerald-950/35 px-1.5 py-0.5 font-mono text-[0.5625rem] text-emerald-100/90">
+              <ul className="list-none space-y-0.5">
+                {formatQuestChoiceModifierDevLines({
+                  id: 'inventoryPick',
+                  label: step.submitLabel,
+                  nextStepId: step.nextStepId,
+                  effects: step.effects,
+                }).map((line) => (
+                  <li key={line} className="break-words">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {step.type === 'inventoryPick' && showQuestChoiceEffects && step.effects ? (
             <div className="mb-1 rounded border border-amber-500/25 bg-amber-950/30 px-1.5 py-0.5 font-mono text-[0.5625rem] text-amber-100/80">
-              <p className="text-[0.55rem] uppercase tracking-[0.08em] text-amber-200/70">step {step.id}</p>
-              <ul className="mt-0.5 list-none space-y-0.5">
+              <ul className="list-none space-y-0.5">
                 {formatQuestChoiceDevLines({
                   id: 'inventoryPick',
                   label: step.submitLabel,

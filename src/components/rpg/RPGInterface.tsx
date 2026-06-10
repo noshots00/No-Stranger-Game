@@ -63,6 +63,7 @@ import {
   DAY_IN_MS,
   DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY,
   DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY,
+  DEV_SHOW_QUEST_CHOICE_MODIFIERS_STORAGE_KEY,
   DEV_USE_QUEST_POPUP_STORAGE_KEY,
   DEV_UNLOCK_ALL_QUESTS_STORAGE_KEY,
   HIDDEN_LOCATION_ACTIONS,
@@ -104,7 +105,7 @@ import {
   reconcileForestSessionDay,
   stageInSessionDayAdvanceAfterMainQuest,
 } from './dayPacing';
-import { applyQuestLevelMilestoneIfNeeded } from './dayMilestones';
+import { appendCharacterUpdateDialogue } from './characterUpdates';
 import {
   dialogueLinesForPlayFeed,
   journalLinesForPlayFeed,
@@ -130,9 +131,13 @@ import { useQuestState } from './hooks/useQuestState';
 import { useDayCounter } from './hooks/useDayCounter';
 import { useSocialQueries } from './hooks/useSocialQueries';
 import { useGameRelayHealth } from '@/hooks/useGameRelayHealth';
-import { DevTimeToolsPanel } from './dev/DevTimeToolsPanel';
+import { DevToolsControlPanel } from './dev/DevToolsControlPanel';
+import { DevToolsPanelContent } from './dev/DevToolsPanelContent';
 import { DEV_COIN_STIPEND_DELTA } from './dev/devEconomy';
 import { GameRelayStatusOverlay } from './dev/GameRelayStatusOverlay';
+import { QuestDevRailPanel } from './dev/QuestDevRailPanel';
+import { useDevToolsPanels } from './dev/useDevToolsPanels';
+import { getQuestCardRows } from './journal/questCardRows';
 import { QuestCheckpointRestoreDialog } from './dev/QuestCheckpointRestoreDialog';
 import { questCheckpointDisplayDay, type QuestCheckpointRecord } from './gameProfile';
 import {
@@ -281,7 +286,7 @@ function finishMayorQuestIfInProgress(
   };
   merged = mergeJournalRecapOnQuestComplete(prev, merged, mayorQuest);
   merged = appendJournalRecapEntry(merged, QUEST_MAYOR_ID, votePrint, { replaceText: true });
-  merged = applyQuestLevelMilestoneIfNeeded(prev, merged, QUEST_MAYOR_ID);
+  merged = appendCharacterUpdateDialogue(prev, merged);
   merged = mergeDiscoveryUnveils(merged, QUEST_MAYOR_ID, resolveDisplayDay(merged, dayCounter));
   return merged;
 }
@@ -345,6 +350,7 @@ export function RPGInterface() {
   /** Play-tab New badges clear once the player opens that quest card. */
   const [acknowledgedNewQuestIds, setAcknowledgedNewQuestIds] = useState<string[]>([]);
   const [showModifierDetails, setShowModifierDetails] = useState(false);
+  const [showQuestChoiceModifiers, setShowQuestChoiceModifiers] = useState(false);
   const [showQuestChoiceEffects, setShowQuestChoiceEffects] = useState(false);
   const [devUnlockAllQuests, setDevUnlockAllQuests] = useState(false);
   const [useQuestPopupFallback, setUseQuestPopupFallback] = useState(false);
@@ -405,6 +411,11 @@ export function RPGInterface() {
   }, []);
 
   useEffect(() => {
+    const raw = localStorage.getItem(DEV_SHOW_QUEST_CHOICE_MODIFIERS_STORAGE_KEY);
+    if (raw === '1') setShowQuestChoiceModifiers(true);
+  }, []);
+
+  useEffect(() => {
     const raw = localStorage.getItem(DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY);
     if (raw === '1') setShowQuestChoiceEffects(true);
   }, []);
@@ -412,6 +423,10 @@ export function RPGInterface() {
   useEffect(() => {
     localStorage.setItem(DEV_SHOW_MODIFIER_DETAILS_STORAGE_KEY, showModifierDetails ? '1' : '0');
   }, [showModifierDetails]);
+
+  useEffect(() => {
+    localStorage.setItem(DEV_SHOW_QUEST_CHOICE_MODIFIERS_STORAGE_KEY, showQuestChoiceModifiers ? '1' : '0');
+  }, [showQuestChoiceModifiers]);
 
   useEffect(() => {
     localStorage.setItem(DEV_SHOW_QUEST_CHOICE_EFFECTS_STORAGE_KEY, showQuestChoiceEffects ? '1' : '0');
@@ -566,7 +581,8 @@ export function RPGInterface() {
   const handleMerchantApplyModifiers = useCallback(
     (delta: ModifierMap) => {
       setQuestState((prev) => {
-        const next = applyDirectModifiersDelta(prev, delta);
+        const withDelta = applyDirectModifiersDelta(prev, delta);
+        const next = appendCharacterUpdateDialogue(prev, withDelta);
         if (next !== prev) {
           window.queueMicrotask(() => void persistQuestCheckpoint(next));
         }
@@ -666,6 +682,8 @@ export function RPGInterface() {
     toast({ title: 'Developer tools enabled' });
   }, [toast]);
   const showHeaderDevTools = import.meta.env.DEV || devHeaderToolsFromStorage;
+  const { railsOpen, panels: devToolPanels, setRailsOpen, setPanelEnabled } =
+    useDevToolsPanels(showHeaderDevTools);
   const relayHealthQuery = useGameRelayHealth();
   const [devToolsMenuOpen, setDevToolsMenuOpen] = useState(false);
   const [relayHealthFlyoutOpen, setRelayHealthFlyoutOpen] = useState(false);
@@ -765,86 +783,6 @@ export function RPGInterface() {
     [restoreQuestCheckpoint, toast, queryClient, user?.pubkey]
   );
 
-  const headerDevPanel = useMemo(() => {
-    if (!showHeaderDevTools) return null;
-    return (
-      <div className="flex flex-col gap-2 font-serif text-xs text-[var(--candle-ink)]">
-        <div>
-          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">Quest</p>
-          <div className="flex flex-col gap-1.5">
-            <select
-              className="max-w-full rounded border border-[var(--candle-rule)] bg-black/30 px-2 py-1 text-[0.7rem] text-[var(--candle-ink)]"
-              value={devQuestSelection}
-              onChange={(e) => setDevQuestSelection(e.target.value)}
-            >
-              {orderedQuestsForDev.map((q) => (
-                <option
-                  key={q.id}
-                  value={q.id}
-                  style={{ color: completedQuestIds.includes(q.id) ? '#111111' : '#8b8b8b' }}
-                >
-                  {q.title} ({q.id})
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                className="rounded border border-amber-500/50 bg-amber-500/15 px-2 py-1.5 text-[0.7rem] font-medium text-[var(--candle-ink)] hover:bg-amber-500/25"
-                onClick={() => handleDevRestartFromQuest(devQuestSelection)}
-                disabled={!devQuestSelection}
-              >
-                Restart from
-              </button>
-              <button
-                type="button"
-                className="rounded border border-[var(--candle-wax)]/40 bg-[var(--candle-flame)]/20 px-2 py-1.5 text-[0.7rem] font-medium text-[var(--candle-ink)] hover:bg-[var(--candle-flame)]/30"
-                onClick={() => handleDevTestQuest(devQuestSelection)}
-                disabled={!devQuestSelection}
-              >
-                Test
-              </button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">Play</p>
-          <label className="flex cursor-pointer items-start gap-2 rounded border border-[var(--candle-rule)]/60 bg-black/25 px-2 py-1.5">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={showQuestChoiceEffects}
-              onChange={(e) => setShowQuestChoiceEffects(e.target.checked)}
-            />
-            <span className="text-[0.7rem] leading-snug text-[var(--candle-ink-soft)]">
-              Show choice modifiers &amp; flags
-            </span>
-          </label>
-        </div>
-        <div>
-          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.12em] text-[var(--candle-ink-soft)]">
-            Save
-          </p>
-          <button
-            type="button"
-            className="w-full rounded border border-[var(--candle-rule)]/70 bg-black/25 px-2 py-1.5 text-left text-[0.7rem] text-[var(--candle-ink-soft)] hover:bg-black/40 hover:text-[var(--candle-wax)]"
-            onClick={() => setCheckpointRestoreOpen(true)}
-          >
-            Restore kind 10032 checkpoint…
-          </button>
-        </div>
-      </div>
-    );
-  }, [
-    showHeaderDevTools,
-    handleDevRestartFromQuest,
-    handleDevTestQuest,
-    orderedQuestsForDev,
-    devQuestSelection,
-    completedQuestIds,
-    showQuestChoiceEffects,
-  ]);
-
   const walletCopper = useMemo(() => getCopperFromModifiers(questState.modifiers), [questState.modifiers]);
   const merchantItemCounts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -894,6 +832,20 @@ export function RPGInterface() {
     [buildNewQuestIds, villageJournalQuests]
   );
   const activeStep = activeQuest ? getCurrentStep(questState, activeQuest) : null;
+  const playJournalVisibleQuests =
+    questState.currentLocation === 'Village' ? villageJournalQuests : visibleQuests;
+  const questCardRows = useMemo(
+    () => getQuestCardRows(playJournalVisibleQuests, completedQuestIds, activeQuest),
+    [playJournalVisibleQuests, completedQuestIds, activeQuest]
+  );
+  const showQuestDevRail =
+    showHeaderDevTools &&
+    railsOpen &&
+    devToolPanels.questRail &&
+    (showQuestChoiceEffects || showQuestChoiceModifiers) &&
+    activeTab === 'play' &&
+    questCardRows.length > 0 &&
+    !(questState.currentLocation === 'Village' && activeVillagePanel !== null);
   const visibleLocationActions = (locationActions[questState.currentLocation] ?? []).filter(
     (action) => !HIDDEN_LOCATION_ACTIONS.has(action)
   );
@@ -986,7 +938,7 @@ export function RPGInterface() {
         if (professionPrint) {
           merged = appendJournalRecapEntry(merged, QUEST_PICK_A_JOB_ID, professionPrint, { replaceText: true });
         }
-        merged = applyQuestLevelMilestoneIfNeeded(prev, merged, QUEST_PICK_A_JOB_ID);
+        merged = appendCharacterUpdateDialogue(prev, merged);
         merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, pickJobQuest, dayCounter);
         merged = mergeDiscoveryUnveils(
           merged,
@@ -1349,6 +1301,78 @@ export function RPGInterface() {
     setQuestState,
   ]);
 
+  const hasLeftDevPanels =
+    devToolPanels.questControls ||
+    devToolPanels.timeTools ||
+    devToolPanels.highlights ||
+    devToolPanels.save;
+
+  const devToolsPanelContentProps = useMemo(
+    () => ({
+      panels: devToolPanels,
+      compact: true as const,
+      dayCounter,
+      onAdvanceDay: handleDevAdvanceDay,
+      devQuestSelection,
+      onDevQuestSelectionChange: setDevQuestSelection,
+      orderedQuestsForDev,
+      completedQuestIds,
+      onDevRestartFromQuest: handleDevRestartFromQuest,
+      onDevTestQuest: handleDevTestQuest,
+      onOpenCheckpointRestore: () => setCheckpointRestoreOpen(true),
+    }),
+    [
+      devToolPanels,
+      dayCounter,
+      handleDevAdvanceDay,
+      devQuestSelection,
+      orderedQuestsForDev,
+      completedQuestIds,
+      handleDevRestartFromQuest,
+      handleDevTestQuest,
+    ]
+  );
+
+  const devToolsChipRow = useMemo(
+    () => (
+      <DevToolsControlPanel
+        railsOpen={railsOpen}
+        onRailsOpenChange={setRailsOpen}
+        panels={devToolPanels}
+        onPanelChange={setPanelEnabled}
+        showQuestChoiceModifiers={showQuestChoiceModifiers}
+        onShowQuestChoiceModifiersChange={setShowQuestChoiceModifiers}
+        showQuestChoiceEffects={showQuestChoiceEffects}
+        onShowQuestChoiceEffectsChange={setShowQuestChoiceEffects}
+      />
+    ),
+    [
+      railsOpen,
+      devToolPanels,
+      setPanelEnabled,
+      showQuestChoiceModifiers,
+      showQuestChoiceEffects,
+    ]
+  );
+
+  const headerDevPanel = useMemo(() => {
+    if (!showHeaderDevTools) return null;
+    return (
+      <div className="space-y-2">
+        <div className="lg:hidden">{devToolsChipRow}</div>
+        {railsOpen && hasLeftDevPanels ? (
+          <DevToolsPanelContent {...devToolsPanelContentProps} />
+        ) : null}
+      </div>
+    );
+  }, [
+    showHeaderDevTools,
+    railsOpen,
+    hasLeftDevPanels,
+    devToolsPanelContentProps,
+    devToolsChipRow,
+  ]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/');
@@ -1431,7 +1455,7 @@ export function RPGInterface() {
         worldEventLog: nextState.worldEventLog,
       };
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
-      merged = applyQuestLevelMilestoneIfNeeded(prev, merged, activeQuest.id);
+      merged = appendCharacterUpdateDialogue(prev, merged);
       merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
       if (!wasCompleted && isCompleted) {
         merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
@@ -1515,7 +1539,8 @@ export function RPGInterface() {
           nextLog.push(appendDialogue(QUEST_NARRATOR_PROMPT_SPEAKER, narr, qOpts));
         }
       }
-      const merged: QuestState = { ...nextState, dialogueLog: nextLog };
+      let merged: QuestState = { ...nextState, dialogueLog: nextLog };
+      merged = appendCharacterUpdateDialogue(prev, merged);
       void persistQuestCheckpoint(merged);
       return merged;
     });
@@ -1562,7 +1587,7 @@ export function RPGInterface() {
         worldEventLog: advanced.worldEventLog,
       };
       merged = mergeJournalRecapOnQuestComplete(prev, merged, activeQuest);
-      merged = applyQuestLevelMilestoneIfNeeded(prev, merged, activeQuest.id);
+      merged = appendCharacterUpdateDialogue(prev, merged);
       merged = applyMainDailyQuestCompletionIfNeeded(prev, merged, activeQuest, dayCounter);
       if (!wasCompleted && isCompleted) {
         merged = mergeDiscoveryUnveils(merged, activeQuest.id, resolveDisplayDay(merged, dayCounter));
@@ -1625,7 +1650,7 @@ export function RPGInterface() {
         ],
       };
       let withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
-      withJournal = applyQuestLevelMilestoneIfNeeded(questState, withJournal, QUEST_ORIGIN_ID);
+      withJournal = appendCharacterUpdateDialogue(questState, withJournal);
       withJournal = mergeDiscoveryUnveils(withJournal, QUEST_ORIGIN_ID, resolveDisplayDay(withJournal, dayCounter));
       setQuestState(withJournal);
       void persistQuestCheckpoint(withJournal);
@@ -1669,7 +1694,7 @@ export function RPGInterface() {
       ],
     };
     let withJournal = mergeJournalRecapOnQuestComplete(questState, updatedState, activeQuest);
-    withJournal = applyQuestLevelMilestoneIfNeeded(questState, withJournal, activeQuest.id);
+    withJournal = appendCharacterUpdateDialogue(questState, withJournal);
     setQuestState(withJournal);
     void persistQuestCheckpoint(withJournal);
   };
@@ -1767,6 +1792,8 @@ export function RPGInterface() {
             showModifierDetails={showModifierDetails}
             showDevTools={showHeaderDevTools}
             onShowModifierDetailsChange={setShowModifierDetails}
+            showQuestChoiceModifiers={showHeaderDevTools ? showQuestChoiceModifiers : false}
+            onShowQuestChoiceModifiersChange={setShowQuestChoiceModifiers}
             showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
             onShowQuestChoiceEffectsChange={setShowQuestChoiceEffects}
             devUnlockAllQuests={devUnlockAllQuests}
@@ -1778,7 +1805,11 @@ export function RPGInterface() {
         );
       case 'chronicle':
         return (
-          <ChronicleTab chronicleSegments={chronicleSegments} chronicleDateTimeFmt={chronicleDateTimeFmt} />
+          <ChronicleTab
+            chronicleSegments={chronicleSegments}
+            chronicleDateTimeFmt={chronicleDateTimeFmt}
+            playerName={questState.playerName}
+          />
         );
       case 'social':
         return (
@@ -1820,6 +1851,7 @@ export function RPGInterface() {
               playerModifiers={questState.modifiers}
               questItems={questState.questItems}
               onInventoryPickSubmit={handleInventoryPickSubmit}
+              showQuestChoiceModifiers={showHeaderDevTools ? showQuestChoiceModifiers : false}
               showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
               onPlayerHealthChange={(health) => {
                 if (!Number.isFinite(health)) return;
@@ -1889,6 +1921,7 @@ export function RPGInterface() {
             playerModifiers={questState.modifiers}
             questItems={questState.questItems}
             onInventoryPickSubmit={handleInventoryPickSubmit}
+            showQuestChoiceModifiers={showHeaderDevTools ? showQuestChoiceModifiers : false}
             showQuestChoiceEffects={showHeaderDevTools ? showQuestChoiceEffects : false}
             questState={questState}
             onPlayerHealthChange={(health) => {
@@ -1923,22 +1956,44 @@ export function RPGInterface() {
       leftRail={
         showHeaderDevTools ? (
           <div className="space-y-2">
-            <p className="font-serif text-[0.65rem] uppercase tracking-[0.16em] text-[var(--candle-wax)]">
-              Developer tools
-            </p>
-            {headerDevPanel}
-            <DevTimeToolsPanel dayCounter={dayCounter} onAdvanceDay={handleDevAdvanceDay} />
+            <div className="sticky top-0 z-10 bg-[var(--candle-void)] pb-1">{devToolsChipRow}</div>
+            {railsOpen && hasLeftDevPanels ? (
+              <DevToolsPanelContent {...devToolsPanelContentProps} />
+            ) : null}
           </div>
         ) : undefined
       }
       rightRail={
-        showHeaderDevTools ? (
-          <GameRelayStatusOverlay
-            variant="rail"
-            snapshot={relayHealthQuery.data}
-            isFetching={relayHealthQuery.isFetching}
-            onRefresh={() => void relayHealthQuery.refetch()}
-          />
+        showHeaderDevTools && railsOpen && (devToolPanels.relay || showQuestDevRail) ? (
+          <div className="flex min-h-[calc(100dvh-2rem)] flex-col justify-between gap-2">
+            {devToolPanels.relay ? (
+              <div className="shrink-0">
+                <GameRelayStatusOverlay
+                  variant="rail"
+                  snapshot={relayHealthQuery.data}
+                  isFetching={relayHealthQuery.isFetching}
+                  onRefresh={() => void relayHealthQuery.refetch()}
+                />
+              </div>
+            ) : null}
+            {showQuestDevRail ? (
+              <div className="shrink-0 space-y-1 pb-1">
+                {questCardRows.map((quest) => (
+                  <QuestDevRailPanel
+                    key={`quest-dev-rail-${quest.id}`}
+                    quest={quest}
+                    questState={questState}
+                    activeQuestId={activeQuest?.id ?? null}
+                    activeStep={activeQuest?.id === quest.id ? activeStep : null}
+                    playerFlags={questState.flags}
+                    showFlagsRouting={showQuestChoiceEffects}
+                    showModifiers={showQuestChoiceModifiers}
+                    highlighted={playSceneQuestId === quest.id}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : undefined
       }
     >

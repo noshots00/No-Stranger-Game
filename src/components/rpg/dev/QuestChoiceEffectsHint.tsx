@@ -10,13 +10,12 @@ type QuestChoiceEffectsHintProps = {
   className?: string;
 };
 
-/** Dev overlay: modifiers / flags / routing for a single quest choice. */
+/** Dev overlay: flags / routing for a single quest choice. */
 export function QuestChoiceEffectsHint({ choice, className }: QuestChoiceEffectsHintProps) {
   const lines = formatQuestChoiceDevLines(choice);
   return (
     <div className={cn(HINT_SHELL, className)} aria-label={`Dev: ${choice.id} effects`}>
-      <p className="text-[0.6rem] uppercase tracking-[0.08em] text-amber-200/70">{choice.id}</p>
-      <ul className="mt-0.5 list-none space-y-0.5">
+      <ul className="list-none space-y-0.5">
         {lines.map((line) => (
           <li key={line} className="break-words">
             {line}

@@ -4,6 +4,8 @@ The spine of the player's journey from the Forest to the Village.
 
 This document uses a plain-speak format so the narrative can be written and reorganized without touching code. Each section maps 1:1 to a quest file; the notation below keeps branches, convergence points, and side-quest hooks visible at a glance.
 
+**At-a-glance pictogram** (one compact diagram per day, wired spine): [QUEST_TREES.md](./QUEST_TREES.md). Step-by-step narrative belongs in this document, not the pictogram.
+
 ---
 
 ## How to Read This Document

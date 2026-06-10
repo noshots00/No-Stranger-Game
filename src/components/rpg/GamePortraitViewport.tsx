@@ -36,7 +36,7 @@ function FixedSideRail({
   return (
     <aside
       className={cn(
-        'candlelit-chrome fixed top-0 z-10 hidden h-[100dvh] overflow-y-auto candlelit-scroll border-[var(--candle-rule)]/25 bg-[var(--candle-void)] px-3 py-4 lg:block',
+        'candlelit-chrome fixed top-0 z-10 hidden h-[100dvh] overflow-y-auto candlelit-scroll border-[var(--candle-rule)]/25 bg-[var(--candle-void)] px-2 py-2 lg:block',
         'w-[max(0px,calc((100vw-var(--game-portrait-width))/2))]',
         side === 'left' ? 'left-0 border-r' : 'right-0 border-l'
       )}
@@ -44,7 +44,7 @@ function FixedSideRail({
     >
       <div
         className={cn(
-          'sticky top-4 w-full max-w-[20rem]',
+          'w-full max-w-[20rem]',
           side === 'left' ? 'ml-auto' : 'mr-auto'
         )}
       >

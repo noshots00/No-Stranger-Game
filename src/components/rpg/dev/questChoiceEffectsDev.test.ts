@@ -1,26 +1,46 @@
 import { describe, expect, it } from 'vitest';
-import { formatQuestChoiceDevLines } from './questChoiceEffectsDev';
+import { formatQuestChoiceDevLines, formatQuestChoiceModifierDevLines } from './questChoiceEffectsDev';
 import type { QuestChoice } from '../quests/types';
 
-describe('formatQuestChoiceDevLines', () => {
-  it('lists modifiers and flags on a boar-style choice', () => {
-    const choice: QuestChoice = {
-      id: 'q1-origin-boar-strike',
-      label: 'Attack',
-      nextStepId: 'boar-aftermath',
+const boarChoice: QuestChoice = {
+  id: 'q1-origin-boar-strike',
+  label: 'Attack',
+  nextStepId: 'boar-aftermath',
+  effects: {
+    modifiersDelta: { WarriorClass: 1, Strength: 1 },
+    flagsSet: ['example-flag'],
+  },
+};
+
+describe('formatQuestChoiceModifierDevLines', () => {
+  it('lists modifiersDelta and quest items', () => {
+    const text = formatQuestChoiceModifierDevLines({
+      ...boarChoice,
       effects: {
-        modifiersDelta: { WarriorClass: 1, Strength: 1 },
-        flagsSet: ['example-flag'],
+        ...boarChoice.effects,
+        questItemsAdd: ['a flask'],
       },
-    };
-    const text = formatQuestChoiceDevLines(choice).join('\n');
-    expect(text).toContain('modifiersDelta: WarriorClass +1, Strength +1');
+    }).join('\n');
+    expect(text).toContain('modifiersDelta: Strength +1, WarriorClass +1');
+    expect(text).toContain('questItemsAdd: a flask');
+    expect(text).not.toContain('flagsSet');
+  });
+
+  it('returns empty when no modifiers or items', () => {
+    expect(formatQuestChoiceModifierDevLines({ id: 'q-empty', label: 'Wait' })).toEqual([]);
+  });
+});
+
+describe('formatQuestChoiceDevLines', () => {
+  it('lists flags and routing without modifiers', () => {
+    const text = formatQuestChoiceDevLines(boarChoice).join('\n');
+    expect(text).not.toContain('modifiersDelta');
     expect(text).toContain('flagsSet: example-flag');
     expect(text).toContain('nextStepId: boar-aftermath');
   });
 
   it('reports empty choices', () => {
     const lines = formatQuestChoiceDevLines({ id: 'q-empty', label: 'Wait' });
-    expect(lines).toEqual(['(no modifiers, flags, or routing)']);
+    expect(lines).toEqual(['(no flags or routing)']);
   });
 });

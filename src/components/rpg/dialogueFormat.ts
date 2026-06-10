@@ -1,4 +1,5 @@
 import type {
+  CharacterUpdateKind,
   DialogueLogEntry,
   JournalLogEntry,
   QuestDefinition,
@@ -20,6 +21,14 @@ export const NARRATOR_RESPONSE_SPEAKER = 'Narrator';
 export const JOURNAL_RECAP_SPEAKER = 'Journal recap';
 /** Speaker id for end-of-day summary blocks (grouped as `report` voice). */
 export const DAY_REPORT_SPEAKER = 'Day Report';
+/** Immediate Play-feed lines when name, level, stats, or inventory change (never shown as a label). */
+export const CHARACTER_UPDATE_SPEAKER = 'CharacterUpdate';
+/** Legacy speaker id from older saves — still grouped as character_update. */
+export const LEGACY_CHARACTER_UPDATE_SPEAKER = 'Character';
+
+export function isCharacterUpdateSpeaker(speaker: string): boolean {
+  return speaker === CHARACTER_UPDATE_SPEAKER || speaker === LEGACY_CHARACTER_UPDATE_SPEAKER;
+}
 
 /** Report-block titles (same voice as daily report) for milestone infographics. */
 export const CLASS_LOCK_REPORT_TITLE = 'Path secured';
@@ -48,6 +57,7 @@ export function dialogueHasQuestOpeningAtEnd(
 export type AppendDialogueOpts = {
   /** Set while advancing `activeQuestId` so Play can hide this block once the quest completes. */
   sourceQuestId?: string;
+  characterUpdateKind?: CharacterUpdateKind;
 };
 
 export const appendDialogue = (
@@ -62,6 +72,7 @@ export const appendDialogue = (
     text,
     atMs,
     ...(opts?.sourceQuestId !== undefined ? { sourceQuestId: opts.sourceQuestId } : {}),
+    ...(opts?.characterUpdateKind !== undefined ? { characterUpdateKind: opts.characterUpdateKind } : {}),
   };
 };
 
@@ -128,6 +139,7 @@ export function buildRaceLockDialogueLines(
 export type DialogueVoice =
   | 'narrator'
   | 'narrator_prompt'
+  | 'character_update'
   | 'dev'
   | 'player'
   | 'divider'
@@ -150,15 +162,12 @@ export type ChronicleMergedRow =
       text: string;
       visualBeat?: QuestVisualBeat;
       sourceQuestId?: string;
+      characterUpdateKind?: CharacterUpdateKind;
     }
   | { kind: 'world'; atMs: number; text: string };
 
-/** Merge dialogue + world rows by `atMs` (chronicle / play feed); tie-break: dialogue before world. */
-export function mergeDialogueAndWorldRows(
-  dialogueLines: readonly DialogueLogEntry[],
-  worldEntries: readonly WorldEventLogEntry[]
-): ChronicleMergedRow[] {
-  const dialogueRows: ChronicleMergedRow[] = dialogueLines.map((line) => ({
+function dialogueRowFromEntry(line: DialogueLogEntry): Extract<ChronicleMergedRow, { kind: 'dialogue' }> {
+  return {
     kind: 'dialogue' as const,
     atMs: line.atMs,
     id: line.id,
@@ -166,7 +175,16 @@ export function mergeDialogueAndWorldRows(
     text: line.text,
     visualBeat: line.visualBeat,
     ...(line.sourceQuestId !== undefined ? { sourceQuestId: line.sourceQuestId } : {}),
-  }));
+    ...(line.characterUpdateKind !== undefined ? { characterUpdateKind: line.characterUpdateKind } : {}),
+  };
+}
+
+/** Merge dialogue + world rows by `atMs` (chronicle / play feed); tie-break: dialogue before world. */
+export function mergeDialogueAndWorldRows(
+  dialogueLines: readonly DialogueLogEntry[],
+  worldEntries: readonly WorldEventLogEntry[]
+): ChronicleMergedRow[] {
+  const dialogueRows: ChronicleMergedRow[] = dialogueLines.map(dialogueRowFromEntry);
   const worldRows: ChronicleMergedRow[] = worldEntries.map((entry) => ({
     kind: 'world' as const,
     atMs: entry.atMs,
@@ -185,15 +203,7 @@ export function mergePlayFeedRows(
   worldEntries: readonly WorldEventLogEntry[],
   journalEntries: readonly JournalLogEntry[]
 ): ChronicleMergedRow[] {
-  const dialogueRows: ChronicleMergedRow[] = dialogueLines.map((line) => ({
-    kind: 'dialogue' as const,
-    atMs: line.atMs,
-    id: line.id,
-    speaker: line.speaker,
-    text: line.text,
-    visualBeat: line.visualBeat,
-    ...(line.sourceQuestId !== undefined ? { sourceQuestId: line.sourceQuestId } : {}),
-  }));
+  const dialogueRows: ChronicleMergedRow[] = dialogueLines.map(dialogueRowFromEntry);
   const journalRows: ChronicleMergedRow[] = journalEntries.map((j) => ({
     kind: 'dialogue' as const,
     atMs: j.atMs,
@@ -224,6 +234,7 @@ export type ChronicleSegment =
   | { type: 'dialogueBlock'; role: DialogueVoice; lines: DialogueLogEntry[] };
 
 export const dialogueVoiceRole = (speaker: string): DialogueVoice => {
+  if (isCharacterUpdateSpeaker(speaker)) return 'character_update';
   if (speaker === NARRATOR_RESPONSE_SPEAKER) return 'narrator';
   if (speaker === QUEST_NARRATOR_PROMPT_SPEAKER) return 'narrator_prompt';
   if (speaker === 'Dev Message') return 'dev';
@@ -286,6 +297,7 @@ export const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleS
         atMs: d.atMs,
         visualBeat: d.visualBeat,
         ...(d.sourceQuestId !== undefined ? { sourceQuestId: d.sourceQuestId } : {}),
+        ...(d.characterUpdateKind !== undefined ? { characterUpdateKind: d.characterUpdateKind } : {}),
       });
       i += 1;
     }

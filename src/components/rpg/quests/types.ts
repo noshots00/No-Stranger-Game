@@ -216,6 +216,9 @@ export type QuestProgress = {
   modifiersAtQuestOpen?: ModifierMap;
 };
 
+/** Play-feed styling for immediate character sheet change lines. */
+export type CharacterUpdateKind = 'player_name' | 'character_level';
+
 export type DialogueLogEntry = {
   id: string;
   /** Story voices include `Narrator` (reply / outcome) and `NarratorPrompt` (choice framing). */
@@ -229,6 +232,8 @@ export type DialogueLogEntry = {
    * Chronicle still uses full `dialogueLog`.
    */
   sourceQuestId?: string;
+  /** When speaker is CHARACTER_UPDATE_SPEAKER — drives targeted Play feed styling. */
+  characterUpdateKind?: CharacterUpdateKind;
 };
 
 export type WorldEventLogEntry = {

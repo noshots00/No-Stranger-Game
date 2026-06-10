@@ -45,6 +45,8 @@ export function useCarlDoorTalk({
   });
 
   const combat = { isCombatMode, startCombat, resetCombat, ...combatRest };
+  const resetCombatRef = useRef(resetCombat);
+  resetCombatRef.current = resetCombat;
 
   const doorApproachKey = playerFlags.includes(DOOR_APPROACH_YELL_FLAG)
     ? 'yell'
@@ -55,11 +57,11 @@ export function useCarlDoorTalk({
         : 'default';
 
   useEffect(() => {
-    resetCombat();
+    resetCombatRef.current();
     setTranscript(seedCarlOpeningTranscript(playerFlags));
     setAskedDoor(false);
     setAskedSelf(false);
-  }, [stepId, doorApproachKey, resetCombat]);
+  }, [stepId, doorApproachKey]);
 
   useLayoutEffect(() => {
     if (isCombatMode) return;

@@ -44,6 +44,8 @@ import { useCarlDoorTalk } from './useCarlDoorTalk';
 
 import { useShannonTalk, type ShannonChoice } from './useShannonTalk';
 
+import { useSkeletonEncounterTalk } from './useSkeletonEncounterTalk';
+
 
 
 type QuestSceneNpcTalkProps = {
@@ -144,6 +146,34 @@ export function QuestSceneNpcTalk({
 
 
 
+  if (npcTalkId === 'skeleton') {
+
+    return (
+
+      <QuestSceneSkeletonTalk
+
+        quest={quest}
+
+        step={step}
+
+        questState={questState}
+
+        onPlayerHealthChange={onPlayerHealthChange}
+
+        onCombatChromeChange={onCombatChromeChange}
+
+        onCombatComplete={() => onStepChoice('skeleton-after-combat')}
+
+        actionBoxRef={actionBoxRef}
+
+      />
+
+    );
+
+  }
+
+
+
   return null;
 
 }
@@ -226,6 +256,16 @@ function QuestSceneCarlTalk({
 
         displayName={combat.displayName}
 
+        playerLabel={combat.playerLabel}
+
+        playerPortraitSrc={combat.playerPortraitSrc}
+
+        playerPortraitAlt={combat.playerPortraitAlt}
+
+        enemyPortraitSrc={combat.enemyPortraitSrc}
+
+        enemyPortraitAlt={combat.enemyPortraitAlt}
+
         combatLog={combat.combatLog}
 
         logEndRef={combat.logEndRef}
@@ -241,6 +281,18 @@ function QuestSceneCarlTalk({
         onFastForward={combat.fastForward}
 
         fastForwardDisabled={combat.phase === 'entering'}
+
+        isPaused={combat.isPaused}
+
+        onTogglePause={combat.togglePause}
+
+        pauseDisabled={combat.isEnding}
+
+        resolutionOutcome={combat.resolutionOutcome}
+
+        resolutionLines={combat.resolutionLines}
+
+        onDismissResolution={combat.dismissResolution}
 
         actionBoxRef={actionBoxRef}
 
@@ -343,6 +395,186 @@ function QuestSceneCarlTalk({
           </ul>
 
         </>
+
+      }
+
+    />
+
+  );
+
+}
+
+
+
+function QuestSceneSkeletonTalk({
+
+  quest,
+
+  step,
+
+  questState,
+
+  onPlayerHealthChange,
+
+  onCombatChromeChange,
+
+  onCombatComplete,
+
+  actionBoxRef,
+
+}: {
+
+  quest: QuestDefinition;
+
+  step: QuestStep;
+
+  questState: QuestState;
+
+  onPlayerHealthChange?: (health: number) => void;
+
+  onCombatChromeChange?: (active: boolean) => void;
+
+  onCombatComplete: () => void;
+
+  actionBoxRef: RefObject<HTMLDivElement | null>;
+
+}) {
+
+  const openingLine = step.text.trim();
+
+  const { transcript, logEndRef, handleChoice, attackChoice, combat, isCombatMode } =
+
+    useSkeletonEncounterTalk({
+
+      stepId: step.id,
+
+      openingLine,
+
+      questState,
+
+      onPlayerHealthChange,
+
+      onCombatChromeChange,
+
+      onCombatComplete,
+
+    });
+
+
+
+  const displayName = getNpcTalkDisplayName('skeleton');
+
+  const portraitSrc = getQuestScenePortraitSrc(quest, step);
+
+  const portraitAlt = getQuestScenePortraitAlt(quest, step);
+
+  const backgroundSrc = getNpcTalkBackgroundSrc('skeleton', quest, step.id);
+
+  const currentNpcLine = getLatestNpcLine(transcript) || openingLine;
+
+
+
+  if (isCombatMode) {
+
+    return (
+
+      <QuestSceneCombat
+
+        displayName={combat.displayName}
+
+        playerLabel={combat.playerLabel}
+
+        playerPortraitSrc={combat.playerPortraitSrc}
+
+        playerPortraitAlt={combat.playerPortraitAlt}
+
+        enemyPortraitSrc={combat.enemyPortraitSrc}
+
+        enemyPortraitAlt={combat.enemyPortraitAlt}
+
+        combatLog={combat.combatLog}
+
+        logEndRef={combat.logEndRef}
+
+        playerHp={combat.playerHp}
+
+        playerMaxHp={combat.playerMaxHp}
+
+        enemyHp={combat.enemyHp}
+
+        enemyMaxHp={combat.enemyMaxHp}
+
+        onFastForward={combat.fastForward}
+
+        fastForwardDisabled={combat.phase === 'entering'}
+
+        isPaused={combat.isPaused}
+
+        onTogglePause={combat.togglePause}
+
+        pauseDisabled={combat.isEnding}
+
+        resolutionOutcome={combat.resolutionOutcome}
+
+        resolutionLines={combat.resolutionLines}
+
+        onDismissResolution={combat.dismissResolution}
+
+        actionBoxRef={actionBoxRef}
+
+      />
+
+    );
+
+  }
+
+
+
+  return (
+
+    <NpcTalkSceneLayout
+
+      displayName={displayName}
+
+      portraitSrc={portraitSrc}
+
+      portraitAlt={portraitAlt}
+
+      backgroundSrc={backgroundSrc}
+
+      currentNpcLine={currentNpcLine}
+
+      transcript={transcript}
+
+      logEndRef={logEndRef}
+
+      logAriaLabel={`Encounter with ${displayName}`}
+
+      actionBoxRef={actionBoxRef}
+
+      choicePane={
+
+        <ul className="quest-scene-choice-grid">
+
+          <li>
+
+            <button
+
+              type="button"
+
+              className={cn(QUEST_SCENE_CHOICE, 'rpg-command-chip--danger')}
+
+              onClick={() => handleChoice(attackChoice)}
+
+            >
+
+              <span className={QUEST_SCENE_CHOICE_LABEL}>{attackChoice.label}</span>
+
+            </button>
+
+          </li>
+
+        </ul>
 
       }
 
