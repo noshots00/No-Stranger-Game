@@ -2,6 +2,8 @@ import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 import type { QuestChoice } from './types';
 
+const INSTINCT_QUEST_ART =
+  'art/converted/Batch 2026-06-10_11-22-37/aerial-view-of-autumn-forest-colors.webp';
 const SUNSET_QUEST_ART = 'art/converted/sophus-jacobsen-sunset-in-the-forest-1878.webp';
 const TREE_CLIMB_ART = 'art/converted/treetops-against-sky-met-dt287184.webp';
 const WATER_STREAM_ART = 'art/converted/gustave-courbet-stream-in-the-forest-55982-museum-of-fine-arts.webp';
@@ -46,6 +48,12 @@ const wildBoarVisual = {
   src: WILD_BOAR_ART,
   alt: 'Cave painting of a wild boar',
   fit: 'contain' as const,
+};
+
+const instinctVisual = {
+  kind: 'image' as const,
+  src: INSTINCT_QUEST_ART,
+  alt: 'Aerial view of autumn forest colors',
 };
 
 const sunsetVisual = {
@@ -121,8 +129,14 @@ export const FIRST_NIGHT_FLAG_POCKET_CELL_PHONE = 'quest-002-first-night-pocket-
 export const FIRST_NIGHT_FLAG_USED_FLASK = 'quest-002-first-night-used-flask';
 export const FIRST_NIGHT_FLAG_USED_CIGARETTES = 'quest-002-first-night-used-cigarettes';
 export const FIRST_NIGHT_FLAG_USED_CELL_PHONE = 'quest-002-first-night-used-cell-phone';
+export const FIRST_NIGHT_FLAG_SKELETON_ITEM_HATCHET = 'quest-002-first-night-skeleton-item-hatchet';
+export const FIRST_NIGHT_FLAG_SKELETON_ITEM_PICKAXE = 'quest-002-first-night-skeleton-item-pickaxe';
+export const FIRST_NIGHT_FLAG_SKELETON_ITEM_HAMMER = 'quest-002-first-night-skeleton-item-hammer';
+export const FIRST_NIGHT_FLAG_SKELETON_ITEM_CHISEL = 'quest-002-first-night-skeleton-item-chisel';
 /** @deprecated Legacy saves only */
 export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
+
+const SKELETON_JOURNAL_LINE = 'You fought a shambling skeleton in the woods.';
 
 function buildFirstNightMainChoices(): QuestChoice[] {
   return [
@@ -185,7 +199,7 @@ function buildFirstNightMainChoices(): QuestChoice[] {
 
 export const quest002FirstNight = createQuestDefinition({
   id: 'quest-002-first-night',
-  title: 'Sunset',
+  title: 'Instinct',
   briefing: 'Every choice is permanent.  Choose wisely.',
   createdAt: 2,
   mainDailyQuest: true,
@@ -199,15 +213,213 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'skeleton-first-encounter',
       type: 'choice',
-      npcTalkId: 'skeleton',
-      text: 'A horrible living skeleton is shambling through the woods.',
+      text:
+        'A horrible living skeleton is shambling through the woods.\n\nIt\'s holding something in it\'s hand. Looks like a...',
       visuals: [skeletonEncounterVisual],
       choices: [
+        {
+          id: 'skeleton-item-guess-hatchet',
+          label: 'A Hatchet',
+          nextStepId: 'skeleton-item-hatchet',
+          effects: { flagsSet: [FIRST_NIGHT_FLAG_SKELETON_ITEM_HATCHET] },
+        },
+        {
+          id: 'skeleton-item-guess-pickaxe',
+          label: 'Small Pickaxe',
+          nextStepId: 'skeleton-item-pickaxe',
+          effects: { flagsSet: [FIRST_NIGHT_FLAG_SKELETON_ITEM_PICKAXE] },
+        },
+        {
+          id: 'skeleton-item-guess-hammer',
+          label: "A Blacksmith's Hammer",
+          nextStepId: 'skeleton-item-hammer',
+          effects: { flagsSet: [FIRST_NIGHT_FLAG_SKELETON_ITEM_HAMMER] },
+        },
+        {
+          id: 'skeleton-item-guess-chisel',
+          label: "A Stone Mason's Chisel",
+          nextStepId: 'skeleton-item-chisel',
+          effects: { flagsSet: [FIRST_NIGHT_FLAG_SKELETON_ITEM_CHISEL] },
+        },
+      ],
+    },
+    {
+      id: 'skeleton-item-hatchet',
+      type: 'message',
+      text: 'A hatchet.',
+      requireContinueTap: true,
+      visuals: [skeletonEncounterVisual],
+      nextStepId: 'skeleton-react',
+    },
+    {
+      id: 'skeleton-item-pickaxe',
+      type: 'message',
+      text: 'A small pickaxe.',
+      requireContinueTap: true,
+      visuals: [skeletonEncounterVisual],
+      nextStepId: 'skeleton-react',
+    },
+    {
+      id: 'skeleton-item-hammer',
+      type: 'message',
+      text: "A blacksmith's hammer.",
+      requireContinueTap: true,
+      visuals: [skeletonEncounterVisual],
+      nextStepId: 'skeleton-react',
+    },
+    {
+      id: 'skeleton-item-chisel',
+      type: 'message',
+      text: "A stone mason's chisel.",
+      requireContinueTap: true,
+      visuals: [skeletonEncounterVisual],
+      nextStepId: 'skeleton-react',
+    },
+    {
+      id: 'skeleton-react',
+      type: 'choice',
+      text: 'What do you do?',
+      visuals: [skeletonEncounterVisual],
+      choices: [
+        {
+          id: 'skeleton-react-attack',
+          label: 'Attack',
+          nextStepId: 'skeleton-act-attack',
+        },
+        {
+          id: 'skeleton-react-cast',
+          label: 'Cast a Spell',
+          nextStepId: 'skeleton-act-cast',
+        },
+        {
+          id: 'skeleton-react-hide',
+          label: 'Hide',
+          nextStepId: 'skeleton-act-hide',
+        },
+        {
+          id: 'skeleton-react-run',
+          label: 'Run',
+          nextStepId: 'skeleton-act-run',
+        },
+      ],
+    },
+    {
+      id: 'skeleton-act-attack',
+      type: 'message',
+      text: 'You engage the skeleton with a Heavy Attack.',
+      visuals: [skeletonEncounterVisual],
+      effects: { modifiersDelta: { Heavy_AttackSkill: 1 } },
+      nextStepId: 'skeleton-combat',
+    },
+    {
+      id: 'skeleton-act-cast',
+      type: 'message',
+      text: "You surprise yourself by casting a tiny spark in the skeleton's direction.",
+      visuals: [skeletonEncounterVisual],
+      effects: { modifiersDelta: { SparkSpell: 1 } },
+      nextStepId: 'skeleton-combat',
+    },
+    {
+      id: 'skeleton-act-hide',
+      type: 'message',
+      text: 'You attempt to creep behind a tree, but a snapping branch alerts the skeleton to your position.',
+      visuals: [skeletonEncounterVisual],
+      effects: { modifiersDelta: { StealthSkill: 1 } },
+      nextStepId: 'skeleton-combat',
+    },
+    {
+      id: 'skeleton-act-run',
+      type: 'message',
+      text: 'You try to run but trip instead. Terrified, you unleash a wild attack on the skeleton.',
+      visuals: [skeletonEncounterVisual],
+      effects: { modifiersDelta: { Wild_AttackSkill: 1 } },
+      nextStepId: 'skeleton-combat',
+    },
+    {
+      id: 'skeleton-combat',
+      type: 'choice',
+      text: '',
+      visuals: [skeletonEncounterVisual],
+      choices: [
+        {
+          id: 'skeleton-fight',
+          label: 'Attack',
+          combatEncounterId: 'skeleton',
+          nextStepId: 'skeleton-loot',
+        },
+      ],
+    },
+    {
+      id: 'skeleton-loot',
+      type: 'choice',
+      text: 'The skeleton collapses. You take what it was carrying.',
+      visuals: [skeletonEncounterVisual],
+      choices: [
+        {
+          id: 'skeleton-loot-hatchet',
+          label: 'Take the hatchet',
+          nextStepId: 'flavor-five',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_HATCHET],
+          effects: {
+            modifiersDelta: { 'item:hatchet': 1 },
+            questItemsAdd: ['A Hatchet'],
+          },
+          journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
+        },
+        {
+          id: 'skeleton-loot-pickaxe',
+          label: 'Take the pickaxe',
+          nextStepId: 'flavor-five',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_PICKAXE],
+          effects: {
+            modifiersDelta: { 'item:small-pickaxe': 1 },
+            questItemsAdd: ['Small Pickaxe'],
+          },
+          journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
+        },
+        {
+          id: 'skeleton-loot-hammer',
+          label: 'Take the hammer',
+          nextStepId: 'flavor-five',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_HAMMER],
+          effects: {
+            modifiersDelta: { 'item:blacksmith-hammer': 1 },
+            questItemsAdd: ["A Blacksmith's Hammer"],
+          },
+          journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
+        },
+        {
+          id: 'skeleton-loot-chisel',
+          label: 'Take the chisel',
+          nextStepId: 'flavor-five',
+          enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_CHISEL],
+          effects: {
+            modifiersDelta: { 'item:stone-mason-chisel': 1 },
+            questItemsAdd: ["A Stone Mason's Chisel"],
+          },
+          journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
+        },
+      ],
+    },
+    /** Legacy — old saves mid skeleton beat (pre two-phase flow). */
+    {
+      id: 'skeleton-legacy-combat',
+      type: 'choice',
+      text: '',
+      visuals: [skeletonEncounterVisual],
+      choices: [
+        {
+          id: 'skeleton-attack',
+          label: 'Attack',
+          combatEncounterId: 'skeleton',
+          nextStepId: 'flavor-five',
+          journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
+        },
         {
           id: 'skeleton-after-combat',
           label: 'Continue',
           nextStepId: 'flavor-five',
-          journalSummaryLineAdd: 'You fought a shambling skeleton in the woods.',
+          journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
         },
       ],
     },
@@ -218,8 +430,8 @@ export const quest002FirstNight = createQuestDefinition({
       visuals: [
         {
           kind: 'image',
-          src: SUNSET_QUEST_ART,
-          alt: 'Sunset in the winter forest',
+          src: INSTINCT_QUEST_ART,
+          alt: 'Aerial view of autumn forest colors',
         },
       ],
       choices: buildFirstNightMainChoices(),
@@ -231,8 +443,8 @@ export const quest002FirstNight = createQuestDefinition({
       visuals: [
         {
           kind: 'image',
-          src: SUNSET_QUEST_ART,
-          alt: 'Sunset in the winter forest',
+          src: INSTINCT_QUEST_ART,
+          alt: 'Aerial view of autumn forest colors',
         },
       ],
       choices: buildFirstNightMainChoices(),

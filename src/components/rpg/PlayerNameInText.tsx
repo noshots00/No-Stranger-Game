@@ -1,4 +1,9 @@
 import { Fragment, useMemo } from 'react';
+import {
+  playerNameMarkClass,
+  SHIPPED_PLAYER_NAME_VARIANT,
+  type PlayerNameHighlightVariant,
+} from './characterHighlights';
 
 type TextSegment = { kind: 'text'; value: string } | { kind: 'name'; value: string };
 
@@ -42,17 +47,24 @@ type PlayerNameInTextProps = {
   text: string;
   playerName: string;
   className?: string;
+  /** Dev preview only — compare highlight variants in prose. */
+  nameVariant?: PlayerNameHighlightVariant;
 };
 
 /** Wrap logged-in player name occurrences in `.player-name-mark`. */
-export function PlayerNameInText({ text, playerName, className }: PlayerNameInTextProps) {
+export function PlayerNameInText({
+  text,
+  playerName,
+  className,
+  nameVariant = SHIPPED_PLAYER_NAME_VARIANT,
+}: PlayerNameInTextProps) {
   const segments = useMemo(() => splitTextByPlayerName(text, playerName), [text, playerName]);
 
   return (
     <span className={className}>
       {segments.map((segment, idx) =>
         segment.kind === 'name' ? (
-          <span key={`name-${idx}`} className="player-name-mark">
+          <span key={`name-${idx}`} className={playerNameMarkClass(nameVariant)}>
             {segment.value}
           </span>
         ) : (
@@ -66,5 +78,5 @@ export function PlayerNameInText({ text, playerName, className }: PlayerNameInTe
 /** Inline player name highlight (no surrounding prose). */
 export function PlayerNameMark({ name }: { name: string }) {
   const display = name.trim() || 'Stranger';
-  return <span className="player-name-mark">{display}</span>;
+  return <span className={playerNameMarkClass()}>{display}</span>;
 }

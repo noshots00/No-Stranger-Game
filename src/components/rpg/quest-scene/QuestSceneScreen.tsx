@@ -13,6 +13,8 @@ import {
   getQuestStepImageSrc,
 } from '../rpgArtAssignments';
 import { QuestSceneNpcTalk } from './QuestSceneNpcTalk';
+import { QuestSceneCombat } from '../combat/QuestSceneCombat';
+import { useQuestSceneCombatChoice } from './useQuestSceneCombatChoice';
 import {
   QUEST_SCENE_CHOICE,
   QUEST_SCENE_CHOICE_LABEL,
@@ -148,14 +150,30 @@ export function QuestSceneScreen({
     measureKey: `${currentStepId}:${visibleChoiceCount}`,
   });
 
+  const { combatChoice, combat, handleCombatChoiceClick, isCombatMode } = useQuestSceneCombatChoice({
+    step,
+    questState,
+    onPlayerHealthChange,
+    onCombatChromeChange: handleCombatChromeChange,
+    onStepChoice,
+  });
+
   const renderChoiceButton = (choice: QuestChoice, renderedLabel: string, isLocked: boolean) => (
     <button
       type="button"
       disabled={isLocked}
       aria-disabled={isLocked || undefined}
-      className={cn(QUEST_SCENE_CHOICE, isLocked && 'cursor-not-allowed opacity-50')}
+      className={cn(
+        QUEST_SCENE_CHOICE,
+        choice.combatEncounterId && 'rpg-command-chip--danger',
+        isLocked && 'cursor-not-allowed opacity-50'
+      )}
       onClick={() => {
         if (isLocked) return;
+        if (choice.combatEncounterId) {
+          handleCombatChoiceClick(choice);
+          return;
+        }
         onStepChoice(choice.id);
       }}
     >
@@ -205,6 +223,30 @@ export function QuestSceneScreen({
           onPlayerHealthChange={onPlayerHealthChange}
           onCombatChromeChange={handleCombatChromeChange}
           onStepChoice={onStepChoice}
+          actionBoxRef={actionBoxRef}
+        />
+      ) : isCombatMode && combatChoice ? (
+        <QuestSceneCombat
+          displayName={combat.displayName}
+          playerLabel={combat.playerLabel}
+          playerPortraitSrc={combat.playerPortraitSrc}
+          playerPortraitAlt={combat.playerPortraitAlt}
+          enemyPortraitSrc={combat.enemyPortraitSrc}
+          enemyPortraitAlt={combat.enemyPortraitAlt}
+          combatLog={combat.combatLog}
+          logEndRef={combat.logEndRef}
+          playerHp={combat.playerHp}
+          playerMaxHp={combat.playerMaxHp}
+          enemyHp={combat.enemyHp}
+          enemyMaxHp={combat.enemyMaxHp}
+          onFastForward={combat.fastForward}
+          fastForwardDisabled={combat.phase === 'entering'}
+          isPaused={combat.isPaused}
+          onTogglePause={combat.togglePause}
+          pauseDisabled={combat.isEnding}
+          resolutionOutcome={combat.resolutionOutcome}
+          resolutionLines={combat.resolutionLines}
+          onDismissResolution={combat.dismissResolution}
           actionBoxRef={actionBoxRef}
         />
       ) : (

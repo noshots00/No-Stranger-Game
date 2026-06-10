@@ -1,4 +1,4 @@
-/** Short Play-tab journal recap for `quest-002-first-night` (Sunset). */
+/** Short Play-tab journal recap for `quest-002-first-night` (Instinct). */
 
 function has(history: string[], choiceId: string): boolean {
   return history.includes(choiceId);

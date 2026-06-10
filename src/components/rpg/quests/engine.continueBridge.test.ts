@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyChoice,
   autoAdvanceContinueBridgeSteps,
+  advanceQuestMessage,
   collectContinueBridgeChainTexts,
   createInitialQuestState,
   getCurrentStep,
@@ -29,9 +30,49 @@ function firstNightAtHub() {
 }
 
 describe('continue bridge message steps', () => {
-  it('starts Sunset on the skeleton encounter beat', () => {
+  it('starts Instinct on the skeleton encounter beat', () => {
     const state = startQuest(createInitialQuestState(), quest002FirstNight);
-    expect(getCurrentStep(state, quest002FirstNight).id).toBe('skeleton-first-encounter');
+    const step = getCurrentStep(state, quest002FirstNight);
+    expect(step.id).toBe('skeleton-first-encounter');
+    if (step.type === 'choice') {
+      expect(step.text).toContain('Looks like a');
+      expect(step.choices.map((c) => c.label)).toEqual([
+        'A Hatchet',
+        'Small Pickaxe',
+        "A Blacksmith's Hammer",
+        "A Stone Mason's Chisel",
+      ]);
+    }
+  });
+
+  it('stores skeleton item confirm on the react step', () => {
+    let state = startQuest(createInitialQuestState(), quest002FirstNight);
+    state = applyChoice(state, quest002FirstNight, 'skeleton-item-guess-hatchet');
+    state = advanceQuestMessage(state, quest002FirstNight)!;
+    const step = getCurrentStep(state, quest002FirstNight);
+    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
+    const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
+
+    expect(step.id).toBe('skeleton-react');
+    expect(progress?.lastBeatResponse).toContain('A hatchet.');
+    expect(bands.response).toContain('A hatchet.');
+    expect(bands.prompt).toContain('What do you do?');
+  });
+
+  it('stores skeleton attack narration and modifier on the combat step', () => {
+    let state = startQuest(createInitialQuestState(), quest002FirstNight);
+    state = applyChoice(state, quest002FirstNight, 'skeleton-item-guess-hatchet');
+    state = advanceQuestMessage(state, quest002FirstNight)!;
+    state = applyChoice(state, quest002FirstNight, 'skeleton-react-attack');
+    const step = getCurrentStep(state, quest002FirstNight);
+    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
+    const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
+
+    expect(step.id).toBe('skeleton-combat');
+    expect(progress?.lastBeatResponse).toContain('Heavy Attack');
+    expect(bands.response).toContain('Heavy Attack');
+    expect(state.modifiers['skill:heavy:attack']).toBe(1);
+    expect(state.flags).toContain('quest-002-first-night-skeleton-item-hatchet');
   });
 
   it('skips flavor-pockets and lands on pocket pick with narrative text', () => {

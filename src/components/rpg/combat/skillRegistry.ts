@@ -61,6 +61,11 @@ export function isPassiveSkill(skillId: string): boolean {
   return def?.kind === 'passive';
 }
 
+export function isSpellSkillId(skillId: string): boolean {
+  const canonical = normalizeSkillId(skillId) ?? skillId;
+  return canonical.startsWith('spell:');
+}
+
 export function getSkillLevel(fighter: FighterState, skillId: string): number {
   const canonical = normalizeSkillId(skillId) ?? skillId;
   for (const [key, level] of Object.entries(fighter.skillLevels)) {

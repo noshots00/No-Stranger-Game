@@ -1782,7 +1782,6 @@ export function RPGInterface() {
             dayPacingActive={questContext.dayPacingActive}
             guildDisplayName={guildDisplayName}
             kindredSpirits={user ? socialStats.kindredSpirits : undefined}
-            onOpenChronicle={() => setActiveTab('chronicle')}
             onLoadoutChange={(loadout: CombatLoadout) => {
               setQuestState((prev) => ({
                 ...prev,

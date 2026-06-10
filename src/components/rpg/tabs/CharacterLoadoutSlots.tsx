@@ -6,23 +6,44 @@ import {
   listOwnedWeaponOptions,
   type LoadoutOption,
 } from '../combat/loadoutHelpers';
-import { getSkillDisplayName } from '../combat/skillRegistry';
+import { getSkillDisplayName, isSpellSkillId } from '../combat/skillRegistry';
 import { formatModifierKeyForCharacterSheet } from '../helpers';
 import { ItemName } from '../items/ItemName';
 import type { QuestState } from '../quests/types';
 import { HeaderFlyout } from '../HeaderFlyout';
 import { CharacterAbilityTile } from './CharacterAbilityTile';
 import type { CharacterAbilityTileData } from '../helpers';
-import { CHAR_BODY, CHAR_STAT_LABEL } from './characterSheetTypography';
+import { CHAR_BODY } from './characterSheetTypography';
 
 type SlotKind = 'weapon' | 'other' | 'skillA' | 'skillB';
 
 const SLOT_LABEL: Record<SlotKind, string> = {
   weapon: 'Weapon',
-  other: 'Other',
+  other: 'Equipment',
   skillA: 'Skill A',
   skillB: 'Skill B',
 };
+
+const SLOT_LABEL_CLASS: Record<SlotKind, string> = {
+  weapon: 'text-[var(--loadout-slot-weapon)]',
+  other: 'text-[var(--loadout-slot-equipment)]',
+  skillA: 'text-[var(--loadout-slot-skill)]',
+  skillB: 'text-[var(--loadout-slot-skill)]',
+};
+
+function loadoutTileAccentClass(
+  kind: SlotKind,
+  tile: CharacterAbilityTileData,
+  selectedKey?: string
+): string | undefined {
+  if (tile.placeholder) {
+    return 'text-[var(--candle-ink)]';
+  }
+  if ((kind === 'skillA' || kind === 'skillB') && selectedKey && isSpellSkillId(selectedKey)) {
+    return 'text-[var(--loadout-slot-spell)]';
+  }
+  return undefined;
+}
 
 /** Match character sheet unlock threshold (see engine.ts). */
 const LOADOUT_SKILL_MIN_MAGNITUDE = 1;
@@ -92,7 +113,7 @@ function LoadoutSlotPicker({
       side="bottom"
       ariaLabel={`${SLOT_LABEL[kind]} loadout slot${selectedKey ? `: ${tile.name}` : ' (empty)'}`}
       panelClassName="max-h-48 w-48 overflow-y-auto border-[var(--candle-rule)] bg-[var(--candle-paper)] text-[var(--candle-ink)] shadow-md"
-      trigger={<CharacterAbilityTile tile={tile} />}
+      trigger={<CharacterAbilityTile tile={tile} className={loadoutTileAccentClass(kind, tile, selectedKey)} />}
     >
       <button type="button" className={menuItemClass} onClick={() => pick(undefined)}>
         (empty)
@@ -131,9 +152,8 @@ export function CharacterLoadoutSlots({ questState, onLoadoutChange }: Character
   };
 
   return (
-    <section className="space-y-1">
-      <p className={CHAR_STAT_LABEL}>Loadout</p>
-      <div className={`${CHAR_BODY} flex flex-wrap gap-2`}>
+    <section>
+      <div className={`${CHAR_BODY} flex flex-wrap justify-center gap-2`}>
         <div className="flex flex-col items-center gap-0.5">
           <LoadoutSlotPicker
             kind="weapon"
@@ -143,7 +163,7 @@ export function CharacterLoadoutSlots({ questState, onLoadoutChange }: Character
             onOpenChange={(next) => setOpenSlot(next ? 'weapon' : null)}
             onSelect={(k) => setSlot('weapon', k)}
           />
-          <span className="text-[10px] text-[var(--candle-ink-faint)]">{SLOT_LABEL.weapon}</span>
+          <span className={`text-[10px] ${SLOT_LABEL_CLASS.weapon}`}>{SLOT_LABEL.weapon}</span>
         </div>
         <div className="flex flex-col items-center gap-0.5">
           <LoadoutSlotPicker
@@ -154,7 +174,7 @@ export function CharacterLoadoutSlots({ questState, onLoadoutChange }: Character
             onOpenChange={(next) => setOpenSlot(next ? 'other' : null)}
             onSelect={(k) => setSlot('other', k)}
           />
-          <span className="text-[10px] text-[var(--candle-ink-faint)]">{SLOT_LABEL.other}</span>
+          <span className={`text-[10px] ${SLOT_LABEL_CLASS.other}`}>{SLOT_LABEL.other}</span>
         </div>
         <div className="flex flex-col items-center gap-0.5">
           <LoadoutSlotPicker
@@ -165,7 +185,7 @@ export function CharacterLoadoutSlots({ questState, onLoadoutChange }: Character
             onOpenChange={(next) => setOpenSlot(next ? 'skillA' : null)}
             onSelect={(k) => setSlot('skillA', k)}
           />
-          <span className="text-[10px] text-[var(--candle-ink-faint)]">{SLOT_LABEL.skillA}</span>
+          <span className={`text-[10px] ${SLOT_LABEL_CLASS.skillA}`}>{SLOT_LABEL.skillA}</span>
         </div>
         <div className="flex flex-col items-center gap-0.5">
           <LoadoutSlotPicker
@@ -176,7 +196,7 @@ export function CharacterLoadoutSlots({ questState, onLoadoutChange }: Character
             onOpenChange={(next) => setOpenSlot(next ? 'skillB' : null)}
             onSelect={(k) => setSlot('skillB', k)}
           />
-          <span className="text-[10px] text-[var(--candle-ink-faint)]">{SLOT_LABEL.skillB}</span>
+          <span className={`text-[10px] ${SLOT_LABEL_CLASS.skillB}`}>{SLOT_LABEL.skillB}</span>
         </div>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import type { CombatEncounterId } from '../combat/combatEncounters';
 import type { CombatLoadout } from '../combat/combatTypes';
 
 export type ModifierMap = Record<string, number>;
@@ -77,6 +78,8 @@ export type QuestChoice = {
     failStepId: string;
     probability?: number;
   };
+  /** Start this combat encounter; on victory or defeat, resolve this choice (next step, journal, etc.). */
+  combatEncounterId?: CombatEncounterId;
 };
 
 type QuestStepBase = {

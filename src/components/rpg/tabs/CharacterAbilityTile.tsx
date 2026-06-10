@@ -17,9 +17,8 @@ export function CharacterAbilityTile({ tile, className }: CharacterAbilityTilePr
     <div
       className={cn(
         TILE_CLASS,
-        tile.placeholder
-          ? 'text-[var(--candle-ink-faint)]'
-          : 'text-[var(--candle-ink)]',
+        !className &&
+          (tile.placeholder ? 'text-[var(--candle-ink-faint)]' : 'text-[var(--candle-ink)]'),
         className
       )}
       title={tile.placeholder ? `${tile.name} (placeholder)` : tile.name}

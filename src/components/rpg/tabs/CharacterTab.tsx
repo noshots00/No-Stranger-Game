@@ -46,16 +46,16 @@ import { CharacterInventoryDialog } from './CharacterInventoryDialog';
 import { CharacterLoadoutSlots } from './CharacterLoadoutSlots';
 import type { CombatLoadout } from '../combat/combatTypes';
 import {
-  CHAR_SHEET_ACTION,
   CHAR_BODY,
-  CHAR_FOOTER,
   CHAR_META_FAINT,
   CHAR_META_LABEL,
   CHAR_META_VALUE,
   CHAR_NAME,
+  CHAR_PROFILE_LINK,
   CHAR_STAT_LABEL,
   CHAR_STAT_TABLE,
   CHAR_STAT_VALUE,
+  CHAR_PROFILE_HEADER,
   CHAR_PROFILE_META,
   CHAR_SUBTITLE,
 } from './characterSheetTypography';
@@ -71,12 +71,9 @@ type CharacterTabProps = {
   guildDisplayName?: string | null;
   /** Kindred count from social layer (logged-in only). */
   kindredSpirits?: number;
-  onOpenChronicle: () => void;
   onLoadoutChange: (loadout: CombatLoadout) => void;
 } & CharacterScreenCornerControlsProps;
 
-/** Profile placeholder until guild titles ship. */
-const PROFILE_TITLE_PLACEHOLDER = 'Guild Leader';
 /** Profile placeholder until guild membership ships. */
 const PROFILE_GUILD_PLACEHOLDER = 'House Dyer';
 
@@ -184,8 +181,9 @@ function buildUnifiedSkillsText(
   return segments.length > 0 ? segments.join(', ') : null;
 }
 
-function formatProfileDayLabel(questState: QuestState, calendarDay: number): string {
-  return `Day ${resolveDisplayDay(questState, calendarDay)}`;
+function formatProfileAgeLabel(questState: QuestState, calendarDay: number): string {
+  const days = resolveDisplayDay(questState, calendarDay);
+  return `Age: ${days} ${days === 1 ? 'Day' : 'Days'}`;
 }
 
 export function CharacterTab({
@@ -195,7 +193,6 @@ export function CharacterTab({
   dayPacingActive: _dayPacingActive = true,
   guildDisplayName,
   kindredSpirits,
-  onOpenChronicle,
   onLoadoutChange,
   showModifierDetails,
   showDevTools,
@@ -496,13 +493,21 @@ export function CharacterTab({
       <div className="facsimile-scroll-dialogue-inner facsimile-scroll-dialogue-inner--character min-w-0">
         <div className="mx-auto w-full min-w-0 max-w-md space-y-2.5">
         <div className="py-0.5">
-          <div className="character-profile-card mx-auto flex w-fit items-center gap-3 rounded-md border border-[var(--candle-flame-soft)] p-1">
+          <div className="character-profile-card mx-auto flex w-fit items-start gap-1 rounded-md border border-[var(--candle-flame-soft)] p-1">
             <img
                 src={getRacePortraitSrc(questState.assignedRaceSlug)}
                 alt="Character portrait"
                 className="aspect-[200/266] w-[min(100px,32vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
               />
               <div className="flex w-44 shrink-0 flex-col gap-1.5 text-left">
+                <div className={`flex items-baseline justify-between gap-1 ${CHAR_PROFILE_HEADER}`}>
+                  <p className={`min-w-0 leading-tight ${CHAR_META_VALUE}`}>
+                    {formatProfileAgeLabel(questState, dayCounter)}
+                  </p>
+                  <p className="shrink-0 text-right leading-tight text-[var(--rpg-guild-label)]">
+                    {activeGuildName}
+                  </p>
+                </div>
                 <div className="flex flex-col gap-0.5">
                   <p className={`block break-words text-center ${CHAR_NAME}`}>
                     {questState.playerName || 'Stranger'}
@@ -516,37 +521,30 @@ export function CharacterTab({
                     Level {characterLevel} {raceMiddle} {characterClass}
                   </p>
                 </div>
-                <div className={`mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 ${CHAR_PROFILE_META}`}>
-                  <div className="flex min-w-0 flex-col gap-0.5 text-left">
-                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>
-                      {formatProfileDayLabel(questState, dayCounter)}
-                    </p>
-                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>
-                      {activeJob ? `${activeJob.displayName} Lv 1` : 'Unemployed'}
-                    </p>
-                    <p className="block leading-tight">
-                      <span className={CHAR_META_LABEL}>Coin: </span>
-                      <CoinAmountDisplay split={coinSplit} />
-                    </p>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-0.5 text-left">
-                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>{activeGuildName}</p>
-                    <p className={`block leading-tight ${CHAR_META_VALUE}`}>{PROFILE_TITLE_PLACEHOLDER}</p>
-                    <p className="block leading-tight">
-                      <span className={CHAR_META_LABEL}>Kindred: </span>
-                      {userPubkey != null && kindredSpirits !== undefined ? (
-                        <span className={`font-mono ${CHAR_META_VALUE}`}>
-                          {kindredSpirits}
-                        </span>
-                      ) : (
-                        <span className={CHAR_META_FAINT}>—</span>
-                      )}
-                    </p>
-                  </div>
+                <div className={`mt-0.5 flex min-w-0 flex-col gap-0.5 text-left ${CHAR_PROFILE_META}`}>
+                  <p className={`block leading-tight ${CHAR_META_VALUE}`}>
+                    {activeJob ? `${activeJob.displayName} Lv 1` : 'Unemployed'}
+                  </p>
+                  <p className="block leading-tight">
+                    <span className={CHAR_META_LABEL}>Coin: </span>
+                    <CoinAmountDisplay split={coinSplit} />
+                  </p>
+                  <p className="block leading-tight">
+                    <span className={CHAR_META_LABEL}>Kindred: </span>
+                    {userPubkey != null && kindredSpirits !== undefined ? (
+                      <span className={`font-mono ${CHAR_META_VALUE}`}>
+                        {kindredSpirits}
+                      </span>
+                    ) : (
+                      <span className={CHAR_META_FAINT}>—</span>
+                    )}
+                  </p>
                 </div>
               </div>
           </div>
         </div>
+
+        <CharacterLoadoutSlots questState={questState} onLoadoutChange={onLoadoutChange} />
 
         <table
           className={`w-full min-w-0 table-fixed border-collapse ${CHAR_STAT_TABLE}`}
@@ -579,8 +577,6 @@ export function CharacterTab({
           </tbody>
         </table>
 
-        <CharacterLoadoutSlots questState={questState} onLoadoutChange={onLoadoutChange} />
-
         <section className="space-y-2.5 pt-1.5" aria-label="Skills and traits">
           <CharacterAbilityTileGrid tiles={combatTiles} label="Combat skills" />
 
@@ -611,31 +607,30 @@ export function CharacterTab({
           </div>
         </section>
 
-        <div className="flex w-full justify-center pt-2">
-          <button
-            type="button"
-            onClick={onOpenChronicle}
-            className={`${CHAR_SHEET_ACTION} !w-fit !max-w-full`}
-          >
-            Chronicle
-          </button>
         </div>
+      </div>
 
-        <p className={`${CHAR_FOOTER} mt-2 pt-2 pb-0 text-center`}>
-          {profileNpub ? (
-            <a
-              href={`https://ditto.pub/${profileNpub}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[var(--candle-wax)] underline decoration-[var(--candle-rule)] underline-offset-4 transition-colors hover:decoration-[var(--candle-flame-soft)]"
-            >
-              Your Public Nostr Profile
-            </a>
-          ) : (
-            <span className="text-[var(--candle-ink-faint)]">Your Public Nostr Profile</span>
-          )}
-        </p>
-        </div>
+      <div
+        className="pointer-events-auto fixed z-30 max-w-[min(42vw,11rem)] pr-[var(--facsimile-scrollbar-width)] text-right"
+        style={{
+          right: 'max(0.5rem, env(safe-area-inset-right, 0px))',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 3.35rem)',
+        }}
+      >
+        {profileNpub ? (
+          <a
+            href={`https://ditto.pub/${profileNpub}`}
+            target="_blank"
+            rel="noreferrer"
+            className={`${CHAR_PROFILE_LINK} underline decoration-[var(--candle-rule)] underline-offset-2 transition-colors hover:decoration-[var(--candle-flame-soft)]`}
+          >
+            Your Public Nostr Profile
+          </a>
+        ) : (
+          <span className={`${CHAR_PROFILE_LINK} text-[var(--candle-ink-faint)]`}>
+            Your Public Nostr Profile
+          </span>
+        )}
       </div>
 
       <CharacterInventoryDialog

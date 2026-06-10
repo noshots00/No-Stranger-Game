@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import type { CharacterUpdateKind, DialogueLogEntry } from './quests/types';
 import { LevelGlintMark } from './LevelGlintMark';
 import { PlayerNameInText, PlayerNameMark } from './PlayerNameInText';
@@ -28,7 +27,6 @@ type CharacterUpdateLineProps = {
 };
 
 export function CharacterUpdateLine({ line, playerName, presentation = 'play' }: CharacterUpdateLineProps) {
-  const lineRef = useRef<HTMLParagraphElement>(null);
   const bodyClass = presentation === 'play' ? RPG_UI_LOG_LINE : 'font-serif text-[0.9375rem] leading-relaxed text-[var(--facsimile-narrator-ink)]';
   const kind = resolveCharacterUpdateKind(line, playerName);
 
@@ -36,7 +34,7 @@ export function CharacterUpdateLine({ line, playerName, presentation = 'play' }:
     const nameMatch = line.text.match(NAME_PHRASE_RE);
     const name = nameMatch?.[1]?.trim() || playerName.trim() || 'Stranger';
     return (
-      <p ref={lineRef} className={bodyClass}>
+      <p className={bodyClass}>
         Your name is <PlayerNameMark name={name} />.
       </p>
     );
@@ -47,15 +45,15 @@ export function CharacterUpdateLine({ line, playerName, presentation = 'play' }:
     const level = levelMatch ? Number.parseInt(levelMatch[1], 10) : null;
     if (level !== null && Number.isFinite(level)) {
       return (
-        <p ref={lineRef} className={bodyClass}>
-          You reached <LevelGlintMark level={level} lineId={line.id} revealRootRef={lineRef} />!
+        <p className={bodyClass}>
+          You reached <LevelGlintMark level={level} />
         </p>
       );
     }
   }
 
   return (
-    <p ref={lineRef} className={bodyClass}>
+    <p className={bodyClass}>
       <PlayerNameInText text={line.text} playerName={playerName} />
     </p>
   );

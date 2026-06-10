@@ -128,7 +128,9 @@ type QuestTitleArtOverride = {
 
 const QUEST_TITLE_ART_OVERRIDES: Record<string, QuestTitleArtOverride> = {
   'You find yourself in the forest.': { path: `${CONVERTED_ART}/nswoods.webp` },
-  Sunset: { path: `${CONVERTED_ART}/sophus-jacobsen-sunset-in-the-forest-1878.webp` },
+  Instinct: {
+    path: `${CONVERTED_ART}/Batch 2026-06-10_11-22-37/aerial-view-of-autumn-forest-colors.webp`,
+  },
   "Dyer's Crypt": {
     path: `${CONVERTED_ART}/monastery-graveyard-under-snow-caspar-david-friedrich.webp`,
   },

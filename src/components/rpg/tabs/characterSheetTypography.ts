@@ -10,8 +10,11 @@ export const CHAR_NAME = `${RPG_UI_EMPHASIS} text-[var(--candle-ink)]`;
 /** Tier 3: level · race · class */
 export const CHAR_SUBTITLE = RPG_UI_UI;
 
-/** Profile card: days, profession, coin, guild, title, kindred */
+/** Profile card: profession, coin, kindred */
 export const CHAR_PROFILE_META = RPG_UI_UI;
+
+/** Profile card top row: age + guild */
+export const CHAR_PROFILE_HEADER = RPG_UI_CAPTION;
 
 /** Tier 4: traits/skills / modifier columns */
 export const CHAR_BODY = RPG_UI_BODY;
@@ -32,9 +35,9 @@ export const CHAR_STAT_LABEL = `${RPG_UI_CAPTION} break-words uppercase tracking
 export const CHAR_STAT_VALUE =
   'mt-0.5 font-mono text-[9px] tabular-nums leading-none text-[var(--candle-ink)]';
 
-/** Ability tile labels */
+/** Ability tile labels — metrics only; color comes from the tile wrapper. */
 export const CHAR_TILE_NAME =
-  `line-clamp-2 ${RPG_UI_CAPTION} font-medium uppercase leading-none tracking-[0.04em]`;
+  'line-clamp-2 rpg-font-ui text-[12px] font-medium uppercase leading-none tracking-[0.04em]';
 
 export const CHAR_TILE_LEVEL = 'mt-px font-mono text-[9px] tabular-nums leading-none';
 
@@ -42,6 +45,9 @@ export const CHAR_TILE_LEVEL = 'mt-px font-mono text-[9px] tabular-nums leading-
 export const CHAR_FOOTER = RPG_UI_BODY;
 
 export const CHAR_ACTION_LINK = `${RPG_UI_BODY} text-[var(--candle-wax)]`;
+
+/** Fixed corner link on character screen (e.g. public Nostr profile). */
+export const CHAR_PROFILE_LINK = `${RPG_UI_CAPTION} leading-tight text-[var(--candle-wax)]`;
 
 /** Chronicle and sheet text actions */
 export const CHAR_SHEET_ACTION = `${RPG_COMMAND_CHIP} text-center uppercase tracking-[0.06em] text-[var(--candle-wax)]`;
