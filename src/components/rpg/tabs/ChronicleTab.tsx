@@ -1,5 +1,5 @@
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
-import { PlayerNameInText } from '../PlayerNameInText';
+import { SpellNameInText } from '../spells/SpellNameInText';
 import type { ChronicleSegment } from '../dialogueFormat';
 
 type ChronicleTabProps = {
@@ -26,7 +26,7 @@ export function ChronicleTab({ chronicleSegments, chronicleDateTimeFmt, playerNa
                   {chronicleDateTimeFmt.format(row.atMs)}
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-[var(--candle-ink-soft)]">
-                  <PlayerNameInText text={row.text} playerName={playerName} />
+                  <SpellNameInText text={row.text} playerName={playerName} />
                 </p>
               </div>
             );

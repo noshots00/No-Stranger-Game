@@ -4,6 +4,7 @@ import {
   ANCIENT_CEMETERY_LOCATION,
   FEVER_DREAM_PENDING_FLAG,
   QUEST_DYERS_CRYPT_ID,
+  QUEST_SUNSET_ID,
   SEVERE_INJURY_MAGNITUDE,
   SWEET_DREAM_PENDING_FLAG,
   WOUNDED_SHOULDER_INJURY_KEY,
@@ -26,12 +27,12 @@ import {
 import { createQuestDefinition } from './quest-authoring-tool';
 import type { QuestState } from './types';
 
-const DYERS_CRYPT_ART = 'art/converted/monastery-graveyard-under-snow-caspar-david-friedrich.webp';
+const DYERS_CRYPT_ART = 'art/converted/mushrooms.webp';
 
 const dyersCryptVisual = {
   kind: 'image' as const,
   src: DYERS_CRYPT_ART,
-  alt: 'A snow-covered graveyard and ruined abbey',
+  alt: 'A patch of mushrooms on the forest floor',
 };
 
 export const DYERS_CRYPT_MUSHROOM_EAT_1_FLAG = 'dyers-crypt-mushroom-eat-1';
@@ -66,18 +67,18 @@ export function resolveDyersCryptInitialStepId(state: QuestState): string {
 
 export const quest003DyersCrypt = createQuestDefinition({
   id: QUEST_DYERS_CRYPT_ID,
-  title: "Dyer's Crypt",
-  briefing: 'There is evil here...',
+  title: 'Another Strange Day',
+  briefing: 'Choices can have unintended consequences.',
   createdAt: 3,
   startStepId: CONTEXT_FALLBACK,
   resolveInitialStepId: resolveDyersCryptInitialStepId,
   isAvailable: makeQuestAvailability({
-    requiresAnyCompletedQuestIds: ['quest-002-first-night'],
+    requiresAnyCompletedQuestIds: [QUEST_SUNSET_ID],
     minDay: 2,
   }),
   isUnveilEligible: makeQuestUnveilEligibility(
     availabilityForSagaUnveil({
-      requiresAnyCompletedQuestIds: ['quest-002-first-night'],
+      requiresAnyCompletedQuestIds: [QUEST_SUNSET_ID],
       minDay: 2,
     })
   ),

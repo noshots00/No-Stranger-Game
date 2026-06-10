@@ -9,8 +9,8 @@
     metadata, and apply an alpha mask that combines rounded corners with a soft
     rectangular feather to transparent.
 
-  Outputs land under a per-run timestamped folder:
-    <ConvertedRoot>/Batch <yyyy-MM-dd_HH-mm-ss>/<kebab-name>.webp
+  Outputs land directly in -ConvertedRoot as:
+    <ConvertedRoot>/<kebab-name>.webp
 
   Successfully-processed sources are moved to:
     <ProcessedRoot> <yyyy-MM-dd_HH-mm-ss>/<original-name>.<ext>
@@ -79,10 +79,9 @@ if ($files.Count -eq 0) {
 }
 
 $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-$batchDir = Join-Path $ConvertedRoot ('Batch ' + $stamp)
 $processedDir = $ProcessedRoot + ' ' + $stamp
 
-New-Item -ItemType Directory -Force -Path $batchDir | Out-Null
+New-Item -ItemType Directory -Force -Path $ConvertedRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $processedDir | Out-Null
 
 $tmpDir = Join-Path ([IO.Path]::GetTempPath()) ('nsg-art-' + $stamp)
@@ -94,7 +93,7 @@ $fail = 0
 try {
   foreach ($f in $files) {
     $kebab = if ($Kebab) { ConvertTo-Kebab $f.Name } else { [IO.Path]::GetFileNameWithoutExtension($f.Name) }
-    $outFinal = Join-Path $batchDir ($kebab + '.webp')
+    $outFinal = Join-Path $ConvertedRoot ($kebab + '.webp')
     $outPart  = $outFinal + '.part'
     $tmpStage = Join-Path $tmpDir ($kebab + '.png')
 
@@ -200,5 +199,5 @@ finally {
 
 Write-Host ''
 Write-Host ('Done: ' + $ok + ' ok, ' + $fail + ' failed')
-Write-Host ('Outputs:        ' + $batchDir)
+Write-Host ('Outputs:        ' + $ConvertedRoot)
 Write-Host ('Moved sources:  ' + $processedDir)

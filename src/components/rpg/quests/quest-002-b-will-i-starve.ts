@@ -4,7 +4,7 @@ import {
   QUEST_002B_WELL_OPENED_FLAG,
   QUEST_002B_THROWN_LABEL_PREFIX,
   QUEST_002B_WELL_THREW_FLAG,
-  QUEST_FIRST_NIGHT_ID,
+  QUEST_SUNSET_ID,
 } from '../constants';
 import { makeQuestAvailability, makeQuestUnveilEligibility } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
@@ -16,7 +16,7 @@ const WELL_DESCRIPTION =
   'A ray of light shines through the usual dense canopy upon an ancient well.';
 
 const WELL_AVAILABILITY = {
-  requiresAnyCompletedQuestIds: [QUEST_FIRST_NIGHT_ID],
+  requiresAnyCompletedQuestIds: [QUEST_SUNSET_ID],
   requiresLocation: OLD_WELL_LOCATION,
 };
 

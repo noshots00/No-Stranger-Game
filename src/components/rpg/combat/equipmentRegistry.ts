@@ -1,4 +1,5 @@
 type EquipmentDef = {
+  displayName?: string;
   damageBonus?: number;
   damageReduction?: number;
   slot: 'weapon' | 'other';
@@ -7,10 +8,10 @@ type EquipmentDef = {
 const EQUIPMENT: Record<string, EquipmentDef> = {
   'item:short-sword': { slot: 'weapon', damageBonus: 2 },
   'item:iron-sword': { slot: 'weapon', damageBonus: 2 },
-  'item:hatchet': { slot: 'weapon', damageBonus: 1 },
-  'item:small-pickaxe': { slot: 'weapon', damageBonus: 1 },
-  'item:blacksmith-hammer': { slot: 'weapon', damageBonus: 1 },
-  'item:stone-mason-chisel': { slot: 'other', damageBonus: 1 },
+  'item:hatchet': { slot: 'weapon', damageBonus: 2 },
+  'item:small-pickaxe': { slot: 'weapon', damageBonus: 2 },
+  'item:blacksmith-hammer': { slot: 'weapon', damageBonus: 2, displayName: "Blacksmith's Hammer" },
+  'item:stone-mason-chisel': { slot: 'other', damageBonus: 2 },
   'item:wooden-shield': { slot: 'other', damageReduction: 1 },
   'item:leather-armor': { slot: 'other', damageReduction: 2 },
 };
@@ -18,6 +19,10 @@ const EQUIPMENT: Record<string, EquipmentDef> = {
 export function getEquipmentDef(itemKey: string | undefined): EquipmentDef | undefined {
   if (!itemKey) return undefined;
   return EQUIPMENT[itemKey];
+}
+
+export function getEquipmentDisplayLabel(itemKey: string): string | undefined {
+  return EQUIPMENT[itemKey]?.displayName;
 }
 
 export function getEquipmentDamageBonus(itemKey: string | undefined): number {

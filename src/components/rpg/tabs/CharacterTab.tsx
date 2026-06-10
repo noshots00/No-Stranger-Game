@@ -6,7 +6,6 @@ import {
   getLevelFromXp,
   resolveDisplayDay,
 } from '../quests/engine';
-import { CoinAmountDisplay } from '../CoinAmountDisplay';
 import {
   buildInventoryEntries,
   formatInjurySheetLines,
@@ -16,18 +15,15 @@ import {
   getCopperFromModifiers,
   getModifierMessageKind,
   getModifierSheetBucket,
-  getPrimaryStatTotal,
   groupSkillModifiersByCategory,
   isCombatSkillModifierKey,
   isItemModifierKey,
   isPrimaryStatCanonicalKey,
   partitionSkillGroups,
   splitCopperIntoCoins,
-  type CharacterAbilityTileData,
 } from '../helpers';
 import { JOB_REGISTRY } from '../jobs/registry';
 import {
-  characterStats,
   CLASS_UNLOCK_POINTS,
   INJURY_SHEET_UNLOCK_POINTS,
   JOB_SLUG_EXPLORER,
@@ -35,29 +31,27 @@ import {
 import type { QuestState } from '../quests/types';
 import type { ModifierSheetBucket } from '../helpers';
 import { formatUnlockedTraitsLine } from '../traitSheet';
-import { getRacePortraitSrc } from '../rpgArtAssignments';
 import { getRaceDefinition } from '../races';
 import { nip19 } from 'nostr-tools';
 import { CharacterScreenCornerControls } from './CharacterScreenCornerControls';
 import type { CharacterScreenCornerControlsProps } from './CharacterScreenCornerControls';
-import { CharacterAbilityTileGrid } from './CharacterAbilityTileGrid';
 import { ItemNameList } from '../items/ItemName';
 import { CharacterInventoryDialog } from './CharacterInventoryDialog';
-import { CharacterLoadoutSlots } from './CharacterLoadoutSlots';
+import { CHARACTER_PROFILE_CARD_SHELL, CharacterProfileCard } from './CharacterProfileCard';
 import type { CombatLoadout } from '../combat/combatTypes';
+import { CharacterSheetSkillColumn } from './CharacterSheetSkillColumn';
+import {
+  SHEET_COMBAT_SKILL_PLACEHOLDERS,
+  SHEET_PASSIVE_SKILL_PLACEHOLDERS,
+  SHEET_SPELL_PLACEHOLDERS,
+} from './characterSheetPlaceholders';
 import {
   CHAR_BODY,
   CHAR_META_FAINT,
   CHAR_META_LABEL,
   CHAR_META_VALUE,
-  CHAR_NAME,
+  CHAR_MINOR,
   CHAR_PROFILE_LINK,
-  CHAR_STAT_LABEL,
-  CHAR_STAT_TABLE,
-  CHAR_STAT_VALUE,
-  CHAR_PROFILE_HEADER,
-  CHAR_PROFILE_META,
-  CHAR_SUBTITLE,
 } from './characterSheetTypography';
 
 type CharacterTabProps = {
@@ -132,39 +126,33 @@ function partitionSheetUnlock(
   return { unlocked, locked };
 }
 
-/** Primary stat grid: three columns; extra stats append new rows. */
-const PRIMARY_STATS_COLUMNS = 3;
-
-function chunkPrimaryStatRows(stats: ReadonlyArray<readonly string[]>): string[][][] {
-  const rows: string[][][] = [];
-  for (let i = 0; i < stats.length; i += PRIMARY_STATS_COLUMNS) {
-    rows.push(stats.slice(i, i + PRIMARY_STATS_COLUMNS) as string[][]);
-  }
-  return rows;
-}
-
-const primaryStatTableRows = chunkPrimaryStatRows(characterStats);
-
-function modifierToAbilityTile(key: string, value: number): CharacterAbilityTileData {
-  return {
-    id: key,
-    name: formatModifierKeyForCharacterSheet(key),
-    level: Math.abs(value),
-  };
-}
+/** Skill column headers beside the compact stat row. */
+const SHEET_SKILL_COLUMN_LABELS = {
+  combat: 'Combat',
+  passive: 'Passive',
+  spells: 'Spells',
+} as const;
 
 function ColumnBlock({
   label,
   children,
   faint,
+  compact,
 }: {
   label: string;
   children: ReactNode;
   faint?: boolean;
+  compact?: boolean;
 }) {
   return (
-    <p className={`${CHAR_BODY} text-left leading-relaxed text-[var(--candle-ink-soft)]`}>
-      <span className={faint ? CHAR_META_FAINT : CHAR_META_VALUE}>{label}</span>{' '}
+    <p
+      className={
+        compact
+          ? `${CHAR_MINOR} text-left`
+          : `${CHAR_BODY} text-left leading-relaxed text-[var(--candle-ink-soft)]`
+      }
+    >
+      <span className={faint || compact ? CHAR_META_FAINT : CHAR_META_VALUE}>{label}</span>{' '}
       <span className="break-words">{children}</span>
     </p>
   );
@@ -238,8 +226,6 @@ export function CharacterTab({
     nonCombatXpParts.push(`${SKILL_SHEET_LABEL[key]} ${level}`);
   }
 
-  const meleeXpLevel = getLevelFromXp(questState.skills.meleeAttackXp);
-
   /** All non-zero modifiers for bucketing; per-bucket unlock thresholds decide default vs dev-only rows. */
   const visibleModifiers = Object.entries(questState.modifiers).filter(
     ([name, value]) =>
@@ -277,11 +263,10 @@ export function CharacterTab({
   const skillOrganicLocked = skillPart.locked.filter(([k]) => !k.startsWith('skill:'));
   const skillGroups = groupSkillModifiersByCategory(skillPrefixedUnlocked);
   const skillGroupsLocked = groupSkillModifiersByCategory(skillPrefixedLocked);
-  const { combat: combatSkillGroups, nonCombat: nonCombatSkillGroups } = partitionSkillGroups(skillGroups);
+  const { nonCombat: nonCombatSkillGroups } = partitionSkillGroups(skillGroups);
   const { combat: combatSkillGroupsLocked, nonCombat: nonCombatSkillGroupsLocked } =
     partitionSkillGroups(skillGroupsLocked);
 
-  const organicCombatUnlocked = skillOrganicUnlocked.filter(([k]) => isCombatSkillModifierKey(k));
   const organicNonCombatUnlocked = skillOrganicUnlocked.filter(([k]) => !isCombatSkillModifierKey(k));
   const organicCombatLocked = skillOrganicLocked.filter(([k]) => isCombatSkillModifierKey(k));
   const organicNonCombatLocked = skillOrganicLocked.filter(([k]) => !isCombatSkillModifierKey(k));
@@ -305,28 +290,6 @@ export function CharacterTab({
   const miscPart = partitionSheetUnlock('misc', miscRowsAll);
   const miscLinesUnlocked = formatModifierLines(miscPart.unlocked);
   const miscLinesLocked = formatModifierLines(miscPart.locked);
-
-  const combatTilesRaw: CharacterAbilityTileData[] = [];
-  if (meleeXpLevel >= 1) {
-    combatTilesRaw.push({
-      id: 'meleeAttackXp',
-      name: SKILL_SHEET_LABEL.meleeAttackXp,
-      level: meleeXpLevel,
-    });
-  }
-  for (const group of combatSkillGroups) {
-    for (const [key, value] of group.rows) {
-      combatTilesRaw.push(modifierToAbilityTile(key, value));
-    }
-  }
-  for (const [key, value] of organicCombatUnlocked) {
-    combatTilesRaw.push(modifierToAbilityTile(key, value));
-  }
-  const combatTiles = combatTilesRaw;
-
-  const spellTiles: CharacterAbilityTileData[] = spellPart.unlocked.map(([key, value]) =>
-    modifierToAbilityTile(key, value)
-  );
 
   const generalSkillGroup = nonCombatSkillGroups.find((g) => g.categoryKey === 'general');
   const generalSkillGroupLocked = nonCombatSkillGroupsLocked.find((g) => g.categoryKey === 'general');
@@ -357,7 +320,7 @@ export function CharacterTab({
   }
   if (questState.questItems.length > 0) {
     columnACells.push(
-      <ColumnBlock key="quest-items" label="Quest items:">
+      <ColumnBlock key="quest-items" label="Quest items:" compact>
         <ItemNameList
           items={questState.questItems.map((label) => ({ label, category: 'quest' as const }))}
         />
@@ -492,97 +455,42 @@ export function CharacterTab({
     <section className="relative min-w-0 pb-14">
       <div className="facsimile-scroll-dialogue-inner facsimile-scroll-dialogue-inner--character min-w-0">
         <div className="mx-auto w-full min-w-0 max-w-md space-y-2.5">
-        <div className="py-0.5">
-          <div className="character-profile-card mx-auto flex w-fit items-start gap-1 rounded-md border border-[var(--candle-flame-soft)] p-1">
-            <img
-                src={getRacePortraitSrc(questState.assignedRaceSlug)}
-                alt="Character portrait"
-                className="aspect-[200/266] w-[min(100px,32vw)] shrink-0 rounded-md object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-[var(--candle-rule)]"
-              />
-              <div className="flex w-44 shrink-0 flex-col gap-1.5 text-left">
-                <div className={`flex items-baseline justify-between gap-1 ${CHAR_PROFILE_HEADER}`}>
-                  <p className={`min-w-0 leading-tight ${CHAR_META_VALUE}`}>
-                    {formatProfileAgeLabel(questState, dayCounter)}
-                  </p>
-                  <p className="shrink-0 text-right leading-tight text-[var(--rpg-guild-label)]">
-                    {activeGuildName}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <p className={`block break-words text-center ${CHAR_NAME}`}>
-                    {questState.playerName || 'Stranger'}
-                  </p>
-                  <p className={`block break-words text-center ${CHAR_SUBTITLE}`}>
-                    {raceEmoji ? (
-                      <span aria-hidden="true">
-                        {raceEmoji}{' '}
-                      </span>
-                    ) : null}
-                    Level {characterLevel} {raceMiddle} {characterClass}
-                  </p>
-                </div>
-                <div className={`mt-0.5 flex min-w-0 flex-col gap-0.5 text-left ${CHAR_PROFILE_META}`}>
-                  <p className={`block leading-tight ${CHAR_META_VALUE}`}>
-                    {activeJob ? `${activeJob.displayName} Lv 1` : 'Unemployed'}
-                  </p>
-                  <p className="block leading-tight">
-                    <span className={CHAR_META_LABEL}>Coin: </span>
-                    <CoinAmountDisplay split={coinSplit} />
-                  </p>
-                  <p className="block leading-tight">
-                    <span className={CHAR_META_LABEL}>Kindred: </span>
-                    {userPubkey != null && kindredSpirits !== undefined ? (
-                      <span className={`font-mono ${CHAR_META_VALUE}`}>
-                        {kindredSpirits}
-                      </span>
-                    ) : (
-                      <span className={CHAR_META_FAINT}>—</span>
-                    )}
-                  </p>
-                </div>
-              </div>
+        <div className={`py-0.5 space-y-2 ${CHARACTER_PROFILE_CARD_SHELL}`}>
+          <CharacterProfileCard
+            questState={questState}
+            ageLabel={formatProfileAgeLabel(questState, dayCounter)}
+            guildDisplayName={activeGuildName}
+            characterLevel={characterLevel}
+            raceMiddle={raceMiddle}
+            characterClass={characterClass}
+            raceEmoji={raceEmoji}
+            jobLine={activeJob ? `${activeJob.displayName} Lv 1` : 'Unemployed'}
+            coinSplit={coinSplit}
+            kindredSpirits={kindredSpirits}
+            userPubkey={userPubkey}
+            onLoadoutChange={onLoadoutChange}
+          />
+
+          <div className="grid grid-cols-3 gap-1" aria-label="Skills and spells">
+            <CharacterSheetSkillColumn
+              label={SHEET_SKILL_COLUMN_LABELS.combat}
+              placeholders={SHEET_COMBAT_SKILL_PLACEHOLDERS}
+              accentClassName="text-[var(--loadout-slot-skill)]"
+            />
+            <CharacterSheetSkillColumn
+              label={SHEET_SKILL_COLUMN_LABELS.passive}
+              placeholders={SHEET_PASSIVE_SKILL_PLACEHOLDERS}
+            />
+            <CharacterSheetSkillColumn
+              label={SHEET_SKILL_COLUMN_LABELS.spells}
+              placeholders={SHEET_SPELL_PLACEHOLDERS}
+              accentClassName="text-[var(--loadout-slot-spell)]"
+            />
           </div>
         </div>
 
-        <CharacterLoadoutSlots questState={questState} onLoadoutChange={onLoadoutChange} />
-
-        <table
-          className={`w-full min-w-0 table-fixed border-collapse ${CHAR_STAT_TABLE}`}
-          aria-label="Primary attributes"
-        >
-          <tbody>
-            {primaryStatTableRows.map((row, rowIdx) => {
-              const padded: Array<string[] | null> = [...row];
-              while (padded.length < PRIMARY_STATS_COLUMNS) padded.push(null);
-              return (
-                <tr key={rowIdx}>
-                  {padded.map((cell, colIdx) => (
-                    <td
-                      key={cell?.[0] ?? `pad-${rowIdx}-${colIdx}`}
-                      className="min-w-0 w-1/3 px-1 py-1.5 text-center align-top"
-                    >
-                      {cell ? (
-                        <>
-                          <div className={CHAR_STAT_LABEL}>{cell[0]}</div>
-                          <div className={CHAR_STAT_VALUE}>
-                            {getPrimaryStatTotal(questState.modifiers, cell[0])}
-                          </div>
-                        </>
-                      ) : null}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
         <section className="space-y-2.5 pt-1.5" aria-label="Skills and traits">
-          <CharacterAbilityTileGrid tiles={combatTiles} label="Combat skills" />
-
           <div className={`min-w-0 space-y-1.5 text-left ${CHAR_BODY}`}>{columnACells}</div>
-
-          <CharacterAbilityTileGrid tiles={spellTiles} label="Spells" />
 
           {showModifierDetails && miscLinesUnlocked ? (
             <p className={`${CHAR_BODY} text-left leading-relaxed text-[var(--candle-ink-soft)]`}>

@@ -1,7 +1,9 @@
 import {
   QUEST_DYERS_CRYPT_ID,
+  QUEST_EQUIP_LOADOUT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_FOREST_CAVE_ID,
+  QUEST_SUNSET_ID,
 } from '@/components/rpg/constants';
 import { getLevelUpLines, getRewardLines } from '../helpers';
 import { recordModifiersAfterQuestComplete } from './engine';
@@ -29,8 +31,15 @@ export function resolveJournalSummaryText(
   playerName: string,
   flags: string[] = []
 ): string | null {
-  if (quest.id === QUEST_FIRST_NIGHT_ID) {
+  if (quest.id === QUEST_SUNSET_ID) {
     return interpolateStepText(buildFirstNightJournalSummary(choiceHistory), playerName);
+  }
+
+  if (quest.id === QUEST_FIRST_NIGHT_ID) {
+    return interpolateStepText(
+      quest.journalSummaryFallback ?? 'You fought a shambling skeleton in the woods.',
+      playerName
+    );
   }
 
   if (quest.id === QUEST_DYERS_CRYPT_ID) {

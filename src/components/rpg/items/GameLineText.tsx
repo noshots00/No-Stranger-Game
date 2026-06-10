@@ -1,5 +1,13 @@
-import { formatModifierKeyForCharacterSheet, toItemLabel, DAY_REPORT_QUEST_ITEMS_PREFIX } from '../helpers';
+import type { ReactNode } from 'react';
+import {
+  formatModifierKeyForCharacterSheet,
+  parseSpellLearnedLine,
+  toItemLabel,
+  DAY_REPORT_QUEST_ITEMS_PREFIX,
+} from '../helpers';
 import { listEquipmentKeys } from '../combat/equipmentRegistry';
+import { SpellName } from '../spells/SpellName';
+import { SpellNameInText } from '../spells/SpellNameInText';
 import { ItemName, ItemNameList } from './ItemName';
 import type { ItemNameCategory } from './itemDisplay';
 
@@ -12,8 +20,8 @@ function categoryForFoundLabel(label: string): ItemNameCategory {
   return 'material';
 }
 
-/** Day report bullet — color-codes item names inside standard gain/found lines. */
-export function DayReportLineText({ text }: { text: string }) {
+/** Day-report bullets with item/resource color coding; null when plain prose. */
+export function renderDayReportLineContent(text: string): ReactNode | null {
   const trimmed = text.trim();
 
   const gainedItems = trimmed.startsWith(DAY_REPORT_QUEST_ITEMS_PREFIX)
@@ -55,5 +63,32 @@ export function DayReportLineText({ text }: { text: string }) {
     return <ItemName label={trimmed} category="quest" />;
   }
 
-  return <>{text}</>;
+  return null;
+}
+
+type GameLineTextProps = {
+  text: string;
+  playerName?: string;
+};
+
+/** Colored RPG log line — day-report gains, spell learned, then spell/player highlights. */
+export function GameLineText({ text, playerName = '' }: GameLineTextProps) {
+  const structured = renderDayReportLineContent(text);
+  if (structured !== null) return structured;
+
+  const spellName = parseSpellLearnedLine(text);
+  if (spellName) {
+    return (
+      <>
+        You learned <SpellName label={spellName} />!
+      </>
+    );
+  }
+
+  return <SpellNameInText text={text} playerName={playerName} />;
+}
+
+/** Day report bullet — alias for {@link GameLineText}. */
+export function DayReportLineText({ text }: { text: string }) {
+  return <GameLineText text={text} />;
 }

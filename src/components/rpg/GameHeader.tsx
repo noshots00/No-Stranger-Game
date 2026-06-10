@@ -1,7 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import type { GameRelayHealthSnapshot } from '@/lib/probeGameRelay';
-import { CoinAmountDisplay } from './CoinAmountDisplay';
-import { splitCopperIntoCoins } from './helpers';
 import { HeaderHealthBar } from './HeaderHealthBar';
 import { HeaderFlyout } from './HeaderFlyout';
 import { NewDot } from './NewDot';
@@ -13,7 +11,7 @@ const DEV_TOOLS_UNLOCK_TAP_COUNT = 5;
 const DEV_TOOLS_UNLOCK_WINDOW_MS = 2000;
 /** Shared header strip height — matches `HeaderHealthBar` track. */
 const HEADER_ROW_CLASS = 'flex h-3.5 min-h-3.5 items-center leading-none';
-/** Day, coin, and location share one size/line box so baselines match. */
+/** Day and location share one size/line box so baselines match. */
 const HEADER_META_CLASS =
   'font-sans text-[9px] font-medium uppercase leading-none tracking-[0.02em]';
 
@@ -36,7 +34,6 @@ type GameHeaderProps = {
   onEnableDevTools?: () => void;
   health?: number;
   maxHealth?: number;
-  walletCopper?: number;
   relayHealthFlyoutOpen?: boolean;
   onRelayHealthFlyoutOpenChange?: (open: boolean) => void;
   relayHealthSnapshot?: GameRelayHealthSnapshot;
@@ -62,7 +59,6 @@ export function GameHeader({
   onEnableDevTools,
   health = 100,
   maxHealth = 100,
-  walletCopper = 0,
   relayHealthFlyoutOpen = false,
   onRelayHealthFlyoutOpenChange,
   relayHealthSnapshot,
@@ -90,7 +86,6 @@ export function GameHeader({
   const menuHighlight = travelMenuHighlightLocation ?? currentLocation;
   const selectableDestinations = travelMenuItems.length;
   const locationLabel = formatLocationLabel(currentLocation);
-  const coinSplit = splitCopperIntoCoins(walletCopper);
 
   const locationTextClass = cn(
     HEADER_META_CLASS,
@@ -220,7 +215,7 @@ export function GameHeader({
 
   return (
     <header className="sticky top-0 z-20 w-full select-none bg-black/40 backdrop-blur-[6px]" role="status" aria-label="Game status">
-      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 px-1.5 py-px font-sans leading-none text-[var(--candle-ink)]">
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 px-1.5 py-px font-sans leading-none text-[var(--candle-ink)]">
         <div className={cn(HEADER_ROW_CLASS, 'min-w-0 gap-1.5')}>
           <span className={cn(HEADER_META_CLASS, 'min-w-0 truncate text-[var(--candle-ink)]')}>
             {dayPacingActive ? `Day ${dayCounter}` : preVillageDayLabel}
@@ -228,9 +223,6 @@ export function GameHeader({
           {relayHealthControl}
         </div>
         <div className={cn(HEADER_ROW_CLASS, 'min-w-0 justify-center px-0.5')}>{healthControl}</div>
-        <div className={cn(HEADER_ROW_CLASS, 'shrink-0 px-0.5')} aria-label="Wallet">
-          <CoinAmountDisplay split={coinSplit} className={cn(HEADER_META_CLASS, 'tabular-nums')} />
-        </div>
         <div className={cn(HEADER_ROW_CLASS, 'min-w-0 justify-end')}>{locationControl}</div>
       </div>
     </header>

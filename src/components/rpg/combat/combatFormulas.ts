@@ -45,5 +45,7 @@ export function applyDamageReduction({ rawDamage, defender, isSpell }: DamageRed
 }
 
 export function getWeaponDamageBonus(fighter: FighterState): number {
-  return getEquipmentDamageBonus(fighter.loadout.weapon);
+  return (
+    getEquipmentDamageBonus(fighter.loadout.weapon) + getEquipmentDamageBonus(fighter.loadout.other)
+  );
 }

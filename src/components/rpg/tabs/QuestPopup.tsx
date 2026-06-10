@@ -28,7 +28,7 @@ import {
 } from '../dialogueFormat';
 import { QuestChoiceEffectsHint } from '../dev/QuestChoiceEffectsHint';
 import { QuestChoiceModifiersHint } from '../dev/QuestChoiceModifiersHint';
-import { PlayerNameInText } from '../PlayerNameInText';
+import { SpellNameInText } from '../spells/SpellNameInText';
 import {
   formatChoiceStepDevLines,
   formatQuestChoiceDevLines,
@@ -311,7 +311,7 @@ export function QuestPopup({
               )}
             >
               {entry.text.length > 0 ? (
-                <PlayerNameInText text={entry.text} playerName={committedPlayerName} />
+                <SpellNameInText text={entry.text} playerName={committedPlayerName} />
               ) : null}
             </p>
           );

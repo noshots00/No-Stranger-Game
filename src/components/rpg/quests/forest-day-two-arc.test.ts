@@ -4,8 +4,10 @@ import {
   QUEST_004_B_THE_DOOR_ID,
   QUEST_DAY_TWO_DREAM_ID,
   QUEST_DYERS_CRYPT_ID,
+  QUEST_EQUIP_LOADOUT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_FOREST_CAVE_ID,
+  QUEST_SUNSET_ID,
   SWEET_DREAM_PENDING_FLAG,
 } from '../constants';
 import {
@@ -94,12 +96,36 @@ describe('Day two dream resolver', () => {
 });
 
 describe('manual saga unveil', () => {
-  it("unveils Dyer's Crypt after first night, not Old Well", () => {
-    const ctx = baseContext({ currentDay: 2, completedQuestIds: [QUEST_FIRST_NIGHT_ID] });
+  it('chains instinct → equip → sunset', () => {
+    const ctxInstinct = baseContext({ completedQuestIds: [QUEST_FIRST_NIGHT_ID] });
+    expect(
+      computeNextUnveilIdsAfterCompletion(
+        QUEST_FIRST_NIGHT_ID,
+        [],
+        [QUEST_FIRST_NIGHT_ID],
+        ctxInstinct
+      )
+    ).toEqual([QUEST_EQUIP_LOADOUT_ID]);
+
+    const ctxEquip = baseContext({
+      completedQuestIds: [QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID],
+    });
+    expect(
+      computeNextUnveilIdsAfterCompletion(
+        QUEST_EQUIP_LOADOUT_ID,
+        [],
+        [QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID],
+        ctxEquip
+      )
+    ).toEqual([QUEST_SUNSET_ID]);
+  });
+
+  it("unveils Dyer's Crypt after Sunset, not Old Well", () => {
+    const ctx = baseContext({ currentDay: 2, completedQuestIds: [QUEST_SUNSET_ID] });
     const ids = computeNextUnveilIdsAfterCompletion(
-      QUEST_FIRST_NIGHT_ID,
+      QUEST_SUNSET_ID,
       [],
-      [QUEST_FIRST_NIGHT_ID],
+      [QUEST_SUNSET_ID],
       ctx
     );
     expect(ids).toEqual([QUEST_DYERS_CRYPT_ID]);
@@ -151,15 +177,15 @@ describe('manual saga unveil', () => {
     ).toEqual([QUEST_004_B_THE_DOOR_ID]);
   });
 
-  it("auto-starts Abandoned Shelter after Dyer's Crypt while first-night day roll is pending", () => {
+  it("auto-starts Abandoned Shelter after Dyer's Crypt while Sunset day roll is pending", () => {
     const state = {
       ...createInitialQuestState(),
       flags: ['quest001-complete'],
-      unveiledQuestIds: [QUEST_FIRST_NIGHT_ID, QUEST_DYERS_CRYPT_ID],
+      unveiledQuestIds: [QUEST_SUNSET_ID, QUEST_DYERS_CRYPT_ID],
       activeQuestId: null,
       progressByQuestId: {
-        [QUEST_FIRST_NIGHT_ID]: {
-          currentStepId: 'q2-end',
+        [QUEST_SUNSET_ID]: {
+          currentStepId: 'nightfall-wait',
           isCompleted: true,
           choiceHistory: [],
         },
@@ -175,7 +201,7 @@ describe('manual saga unveil', () => {
         nextDay: 2,
         calendarDay: 1,
         sessionOnly: true,
-        completedQuestId: QUEST_FIRST_NIGHT_ID,
+        completedQuestId: QUEST_SUNSET_ID,
         prevForReport: {
           modifiers: {},
           skills: { explorationXp: 0, foragingXp: 0, meleeAttackXp: 0 },
@@ -190,7 +216,7 @@ describe('manual saga unveil', () => {
     const unveilAdd = computeNextUnveilIdsAfterCompletion(
       QUEST_DYERS_CRYPT_ID,
       state.unveiledQuestIds,
-      [QUEST_FIRST_NIGHT_ID, QUEST_DYERS_CRYPT_ID],
+      [QUEST_SUNSET_ID, QUEST_DYERS_CRYPT_ID],
       ctx
     );
     const withUnveils = {

@@ -1,7 +1,7 @@
 import { useMemo, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
-import { PlayerNameInText } from '../PlayerNameInText';
+import { SpellNameInText } from '../spells/SpellNameInText';
 import type { ChronicleSegment } from '../dialogueFormat';
 import type { JournalLogEntry, QuestDefinition } from '../quests/types';
 import {
@@ -195,7 +195,7 @@ export function JournalScreen({
                 return (
                   <div key={`world-${wr.atMs}-${idx}-${wr.text.slice(0, 24)}`} className="dialogue-line-reveal py-0.5">
                     <p className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80">
-                      <PlayerNameInText text={wr.text} playerName={playerName} />
+                      <SpellNameInText text={wr.text} playerName={playerName} />
                     </p>
                   </div>
                 );
@@ -233,7 +233,7 @@ export function JournalScreen({
                         {summaryText.length > 0 ? (
                           <div className={cn('space-y-1', showTitle && 'pt-1')}>
                             <p className={`whitespace-pre-line ${RPG_UI_BODY}`}>
-                              <PlayerNameInText text={summaryText} playerName={playerName} />
+                              <SpellNameInText text={summaryText} playerName={playerName} />
                             </p>
                           </div>
                         ) : null}
@@ -244,7 +244,7 @@ export function JournalScreen({
                                 key={`${je.id}-milestone-${milestoneIdx}`}
                                 className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
                               >
-                                <PlayerNameInText text={line} playerName={playerName} />
+                                <SpellNameInText text={line} playerName={playerName} />
                               </p>
                             ))}
                           </div>

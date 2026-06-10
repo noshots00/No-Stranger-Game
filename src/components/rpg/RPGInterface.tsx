@@ -70,6 +70,7 @@ import {
   locationActions,
   QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
+  QUEST_EQUIP_LOADOUT_ID,
   QUEST_DYERS_CRYPT_ID,
   QUEST_003B_MEET_MERCHANT_ID,
   QUEST_004_B_THE_DOOR_ID,
@@ -146,7 +147,7 @@ import {
   MAIN_B_ARC_QUEST_IDS,
 } from './dev/devStoryCheckpoints';
 import type { CombatLoadout } from './combat/combatTypes';
-import { sanitizeLoadoutSelection } from './combat/loadoutHelpers';
+import { isEquipLoadoutQuestComplete, sanitizeLoadoutSelection } from './combat/loadoutHelpers';
 import { clampPlayerHealth, getPlayerMaxHp } from './combat/playerHealth';
 import { GameHeader } from './GameHeader';
 import { CharacterTab } from './tabs/CharacterTab';
@@ -943,6 +944,49 @@ export function RPGInterface() {
         merged = mergeDiscoveryUnveils(
           merged,
           QUEST_PICK_A_JOB_ID,
+          resolveDisplayDay(merged, dayCounter)
+        );
+
+        window.queueMicrotask(() => {
+          void persistQuestCheckpoint(merged);
+          setPlaySceneQuestId(null);
+        });
+        return merged;
+      });
+    },
+    [setQuestState, persistQuestCheckpoint, dayCounter]
+  );
+
+  const handleLoadoutChange = useCallback(
+    (loadout: CombatLoadout) => {
+      const equipQuest = questById[QUEST_EQUIP_LOADOUT_ID];
+      setQuestState((prev) => {
+        const next: QuestState = {
+          ...prev,
+          loadout: sanitizeLoadoutSelection(loadout, prev),
+        };
+        const equipProg = next.progressByQuestId[QUEST_EQUIP_LOADOUT_ID];
+        const completingEquip =
+          Boolean(equipProg && !equipProg.isCompleted && equipQuest) &&
+          isEquipLoadoutQuestComplete(next);
+
+        if (!completingEquip) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(next));
+          return next;
+        }
+
+        const marked = markQuestCompleted(next, QUEST_EQUIP_LOADOUT_ID);
+        if (!marked) {
+          window.queueMicrotask(() => void persistQuestCheckpoint(next));
+          return next;
+        }
+
+        let merged: QuestState = marked;
+        merged = mergeJournalRecapOnQuestComplete(prev, merged, equipQuest);
+        merged = appendCharacterUpdateDialogue(prev, merged);
+        merged = mergeDiscoveryUnveils(
+          merged,
+          QUEST_EQUIP_LOADOUT_ID,
           resolveDisplayDay(merged, dayCounter)
         );
 
@@ -1782,12 +1826,7 @@ export function RPGInterface() {
             dayPacingActive={questContext.dayPacingActive}
             guildDisplayName={guildDisplayName}
             kindredSpirits={user ? socialStats.kindredSpirits : undefined}
-            onLoadoutChange={(loadout: CombatLoadout) => {
-              setQuestState((prev) => ({
-                ...prev,
-                loadout: sanitizeLoadoutSelection(loadout, prev),
-              }));
-            }}
+            onLoadoutChange={handleLoadoutChange}
             showModifierDetails={showModifierDetails}
             showDevTools={showHeaderDevTools}
             onShowModifierDetailsChange={setShowModifierDetails}
@@ -2038,7 +2077,6 @@ export function RPGInterface() {
               : getPlayerMaxHp(questState)
           }
           maxHealth={getPlayerMaxHp(questState)}
-          walletCopper={walletCopper}
           relayHealthFlyoutOpen={relayHealthFlyoutOpen}
           onRelayHealthFlyoutOpenChange={setRelayHealthFlyoutOpen}
           relayHealthSnapshot={relayHealthQuery.data}

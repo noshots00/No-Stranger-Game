@@ -13,12 +13,14 @@ import {
   HIDDEN_CLASS_MODIFIER_KEYS,
   INJURY_SHEET_UNLOCK_POINTS,
   PRIMARY_STAT_MODIFIER_LABEL,
+  PRIMARY_STAT_ABBREV,
   QUEST001_NAMED_FLAG,
   QUEST_ORIGIN_ID,
   SKILL_MODIFIER_CATEGORY_LABEL,
   SKILL_MODIFIER_CATEGORY_ORDER,
 } from './constants';
 import { CHARACTER_SHEET_ORGANIC_SKILL_SPELL_MIN_MAGNITUDE } from './quests/engine';
+import { getEquipmentDisplayLabel } from './combat/equipmentRegistry';
 import type { ItemNameCategory } from './items/itemDisplay';
 import { getItemCategoryFromKey } from './items/itemDisplay';
 
@@ -33,6 +35,11 @@ export function getPrimaryStatTotal(modifiers: Record<string, number>, statLabel
   if (!slug) return PRIMARY_STAT_SCORE_BASE;
   const delta = (modifiers[`stat:${slug}`] ?? 0) + (modifiers[statLabel] ?? 0);
   return PRIMARY_STAT_SCORE_BASE + delta;
+}
+
+/** Sheet header label (STR, DEX, …). */
+export function getPrimaryStatAbbrev(statLabel: string): string {
+  return PRIMARY_STAT_ABBREV[statLabel] ?? statLabel.slice(0, 3).toUpperCase();
 }
 
 /** True if this canonical key is one of the six primary attributes (main character sheet block). */
@@ -101,7 +108,14 @@ export function formatSpellModifierKeyForDisplay(key: string): string {
 /** Day report / journal when a spell modifier is newly gained. */
 export function formatSpellLearnedMessage(key: string): string {
   const name = formatSpellModifierKeyForDisplay(key);
-  return `You learned the ${name} spell.`;
+  return `You learned ${name}!`;
+}
+
+/** Parse `You learned Spark!` day-report / play-feed lines. */
+export function parseSpellLearnedLine(text: string): string | null {
+  const match = /^You learned (.+)!$/.exec(text.trim());
+  const name = match?.[1]?.trim();
+  return name && name.length > 0 ? name : null;
 }
 
 export type ModifierSheetBucket =
@@ -113,6 +127,11 @@ export type ModifierSheetBucket =
   | 'blessing'
   | 'injury'
   | 'misc';
+
+/** Organic `*Spell` keys and `spell:*` modifiers. */
+export function isSpellModifierKey(key: string): boolean {
+  return key.startsWith('spell:') || /Spell$/i.test(key);
+}
 
 export function getModifierSheetBucket(key: string): ModifierSheetBucket {
   if (key.startsWith('stat:')) return 'stat';
@@ -230,6 +249,9 @@ export function formatModifierKeyForCharacterSheet(key: string): string {
   }
   if (/Skill$/.test(key) && !key.startsWith('skill:')) {
     return formatPascalCaseModifierDisplay(key);
+  }
+  if (key.startsWith('item:')) {
+    return getEquipmentDisplayLabel(key) ?? formatOrganicSlugForDisplay(key.slice('item:'.length));
   }
   return key;
 }
@@ -353,11 +375,15 @@ export function shouldReportModifierGainInDayReport(
   return isModifierVisibleOnCharacterSheet(key, nextMagnitude);
 }
 
-export const toItemLabel = (key: string): string =>
-  key
+export const toItemLabel = (key: string): string => {
+  const equipmentLabel = getEquipmentDisplayLabel(key);
+  if (equipmentLabel) return equipmentLabel;
+  const stripped = key
     .replace(/^(item|items|inventory)[:_-]?/i, '')
     .replace(/[_-]/g, ' ')
-    .trim() || 'supplies';
+    .trim();
+  return stripped ? formatOrganicSlugForDisplay(stripped.replace(/ /g, '_')) : 'supplies';
+};
 
 /** Human label for village stockpile keys (`QuestState.resources`). */
 export function formatResourceLabel(key: string): string {
@@ -434,6 +460,10 @@ export type CharacterAbilityTileData = {
   level: number;
   placeholder?: boolean;
   itemCategory?: ItemNameCategory;
+  /** Optional text color utility (e.g. spell indigo on character sheet). */
+  accentClassName?: string;
+  /** When false, omit the Lv row (equipment, spells, loadout slots). Default true. */
+  showLevel?: boolean;
 };
 
 export const getRewardLines = (

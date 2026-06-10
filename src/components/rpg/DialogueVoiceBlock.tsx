@@ -6,14 +6,14 @@ import type { DialogueVoice } from './dialogueFormat';
 import { isCharacterUpdateSpeaker, PLAYER_ACTION_SPEAKER } from './dialogueFormat';
 import { isReportInfographicTitle } from './dialogueFormat';
 import { CharacterUpdateLine } from './CharacterUpdateLine';
-import { PlayerNameInText } from './PlayerNameInText';
+import { SpellNameInText } from './spells/SpellNameInText';
 import {
   RPG_UI_BODY,
   RPG_UI_EMPHASIS,
   RPG_UI_LOG_LINE,
   RPG_UI_PROMPT,
 } from './typography/rpgUiTypography';
-import { DayReportLineText } from './items/DayReportLineText';
+import { DayReportLineText } from './items/GameLineText';
 
 function resolveQuestAssetUrl(src: string): string {
   const t = src.trim();
@@ -104,7 +104,7 @@ export function DialogueVoiceBlock({
         <div className={presentation === 'play' ? 'rpg-panel rounded-sm px-2 py-1.5' : 'space-y-1.5'}>
           {lines.map((line) => (
             <p key={line.id} className={narratorPromptClasses}>
-              <PlayerNameInText text={line.text} playerName={playerName} />
+              <SpellNameInText text={line.text} playerName={playerName} />
             </p>
           ))}
         </div>
@@ -128,7 +128,7 @@ export function DialogueVoiceBlock({
         <div className="space-y-1">
           {lines.map((line) => (
             <p key={line.id} className={narratorClasses}>
-              <PlayerNameInText text={line.text} playerName={playerName} />
+              <SpellNameInText text={line.text} playerName={playerName} />
             </p>
           ))}
         </div>
@@ -217,7 +217,7 @@ export function DialogueVoiceBlock({
       <div className="space-y-1 py-0.5">
         {lines.map((line) => (
           <p key={line.id} className={bodyClass}>
-            <PlayerNameInText text={line.text} playerName={playerName} />
+            <SpellNameInText text={line.text} playerName={playerName} />
           </p>
         ))}
       </div>
@@ -236,16 +236,16 @@ export function DialogueVoiceBlock({
           <div key={line.id}>
             {line.speaker === PLAYER_ACTION_SPEAKER || line.speaker === 'You' ? (
               <p className={playerBodyClasses}>
-                <PlayerNameInText text={line.text} playerName={playerName} />
+                <SpellNameInText text={line.text} playerName={playerName} />
               </p>
             ) : isCharacterUpdateSpeaker(line.speaker) ? (
               <p className={playerBodyClasses}>
-                <PlayerNameInText text={line.text} playerName={playerName} />
+                <SpellNameInText text={line.text} playerName={playerName} />
               </p>
             ) : (
               <p className={playerBodyClasses}>
                 <span className="font-medium text-[var(--candle-flame-soft)]">{line.speaker}: </span>
-                <PlayerNameInText text={line.text} playerName={playerName} />
+                <SpellNameInText text={line.text} playerName={playerName} />
               </p>
             )}
           </div>

@@ -77,3 +77,11 @@ export function sanitizeLoadoutSelection(
     skillB: loadout.skillB && skills.has(loadout.skillB) ? loadout.skillB : undefined,
   };
 }
+
+/** Equip-loadout tutorial: weapon or equipment slot plus an active skill slot. */
+export function isEquipLoadoutQuestComplete(state: QuestState): boolean {
+  const loadout = sanitizeLoadoutSelection(state.loadout ?? {}, state);
+  const hasGear = Boolean(loadout.weapon || loadout.other);
+  const hasSkill = Boolean(loadout.skillA || loadout.skillB);
+  return hasGear && hasSkill;
+}

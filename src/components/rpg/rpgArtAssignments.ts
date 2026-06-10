@@ -129,10 +129,16 @@ type QuestTitleArtOverride = {
 const QUEST_TITLE_ART_OVERRIDES: Record<string, QuestTitleArtOverride> = {
   'You find yourself in the forest.': { path: `${CONVERTED_ART}/nswoods.webp` },
   Instinct: {
-    path: `${CONVERTED_ART}/Batch 2026-06-10_11-22-37/aerial-view-of-autumn-forest-colors.webp`,
+    path: `${CONVERTED_ART}/aerial-view-of-autumn-forest-colors.webp`,
   },
-  "Dyer's Crypt": {
-    path: `${CONVERTED_ART}/monastery-graveyard-under-snow-caspar-david-friedrich.webp`,
+  'Equip a weapon and a skill': {
+    path: `${CONVERTED_ART}/aerial-view-of-autumn-forest-colors.webp`,
+  },
+  Sunset: {
+    path: `${CONVERTED_ART}/sophus-jacobsen-sunset-in-the-forest-1878.webp`,
+  },
+  'Another Strange Day': {
+    path: `${CONVERTED_ART}/mushrooms.webp`,
   },
   'Abandoned Shelter': { path: `${CONVERTED_ART}/a-hut-richard-bergholz.webp` },
   'The Cave': { path: `${CONVERTED_ART}/courbet-forest-cave-c-1865-o-773.webp` },
@@ -285,14 +291,14 @@ export const NPC_PORTRAIT_BY_ID: Record<string, string> = {
   carl: publicAsset(`${CONVERTED_ART}/atlantian-artist.webp`),
   shannon: publicAsset(`${CONVERTED_ART}/wa195531.webp`),
   trainer: publicAsset(`${CONVERTED_ART}/river-kingdom-marching.webp`),
-  skeleton: publicAsset(`${CONVERTED_ART}/Batch 2026-06-10_01-01-02/skeleton2.webp`),
+  skeleton: publicAsset(`${CONVERTED_ART}/skeleton2.webp`),
 };
 
 /** Hero background for NPC talk scenes (portrait uses `NPC_PORTRAIT_BY_ID`). */
 export const NPC_TALK_BACKGROUND_BY_ID: Record<string, string> = {
   shannon: batchAsset(VILLAGE_MAP_PATH),
   trainer: publicAsset(`${CONVERTED_ART}/ancient-war.webp`),
-  skeleton: publicAsset(`${CONVERTED_ART}/Batch 2026-06-10_01-01-02/skeleton2.webp`),
+  skeleton: publicAsset(`${CONVERTED_ART}/skeleton2.webp`),
 };
 
 export function getNpcPortraitSrc(npcTalkId: string): string {

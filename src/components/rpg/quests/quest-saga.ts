@@ -5,9 +5,11 @@ import {
   QUEST_DISCOVER_MINE_ID,
   QUEST_DISCOVER_QUARRY_ID,
   QUEST_DYERS_CRYPT_ID,
+  QUEST_EQUIP_LOADOUT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_004_B_THE_DOOR_ID,
   QUEST_FOREST_CAVE_ID,
+  QUEST_SUNSET_ID,
   QUEST_MAYOR_ID,
   QUEST_MAYOR_SHANNON_ID,
   QUEST_PICK_A_JOB_ID,
@@ -87,6 +89,20 @@ export function computeNextUnveilIdsAfterCompletion(
       }
     }
     if (completedQuestId === QUEST_FIRST_NIGHT_ID) {
+      const nextId = QUEST_EQUIP_LOADOUT_ID;
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    if (completedQuestId === QUEST_EQUIP_LOADOUT_ID) {
+      const nextId = QUEST_SUNSET_ID;
+      if (!completed.has(nextId) && !unveiled.has(nextId)) {
+        const q = questById[nextId];
+        if (unveilEligible(q, context)) return [nextId];
+      }
+    }
+    if (completedQuestId === QUEST_SUNSET_ID) {
       const nextId = QUEST_DYERS_CRYPT_ID;
       if (!completed.has(nextId) && !unveiled.has(nextId)) {
         const q = questById[nextId];
@@ -319,7 +335,9 @@ export function catchUpManualSagaUnveilIds(
   const out: string[] = [];
   const chain = [
     ['quest-001-origin', 'quest-002-first-night'],
-    [QUEST_FIRST_NIGHT_ID, QUEST_DYERS_CRYPT_ID],
+    [QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID],
+    [QUEST_EQUIP_LOADOUT_ID, QUEST_SUNSET_ID],
+    [QUEST_SUNSET_ID, QUEST_DYERS_CRYPT_ID],
     [QUEST_DYERS_CRYPT_ID, 'quest-004-abandoned-shelter'],
     ['quest-004-abandoned-shelter', QUEST_DAY_TWO_DREAM_ID],
     [QUEST_DAY_TWO_DREAM_ID, QUEST_FOREST_CAVE_ID],

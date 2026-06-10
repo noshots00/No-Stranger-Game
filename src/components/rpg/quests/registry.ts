@@ -1,5 +1,7 @@
 import { quest001Origin } from './quest-001-origin';
 import { quest002FirstNight } from './quest-002-first-night';
+import { quest002DEquipLoadout } from './quest-002-d-equip-loadout';
+import { quest002Sunset } from './quest-002-e-sunset';
 import { quest002BWillIStarve } from './quest-002-b-will-i-starve';
 import { quest002CStrangeEggTree } from './quest-002-c-strange-egg-tree';
 import { quest002BoarAmbush } from './quest-002-boar-ambush';
@@ -53,6 +55,8 @@ import type { QuestDefinition } from './types';
 export const allQuests: QuestDefinition[] = [
   quest001Origin,
   quest002FirstNight,
+  quest002DEquipLoadout,
+  quest002Sunset,
   quest003DyersCrypt,
   quest002BWillIStarve,
   quest002CStrangeEggTree,

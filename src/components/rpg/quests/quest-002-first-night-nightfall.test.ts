@@ -11,15 +11,15 @@ import { buildFirstNightJournalSummary } from './quest-002-first-night-journal';
 import {
   FIRST_NIGHT_FLAG_POCKET_FLASK,
   FIRST_NIGHT_FLAG_USED_FLASK,
-  quest002FirstNight,
 } from './quest-002-first-night';
+import { quest002Sunset } from './quest-002-e-sunset';
 
 function nightfallState(flags: string[] = []) {
   return {
     ...createInitialQuestState(),
     flags,
     progressByQuestId: {
-      [quest002FirstNight.id]: {
+      [quest002Sunset.id]: {
         currentStepId: 'nightfall-wait',
         isCompleted: false,
         choiceHistory: [],
@@ -35,7 +35,7 @@ describe('Sunset nightfall closing beat', () => {
     state = {
       ...state,
       progressByQuestId: {
-        [quest002FirstNight.id]: {
+        [quest002Sunset.id]: {
           currentStepId: 'boar-aftermath-strike',
           isCompleted: false,
           choiceHistory: ['q1-origin-boar-strike'],
@@ -43,12 +43,12 @@ describe('Sunset nightfall closing beat', () => {
         },
       },
     };
-    state = advanceQuestMessage(state, quest002FirstNight)!;
-    expect(getCurrentStep(state, quest002FirstNight).id).toBe('nightfall-wait');
+    state = advanceQuestMessage(state, quest002Sunset)!;
+    expect(getCurrentStep(state, quest002Sunset).id).toBe('nightfall-wait');
   });
 
   it('shows flask use only when the player found a flask', () => {
-    const step = getCurrentStep(nightfallState([FIRST_NIGHT_FLAG_POCKET_FLASK]), quest002FirstNight);
+    const step = getCurrentStep(nightfallState([FIRST_NIGHT_FLAG_POCKET_FLASK]), quest002Sunset);
     expect(step.type).toBe('choice');
     if (step.type !== 'choice') return;
     const flask = step.choices.find((c) => c.id === 'q2-night-use-flask');
@@ -59,10 +59,10 @@ describe('Sunset nightfall closing beat', () => {
 
   it('disables flask use after one shot and returns to the hub', () => {
     let state = nightfallState([FIRST_NIGHT_FLAG_POCKET_FLASK]);
-    state = applyChoice(state, quest002FirstNight, 'q2-night-use-flask');
-    state = autoAdvanceContinueBridgeSteps(state, quest002FirstNight);
-    expect(getCurrentStep(state, quest002FirstNight).id).toBe('nightfall-wait');
-    const step = getCurrentStep(state, quest002FirstNight);
+    state = applyChoice(state, quest002Sunset, 'q2-night-use-flask');
+    state = autoAdvanceContinueBridgeSteps(state, quest002Sunset);
+    expect(getCurrentStep(state, quest002Sunset).id).toBe('nightfall-wait');
+    const step = getCurrentStep(state, quest002Sunset);
     if (step.type !== 'choice') return;
     const flask = step.choices.find((c) => c.id === 'q2-night-use-flask')!;
     const lock = resolveChoiceLockState(flask, new Set(state.flags), {}, []);
@@ -71,8 +71,8 @@ describe('Sunset nightfall closing beat', () => {
   });
 
   it('completes Sunset when the player waits until morning', () => {
-    const state = applyChoice(nightfallState(), quest002FirstNight, 'q2-night-wait-morning');
-    expect(state.progressByQuestId[quest002FirstNight.id]?.isCompleted).toBe(true);
+    const state = applyChoice(nightfallState(), quest002Sunset, 'q2-night-wait-morning');
+    expect(state.progressByQuestId[quest002Sunset.id]?.isCompleted).toBe(true);
   });
 
   it('journal ends with made it through the night', () => {

@@ -54,7 +54,7 @@ describe('day report modifier visibility', () => {
       modifiers: { ...prev.modifiers, SparkSpell: 1 },
     };
     const lines = getModifierLevelUpLines(prev, next);
-    expect(lines).toContain('You learned the Spark spell.');
+    expect(lines).toContain('You learned Spark!');
   });
 
   it('getModifierLevelUpLines includes unlocked trait and stat', () => {

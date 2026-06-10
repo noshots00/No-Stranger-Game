@@ -76,7 +76,7 @@
     --loadout-slot-weapon: #dc5050;
     --loadout-slot-equipment: #5b9cf5;
     --loadout-slot-skill: #5ecc8a;
-    --loadout-slot-spell: var(--candle-ink);
+    --loadout-slot-spell: #9b8cff;
     --combat-enemy-ink: #f97316;
     --combat-enemy-ink-soft: #fb923c;
     --candle-rule: rgba(232, 226, 217, 0.08);
@@ -988,6 +988,10 @@
 
   .rpg-item-name--quest {
     color: var(--rpg-item-quest) !important;
+  }
+
+  .rpg-spell-name {
+    color: var(--loadout-slot-spell) !important;
   }
 
   .rpg-display {

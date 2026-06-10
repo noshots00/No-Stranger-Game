@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   applyChoice,
   autoAdvanceContinueBridgeSteps,
-  advanceQuestMessage,
   collectContinueBridgeChainTexts,
   createInitialQuestState,
   getCurrentStep,
@@ -11,15 +10,16 @@ import {
 } from './engine';
 import type { QuestProgress } from './types';
 import { quest002FirstNight } from './quest-002-first-night';
+import { quest002Sunset } from './quest-002-e-sunset';
 
-function firstNightAtHub() {
+function sunsetAtHub() {
   let state = createInitialQuestState();
-  state = startQuest(state, quest002FirstNight);
+  state = startQuest(state, quest002Sunset);
   return {
     ...state,
     progressByQuestId: {
       ...state.progressByQuestId,
-      [quest002FirstNight.id]: {
+      [quest002Sunset.id]: {
         currentStepId: 'flavor-five-hub',
         isCompleted: false,
         choiceHistory: [],
@@ -48,7 +48,6 @@ describe('continue bridge message steps', () => {
   it('stores skeleton item confirm on the react step', () => {
     let state = startQuest(createInitialQuestState(), quest002FirstNight);
     state = applyChoice(state, quest002FirstNight, 'skeleton-item-guess-hatchet');
-    state = advanceQuestMessage(state, quest002FirstNight)!;
     const step = getCurrentStep(state, quest002FirstNight);
     const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
     const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
@@ -62,7 +61,6 @@ describe('continue bridge message steps', () => {
   it('stores skeleton attack narration and modifier on the combat step', () => {
     let state = startQuest(createInitialQuestState(), quest002FirstNight);
     state = applyChoice(state, quest002FirstNight, 'skeleton-item-guess-hatchet');
-    state = advanceQuestMessage(state, quest002FirstNight)!;
     state = applyChoice(state, quest002FirstNight, 'skeleton-react-attack');
     const step = getCurrentStep(state, quest002FirstNight);
     const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
@@ -76,36 +74,36 @@ describe('continue bridge message steps', () => {
   });
 
   it('skips flavor-pockets and lands on pocket pick with narrative text', () => {
-    let state = firstNightAtHub();
+    let state = sunsetAtHub();
     state = {
       ...state,
       progressByQuestId: {
         ...state.progressByQuestId,
-        [quest002FirstNight.id]: {
-          ...state.progressByQuestId[quest002FirstNight.id]!,
+        [quest002Sunset.id]: {
+          ...state.progressByQuestId[quest002Sunset.id]!,
           currentStepId: 'flavor-five',
         },
       },
     };
 
-    state = applyChoice(state, quest002FirstNight, 'q2-check-pockets');
-    const step = getCurrentStep(state, quest002FirstNight);
-    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
+    state = applyChoice(state, quest002Sunset, 'q2-check-pockets');
+    const step = getCurrentStep(state, quest002Sunset);
+    const progress = state.progressByQuestId[quest002Sunset.id] as QuestProgress;
 
     expect(step.id).toBe('flavor-pockets-pick');
     expect(step.type).toBe('choice');
     expect(progress?.lastBeatResponse).toContain('Your hand finds');
-    expect(resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada').response).toContain(
+    expect(resolveQuestSceneTextBands(quest002Sunset, step, progress, 'Ada').response).toContain(
       'Your hand finds'
     );
   });
 
   it('stores climb-tree bridge chain and shows it on the tree fork', () => {
-    let state = firstNightAtHub();
-    state = applyChoice(state, quest002FirstNight, 'q2-climb-tree');
-    const step = getCurrentStep(state, quest002FirstNight);
-    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
-    const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
+    let state = sunsetAtHub();
+    state = applyChoice(state, quest002Sunset, 'q2-climb-tree');
+    const step = getCurrentStep(state, quest002Sunset);
+    const progress = state.progressByQuestId[quest002Sunset.id] as QuestProgress;
+    const bands = resolveQuestSceneTextBands(quest002Sunset, step, progress, 'Ada');
 
     expect(step.id).toBe('flavor-tree-fork');
     expect(progress?.lastBeatResponse).toContain('harder than it looks');
@@ -114,12 +112,12 @@ describe('continue bridge message steps', () => {
   });
 
   it('stores fall outcome when going back down and shows it on the hub prompt', () => {
-    let state = firstNightAtHub();
-    state = applyChoice(state, quest002FirstNight, 'q2-climb-tree');
-    state = applyChoice(state, quest002FirstNight, 'q2-tree-go-down');
-    const step = getCurrentStep(state, quest002FirstNight);
-    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
-    const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
+    let state = sunsetAtHub();
+    state = applyChoice(state, quest002Sunset, 'q2-climb-tree');
+    state = applyChoice(state, quest002Sunset, 'q2-tree-go-down');
+    const step = getCurrentStep(state, quest002Sunset);
+    const progress = state.progressByQuestId[quest002Sunset.id] as QuestProgress;
+    const bands = resolveQuestSceneTextBands(quest002Sunset, step, progress, 'Ada');
 
     expect(step.id).toBe('flavor-five-hub');
     expect(progress?.lastBeatResponse).toContain('fall from the tree');
@@ -128,14 +126,14 @@ describe('continue bridge message steps', () => {
   });
 
   it('allows climbing higher three times before only going back down', () => {
-    let state = firstNightAtHub();
-    state = applyChoice(state, quest002FirstNight, 'q2-climb-tree');
-    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
-    expect(getCurrentStep(state, quest002FirstNight).id).toBe('flavor-tree-fork-2');
-    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
-    expect(getCurrentStep(state, quest002FirstNight).id).toBe('flavor-tree-fork-3');
-    state = applyChoice(state, quest002FirstNight, 'q2-tree-climb-higher');
-    const step = getCurrentStep(state, quest002FirstNight);
+    let state = sunsetAtHub();
+    state = applyChoice(state, quest002Sunset, 'q2-climb-tree');
+    state = applyChoice(state, quest002Sunset, 'q2-tree-climb-higher');
+    expect(getCurrentStep(state, quest002Sunset).id).toBe('flavor-tree-fork-2');
+    state = applyChoice(state, quest002Sunset, 'q2-tree-climb-higher');
+    expect(getCurrentStep(state, quest002Sunset).id).toBe('flavor-tree-fork-3');
+    state = applyChoice(state, quest002Sunset, 'q2-tree-climb-higher');
+    const step = getCurrentStep(state, quest002Sunset);
     expect(step.id).toBe('flavor-tree-fork-4');
     expect(step.type).toBe('choice');
     if (step.type === 'choice') {
@@ -144,11 +142,11 @@ describe('continue bridge message steps', () => {
   });
 
   it('stores high-ground narration before the boar prompt', () => {
-    let state = firstNightAtHub();
-    state = applyChoice(state, quest002FirstNight, 'q2-high-ground');
-    const step = getCurrentStep(state, quest002FirstNight);
-    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
-    const bands = resolveQuestSceneTextBands(quest002FirstNight, step, progress, 'Ada');
+    let state = sunsetAtHub();
+    state = applyChoice(state, quest002Sunset, 'q2-high-ground');
+    const step = getCurrentStep(state, quest002Sunset);
+    const progress = state.progressByQuestId[quest002Sunset.id] as QuestProgress;
+    const bands = resolveQuestSceneTextBands(quest002Sunset, step, progress, 'Ada');
 
     expect(step.id).toBe('boar-encounter');
     expect(progress?.lastBeatResponse).toContain('steepen');
@@ -157,11 +155,11 @@ describe('continue bridge message steps', () => {
   });
 
   it('pauses on boar aftermath until Continue after casting a spell', () => {
-    let state = firstNightAtHub();
-    state = applyChoice(state, quest002FirstNight, 'q2-high-ground');
-    state = applyChoice(state, quest002FirstNight, 'q1-origin-boar-spark');
-    const step = getCurrentStep(state, quest002FirstNight);
-    const progress = state.progressByQuestId[quest002FirstNight.id] as QuestProgress;
+    let state = sunsetAtHub();
+    state = applyChoice(state, quest002Sunset, 'q2-high-ground');
+    state = applyChoice(state, quest002Sunset, 'q1-origin-boar-spark');
+    const step = getCurrentStep(state, quest002Sunset);
+    const progress = state.progressByQuestId[quest002Sunset.id] as QuestProgress;
 
     expect(step.id).toBe('boar-aftermath-spark');
     expect(step.type).toBe('message');
@@ -174,7 +172,7 @@ describe('continue bridge message steps', () => {
 
   it('collects bridge texts along the chain', () => {
     const texts = collectContinueBridgeChainTexts(
-      quest002FirstNight,
+      quest002Sunset,
       'flavor-pockets',
       'flavor-pockets-pick'
     );
@@ -182,10 +180,10 @@ describe('continue bridge message steps', () => {
   });
 
   it('autoAdvanceContinueBridgeSteps is idempotent on choice steps', () => {
-    let state = firstNightAtHub();
-    state = applyChoice(state, quest002FirstNight, 'q2-check-pockets');
-    const once = autoAdvanceContinueBridgeSteps(state, quest002FirstNight);
-    const twice = autoAdvanceContinueBridgeSteps(once, quest002FirstNight);
-    expect(getCurrentStep(twice, quest002FirstNight).id).toBe('flavor-pockets-pick');
+    let state = sunsetAtHub();
+    state = applyChoice(state, quest002Sunset, 'q2-check-pockets');
+    const once = autoAdvanceContinueBridgeSteps(state, quest002Sunset);
+    const twice = autoAdvanceContinueBridgeSteps(once, quest002Sunset);
+    expect(getCurrentStep(twice, quest002Sunset).id).toBe('flavor-pockets-pick');
   });
 });

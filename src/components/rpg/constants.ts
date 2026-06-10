@@ -33,8 +33,12 @@ export const DELAYED_QUEST_UNLOCKS: ReadonlyArray<{ pending: string; unlocked: s
   { pending: SWEET_DREAM_PENDING_FLAG, unlocked: SWEET_DREAM_UNLOCKED_FLAG },
 ];
 export const QUEST_ORIGIN_ID = 'quest-001-origin';
-/** Mainline forest / first night (`flavor-five` → endings); grants `quest001-complete` when done. */
+/** Skeleton encounter beat (Instinct). */
 export const QUEST_FIRST_NIGHT_ID = 'quest-002-first-night';
+/** Loadout tutorial after Instinct. */
+export const QUEST_EQUIP_LOADOUT_ID = 'quest-002-d-equip-loadout';
+/** Forest exploration / nightfall (`flavor-five` → morning); grants `quest001-complete` when done. */
+export const QUEST_SUNSET_ID = 'quest-002-e-sunset';
 /** Forest beat after first night — The Old Well (Door-style popup). */
 export const QUEST_002B_WILL_I_STARVE_ID = 'quest-002-b-will-i-starve';
 export const QUEST_002B_WELL_HALT_STEP_ID = 'well-halt';
@@ -165,6 +169,16 @@ export const PRIMARY_STAT_MODIFIER_LABEL: Record<string, string> = {
   Intelligence: 'intelligence',
   Wisdom: 'wisdom',
   Charisma: 'charisma',
+};
+
+/** Character sheet column headers (STR, DEX, …). */
+export const PRIMARY_STAT_ABBREV: Record<string, string> = {
+  Strength: 'STR',
+  Dexterity: 'DEX',
+  Constitution: 'CON',
+  Intelligence: 'INT',
+  Wisdom: 'WIS',
+  Charisma: 'CHA',
 };
 
 /** Modifier skill keys `skill:<category>:<slug>` — display names for character sheet sections. */

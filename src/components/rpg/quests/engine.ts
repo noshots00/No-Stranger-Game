@@ -1,4 +1,4 @@
-import type { CombatLoadout } from '../combat/combatTypes';
+import { isEquipLoadoutQuestComplete } from '../combat/loadoutHelpers';
 import { clampPlayerHealth, normalizeSavedHealth } from '../combat/playerHealth';
 import type {
   ChoiceEffect,
@@ -44,10 +44,12 @@ import {
   CLASS_ARCHETYPE_SLUGS,
   QUEST_DAY_TWO_DREAM_ID,
   QUEST_DYERS_CRYPT_ID,
+  QUEST_EQUIP_LOADOUT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_ORIGIN_ID,
   QUEST_004_B_THE_DOOR_ID,
   QUEST_FOREST_CAVE_ID,
+  QUEST_SUNSET_ID,
   DAY_PACING_ACTIVE_FLAG,
   FOREST_CAVE_DISCOVERED_FLAG,
   AIRSHIP_FLAG,
@@ -62,6 +64,7 @@ import {
 } from '../constants';
 import { resolveCharacterCreatedAtAppVersion } from '../characterSaveVersion';
 import { questById } from './registry';
+import { SUNSET_STEP_IDS } from './quest-002-e-sunset';
 import {
   resolveForestCavePrimaryKnockoutStepId,
   resolveForestCavePrimaryWakeStepId,
@@ -457,6 +460,120 @@ const migrateMergedWanderingSkeletonIntoDyersCrypt = (args: {
   return { progressByQuestId, activeQuestId: nextActive, unveiledQuestIds };
 };
 
+const copyQuestProgress = (prog: QuestProgress): QuestProgress => ({
+  currentStepId: prog.currentStepId,
+  isCompleted: prog.isCompleted,
+  choiceHistory: Array.isArray(prog.choiceHistory) ? [...prog.choiceHistory] : [],
+  devStepHistory: Array.isArray(prog.devStepHistory) ? [...prog.devStepHistory] : [],
+  ...(prog.lastBeatResponse !== undefined ? { lastBeatResponse: prog.lastBeatResponse } : {}),
+});
+
+const LEGACY_FULL_FIRST_NIGHT_CHOICE_MARKERS = [
+  'q2-night-wait-morning',
+  'q2-high-ground',
+  'q2-look-food',
+  'q2-check-pockets',
+  'q1-origin-boar-strike',
+] as const;
+
+function looksLikeLegacyFullFirstNight(prog: QuestProgress): boolean {
+  if (!prog.isCompleted) return false;
+  const history = prog.choiceHistory ?? [];
+  return LEGACY_FULL_FIRST_NIGHT_CHOICE_MARKERS.some((id) => history.includes(id));
+}
+
+const migrateSplitFirstNightQuests = (args: {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+  loadout: CombatLoadout;
+  modifiers: ModifierMap;
+}): {
+  progressByQuestId: Record<string, QuestProgress>;
+  activeQuestId: string | null;
+  unveiledQuestIds: string[];
+} => {
+  const progressByQuestId = { ...args.progressByQuestId };
+  let unveiledQuestIds = [...args.unveiledQuestIds];
+  let activeQuestId = args.activeQuestId;
+
+  const ensureUnveiled = (questId: string) => {
+    if (!unveiledQuestIds.includes(questId)) unveiledQuestIds.push(questId);
+  };
+
+  const stubForLoadout: QuestState = {
+    ...createInitialQuestState(),
+    loadout: args.loadout,
+    modifiers: args.modifiers,
+  };
+
+  const instinctProg = progressByQuestId[QUEST_FIRST_NIGHT_ID];
+
+  if (instinctProg && !instinctProg.isCompleted && SUNSET_STEP_IDS.has(instinctProg.currentStepId)) {
+    progressByQuestId[QUEST_SUNSET_ID] = copyQuestProgress(instinctProg);
+    progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+      currentStepId: 'skeleton-loot',
+      isCompleted: true,
+      choiceHistory: (instinctProg.choiceHistory ?? []).filter((id) => id.startsWith('skeleton')),
+    };
+    ensureUnveiled(QUEST_EQUIP_LOADOUT_ID);
+    ensureUnveiled(QUEST_SUNSET_ID);
+    if (!progressByQuestId[QUEST_EQUIP_LOADOUT_ID]) {
+      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
+        currentStepId: 'await-loadout',
+        isCompleted: false,
+        choiceHistory: [],
+      };
+    }
+    if (isEquipLoadoutQuestComplete(stubForLoadout)) {
+      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
+        ...progressByQuestId[QUEST_EQUIP_LOADOUT_ID]!,
+        isCompleted: true,
+      };
+    }
+    if (activeQuestId === QUEST_FIRST_NIGHT_ID) {
+      activeQuestId = progressByQuestId[QUEST_EQUIP_LOADOUT_ID]?.isCompleted
+        ? QUEST_SUNSET_ID
+        : QUEST_EQUIP_LOADOUT_ID;
+    }
+  }
+
+  const instinctAfter = progressByQuestId[QUEST_FIRST_NIGHT_ID];
+  if (instinctAfter?.isCompleted && looksLikeLegacyFullFirstNight(instinctAfter)) {
+    if (!progressByQuestId[QUEST_SUNSET_ID]?.isCompleted) {
+      progressByQuestId[QUEST_SUNSET_ID] = {
+        currentStepId: 'flavor-five',
+        isCompleted: true,
+        choiceHistory: [...(instinctAfter.choiceHistory ?? [])],
+      };
+    }
+    ensureUnveiled(QUEST_EQUIP_LOADOUT_ID);
+    ensureUnveiled(QUEST_SUNSET_ID);
+    if (!progressByQuestId[QUEST_EQUIP_LOADOUT_ID]) {
+      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
+        currentStepId: 'await-loadout',
+        isCompleted: isEquipLoadoutQuestComplete(stubForLoadout),
+        choiceHistory: [],
+      };
+    } else if (
+      !progressByQuestId[QUEST_EQUIP_LOADOUT_ID]!.isCompleted &&
+      isEquipLoadoutQuestComplete(stubForLoadout)
+    ) {
+      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
+        ...progressByQuestId[QUEST_EQUIP_LOADOUT_ID]!,
+        isCompleted: true,
+      };
+    }
+    if (activeQuestId === QUEST_FIRST_NIGHT_ID) {
+      activeQuestId = progressByQuestId[QUEST_EQUIP_LOADOUT_ID]?.isCompleted
+        ? null
+        : QUEST_EQUIP_LOADOUT_ID;
+    }
+  }
+
+  return { progressByQuestId, activeQuestId, unveiledQuestIds };
+};
+
 const migrateLegacyOriginForestProgress = (args: {
   progressByQuestId: Record<string, QuestProgress>;
   activeQuestId: string | null;
@@ -476,7 +593,7 @@ const migrateLegacyOriginForestProgress = (args: {
     return { progressByQuestId, activeQuestId, unveiledQuestIds };
   }
 
-  progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+  progressByQuestId[QUEST_SUNSET_ID] = {
     currentStepId: originProg.currentStepId,
     isCompleted: false,
     choiceHistory: Array.isArray(originProg.choiceHistory) ? [...originProg.choiceHistory] : [],
@@ -488,12 +605,14 @@ const migrateLegacyOriginForestProgress = (args: {
   };
 
   let nextActive = activeQuestId;
-  if (nextActive === QUEST_ORIGIN_ID) nextActive = QUEST_FIRST_NIGHT_ID;
+  if (nextActive === QUEST_ORIGIN_ID) nextActive = QUEST_SUNSET_ID;
 
   return {
     progressByQuestId,
     activeQuestId: nextActive,
-    unveiledQuestIds: Array.from(new Set([...unveiledQuestIds, QUEST_FIRST_NIGHT_ID])),
+    unveiledQuestIds: Array.from(
+      new Set([...unveiledQuestIds, QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID, QUEST_SUNSET_ID])
+    ),
   };
 };
 
@@ -536,6 +655,28 @@ export const createInitialQuestState = (): QuestState => ({
   jobDailyActionBySlug: {},
   resources: {},
 });
+
+/** Labels dropped from `questItems` once the player owns the equippable `item:*` modifier. */
+const EQUIPPABLE_ITEM_QUEST_LABELS: ReadonlyArray<{ itemKey: string; labels: readonly string[] }> = [
+  { itemKey: 'item:hatchet', labels: ['A Hatchet'] },
+  { itemKey: 'item:small-pickaxe', labels: ['Small Pickaxe'] },
+  { itemKey: 'item:blacksmith-hammer', labels: ["A Blacksmith's Hammer", "Blacksmith's Hammer"] },
+  { itemKey: 'item:stone-mason-chisel', labels: ["A Stone Mason's Chisel"] },
+];
+
+function migrateEquippableItemsOffQuestItems(
+  questItems: string[],
+  modifiers: ModifierMap
+): string[] {
+  const remove = new Set<string>();
+  for (const { itemKey, labels } of EQUIPPABLE_ITEM_QUEST_LABELS) {
+    if ((modifiers[itemKey] ?? 0) >= 1) {
+      for (const label of labels) remove.add(label);
+    }
+  }
+  if (remove.size === 0) return questItems;
+  return questItems.filter((label) => !remove.has(label));
+}
 
 export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const initial = createInitialQuestState();
@@ -667,12 +808,19 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     ? state.flags.filter((f): f is string => typeof f === 'string')
     : initial.flags;
 
+  const rawLoadoutEarly = (state as { loadout?: unknown }).loadout;
+  const loadoutForMigration = normalizeCombatLoadout(rawLoadoutEarly);
+
   const coreMigrated = migrateLegacyContinueBridgeSteps(
     migrateMergedWanderingSkeletonIntoDyersCrypt(
-      migrateLegacyOriginForestProgress({
-        progressByQuestId: baseProgress,
-        activeQuestId: resolvedActiveQuestId,
-        unveiledQuestIds,
+      migrateSplitFirstNightQuests({
+        ...migrateLegacyOriginForestProgress({
+          progressByQuestId: baseProgress,
+          activeQuestId: resolvedActiveQuestId,
+          unveiledQuestIds,
+        }),
+        loadout: loadoutForMigration,
+        modifiers: normalizedModifiers,
       })
     )
   );
@@ -970,6 +1118,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       ? Math.floor(rawHealth)
       : initial.health;
   const health = normalizeSavedHealth(healthCandidate, normalizedModifiers, progressByQuestId);
+  const migratedQuestItems = migrateEquippableItemsOffQuestItems(questItems, normalizedModifiers);
 
   return {
     ...initial,
@@ -990,7 +1139,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     dialogueLog,
     worldEventLog,
     journalLog,
-    questItems,
+    questItems: migratedQuestItems,
     unveiledQuestIds: migrated.unveiledQuestIds,
     progressByQuestId,
     activeQuestId: migrated.activeQuestId,
@@ -1479,6 +1628,8 @@ export function markQuestCompleted(state: QuestState, questId: string): QuestSta
 const FOREST_AUTO_TRACK_QUEST_IDS: readonly string[] = [
   QUEST_ORIGIN_ID,
   QUEST_FIRST_NIGHT_ID,
+  QUEST_EQUIP_LOADOUT_ID,
+  QUEST_SUNSET_ID,
   QUEST_DYERS_CRYPT_ID,
   'quest-004-abandoned-shelter',
   QUEST_DAY_TWO_DREAM_ID,
@@ -1636,7 +1787,7 @@ export const pickDominantRaceSlug = (modifiers: ModifierMap, tieSalt: string): s
 export const getCurrentStep = (state: QuestState, quest: QuestDefinition): QuestStep => {
   const progress = state.progressByQuestId[quest.id];
   let stepId = progress?.currentStepId ?? resolveQuestEntryStepId(quest, state);
-  if (quest.id === QUEST_FIRST_NIGHT_ID && !quest.steps[stepId]) {
+  if (quest.id === QUEST_SUNSET_ID && !quest.steps[stepId]) {
     stepId = 'nightfall-wait';
   }
   if (!quest.steps[stepId]) {

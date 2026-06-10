@@ -45,17 +45,25 @@ function hpPercent(current: number, max: number): number {
   return Math.round((current / max) * 100);
 }
 
+import { SpellNameInText } from '../spells/SpellNameInText';
+
 function CombatLogLineText({ entry, enemyName }: { entry: CombatLogLine; enemyName: string }) {
-  if (entry.tone !== 'enemy') return entry.text;
-  if (entry.text.startsWith(enemyName)) {
+  if (entry.tone === 'enemy') {
+    if (entry.text.startsWith(enemyName)) {
+      return (
+        <>
+          <span className="rpg-combat-enemy-name">{enemyName}</span>
+          <SpellNameInText text={entry.text.slice(enemyName.length)} />
+        </>
+      );
+    }
     return (
-      <>
-        <span className="rpg-combat-enemy-name">{enemyName}</span>
-        {entry.text.slice(enemyName.length)}
-      </>
+      <span className="text-[var(--combat-enemy-ink-soft)]">
+        <SpellNameInText text={entry.text} />
+      </span>
     );
   }
-  return <span className="text-[var(--combat-enemy-ink-soft)]">{entry.text}</span>;
+  return <SpellNameInText text={entry.text} />;
 }
 
 function CombatHpBar({

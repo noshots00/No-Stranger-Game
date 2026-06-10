@@ -12,6 +12,7 @@ import {
   QUEST001_NAMED_FLAG,
   QUEST_018_SILVER_LAKE_REFLECTION_ID,
   QUEST_FIRST_NIGHT_ID,
+  QUEST_SUNSET_ID,
 } from '@/components/rpg/constants';
 import { DAY_REPORT_SPEAKER } from '@/components/rpg/dialogueFormat';
 import {
@@ -160,7 +161,7 @@ function rebuildPrefixThroughArcIndex(
     accum = mergeJournalRecapOnQuestComplete(prev, accum, quest);
     accum = applyQuestLevelMilestoneIfNeeded(prev, accum, qid);
 
-    if (qid === QUEST_FIRST_NIGHT_ID && quest.mainDailyQuest) {
+    if (qid === QUEST_SUNSET_ID && quest.mainDailyQuest) {
       accum = applyInSessionDayAdvanceAfterMainQuest(prev, accum, Math.max(1, accum.lastDailyXpDay), true);
     }
   }
@@ -229,7 +230,7 @@ export function devCompleteQuestById(
     next = ensureNamedDevBasics(next);
   }
 
-  if (questId === QUEST_FIRST_NIGHT_ID) {
+  if (questId === QUEST_SUNSET_ID) {
     next = {
       ...next,
       flags: Array.from(new Set([...next.flags, QUEST001_COMPLETE_FLAG])),

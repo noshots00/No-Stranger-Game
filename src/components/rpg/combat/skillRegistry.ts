@@ -29,6 +29,7 @@ const SKILL_DEFS: SkillDef[] = [
   { id: 'skill:combat:bash', displayName: 'Bash', kind: 'active', aliases: ['BashSkill', 'skill:bash'] },
   { id: 'skill:combat:taunt', displayName: 'Taunt', kind: 'active', aliases: ['TauntSkill'] },
   { id: 'spell:fireball', displayName: 'Fireball', kind: 'active', aliases: ['FireballSpell'] },
+  { id: 'spell:spark', displayName: 'Spark', kind: 'active', aliases: ['SparkSpell'] },
   { id: 'skill:combat:dodge', displayName: 'Dodge', kind: 'defensive', aliases: ['DodgeSkill'] },
   { id: 'skill:combat:parry', displayName: 'Parry', kind: 'defensive', aliases: ['ParrySkill'] },
   { id: 'skill:combat:evasion', displayName: 'Evasion', kind: 'passive', aliases: ['Evasion'] },
@@ -56,12 +57,18 @@ export function getSkillDisplayName(skillId: string): string {
   return getSkillDef(skillId)?.displayName ?? skillId;
 }
 
+/** Known spell labels for prose highlighting (`Spark`, `Fireball`, …). */
+export function listSpellDisplayNames(): string[] {
+  return SKILL_DEFS.filter((def) => def.id.startsWith('spell:')).map((def) => def.displayName);
+}
+
 export function isPassiveSkill(skillId: string): boolean {
   const def = getSkillDef(skillId);
   return def?.kind === 'passive';
 }
 
 export function isSpellSkillId(skillId: string): boolean {
+  if (/Spell$/i.test(skillId)) return true;
   const canonical = normalizeSkillId(skillId) ?? skillId;
   return canonical.startsWith('spell:');
 }
@@ -129,6 +136,8 @@ export function resolveActiveSkill(
       const raw = rng.randomInt(min, max);
       return { hit: true, rawDamage: raw, isCrit: forceCrit, isSpell: true, flavor: 'Fireball' };
     }
+    case 'spell:spark':
+      return { hit: true, rawDamage: 5, isCrit: forceCrit, isSpell: true, flavor: 'Spark' };
     default: {
       const base = getAutoAttackDamage(attacker.stats.str, attacker.stats.dex);
       return { hit: true, rawDamage: base + getWeaponDamageBonus(attacker), isCrit: forceCrit, isSpell: false };

@@ -1,6 +1,7 @@
 import type { CharacterUpdateKind, DialogueLogEntry } from './quests/types';
 import { LevelGlintMark } from './LevelGlintMark';
-import { PlayerNameInText, PlayerNameMark } from './PlayerNameInText';
+import { PlayerNameMark } from './PlayerNameInText';
+import { GameLineText } from './items/GameLineText';
 import { RPG_UI_LOG_LINE } from './typography/rpgUiTypography';
 
 const LEVEL_PHRASE_RE = /^You reached Level (\d+)!$/;
@@ -54,7 +55,7 @@ export function CharacterUpdateLine({ line, playerName, presentation = 'play' }:
 
   return (
     <p className={bodyClass}>
-      <PlayerNameInText text={line.text} playerName={playerName} />
+      <GameLineText text={line.text} playerName={playerName} />
     </p>
   );
 }
