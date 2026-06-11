@@ -1,11 +1,11 @@
 import {
   QUEST_DYERS_CRYPT_ID,
-  QUEST_EQUIP_LOADOUT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_FOREST_CAVE_ID,
   QUEST_SUNSET_ID,
 } from '@/components/rpg/constants';
 import { getLevelUpLines, getRewardLines } from '../helpers';
+import { stampJournalRecapAtMs } from '../playLedgerSchema';
 import { recordModifiersAfterQuestComplete } from './engine';
 import { buildFirstNightJournalSummary } from './quest-002-first-night-journal';
 import {
@@ -37,7 +37,8 @@ export function resolveJournalSummaryText(
 
   if (quest.id === QUEST_FIRST_NIGHT_ID) {
     return interpolateStepText(
-      quest.journalSummaryFallback ?? 'You fought a shambling skeleton in the woods.',
+      quest.journalSummaryFallback ??
+        'You fought a shambling skeleton in the woods and equipped a weapon and a skill.',
       playerName
     );
   }
@@ -86,7 +87,9 @@ export function appendJournalRecapEntry(
   text: string,
   options?: { atMs?: number; completionRewards?: string[]; replaceText?: boolean }
 ): QuestState {
-  const atMs = options?.atMs ?? Date.now();
+  const atMs =
+    options?.atMs ??
+    stampJournalRecapAtMs(state.dialogueLog, state.worldEventLog, state.journalLog);
   const completionRewards = options?.completionRewards?.filter((s) => s.trim().length > 0);
   const existingIndex = state.journalLog.findIndex((entry) => entry.questId === questId);
   if (existingIndex >= 0) {

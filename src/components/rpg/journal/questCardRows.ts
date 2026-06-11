@@ -1,19 +1,14 @@
 import type { QuestDefinition } from '../quests/types';
 
-/** Incomplete quest cards shown at the bottom of the Play journal (matches JournalScreen). */
+/** Quest cards for the Play feed — incomplete and completed (completed cards transform in place). */
 export function getQuestCardRows(
   visibleQuests: readonly QuestDefinition[],
-  completedQuestIds: readonly string[],
+  _completedQuestIds: readonly string[],
   activeQuest: QuestDefinition | null | undefined
 ): QuestDefinition[] {
-  const completedSet = new Set(completedQuestIds);
-  const incomplete = visibleQuests.filter((q) => !completedSet.has(q.id));
-  if (
-    activeQuest &&
-    !completedSet.has(activeQuest.id) &&
-    !incomplete.some((q) => q.id === activeQuest.id)
-  ) {
-    return [activeQuest, ...incomplete];
+  const sorted = [...visibleQuests].sort((a, b) => a.createdAt - b.createdAt);
+  if (activeQuest && !sorted.some((q) => q.id === activeQuest.id)) {
+    return [activeQuest, ...sorted];
   }
-  return incomplete;
+  return sorted;
 }

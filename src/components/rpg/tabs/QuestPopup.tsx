@@ -28,6 +28,7 @@ import {
 } from '../dialogueFormat';
 import { QuestChoiceEffectsHint } from '../dev/QuestChoiceEffectsHint';
 import { QuestChoiceModifiersHint } from '../dev/QuestChoiceModifiersHint';
+import { PlayerNameEntryField } from '../PlayerNameEntryField';
 import { SpellNameInText } from '../spells/SpellNameInText';
 import {
   formatChoiceStepDevLines,
@@ -499,27 +500,19 @@ export function QuestPopup({
         ) : null}
 
         {step.type === 'input' ? (
-          <div className="space-y-3 px-1">
-            <input
-              type="text"
-              value={nameInput}
-              onChange={(event) => onNameInputChange(event.target.value)}
-              placeholder={step.placeholder}
-              className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-2 font-serif text-sm text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)]/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
-            />
-            {nameInputError ? (
-              <p className="font-serif text-xs text-rose-300/90">{nameInputError}</p>
-            ) : null}
-            <button
-              type="button"
-              onClick={onNameSubmit}
-              className={`choice-line w-auto border-b border-transparent py-2 ${
-                isValidInputStepName ? 'text-emerald-200 hover:text-emerald-300' : 'text-red-300 hover:text-red-200'
-              }`}
-            >
-              {step.submitLabel}
-            </button>
-          </div>
+          <PlayerNameEntryField
+            className="space-y-3 px-1"
+            value={nameInput}
+            onChange={onNameInputChange}
+            placeholder={step.placeholder}
+            submitLabel={step.submitLabel}
+            onSubmit={onNameSubmit}
+            isValid={isValidInputStepName}
+            error={nameInputError}
+            submitButtonClassName={`choice-line w-auto border-b border-transparent py-2 ${
+              isValidInputStepName ? 'text-emerald-200 hover:text-emerald-300' : 'text-red-300 hover:text-red-200'
+            }`}
+          />
         ) : null}
       </div>
   );

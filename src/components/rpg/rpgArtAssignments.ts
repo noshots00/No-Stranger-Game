@@ -131,9 +131,6 @@ const QUEST_TITLE_ART_OVERRIDES: Record<string, QuestTitleArtOverride> = {
   Instinct: {
     path: `${CONVERTED_ART}/aerial-view-of-autumn-forest-colors.webp`,
   },
-  'Equip a weapon and a skill': {
-    path: `${CONVERTED_ART}/aerial-view-of-autumn-forest-colors.webp`,
-  },
   Sunset: {
     path: `${CONVERTED_ART}/sophus-jacobsen-sunset-in-the-forest-1878.webp`,
   },

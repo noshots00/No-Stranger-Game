@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CLASS_UNLOCK_POINTS } from './constants';
 import {
   buildDayReportDialogueLines,
+  getCharacterLevelUpLines,
   getModifierLevelUpLines,
   formatQuestItemGainReportLine,
   getQuestItemGainLines,
@@ -57,6 +58,16 @@ describe('day report modifier visibility', () => {
     expect(lines).toContain('You learned Spark!');
   });
 
+  it('phrases organic skill gains as learn', () => {
+    const prev = createInitialQuestState();
+    const next = {
+      ...prev,
+      modifiers: { ...prev.modifiers, StealthSkill: 1 },
+    };
+    const lines = getModifierLevelUpLines(prev, next);
+    expect(lines).toContain('You learn Stealth!');
+  });
+
   it('getModifierLevelUpLines includes unlocked trait and stat', () => {
     const prev = createInitialQuestState();
     const next = {
@@ -100,6 +111,46 @@ describe('day report modifier visibility', () => {
       .map((line) => line.text)
       .join('\n');
     expect(text).toContain("Gained items: It's a tiny buckler.");
+  });
+
+  it('getCharacterLevelUpLines uses day baseline and formats Level phrase', () => {
+    const prev = {
+      ...createInitialQuestState(),
+      dayReportCharacterLevelBaseline: 2,
+      progressByQuestId: {
+        'quest-001-origin': { currentStepId: 'x', isCompleted: true, choiceHistory: [] },
+        'quest-002-first-night': { currentStepId: 'x', isCompleted: true, choiceHistory: [] },
+      },
+    };
+    const next = {
+      ...prev,
+      progressByQuestId: {
+        ...prev.progressByQuestId,
+        'quest-003-dyers-crypt': { currentStepId: 'x', isCompleted: true, choiceHistory: [] },
+      },
+    };
+    expect(getCharacterLevelUpLines(prev, next)).toEqual(['You reached Level 3!']);
+  });
+
+  it('buildDayReportDialogueLines includes character level when baseline lags', () => {
+    const prev = {
+      ...createInitialQuestState(),
+      dayReportCharacterLevelBaseline: 1,
+      progressByQuestId: {
+        'quest-001-origin': { currentStepId: 'x', isCompleted: true, choiceHistory: [] },
+      },
+    };
+    const next = {
+      ...prev,
+      progressByQuestId: {
+        ...prev.progressByQuestId,
+        'quest-041-mayor': { currentStepId: 'x', isCompleted: true, choiceHistory: [] },
+      },
+    };
+    const text = buildDayReportDialogueLines(4, prev, next)
+      .map((line) => line.text)
+      .join('\n');
+    expect(text).toContain('You reached Level 2!');
   });
 
   it('buildDayReportDialogueLines still includes exploration/foraging XP', () => {

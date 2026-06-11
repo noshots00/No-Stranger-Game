@@ -36,6 +36,7 @@ export const QUEST_ORIGIN_ID = 'quest-001-origin';
 /** Skeleton encounter beat (Instinct). */
 export const QUEST_FIRST_NIGHT_ID = 'quest-002-first-night';
 /** Loadout tutorial after Instinct. */
+/** @deprecated Merged into Instinct (`quest-002-first-night`); kept for save migration. */
 export const QUEST_EQUIP_LOADOUT_ID = 'quest-002-d-equip-loadout';
 /** Forest exploration / nightfall (`flavor-five` → morning); grants `quest001-complete` when done. */
 export const QUEST_SUNSET_ID = 'quest-002-e-sunset';

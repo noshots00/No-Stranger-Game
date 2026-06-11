@@ -15,6 +15,7 @@ import {
 import { QuestSceneNpcTalk } from './QuestSceneNpcTalk';
 import { QuestSceneCombat } from '../combat/QuestSceneCombat';
 import { useQuestSceneCombatChoice } from './useQuestSceneCombatChoice';
+import { PlayerNameEntryField } from '../PlayerNameEntryField';
 import {
   QUEST_SCENE_CHOICE,
   QUEST_SCENE_CHOICE_LABEL,
@@ -389,28 +390,15 @@ export function QuestSceneScreen({
           ) : null}
 
           {step.type === 'input' ? (
-            <div className="space-y-1 px-0.5 py-0.5">
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(event) => onNameInputChange(event.target.value)}
-                placeholder={step.placeholder}
-                className="w-full border-b border-[var(--candle-rule)] bg-transparent px-0 py-1 font-serif text-[12px] text-[var(--candle-ink)] placeholder:text-[var(--candle-ink-faint)]/80 focus:border-[var(--candle-flame-soft)] focus:outline-none"
-              />
-              {nameInputError ? (
-                <p className="font-serif text-[10px] text-rose-300/90">{nameInputError}</p>
-              ) : null}
-              <button
-                type="button"
-                onClick={onNameSubmit}
-                className={cn(
-                  QUEST_SCENE_CONTINUE,
-                  !isValidInputStepName && 'text-red-300 hover:text-red-200'
-                )}
-              >
-                {step.submitLabel}
-              </button>
-            </div>
+            <PlayerNameEntryField
+              value={nameInput}
+              onChange={onNameInputChange}
+              placeholder={step.placeholder}
+              submitLabel={step.submitLabel}
+              onSubmit={onNameSubmit}
+              isValid={isValidInputStepName}
+              error={nameInputError}
+            />
           ) : null}
       </QuestSceneActionBox>
       </QuestSceneContentPanel>

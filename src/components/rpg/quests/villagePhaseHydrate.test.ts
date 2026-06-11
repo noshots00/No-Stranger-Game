@@ -41,11 +41,12 @@ describe('village phase hydrate', () => {
       ...createInitialQuestState(),
       flags: [VILLAGE_PHASE_FLAG],
       currentLocation: 'Forest',
+      lastDailyXpDay: 3,
     };
-    const next = reconcileVillagePhaseState(state, 4);
+    const next = reconcileVillagePhaseState(state);
     expect(next.currentLocation).toBe('Forest');
     expect(next.flags).toContain(DAY_PACING_ACTIVE_FLAG);
-    expect(next.lastDailyXpDay).toBe(4);
+    expect(next.lastDailyXpDay).toBe(3);
   });
 
   it('prefers local forest progress when relay checkpoint is still at origin', () => {

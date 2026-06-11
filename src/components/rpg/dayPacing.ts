@@ -18,9 +18,11 @@ import {
 } from './constants';
 import { DAY_REPORT_SPEAKER, isReportInfographicTitle } from './dialogueFormat';
 import { appendUniqueWorldEntries, buildDayReportDialogueLines } from './helpers';
+import { stampDialogueEntriesAfterLedger } from './playLedgerSchema';
 import { getJobDefinition } from './jobs/registry';
 import {
   createInitialSkills,
+  getCharacterLevel,
   getCompletedQuestIds,
   getLevelFromXp,
   getQuestContext,
@@ -31,6 +33,11 @@ import { pickNextSideQuestToUnveilOnDayRoll } from './quests/quest-saga';
 import { SKILL_XP_KEYS, distributeDailySkillXp } from './quests/skills-config';
 import type { DialogueLogEntry, QuestState } from './quests/types';
 import { applyWolfHideDailyGrants } from './tavern/wolfHidesDaily';
+import {
+  easternCalendarDaysBetweenYmd,
+  easternYmdDaysBefore,
+  formatEasternYmdFromUtcMs,
+} from '@/lib/easternGameTime';
 import { getDeterministicDailyRoll } from '@/lib/deterministicDailyRoll';
 
 const FLAG_TO_QUEST_ID: Record<string, string> = {
@@ -201,33 +208,70 @@ export function applyDayEndTransition(args: ApplyDayRollArgs): QuestState {
     modifiers: { ...modifierBaseline },
     questItems: [...(prevForReport.dayReportQuestItemsBaseline ?? [])],
   };
-  const reportLines = buildDayReportDialogueLines(endingDay, prevForModifierReport, updatedState);
+
+  const appendDayReport = isVillagePhase(updatedState.flags) && !sessionOnly;
+  if (appendDayReport) {
+    const reportLines = stampDialogueEntriesAfterLedger(
+      buildDayReportDialogueLines(endingDay, prevForModifierReport, updatedState),
+      updatedState.dialogueLog,
+      updatedState.worldEventLog
+    );
+    updatedState = {
+      ...updatedState,
+      dialogueLog: [...updatedState.dialogueLog, ...reportLines],
+    };
+  }
+
   updatedState = {
     ...updatedState,
-    dialogueLog: [...updatedState.dialogueLog, ...reportLines],
     lastDailyXpDay: nextDay,
     dayReportModifierBaseline: { ...updatedState.modifiers },
+    dayReportCharacterLevelBaseline: getCharacterLevel(updatedState),
     dayReportQuestItemsBaseline: [...updatedState.questItems],
   };
 
   return updatedState;
 }
 
-/** Calendar catch-up: grant XP for skipped days, then end the latest day with report + marker. */
-export function applyCalendarDayCatchUp(prevState: QuestState, calendarDay: number): QuestState {
-  const daysToGrant = calendarDay - prevState.lastDailyXpDay;
-  if (daysToGrant <= 0) return prevState;
-  const nextDay = calendarDay;
-  const endingDay = nextDay - 1;
-  let updated = applyDailyXpGrants(prevState, daysToGrant, nextDay);
+/** End one village narrative day (login rollover or dev advance). */
+export function applyVillageDayRollover(prevState: QuestState, gameDayForRolls: number): QuestState {
+  const endingDay = prevState.lastDailyXpDay;
+  const nextDay = endingDay + 1;
+  let updated = applyDailyXpGrants(prevState, 1, nextDay);
   updated = applyDayEndTransition({
     prevForReport: prevState,
     state: updated,
     endingDay,
     nextDay,
-    calendarDay,
+    calendarDay: gameDayForRolls,
   });
   return updated;
+}
+
+/**
+ * Village login: after an Eastern midnight since `lastDailyXpGrantEasternYmd`, roll each
+ * missed civil day. `lastDailyXpDay` continues from the forest arc (not creation-calendar index).
+ */
+export function applyVillageRolloverOnLogin(state: QuestState, nowUtcMs: number): QuestState {
+  if (!isDayPacingActive(state.flags)) return state;
+
+  const todayYmd = formatEasternYmdFromUtcMs(nowUtcMs);
+  const lastGrant =
+    state.lastDailyXpGrantEasternYmd ??
+    // Legacy saves: pacing was on but grant date was never stored — allow today's login to roll.
+    easternYmdDaysBefore(todayYmd, 1);
+
+  const easternDaysPassed = easternCalendarDaysBetweenYmd(lastGrant, todayYmd);
+  if (easternDaysPassed <= 0) {
+    if (state.lastDailyXpGrantEasternYmd === todayYmd) return state;
+    return { ...state, lastDailyXpGrantEasternYmd: todayYmd };
+  }
+
+  let current = state;
+  for (let i = 0; i < easternDaysPassed; i += 1) {
+    current = applyVillageDayRollover(current, current.lastDailyXpDay + 1);
+  }
+  return { ...current, lastDailyXpGrantEasternYmd: todayYmd };
 }
 
 export function dayReportTitle(dayNumber: number): string {
@@ -342,65 +386,47 @@ export function reconcilePlayDayRollStaging(state: QuestState): QuestState {
   return { ...next, playDayRollStaging: undefined };
 }
 
-/** Repair forest saves: first night done but Day 1 XP/report missing or title-only. */
+function stripForestDayReportBlocks(
+  dialogueLog: readonly DialogueLogEntry[]
+): DialogueLogEntry[] {
+  let out = [...dialogueLog];
+  for (let day = 1; day <= 30; day += 1) {
+    out = stripDayReportBlock(out, day);
+  }
+  return out;
+}
+
+/** Repair forest saves: Day 1 XP if missing; strip Day N Report blocks from the Play feed. */
 export function reconcileForestSessionDay(state: QuestState): QuestState {
   if (isVillagePhase(state.flags)) return state;
   if (!state.flags.includes('quest001-complete')) return state;
 
   const withStaging = reconcilePlayDayRollStaging(state);
+  let next: QuestState = {
+    ...withStaging,
+    dialogueLog: stripForestDayReportBlocks(withStaging.dialogueLog),
+  };
 
-  const reportOk = dayReportHasBody(withStaging.dialogueLog, 1);
-  const skillsOk = forestDayOneSkillsGranted(withStaging);
-  if (reportOk && skillsOk && withStaging.lastDailyXpDay >= 2) return withStaging;
-
+  const skillsOk = forestDayOneSkillsGranted(next);
   if (!skillsOk) {
-    const cleaned = stripDayReportBlock(withStaging.dialogueLog, 1);
     const base: QuestState = {
-      ...withStaging,
-      dialogueLog: cleaned,
+      ...next,
+      dialogueLog: stripForestDayReportBlocks(next.dialogueLog),
       lastDailyXpDay: 1,
       skills: createInitialSkills(),
     };
     return applyInSessionDayAdvanceAfterMainQuest(base, base, 1, true);
   }
 
-  if (!reportOk) {
-    const pseudoPrev: QuestState = {
-      ...withStaging,
-      skills: createInitialSkills(),
-      modifiers: withStaging.dayReportModifierBaseline ?? {},
-      questItems: [...(withStaging.dayReportQuestItemsBaseline ?? [])],
-    };
-    const reportLines = buildDayReportDialogueLines(1, pseudoPrev, withStaging);
-    const bodyLines = reportLines.filter((line) => line.text.trim() !== dayReportTitle(1));
-    if (bodyLines.length === 0) return withStaging;
-
-    const hasTitle = withStaging.dialogueLog.some((line) => line.text.trim() === dayReportTitle(1));
-    const dialogueLog = hasTitle
-      ? [...withStaging.dialogueLog, ...bodyLines]
-      : [...withStaging.dialogueLog, ...reportLines];
-
-    const next =
-      withStaging.lastDailyXpDay < 2
-        ? {
-            ...withStaging,
-            lastDailyXpDay: 2,
-            dayReportModifierBaseline: { ...withStaging.modifiers },
-            dayReportQuestItemsBaseline: [...withStaging.questItems],
-          }
-        : withStaging;
-    return { ...next, dialogueLog };
+  if (next.lastDailyXpDay < 2) {
+    next = { ...next, lastDailyXpDay: 2 };
   }
 
-  if (withStaging.lastDailyXpDay < 2) {
-    return { ...withStaging, lastDailyXpDay: 2 };
-  }
-
-  return withStaging;
+  return next;
 }
 
 /**
- * Forest in-session: grant daily XP, append Day N Report to the journal feed (no Continue gate).
+ * Forest in-session: grant daily XP and advance day counters (no Day N Report in the Play feed).
  */
 export function stageInSessionDayAdvanceAfterMainQuest(
   prevState: QuestState,
@@ -420,7 +446,7 @@ export function advancePlayDayRollPhase(state: QuestState): QuestState {
   return { ...state, playDayRollStaging: undefined };
 }
 
-/** In-session advance after main daily quest (e.g. first night): one day of XP + Day N Report. */
+/** In-session advance after main daily quest (e.g. first night): one day of XP; reports only in village. */
 export function applyInSessionDayAdvanceAfterMainQuest(
   prevState: QuestState,
   state: QuestState,

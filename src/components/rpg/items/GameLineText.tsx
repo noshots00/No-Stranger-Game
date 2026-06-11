@@ -1,21 +1,28 @@
 import type { ReactNode } from 'react';
 import {
   formatModifierKeyForCharacterSheet,
+  parseSkillLearnedLine,
   parseSpellLearnedLine,
   toItemLabel,
   DAY_REPORT_QUEST_ITEMS_PREFIX,
 } from '../helpers';
-import { listEquipmentKeys } from '../combat/equipmentRegistry';
+import { isWeaponItemKey, listEquipmentKeys } from '../combat/equipmentRegistry';
+import { SkillName } from '../skills/SkillName';
 import { SpellName } from '../spells/SpellName';
 import { SpellNameInText } from '../spells/SpellNameInText';
 import { ItemName, ItemNameList } from './ItemName';
 import type { ItemNameCategory } from './itemDisplay';
+import { LevelGlintMark } from '../LevelGlintMark';
 
 function categoryForFoundLabel(label: string): ItemNameCategory {
   const lower = label.trim().toLowerCase();
   for (const key of listEquipmentKeys()) {
-    if (toItemLabel(key).toLowerCase() === lower) return 'equipment';
-    if (formatModifierKeyForCharacterSheet(key).toLowerCase() === lower) return 'equipment';
+    if (toItemLabel(key).toLowerCase() === lower) {
+      return isWeaponItemKey(key) ? 'weapon' : 'equipment';
+    }
+    if (formatModifierKeyForCharacterSheet(key).toLowerCase() === lower) {
+      return isWeaponItemKey(key) ? 'weapon' : 'equipment';
+    }
   }
   return 'material';
 }
@@ -49,6 +56,18 @@ export function renderDayReportLineContent(text: string): ReactNode | null {
     );
   }
 
+  const levelReached = /^You reached Level (\d+)!$/.exec(trimmed);
+  if (levelReached) {
+    const level = Number.parseInt(levelReached[1], 10);
+    if (Number.isFinite(level)) {
+      return (
+        <>
+          You reached <LevelGlintMark level={level} />
+        </>
+      );
+    }
+  }
+
   const found = /^You found (\d+) (.+)\.$/.exec(trimmed);
   if (found) {
     return (
@@ -75,6 +94,15 @@ type GameLineTextProps = {
 export function GameLineText({ text, playerName = '' }: GameLineTextProps) {
   const structured = renderDayReportLineContent(text);
   if (structured !== null) return structured;
+
+  const skillName = parseSkillLearnedLine(text);
+  if (skillName) {
+    return (
+      <>
+        You learn <SkillName label={skillName} />!
+      </>
+    );
+  }
 
   const spellName = parseSpellLearnedLine(text);
   if (spellName) {

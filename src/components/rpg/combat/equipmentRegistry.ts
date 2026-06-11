@@ -11,7 +11,11 @@ const EQUIPMENT: Record<string, EquipmentDef> = {
   'item:hatchet': { slot: 'weapon', damageBonus: 2 },
   'item:small-pickaxe': { slot: 'weapon', damageBonus: 2 },
   'item:blacksmith-hammer': { slot: 'weapon', damageBonus: 2, displayName: "Blacksmith's Hammer" },
-  'item:stone-mason-chisel': { slot: 'other', damageBonus: 2 },
+  'item:stone-mason-chisel': {
+    slot: 'weapon',
+    damageBonus: 2,
+    displayName: "Stone Mason's Chisel",
+  },
   'item:wooden-shield': { slot: 'other', damageReduction: 1 },
   'item:leather-armor': { slot: 'other', damageReduction: 2 },
 };

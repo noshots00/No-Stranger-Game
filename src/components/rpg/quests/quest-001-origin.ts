@@ -15,7 +15,7 @@ export const quest001Origin = createQuestDefinition({
     {
       id: 'start',
       type: 'choice',
-      text: 'You find yourself in a forest.  Please choose from the options below to continue.',
+      text: 'You find yourself in a forest.\n\nPlease choose from the options below to continue.',
       visuals: [
         {
           kind: 'image',

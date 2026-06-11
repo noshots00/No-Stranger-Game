@@ -32,6 +32,11 @@ export const FIRST_NIGHT_FLAG_SKELETON_ITEM_CHISEL = 'quest-002-first-night-skel
 export const FIRST_NIGHT_FLAG_STILL = 'quest-002-first-night-still';
 
 const SKELETON_JOURNAL_LINE = 'You fought a shambling skeleton in the woods.';
+const LOADOUT_JOURNAL_LINE = 'You equipped a weapon and a skill.';
+const INSTINCT_JOURNAL_FALLBACK = `${SKELETON_JOURNAL_LINE} ${LOADOUT_JOURNAL_LINE}`;
+
+/** Loadout tutorial beats — quest completes when loadout is filled (Character tab). */
+export const FIRST_NIGHT_LOADOUT_STEP_IDS = new Set(['loadout-intro', 'await-loadout']);
 
 export const quest002FirstNight = createQuestDefinition({
   id: 'quest-002-first-night',
@@ -43,7 +48,7 @@ export const quest002FirstNight = createQuestDefinition({
   isAvailable: makeQuestAvailability({
     requiresAnyCompletedQuestIds: ['quest-001-origin'],
   }),
-  journalSummaryFallback: SKELETON_JOURNAL_LINE,
+  journalSummaryFallback: INSTINCT_JOURNAL_FALLBACK,
   steps: [
     {
       id: 'skeleton-first-encounter',
@@ -102,7 +107,7 @@ export const quest002FirstNight = createQuestDefinition({
     {
       id: 'skeleton-item-chisel',
       type: 'message',
-      text: "A stone mason's chisel.",
+      text: "A Stone Mason's Chisel.",
       visuals: [skeletonEncounterVisual],
       nextStepId: 'skeleton-react',
     },
@@ -189,7 +194,7 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'skeleton-loot-hatchet',
           label: 'Take the hatchet',
-          completeQuest: true,
+          nextStepId: 'loadout-intro',
           enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_HATCHET],
           effects: {
             modifiersDelta: { 'item:hatchet': 1 },
@@ -199,7 +204,7 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'skeleton-loot-pickaxe',
           label: 'Take the pickaxe',
-          completeQuest: true,
+          nextStepId: 'loadout-intro',
           enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_PICKAXE],
           effects: {
             modifiersDelta: { 'item:small-pickaxe': 1 },
@@ -209,7 +214,7 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'skeleton-loot-hammer',
           label: 'Take the hammer',
-          completeQuest: true,
+          nextStepId: 'loadout-intro',
           enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_HAMMER],
           effects: {
             modifiersDelta: { 'item:blacksmith-hammer': 1 },
@@ -219,7 +224,7 @@ export const quest002FirstNight = createQuestDefinition({
         {
           id: 'skeleton-loot-chisel',
           label: 'Take the chisel',
-          completeQuest: true,
+          nextStepId: 'loadout-intro',
           enabledIfAnyFlags: [FIRST_NIGHT_FLAG_SKELETON_ITEM_CHISEL],
           effects: {
             modifiersDelta: { 'item:stone-mason-chisel': 1 },
@@ -227,6 +232,24 @@ export const quest002FirstNight = createQuestDefinition({
           journalSummaryLineAdd: SKELETON_JOURNAL_LINE,
         },
       ],
+    },
+    {
+      id: 'loadout-intro',
+      type: 'choice',
+      text: 'Before you venture further, set up your combat loadout.',
+      choices: [
+        {
+          id: 'equip-continue',
+          label: 'Continue',
+          nextStepId: 'await-loadout',
+        },
+      ],
+    },
+    {
+      id: 'await-loadout',
+      type: 'message',
+      text:
+        'Use the Nav Bar at the bottom of the screen to go to the character screen. Then, use the loadout bar to equip a weapon and a skill.',
     },
     /** Legacy — old saves mid skeleton beat (pre two-phase flow). */
     {

@@ -1,4 +1,4 @@
-import { QUEST_EQUIP_LOADOUT_ID } from '../constants';
+import { QUEST_FIRST_NIGHT_ID } from '../constants';
 import { makeQuestAvailability } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
 import {
@@ -250,7 +250,7 @@ export const quest002Sunset = createQuestDefinition({
   startStepId: 'flavor-five',
   questCardImageSide: 'right',
   isAvailable: makeQuestAvailability({
-    requiresAnyCompletedQuestIds: [QUEST_EQUIP_LOADOUT_ID],
+    requiresAnyCompletedQuestIds: [QUEST_FIRST_NIGHT_ID],
   }),
   journalSummaryFallback: 'You had a strange night in the forest.',
   steps: [

@@ -25,7 +25,7 @@ import {
   makeQuestUnveilEligibility,
 } from './branching-quest-template';
 import { createQuestDefinition } from './quest-authoring-tool';
-import type { QuestState } from './types';
+import type { QuestChoice, QuestState } from './types';
 
 const DYERS_CRYPT_ART = 'art/converted/mushrooms.webp';
 
@@ -49,7 +49,27 @@ const CONTEXT_TREE = 'context-tree';
 const CONTEXT_POCKETS = 'context-pockets';
 const CONTEXT_CALL_HELP = 'context-call-help';
 
+/** Legacy hub for in-progress saves that already bridged past a context opener. */
 const MUSHROOM_INTRO = 'dyers-mushroom-intro';
+
+const MUSHROOM_HUB_CHOICES: QuestChoice[] = [
+  { id: 'dyers-taste', label: 'Taste one', nextStepId: 'dyers-mushroom-taste' },
+  {
+    id: 'dyers-leave',
+    label: 'Leave',
+    nextStepId: 'dyers-mushroom-leave',
+    effects: { flagsSet: [SWEET_DREAM_PENDING_FLAG] },
+  },
+];
+
+function mushroomOpenerStep(id: string, opener: string) {
+  return {
+    id,
+    type: 'choice' as const,
+    text: `${opener} What do you do?`,
+    choices: MUSHROOM_HUB_CHOICES,
+  };
+}
 
 /** Priority-ordered Sunset flag → contextual opener step (see QUEST_COPY_STYLE.md). */
 export function resolveDyersCryptInitialStepId(state: QuestState): string {
@@ -84,73 +104,38 @@ export const quest003DyersCrypt = createQuestDefinition({
   ),
   journalSummaryFallback: "Dyer's Crypt",
   steps: [
-    {
-      id: CONTEXT_WATER,
-      type: 'message',
-      text: 'You are following the water downstream when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_TRAILS,
-      type: 'message',
-      text: 'You are following an animal trail when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_FOOD,
-      type: 'message',
-      text: 'You are searching for food when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_HIGH_GROUND,
-      type: 'message',
-      text: 'You climb toward higher ground when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_SHELTER,
-      type: 'message',
-      text: 'You leave your shelter when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_TREE,
-      type: 'message',
-      text: 'You climb down from the tree when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_POCKETS,
-      type: 'message',
-      text: 'You move on when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_CALL_HELP,
-      type: 'message',
-      text: 'You push deeper into the forest when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
-    {
-      id: CONTEXT_FALLBACK,
-      type: 'message',
-      text: 'You press on when you find a patch of mushrooms.',
-      nextStepId: MUSHROOM_INTRO,
-    },
+    mushroomOpenerStep(
+      CONTEXT_WATER,
+      'You are following the water downstream when you find a patch of mushrooms.'
+    ),
+    mushroomOpenerStep(
+      CONTEXT_TRAILS,
+      'You are following an animal trail when you find a patch of mushrooms.'
+    ),
+    mushroomOpenerStep(CONTEXT_FOOD, 'You are searching for food when you find a patch of mushrooms.'),
+    mushroomOpenerStep(
+      CONTEXT_HIGH_GROUND,
+      'You climb toward higher ground when you find a patch of mushrooms.'
+    ),
+    mushroomOpenerStep(
+      CONTEXT_SHELTER,
+      'You leave your shelter when you find a patch of mushrooms.'
+    ),
+    mushroomOpenerStep(
+      CONTEXT_TREE,
+      'You climb down from the tree when you find a patch of mushrooms.'
+    ),
+    mushroomOpenerStep(CONTEXT_POCKETS, 'You move on when you find a patch of mushrooms.'),
+    mushroomOpenerStep(
+      CONTEXT_CALL_HELP,
+      'You push deeper into the forest when you find a patch of mushrooms.'
+    ),
+    mushroomOpenerStep(CONTEXT_FALLBACK, 'You press on when you find a patch of mushrooms.'),
     {
       id: MUSHROOM_INTRO,
       type: 'choice',
       text: 'What do you do?',
-      choices: [
-        { id: 'dyers-taste', label: 'Taste one', nextStepId: 'dyers-mushroom-taste' },
-        {
-          id: 'dyers-leave',
-          label: 'Leave',
-          nextStepId: 'dyers-mushroom-leave',
-          effects: { flagsSet: [SWEET_DREAM_PENDING_FLAG] },
-        },
-      ],
+      choices: MUSHROOM_HUB_CHOICES,
     },
     {
       id: 'dyers-mushroom-taste',

@@ -85,3 +85,13 @@ export function isEquipLoadoutQuestComplete(state: QuestState): boolean {
   const hasSkill = Boolean(loadout.skillA || loadout.skillB);
   return hasGear && hasSkill;
 }
+
+const INSTINCT_LOADOUT_STEP_IDS = new Set(['loadout-intro', 'await-loadout']);
+
+/** Instinct quest loadout phase — completes via Character tab, not a choice step. */
+export function canCompleteInstinctViaLoadout(state: QuestState, questId: string): boolean {
+  const prog = state.progressByQuestId[questId];
+  if (!prog || prog.isCompleted) return false;
+  if (!INSTINCT_LOADOUT_STEP_IDS.has(prog.currentStepId)) return false;
+  return isEquipLoadoutQuestComplete(state);
+}

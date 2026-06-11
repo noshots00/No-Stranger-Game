@@ -290,6 +290,11 @@ export const groupChronicleRows = (sortedRows: ChronicleMergedRow[]): ChronicleS
       const d = sortedRows[i] as Extract<ChronicleMergedRow, { kind: 'dialogue' }>;
       if (dialogueVoiceRole(d.speaker) !== role) break;
       if (role === 'report' && lines.length > 0 && isReportInfographicTitle(d.text)) break;
+      if (role === 'character_update' && lines.length > 0) {
+        const prevSource = lines[lines.length - 1]?.sourceQuestId;
+        const nextSource = d.sourceQuestId;
+        if (prevSource !== nextSource) break;
+      }
       lines.push({
         id: d.id,
         speaker: d.speaker,

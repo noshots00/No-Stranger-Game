@@ -26,6 +26,16 @@ export function easternCalendarDaysBetweenYmd(startYmd: string, endYmd: string):
   return differenceInCalendarDays(parseYmdAsUtcNoon(endYmd), parseYmdAsUtcNoon(startYmd));
 }
 
+/** Eastern `yyyy-MM-dd` exactly `days` before `ymd` (America/New_York civil dates). */
+export function easternYmdDaysBefore(ymd: string, days: number): string {
+  const anchor = fromZonedTime(`${ymd}T12:00:00`, EASTERN_GAME_TIMEZONE);
+  return formatInTimeZone(addDays(anchor, -days), EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
+}
+
+export function formatEasternYmdFromUtcMs(utcMs: number): string {
+  return formatInTimeZone(utcMs, EASTERN_GAME_TIMEZONE, 'yyyy-MM-dd');
+}
+
 /**
  * In-game day index (1-based) from immutable Eastern creation date + current time.
  * Test mode: 5-minute steps from Eastern midnight on the creation date.

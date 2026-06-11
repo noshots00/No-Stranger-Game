@@ -4,7 +4,6 @@ import {
   QUEST_004_B_THE_DOOR_ID,
   QUEST_DAY_TWO_DREAM_ID,
   QUEST_DYERS_CRYPT_ID,
-  QUEST_EQUIP_LOADOUT_ID,
   QUEST_FIRST_NIGHT_ID,
   QUEST_FOREST_CAVE_ID,
   QUEST_SUNSET_ID,
@@ -66,6 +65,15 @@ describe('resolveQuestEntryStepId', () => {
 });
 
 describe("Dyer's Crypt mushroom loop", () => {
+  it('context opener shows choices without a Continue bridge', () => {
+    const step = quest003DyersCrypt.steps['context-water'];
+    expect(step.type).toBe('choice');
+    if (step.type !== 'choice') return;
+    expect(step.text).toContain('patch of mushrooms');
+    expect(step.text).toContain('What do you do?');
+    expect(step.choices.map((c) => c.label)).toEqual(['Taste one', 'Leave']);
+  });
+
   it('third eat sets eat-3 and fever pending flags on the choice', () => {
     const step = quest003DyersCrypt.steps['dyers-mushroom-hub-2'];
     expect(step.type).toBe('choice');
@@ -96,7 +104,7 @@ describe('Day two dream resolver', () => {
 });
 
 describe('manual saga unveil', () => {
-  it('chains instinct → equip → sunset', () => {
+  it('chains instinct → sunset', () => {
     const ctxInstinct = baseContext({ completedQuestIds: [QUEST_FIRST_NIGHT_ID] });
     expect(
       computeNextUnveilIdsAfterCompletion(
@@ -104,18 +112,6 @@ describe('manual saga unveil', () => {
         [],
         [QUEST_FIRST_NIGHT_ID],
         ctxInstinct
-      )
-    ).toEqual([QUEST_EQUIP_LOADOUT_ID]);
-
-    const ctxEquip = baseContext({
-      completedQuestIds: [QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID],
-    });
-    expect(
-      computeNextUnveilIdsAfterCompletion(
-        QUEST_EQUIP_LOADOUT_ID,
-        [],
-        [QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID],
-        ctxEquip
       )
     ).toEqual([QUEST_SUNSET_ID]);
   });

@@ -25,14 +25,9 @@ export function QuestCardHeader({
   const cardSrc = getQuestCardImageSrc(quest, playerFlags);
   const imageOnRight = quest.questCardImageSide === 'right';
   const newBadgeClass = cn(
-    'shrink-0 rounded border border-[var(--candle-flame-soft)]/55 bg-[var(--candle-flame-soft)]/15 px-1.5 py-0.5 font-sans text-[0.6rem] font-semibold uppercase leading-none tracking-[0.12em] text-[var(--candle-wax)]'
+    'pointer-events-none absolute right-1 top-1 z-10 rounded border border-[var(--candle-flame-soft)]/55 bg-[var(--candle-flame-soft)]/15 px-1.5 py-0.5 font-sans text-[0.6rem] font-semibold uppercase leading-none tracking-[0.12em] text-[var(--candle-wax)] shadow-[0_1px_4px_rgba(0,0,0,0.45)]'
   );
-  const titleWithNew = (
-    <div className="flex flex-wrap items-center justify-center gap-1.5">
-      <p className={`${RPG_UI_EMPHASIS} text-[var(--candle-flame-soft)]`}>{title}</p>
-      {isNew ? <span className={newBadgeClass}>New</span> : null}
-    </div>
-  );
+  const newBadge = isNew ? <span className={newBadgeClass}>New</span> : null;
   const titleOverlayHero = quest.questCardLayout === 'title-overlay-hero';
   const titleOverlayBlock = (
     <div
@@ -56,10 +51,7 @@ export function QuestCardHeader({
           loading="lazy"
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 via-black/30 to-transparent px-3 pb-10 pt-3">
-          <div className="flex flex-wrap items-center justify-center gap-1.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            <p className={`text-center ${RPG_UI_DISPLAY}`}>{title}</p>
-            {isNew ? <span className={newBadgeClass}>New</span> : null}
-          </div>
+          <p className={`text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${RPG_UI_DISPLAY}`}>{title}</p>
         </div>
       </div>
       <p className={`mt-2 w-full max-w-[260px] text-center ${RPG_UI_CAPTION}`}>{briefingText}</p>
@@ -76,7 +68,7 @@ export function QuestCardHeader({
   );
   const titleAndBriefing = (
     <div className="flex min-h-0 w-[260px] min-w-0 flex-col justify-center gap-1 text-center">
-      {titleWithNew}
+      <p className={`${RPG_UI_EMPHASIS} text-[var(--candle-flame-soft)]`}>{title}</p>
       <p className={RPG_UI_CAPTION}>{briefingText}</p>
     </div>
   );
@@ -99,13 +91,20 @@ export function QuestCardHeader({
       </div>
     );
 
+  const cardShell = (
+    <div className="relative w-full">
+      {newBadge}
+      {content}
+    </div>
+  );
+
   if (!interactive) {
-    return <div className="w-full cursor-default py-0.5 font-sans select-none">{content}</div>;
+    return <div className="w-full cursor-default py-0.5 font-sans select-none">{cardShell}</div>;
   }
 
   return (
     <button type="button" onClick={onOpen} className="w-full py-0.5 font-sans hover:bg-black/15">
-      {content}
+      {cardShell}
     </button>
   );
 }

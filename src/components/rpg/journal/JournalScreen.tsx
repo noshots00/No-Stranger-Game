@@ -1,37 +1,42 @@
 import { useMemo, type RefObject } from 'react';
+
 import { cn } from '@/lib/utils';
+
 import { DialogueVoiceBlock } from '../DialogueVoiceBlock';
+
 import { SpellNameInText } from '../spells/SpellNameInText';
+
 import type { ChronicleSegment } from '../dialogueFormat';
+
 import type { JournalLogEntry, QuestDefinition } from '../quests/types';
-import {
-  ORIGIN_QUEST_OPENED_FLAG,
-  WORLD_EVENT_PRINTS_ENABLED,
-} from '../constants';
+
+import { ORIGIN_QUEST_OPENED_FLAG } from '../constants';
+
 import { ActiveStateCard } from './ActiveStateCard';
+
+import { CompletedQuestCard } from './CompletedQuestCard';
+
+import { buildPlayLedgerRows } from './playLedgerRows';
+
 import { getQuestCardRows } from './questCardRows';
+
 import { QuestCardHeader } from './QuestCardHeader';
+
 import type { QuestState } from '../quests/types';
+
 import type { VillageProjectProgress } from '../villageProjects/villageProjectNostr';
+
 import {
   RPG_CHOICE_GRID,
   RPG_COMMAND_CHIP,
   RPG_COMMAND_CHIP_LABEL,
-  RPG_UI_BODY,
-  RPG_UI_EMPHASIS,
 } from '../typography/rpgUiTypography';
-
-type PlayLedgerTimelineRow =
-  | { kind: 'story'; segment: ChronicleSegment; sortMs: number }
-  | { kind: 'journal_group'; entries: JournalLogEntry[]; sortMs: number; groupKey: string };
 
 export type JournalScreenProps = {
   playFeedSegments: ChronicleSegment[];
   playJournalLines: readonly JournalLogEntry[];
   newQuestIds: readonly string[];
-  questTitleById: Record<string, string>;
   visibleQuests: QuestDefinition[];
-  /** Tracked beat — always show its card when incomplete, even if unveil list lagged. */
   activeQuest?: QuestDefinition | null;
   completedQuestIds: string[];
   onOpenQuest: (questId: string) => void;
@@ -40,24 +45,21 @@ export type JournalScreenProps = {
   visibleLocationActions: string[];
   playerFlags: string[];
   onLocationAction?: (actionLabel: string) => void;
-  /** Idle journal card — profession earnings + next day countdown. */
   activeJobSlug?: string | null;
   skills?: QuestState['skills'];
   dayCounter?: number;
   dayPacingActive?: boolean;
   nextDayResetMs?: number | null;
   communityProject?: Pick<VillageProjectProgress, 'definition' | 'totals'> | null;
-  /** Logged-in character name for player-name highlighting in the feed. */
   playerName?: string;
-  /** Extra classes on the root section. */
   className?: string;
+  questFirstOpenedAtMs?: Readonly<Record<string, number>>;
 };
 
 export function JournalScreen({
   playFeedSegments,
   playJournalLines,
   newQuestIds,
-  questTitleById,
   visibleQuests,
   activeQuest = null,
   completedQuestIds,
@@ -75,75 +77,38 @@ export function JournalScreen({
   communityProject = null,
   playerName = '',
   className,
+  questFirstOpenedAtMs = {},
 }: JournalScreenProps) {
-  const playLedgerRows = useMemo((): PlayLedgerTimelineRow[] => {
-    const rows: Array<PlayLedgerTimelineRow & { seq: number }> = [];
-    let seq = 0;
-
-    for (const segment of playFeedSegments) {
-      const sortMs = segment.type === 'world' ? segment.row.atMs : segment.lines[0]?.atMs ?? 0;
-      rows.push({ kind: 'story', segment, sortMs, seq: seq++ });
-    }
-
-    const dayReports = playFeedSegments
-      .map((segment, index) => {
-        if (segment.type !== 'dialogueBlock' || segment.role !== 'report') return null;
-        const firstLine = segment.lines[0];
-        if (!firstLine) return null;
-        if (!/^Day\s+\d+\s+Report$/i.test(firstLine.text.trim())) return null;
-        const lastLine = segment.lines[segment.lines.length - 1];
-        const endAtMs = lastLine?.atMs ?? firstLine.atMs;
-        return { atMs: firstLine.atMs, endAtMs, key: `report-${index}-${firstLine.id}` };
-      })
-      .filter((entry): entry is { atMs: number; endAtMs: number; key: string } => entry !== null)
-      .sort((a, b) => a.atMs - b.atMs);
-
-    const sortedJournalEntries = [...playJournalLines].sort((a, b) => a.atMs - b.atMs);
-    const entriesByReport = new Map<string, JournalLogEntry[]>();
-    const trailingEntries: JournalLogEntry[] = [];
-    for (const entry of sortedJournalEntries) {
-      const matchingReport = dayReports.find((report) => entry.atMs <= report.endAtMs);
-      if (!matchingReport) {
-        trailingEntries.push(entry);
-        continue;
-      }
-      if (!entriesByReport.has(matchingReport.key)) entriesByReport.set(matchingReport.key, []);
-      entriesByReport.get(matchingReport.key)!.push(entry);
-    }
-
-    for (const report of dayReports) {
-      const entries = entriesByReport.get(report.key);
-      if (!entries || entries.length === 0) continue;
-      rows.push({
-        kind: 'journal_group',
-        entries,
-        // Quest recap is written just before the day report; keep it above the report block.
-        sortMs: report.atMs - 1,
-        groupKey: report.key,
-        seq: seq++,
-      });
-    }
-    if (trailingEntries.length > 0) {
-      rows.push({
-        kind: 'journal_group',
-        entries: trailingEntries,
-        sortMs: trailingEntries[0].atMs,
-        groupKey: 'trailing-journal',
-        seq: seq++,
-      });
-    }
-
-    rows.sort((a, b) => (a.sortMs !== b.sortMs ? a.sortMs - b.sortMs : a.seq - b.seq));
-    return rows.map(({ seq: _seq, ...row }) => row);
-  }, [playFeedSegments, playJournalLines]);
-
   const questCardRows = useMemo(
     () => getQuestCardRows(visibleQuests, completedQuestIds, activeQuest),
     [visibleQuests, completedQuestIds, activeQuest]
   );
+
+  const questById = useMemo(() => {
+    const map = new Map<string, QuestDefinition>();
+    for (const quest of questCardRows) {
+      map.set(quest.id, quest);
+    }
+    return map;
+  }, [questCardRows]);
+
+  const { interleaved, unopenedQuestIds } = useMemo(
+    () => buildPlayLedgerRows(playFeedSegments, questCardRows, questFirstOpenedAtMs),
+    [playFeedSegments, questCardRows, questFirstOpenedAtMs]
+  );
+
   const completedQuestIdSet = useMemo(() => new Set(completedQuestIds), [completedQuestIds]);
 
+  const journalByQuestId = useMemo(() => {
+    const map = new Map<string, JournalLogEntry>();
+    for (const entry of playJournalLines) {
+      map.set(entry.questId, entry);
+    }
+    return map;
+  }, [playJournalLines]);
+
   const hasOpenedOriginQuest = playerFlags.includes(ORIGIN_QUEST_OPENED_FLAG);
+
   const resolveQuestBriefing = (questId: string, defaultBriefing: string): string =>
     questId === 'quest-001-origin' && hasOpenedOriginQuest
       ? 'Welcome to No Stranger Game'
@@ -173,6 +138,86 @@ export function JournalScreen({
 
   const showBottomDock = showActiveStateCard || visibleLocationActions.length > 0;
 
+  const pinUnopenedQuestCardsToTop =
+    playFeedSegments.length === 0 && interleaved.length === 0 && unopenedQuestIds.length > 0;
+
+  const renderQuestCard = (quest: QuestDefinition) => {
+    const isNew = newQuestIds.includes(quest.id);
+    const isCompleted = completedQuestIdSet.has(quest.id);
+    const briefingText = resolveQuestBriefing(quest.id, quest.briefing);
+    const questCardInteractive = quest.questCardInteractive !== false;
+
+    if (isCompleted) {
+      return (
+        <div key={`quest-card-${quest.id}`} className="py-0.5">
+          <CompletedQuestCard
+            quest={quest}
+            journalEntry={journalByQuestId.get(quest.id)}
+            playerName={playerName}
+            playerFlags={playerFlags}
+            onOpen={() => onOpenQuest(quest.id)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div key={`quest-card-${quest.id}`} className="py-0.5">
+        <QuestCardHeader
+          quest={quest}
+          title={quest.title}
+          briefingText={briefingText}
+          isNew={isNew}
+          interactive={questCardInteractive}
+          onOpen={questCardInteractive ? () => onOpenQuest(quest.id) : undefined}
+          playerFlags={playerFlags}
+        />
+      </div>
+    );
+  };
+
+  const unopenedQuestCardsBlock =
+    unopenedQuestIds.length > 0 ? (
+      <div className="space-y-1 py-0.5">
+        {unopenedQuestIds.map((questId) => {
+          const quest = questById.get(questId);
+          if (!quest) return null;
+          return renderQuestCard(quest);
+        })}
+      </div>
+    ) : null;
+
+  const renderStorySegment = (segment: ChronicleSegment, idx: number, keyPrefix: string) => {
+    if (segment.type === 'world') {
+      const wr = segment.row;
+      return (
+        <div
+          key={`${keyPrefix}-world-${wr.atMs}-${idx}-${wr.text.slice(0, 24)}`}
+          className="dialogue-line-reveal py-0.5"
+        >
+          <p className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80">
+            <SpellNameInText text={wr.text} playerName={playerName} />
+          </p>
+        </div>
+      );
+    }
+
+    const first = segment.lines[0];
+    return (
+      <div
+        key={`${keyPrefix}-${segment.role}-${first?.id ?? `b-${idx}`}`}
+        className="dialogue-line-reveal py-0.5"
+      >
+        <DialogueVoiceBlock
+          presentation="play"
+          role={segment.role}
+          lines={segment.lines}
+          playerName={playerName}
+        />
+      </div>
+    );
+  };
+
   return (
     <section className={cn('relative flex h-full min-h-0 flex-col', className)}>
       <div className="flex min-h-0 flex-1 flex-col gap-1.5">
@@ -181,107 +226,33 @@ export function JournalScreen({
           onScroll={onDialogueScroll}
           className="facsimile-scroll min-h-0 flex-1 overflow-y-auto pr-0 [scroll-padding-bottom:min(8dvh,80px)]"
         >
-        <div
-          className={cn(
-            'play-feed-scroll-inner facsimile-scroll-dialogue-inner space-y-1',
-            '!px-[5px]'
-          )}
-        >
-          {playLedgerRows.map((row, idx) => {
-            if (row.kind === 'story') {
-              const segment = row.segment;
-              if (segment.type === 'world') {
-                const wr = segment.row;
+          <div
+            className={cn(
+              'play-feed-scroll-inner facsimile-scroll-dialogue-inner space-y-1',
+              '!px-[5px]'
+            )}
+          >
+            {pinUnopenedQuestCardsToTop ? unopenedQuestCardsBlock : null}
+
+            {interleaved.map((row, idx) => {
+              if (row.kind === 'quest_slot') {
+                const quest = questById.get(row.questId);
+                if (!quest) return null;
                 return (
-                  <div key={`world-${wr.atMs}-${idx}-${wr.text.slice(0, 24)}`} className="dialogue-line-reveal py-0.5">
-                    <p className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80">
-                      <SpellNameInText text={wr.text} playerName={playerName} />
-                    </p>
+                  <div key={`quest-slot-${row.questId}-${idx}`} className="space-y-1">
+                    {renderQuestCard(quest)}
+                    {row.prints.map((segment, printIdx) =>
+                      renderStorySegment(segment, printIdx, `quest-${row.questId}-print`)
+                    )}
                   </div>
                 );
               }
-              const first = segment.lines[0];
-              return (
-                <div
-                  key={`${segment.role}-${first?.id ?? `b-${idx}`}`}
-                  className="dialogue-line-reveal py-0.5"
-                >
-                  <DialogueVoiceBlock
-                    presentation="play"
-                    role={segment.role}
-                    lines={segment.lines}
-                    playerName={playerName}
-                  />
-                </div>
-              );
-            }
+              return renderStorySegment(row.segment, idx, 'global');
+            })}
 
-            const dayEntries = row.entries;
-            return (
-              <div key={`journal-group-${row.groupKey}`} className="py-0.5">
-                <div className="space-y-3">
-                  {dayEntries.map((je) => {
-                    const summaryText = je.text.trim();
-                    const showTitle = !completedQuestIdSet.has(je.questId);
-                    return (
-                      <div key={je.id} className="space-y-1">
-                        {showTitle ? (
-                          <p className={`${RPG_UI_EMPHASIS} text-[var(--candle-flame-soft)]`}>
-                            {questTitleById[je.questId] ?? 'Quest'}
-                          </p>
-                        ) : null}
-                        {summaryText.length > 0 ? (
-                          <div className={cn('space-y-1', showTitle && 'pt-1')}>
-                            <p className={`whitespace-pre-line ${RPG_UI_BODY}`}>
-                              <SpellNameInText text={summaryText} playerName={playerName} />
-                            </p>
-                          </div>
-                        ) : null}
-                        {WORLD_EVENT_PRINTS_ENABLED && je.playMilestones && je.playMilestones.length > 0 ? (
-                          <div className="space-y-1 pt-1">
-                            {je.playMilestones.map((line, milestoneIdx) => (
-                              <p
-                                key={`${je.id}-milestone-${milestoneIdx}`}
-                                className="font-sans text-[0.6875rem] italic leading-snug text-[var(--candle-ember)]/80"
-                              >
-                                <SpellNameInText text={line} playerName={playerName} />
-                              </p>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-
+            {pinUnopenedQuestCardsToTop ? null : unopenedQuestCardsBlock}
+          </div>
         </div>
-      </div>
-
-      {questCardRows.length > 0 ? (
-        <div className={cn('shrink-0 space-y-1 bg-black/20 py-1.5', '!px-[5px]')}>
-          {questCardRows.map((quest) => {
-            const isNew = newQuestIds.includes(quest.id);
-            const briefingText = resolveQuestBriefing(quest.id, quest.briefing);
-            const questCardInteractive = quest.questCardInteractive !== false;
-            return (
-              <div key={`quest-card-${quest.id}`} className="py-0.5">
-                <QuestCardHeader
-                  quest={quest}
-                  title={quest.title}
-                  briefingText={briefingText}
-                  isNew={isNew}
-                  interactive={questCardInteractive}
-                  onOpen={questCardInteractive ? () => onOpenQuest(quest.id) : undefined}
-                  playerFlags={playerFlags}
-                />
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
       </div>
 
       {showBottomDock ? (

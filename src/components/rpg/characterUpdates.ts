@@ -1,5 +1,6 @@
 import { appendDialogue, CHARACTER_UPDATE_SPEAKER } from './dialogueFormat';
 import { getLevelUpLines, getRewardLines } from './helpers';
+import { stampDialogueEntriesAfterLedger } from './playLedgerSchema';
 import { getCharacterLevel } from './quests/engine';
 import type { CharacterUpdateKind, DialogueLogEntry, QuestState } from './quests/types';
 
@@ -56,16 +57,34 @@ export function collectCharacterUpdateDrafts(prev: QuestState, next: QuestState)
 
 export function characterUpdateDialogueEntries(
   prev: QuestState,
-  next: QuestState
+  next: QuestState,
+  options?: { sourceQuestId?: string }
 ): DialogueLogEntry[] {
   return collectCharacterUpdateDrafts(prev, next).map(({ text, characterUpdateKind }) =>
-    appendDialogue(CHARACTER_UPDATE_SPEAKER, text, { characterUpdateKind })
+    appendDialogue(CHARACTER_UPDATE_SPEAKER, text, {
+      characterUpdateKind,
+      ...(options?.sourceQuestId ? { sourceQuestId: options.sourceQuestId } : {}),
+    })
   );
 }
 
 /** Append global Play-feed lines when `next` differs from `prev` on character sheet fields. */
-export function appendCharacterUpdateDialogue(prev: QuestState, next: QuestState): QuestState {
-  const entries = characterUpdateDialogueEntries(prev, next);
+export function appendCharacterUpdateDialogue(
+  prev: QuestState,
+  next: QuestState,
+  options?: { sourceQuestId?: string }
+): QuestState {
+  const entries = characterUpdateDialogueEntries(prev, next, options);
   if (entries.length === 0) return next;
-  return { ...next, dialogueLog: [...next.dialogueLog, ...entries] };
+  const questOpenMs = options?.sourceQuestId
+    ? next.questFirstOpenedAtMs?.[options.sourceQuestId]
+    : undefined;
+  const stamped = stampDialogueEntriesAfterLedger(
+    entries,
+    next.dialogueLog,
+    next.worldEventLog,
+    next.journalLog,
+    questOpenMs !== undefined ? { minAtMs: questOpenMs + 1 } : undefined
+  );
+  return { ...next, dialogueLog: [...next.dialogueLog, ...stamped] };
 }

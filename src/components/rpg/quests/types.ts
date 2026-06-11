@@ -265,6 +265,8 @@ export type QuestState = {
    * Day N Report diffs against this so gains during that day's quests appear in the report.
    */
   dayReportModifierBaseline?: ModifierMap;
+  /** Character level at the end of the prior day report (quest-completion count). */
+  dayReportCharacterLevelBaseline?: number;
   /**
    * `questItems` at the end of the prior day report — Day N Report lists items gained since then.
    */
@@ -284,11 +286,18 @@ export type QuestState = {
     meleeAttackXp: number;
   };
   lastDailyXpDay: number;
+  /**
+   * Eastern `yyyy-MM-dd` when village calendar pacing last ran (anchor or rollover).
+   * Forest arc ignores this; village rollovers compare vs midnight America/New_York on login.
+   */
+  lastDailyXpGrantEasternYmd?: string | null;
   dialogueLog: DialogueLogEntry[];
   /** World chronicle lines; persisted with quest checkpoints. */
   worldEventLog: WorldEventLogEntry[];
   /** Play-tab story recap only (path summaries); Chronicle uses `dialogueLog` for full scenes. */
   journalLog: JournalLogEntry[];
+  /** First time the player opened a quest card (ms) — anchors cards in the Play timeline. */
+  questFirstOpenedAtMs?: Record<string, number>;
   /** Quest reward item labels for the character sheet. */
   questItems: string[];
   /** Canonical race slug after reflection quest (permanent); null until assigned. */

@@ -1,6 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { QuestState, DialogueLogEntry } from './quests/types';
-import { getSkillLevelUpLines } from './quests/engine';
+import { getCharacterLevel, getSkillLevelUpLines } from './quests/engine';
 import { appendDialogue, DAY_REPORT_SPEAKER } from './dialogueFormat';
 import { formatDayBeginsLine } from './dayMilestones';
 import { parseQuestCheckpointPayload } from './gameProfile';
@@ -114,6 +114,32 @@ export function formatSpellLearnedMessage(key: string): string {
 /** Parse `You learned Spark!` day-report / play-feed lines. */
 export function parseSpellLearnedLine(text: string): string | null {
   const match = /^You learned (.+)!$/.exec(text.trim());
+  const name = match?.[1]?.trim();
+  return name && name.length > 0 ? name : null;
+}
+
+/** Character sheet / feed label for skill modifiers (no "Skill" suffix). */
+export function formatSkillModifierKeyForDisplay(key: string): string {
+  if (key.startsWith('skill:')) {
+    const parsed = parseSkillModifierKey(key);
+    if (parsed) return formatOrganicSlugForDisplay(parsed.skillSlug);
+    return formatOrganicSlugForDisplay(key.slice('skill:'.length));
+  }
+  if (key.endsWith('Skill')) {
+    return formatPascalCaseModifierDisplay(key.slice(0, -'Skill'.length));
+  }
+  return formatModifierKeyForCharacterSheet(key);
+}
+
+/** Play feed / day report when an organic skill modifier is newly gained. */
+export function formatSkillLearnedMessage(key: string): string {
+  const name = formatSkillModifierKeyForDisplay(key);
+  return `You learn ${name}!`;
+}
+
+/** Parse `You learn Stealth!` play-feed / day-report lines. */
+export function parseSkillLearnedLine(text: string): string | null {
+  const match = /^You learn (.+)!$/.exec(text.trim());
   const name = match?.[1]?.trim();
   return name && name.length > 0 ? name : null;
 }
@@ -529,20 +555,7 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
       return;
     }
     if (kind === 'organic_skill') {
-      if (key.startsWith('skill:')) {
-        const parsed = parseSkillModifierKey(key);
-        const name = parsed
-          ? formatOrganicSlugForDisplay(parsed.skillSlug)
-          : formatOrganicSlugForDisplay(canonicalSlug(key, 'skill:'));
-        if (parsed?.category) {
-          const cat = getSkillCategoryDisplayLabel(parsed.category);
-          lines.push(`You gain ${delta} ${name} (${cat} skill).`);
-        } else {
-          lines.push(`You gain ${delta} ${name} (skill).`);
-        }
-      } else {
-        lines.push(`You gain ${delta} ${formatPascalCaseModifierDisplay(key)} (skill).`);
-      }
+      lines.push(formatSkillLearnedMessage(key));
       return;
     }
     if (kind === 'organic_class') {
@@ -565,6 +578,17 @@ export const getModifierLevelUpLines = (prevState: QuestState, nextState: QuestS
   });
 
   return lines;
+};
+
+/** Day report / character updates when quest-completion level increases since the prior day baseline. */
+export const getCharacterLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => {
+  const prevLevel =
+    typeof prevState.dayReportCharacterLevelBaseline === 'number'
+      ? prevState.dayReportCharacterLevelBaseline
+      : getCharacterLevel(prevState);
+  const nextLevel = getCharacterLevel(nextState);
+  if (nextLevel <= prevLevel) return [];
+  return [`You reached Level ${nextLevel}!`];
 };
 
 export const getLevelUpLines = (prevState: QuestState, nextState: QuestState): string[] => [
@@ -626,6 +650,10 @@ export function buildDayReportDialogueLines(
   }
 
   for (const text of getResourceGainLines(prevState, nextState)) {
+    lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
+  }
+
+  for (const text of getCharacterLevelUpLines(prevState, nextState)) {
     lines.push(appendDialogue(DAY_REPORT_SPEAKER, text));
   }
 

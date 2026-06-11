@@ -1,3 +1,4 @@
+import { formatEasternYmdFromUtcMs } from '@/lib/easternGameTime';
 import { isEquipLoadoutQuestComplete } from '../combat/loadoutHelpers';
 import { clampPlayerHealth, normalizeSavedHealth } from '../combat/playerHealth';
 import type {
@@ -23,6 +24,7 @@ import {
   collectChoiceWorldLogLines,
   interpolateQuestWorldLogTemplates,
 } from '../worldLog';
+import { migrateQuestFirstOpenedAtMs } from '../journal/playLedgerAnchor';
 import { isForestAutoTrackBlockedByDayRoll } from '../dayPacing';
 import { applyTravelLocationChange, normalizeForestLocationFields } from '../locationPresence';
 import { ensureAncientCemeteryDiscoveryFlags } from '../travelLocations';
@@ -509,32 +511,19 @@ const migrateSplitFirstNightQuests = (args: {
 
   const instinctProg = progressByQuestId[QUEST_FIRST_NIGHT_ID];
 
+  const loadoutComplete = isEquipLoadoutQuestComplete(stubForLoadout);
+  const instinctLoadoutStep = loadoutComplete ? 'await-loadout' : 'loadout-intro';
+
   if (instinctProg && !instinctProg.isCompleted && SUNSET_STEP_IDS.has(instinctProg.currentStepId)) {
     progressByQuestId[QUEST_SUNSET_ID] = copyQuestProgress(instinctProg);
     progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
-      currentStepId: 'skeleton-loot',
-      isCompleted: true,
+      currentStepId: instinctLoadoutStep,
+      isCompleted: loadoutComplete,
       choiceHistory: (instinctProg.choiceHistory ?? []).filter((id) => id.startsWith('skeleton')),
     };
-    ensureUnveiled(QUEST_EQUIP_LOADOUT_ID);
     ensureUnveiled(QUEST_SUNSET_ID);
-    if (!progressByQuestId[QUEST_EQUIP_LOADOUT_ID]) {
-      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
-        currentStepId: 'await-loadout',
-        isCompleted: false,
-        choiceHistory: [],
-      };
-    }
-    if (isEquipLoadoutQuestComplete(stubForLoadout)) {
-      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
-        ...progressByQuestId[QUEST_EQUIP_LOADOUT_ID]!,
-        isCompleted: true,
-      };
-    }
     if (activeQuestId === QUEST_FIRST_NIGHT_ID) {
-      activeQuestId = progressByQuestId[QUEST_EQUIP_LOADOUT_ID]?.isCompleted
-        ? QUEST_SUNSET_ID
-        : QUEST_EQUIP_LOADOUT_ID;
+      activeQuestId = loadoutComplete ? QUEST_SUNSET_ID : QUEST_FIRST_NIGHT_ID;
     }
   }
 
@@ -547,28 +536,82 @@ const migrateSplitFirstNightQuests = (args: {
         choiceHistory: [...(instinctAfter.choiceHistory ?? [])],
       };
     }
-    ensureUnveiled(QUEST_EQUIP_LOADOUT_ID);
     ensureUnveiled(QUEST_SUNSET_ID);
-    if (!progressByQuestId[QUEST_EQUIP_LOADOUT_ID]) {
-      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
-        currentStepId: 'await-loadout',
-        isCompleted: isEquipLoadoutQuestComplete(stubForLoadout),
-        choiceHistory: [],
-      };
-    } else if (
-      !progressByQuestId[QUEST_EQUIP_LOADOUT_ID]!.isCompleted &&
-      isEquipLoadoutQuestComplete(stubForLoadout)
-    ) {
-      progressByQuestId[QUEST_EQUIP_LOADOUT_ID] = {
-        ...progressByQuestId[QUEST_EQUIP_LOADOUT_ID]!,
-        isCompleted: true,
-      };
-    }
+    progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+      currentStepId: instinctLoadoutStep,
+      isCompleted: loadoutComplete,
+      choiceHistory: (instinctAfter.choiceHistory ?? []).filter((id) => id.startsWith('skeleton')),
+    };
     if (activeQuestId === QUEST_FIRST_NIGHT_ID) {
-      activeQuestId = progressByQuestId[QUEST_EQUIP_LOADOUT_ID]?.isCompleted
-        ? null
-        : QUEST_EQUIP_LOADOUT_ID;
+      activeQuestId = loadoutComplete ? null : QUEST_FIRST_NIGHT_ID;
     }
+  }
+
+  const mapLegacyEquipStep = (stepId: string): string => (stepId === 'start' ? 'loadout-intro' : stepId);
+
+  const equipProg = progressByQuestId[QUEST_EQUIP_LOADOUT_ID];
+  const instinctCurrent = progressByQuestId[QUEST_FIRST_NIGHT_ID];
+  if (equipProg) {
+    if (instinctCurrent) {
+      if (instinctCurrent.isCompleted && !equipProg.isCompleted) {
+        progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+          ...instinctCurrent,
+          currentStepId: mapLegacyEquipStep(equipProg.currentStepId),
+          isCompleted: false,
+          choiceHistory: [
+            ...(instinctCurrent.choiceHistory ?? []),
+            ...(equipProg.choiceHistory ?? []),
+          ],
+        };
+      } else if (!instinctCurrent.isCompleted) {
+        const mergedHistory = [
+          ...(instinctCurrent.choiceHistory ?? []),
+          ...(equipProg.choiceHistory ?? []),
+        ];
+        const mergedComplete =
+          equipProg.isCompleted || (loadoutComplete && mapLegacyEquipStep(equipProg.currentStepId) !== 'loadout-intro');
+        progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+          ...instinctCurrent,
+          currentStepId: mapLegacyEquipStep(equipProg.currentStepId),
+          isCompleted: mergedComplete,
+          choiceHistory: mergedHistory,
+        };
+      }
+    } else {
+      progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+        currentStepId: mapLegacyEquipStep(equipProg.currentStepId),
+        isCompleted: equipProg.isCompleted || loadoutComplete,
+        choiceHistory: equipProg.choiceHistory ?? [],
+      };
+    }
+    delete progressByQuestId[QUEST_EQUIP_LOADOUT_ID];
+  }
+
+  const instinctMerged = progressByQuestId[QUEST_FIRST_NIGHT_ID];
+  if (
+    instinctMerged?.isCompleted &&
+    !looksLikeLegacyFullFirstNight(instinctMerged) &&
+    !progressByQuestId[QUEST_EQUIP_LOADOUT_ID]
+  ) {
+    const history = instinctMerged.choiceHistory ?? [];
+    const skeletonDone =
+      history.some((id) => id.startsWith('skeleton-loot-')) ||
+      instinctMerged.currentStepId === 'skeleton-loot' ||
+      history.some((id) => id === 'skeleton-attack' || id === 'skeleton-after-combat');
+    if (skeletonDone && !loadoutComplete) {
+      progressByQuestId[QUEST_FIRST_NIGHT_ID] = {
+        ...instinctMerged,
+        currentStepId: instinctLoadoutStep,
+        isCompleted: false,
+      };
+    }
+  }
+
+  unveiledQuestIds = unveiledQuestIds.filter((id) => id !== QUEST_EQUIP_LOADOUT_ID);
+  if (activeQuestId === QUEST_EQUIP_LOADOUT_ID) {
+    activeQuestId = progressByQuestId[QUEST_FIRST_NIGHT_ID]?.isCompleted
+      ? null
+      : QUEST_FIRST_NIGHT_ID;
   }
 
   return { progressByQuestId, activeQuestId, unveiledQuestIds };
@@ -611,7 +654,7 @@ const migrateLegacyOriginForestProgress = (args: {
     progressByQuestId,
     activeQuestId: nextActive,
     unveiledQuestIds: Array.from(
-      new Set([...unveiledQuestIds, QUEST_FIRST_NIGHT_ID, QUEST_EQUIP_LOADOUT_ID, QUEST_SUNSET_ID])
+      new Set([...unveiledQuestIds, QUEST_FIRST_NIGHT_ID, QUEST_SUNSET_ID])
     ),
   };
 };
@@ -634,9 +677,11 @@ export const createInitialQuestState = (): QuestState => ({
   experience: 0,
   skills: createInitialSkills(),
   lastDailyXpDay: 1,
+  lastDailyXpGrantEasternYmd: null,
   dialogueLog: [],
   worldEventLog: [],
   journalLog: [],
+  questFirstOpenedAtMs: {},
   questItems: [],
   assignedRaceSlug: null,
   lockedClassSlug: null,
@@ -744,6 +789,19 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const rawCreation = (state as { characterCreationDateEastern?: unknown }).characterCreationDateEastern;
   const characterCreationDateEastern =
     typeof rawCreation === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawCreation) ? rawCreation : null;
+
+  const rawLastGrant = (state as { lastDailyXpGrantEasternYmd?: unknown }).lastDailyXpGrantEasternYmd;
+  const lastDailyXpGrantEasternYmd =
+    typeof rawLastGrant === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawLastGrant) ? rawLastGrant : null;
+
+  const rawLevelBaseline = (state as { dayReportCharacterLevelBaseline?: unknown })
+    .dayReportCharacterLevelBaseline;
+  const dayReportCharacterLevelBaseline =
+    typeof rawLevelBaseline === 'number' &&
+    Number.isFinite(rawLevelBaseline) &&
+    rawLevelBaseline >= 0
+      ? Math.floor(rawLevelBaseline)
+      : undefined;
 
   const rawCreatedVer = (state as { characterCreatedAtAppVersion?: unknown }).characterCreatedAtAppVersion;
   const parsedCreatedVer =
@@ -1120,7 +1178,7 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
   const health = normalizeSavedHealth(healthCandidate, normalizedModifiers, progressByQuestId);
   const migratedQuestItems = migrateEquippableItemsOffQuestItems(questItems, normalizedModifiers);
 
-  return {
+  const normalized: QuestState = {
     ...initial,
     ...state,
     currentLocation,
@@ -1136,6 +1194,8 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
       meleeAttackXp,
     },
     lastDailyXpDay,
+    lastDailyXpGrantEasternYmd,
+    dayReportCharacterLevelBaseline,
     dialogueLog,
     worldEventLog,
     journalLog,
@@ -1159,6 +1219,12 @@ export const normalizeQuestState = (state: Partial<QuestState>): QuestState => {
     resources,
     acknowledgedTravelLocationIds,
     playDayRollStaging,
+    questFirstOpenedAtMs: state.questFirstOpenedAtMs ?? {},
+  };
+
+  return {
+    ...normalized,
+    questFirstOpenedAtMs: migrateQuestFirstOpenedAtMs(normalized),
   };
 };
 
@@ -1281,6 +1347,14 @@ function mergeResourceMaps(
   return out;
 }
 
+function pickLaterEasternYmd(
+  local: string | null | undefined,
+  relay: string | null | undefined
+): string | null {
+  if (local && relay) return local > relay ? local : relay;
+  return local ?? relay ?? null;
+}
+
 function pickMergedActiveJobSlug(relay: QuestState, local: QuestState, unlocked: string[]): string | null {
   for (const slug of [local.activeJobSlug, relay.activeJobSlug]) {
     if (
@@ -1332,6 +1406,10 @@ function pickMergedCharacterFields(relay: QuestState, local: QuestState) {
     characterCreatedAtAppVersion:
       local.characterCreatedAtAppVersion ?? relay.characterCreatedAtAppVersion,
     lastDailyXpDay: Math.max(relay.lastDailyXpDay, local.lastDailyXpDay),
+    lastDailyXpGrantEasternYmd: pickLaterEasternYmd(
+      local.lastDailyXpGrantEasternYmd,
+      relay.lastDailyXpGrantEasternYmd
+    ),
     activeQuestId: preferred.activeQuestId ?? (localAhead ? relay.activeQuestId : local.activeQuestId),
     dialogueLog: dialogueSource.dialogueLog,
     journalLog: journalSource.journalLog,
@@ -1420,20 +1498,17 @@ export function shouldShowDayInHeader(state: QuestState): boolean {
 }
 
 /**
- * When calendar pacing first activates, anchor daily XP to the current Eastern day
- * so forest binge time does not grant retroactive catch-up.
+ * When village calendar pacing first activates, anchor the Eastern grant date to today.
+ * Keeps `lastDailyXpDay` from the scripted forest arc (no retroactive calendar catch-up).
  */
 export const applyDayPacingActivation = (
   state: QuestState,
-  calendarDay: number,
+  nowUtcMs: number,
   previousFlags?: readonly string[]
 ): QuestState => {
-  const hadPacing = previousFlags
-    ? isDayPacingActive(previousFlags)
-    : false;
+  const hadPacing = previousFlags ? isDayPacingActive(previousFlags) : false;
   if (hadPacing || !isDayPacingActive(state.flags)) return state;
-  const day = Math.max(1, Math.floor(calendarDay));
-  return { ...state, lastDailyXpDay: day };
+  return { ...state, lastDailyXpGrantEasternYmd: formatEasternYmdFromUtcMs(nowUtcMs) };
 };
 
 /** Unveils and starts The Village quest after The Door (travel unlocks when that quest completes). */
@@ -1506,7 +1581,7 @@ export function catchUpVillageQuestAfterTheDoor(state: QuestState): QuestState {
   return introduceVillageQuestAfterTheDoor(state);
 }
 
-export function reconcileVillagePhaseState(state: QuestState, calendarDay?: number): QuestState {
+export function reconcileVillagePhaseState(state: QuestState): QuestState {
   const completed = new Set(getCompletedQuestIds(state));
   const hasVillageQuest = completed.has(QUEST_VILLAGE_ARRIVAL_ID);
   const hasVillageFlag = state.flags.includes(VILLAGE_PHASE_FLAG);
@@ -1515,8 +1590,7 @@ export function reconcileVillagePhaseState(state: QuestState, calendarDay?: numb
   let flags = hasVillageFlag
     ? [...state.flags]
     : Array.from(new Set([...state.flags, VILLAGE_PHASE_FLAG]));
-  const hadPacing = isDayPacingActive(flags);
-  if (!hadPacing) {
+  if (!isDayPacingActive(flags)) {
     flags = Array.from(new Set([...flags, DAY_PACING_ACTIVE_FLAG]));
   }
   const currentLocation = VALID_SAVE_LOCATIONS.has(state.currentLocation)
@@ -1531,23 +1605,17 @@ export function reconcileVillagePhaseState(state: QuestState, calendarDay?: numb
       ? state.activeJobSlug
       : null;
 
-  let next: QuestState = {
+  const next: QuestState = {
     ...state,
     flags,
     currentLocation,
     unlockedJobSlugs,
     activeJobSlug,
   };
-  if (!hadPacing && calendarDay !== undefined) {
-    next = applyDayPacingActivation(next, calendarDay, state.flags);
-  } else if (!hadPacing) {
-    next = applyDayPacingActivation(next, Math.max(1, state.lastDailyXpDay), state.flags);
-  }
 
   if (
     next.flags === state.flags &&
     next.currentLocation === state.currentLocation &&
-    next.lastDailyXpDay === state.lastDailyXpDay &&
     next.unlockedJobSlugs === state.unlockedJobSlugs &&
     next.activeJobSlug === state.activeJobSlug
   ) {
@@ -1628,7 +1696,6 @@ export function markQuestCompleted(state: QuestState, questId: string): QuestSta
 const FOREST_AUTO_TRACK_QUEST_IDS: readonly string[] = [
   QUEST_ORIGIN_ID,
   QUEST_FIRST_NIGHT_ID,
-  QUEST_EQUIP_LOADOUT_ID,
   QUEST_SUNSET_ID,
   QUEST_DYERS_CRYPT_ID,
   'quest-004-abandoned-shelter',
@@ -2141,15 +2208,9 @@ export const collectContinueBridgeChainTexts = (
   return texts;
 };
 
-const finalizeChoiceState = (
-  state: QuestState,
-  previousFlags: readonly string[],
-  calendarDay?: number
-): QuestState => {
-  let next = reconcileVillagePhaseState(state, calendarDay);
-  if (calendarDay !== undefined) {
-    next = applyDayPacingActivation(next, calendarDay, previousFlags);
-  }
+const finalizeChoiceState = (state: QuestState, previousFlags: readonly string[]): QuestState => {
+  let next = reconcileVillagePhaseState(state);
+  next = applyDayPacingActivation(next, Date.now(), previousFlags);
   return next;
 };
 
@@ -2313,7 +2374,7 @@ export const applyChoice = (
     selectedChoice.journalSummaryLineAdd,
     nextState.playerName
   );
-  return finalizeChoiceState(nextState, previousFlags, calendarDay);
+  return finalizeChoiceState(nextState, previousFlags);
 };
 
 export const submitPlayerName = (
@@ -2457,5 +2518,5 @@ export const submitQuestInventoryPick = (
   nextState = autoAdvanceContinueBridgeSteps(nextState, quest);
   nextState = applyLastBeatResponse(nextState, quest, nextStepId);
 
-  return { nextState: finalizeChoiceState(nextState, previousFlags, calendarDay) };
+  return { nextState: finalizeChoiceState(nextState, previousFlags) };
 };

@@ -254,7 +254,6 @@ export function VillagePlayTab({
           playFeedSegments={playFeedSegments}
           playJournalLines={playJournalLines}
           newQuestIds={newQuestIds}
-          questTitleById={questTitleById}
           visibleQuests={villageJournalQuests}
           activeQuest={activeQuest}
           completedQuestIds={completedQuestIds}
@@ -270,6 +269,7 @@ export function VillagePlayTab({
           nextDayResetMs={nextDayResetMs}
           communityProject={villageProjects.progress}
           playerName={questState.playerName}
+          questFirstOpenedAtMs={questState.questFirstOpenedAtMs}
         />
       )}
     </div>

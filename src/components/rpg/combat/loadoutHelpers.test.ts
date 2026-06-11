@@ -16,7 +16,7 @@ describe('isEquipLoadoutQuestComplete', () => {
       isEquipLoadoutQuestComplete({
         ...base,
         modifiers: { 'item:stone-mason-chisel': 1, Heavy_AttackSkill: 1 },
-        loadout: { other: 'item:stone-mason-chisel', skillB: 'Heavy_AttackSkill' },
+        loadout: { weapon: 'item:stone-mason-chisel', skillB: 'Heavy_AttackSkill' },
       })
     ).toBe(true);
     expect(

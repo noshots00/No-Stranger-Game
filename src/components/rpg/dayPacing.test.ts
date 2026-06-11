@@ -4,11 +4,13 @@ import { buildDayReportDialogueLines } from './helpers';
 import {
   applyDailyXpGrants,
   applyInSessionDayAdvanceAfterMainQuest,
+  applyVillageRolloverOnLogin,
   reconcileForestSessionDay,
   reconcilePlayDayRollStaging,
   stageInSessionDayAdvanceAfterMainQuest,
 } from './dayPacing';
 import {
+  DAY_PACING_ACTIVE_FLAG,
   JOB_SLUG_ADVENTURER,
   JOB_SLUG_MINER,
   JOB_SLUG_STONECUTTER,
@@ -18,25 +20,22 @@ import {
   RESOURCE_COPPER_ORE,
   RESOURCE_LOGS,
   RESOURCE_STONE,
+  VILLAGE_PHASE_FLAG,
 } from './constants';
+import { getEasternMidnightUtcFromYmd } from '@/lib/easternGameTime';
 import { createInitialQuestState, createInitialSkills } from './quests/engine';
 
-describe('Day 1 report after Sunset', () => {
-  it('advances day marker without passive skill XP when daily grants are off', () => {
+describe('Day 1 pacing after Sunset', () => {
+  it('advances day marker without passive skill XP or Day Report in forest', () => {
     const prev = createInitialQuestState();
     const next = applyInSessionDayAdvanceAfterMainQuest(prev, prev, 1, true);
-    const reportLines = next.dialogueLog.filter((line) => line.speaker === 'Day Report');
-    const body = reportLines.map((line) => line.text).join('\n');
-    expect(body).toContain('Day 1 Report');
-    expect(body).toContain('Day 2 begins');
-    expect(body).not.toMatch(/exploration reached level/i);
-    expect(body).not.toMatch(/foraging reached level/i);
+    expect(next.dialogueLog.filter((line) => line.speaker === 'Day Report')).toHaveLength(0);
     expect(next.lastDailyXpDay).toBe(2);
     expect(next.skills.explorationXp).toBe(0);
     expect(next.skills.foragingXp).toBe(0);
   });
 
-  it('repairs title-only Day 1 report when daily grants are off', () => {
+  it('strips legacy Day 1 report lines from forest saves', () => {
     const broken = {
       ...createInitialQuestState(),
       flags: ['quest001-complete'],
@@ -45,6 +44,7 @@ describe('Day 1 report after Sunset', () => {
     };
     const fixed = reconcileForestSessionDay(broken);
     expect(fixed.lastDailyXpDay).toBeGreaterThanOrEqual(2);
+    expect(fixed.dialogueLog.filter((line) => line.speaker === 'Day Report')).toHaveLength(0);
   });
 
   it('buildDayReportDialogueLines still lists skill gains when XP changes manually', () => {
@@ -60,7 +60,7 @@ describe('Day 1 report after Sunset', () => {
     expect(lines).toMatch(/foraging reached level/i);
   });
 
-  it('Day 1 report includes modifiers gained during the day before quest completion', () => {
+  it('forest day advance does not append Day Report to dialogueLog', () => {
     const atDayStart = createInitialQuestState();
     const afterBoarSpell = {
       ...atDayStart,
@@ -68,15 +68,11 @@ describe('Day 1 report after Sunset', () => {
       dayReportModifierBaseline: atDayStart.dayReportModifierBaseline,
     };
     const next = applyInSessionDayAdvanceAfterMainQuest(afterBoarSpell, afterBoarSpell, 1, true);
-    const body = next.dialogueLog
-      .filter((line) => line.speaker === 'Day Report')
-      .map((line) => line.text)
-      .join('\n');
-    expect(body).toMatch(/intelligence/i);
-    expect(body).toContain('Day 2 begins');
+    expect(next.dialogueLog.filter((line) => line.speaker === 'Day Report')).toHaveLength(0);
+    expect(next.lastDailyXpDay).toBe(2);
   });
 
-  it('forest day roll appends report to the feed without Continue staging', () => {
+  it('forest day roll advances pacing without Continue staging or Day Report', () => {
     const prev = createInitialQuestState();
     const rolled = stageInSessionDayAdvanceAfterMainQuest(
       prev,
@@ -87,12 +83,8 @@ describe('Day 1 report after Sunset', () => {
     );
     expect(rolled.playDayRollStaging).toBeUndefined();
     expect(rolled.activeQuestId).toBeNull();
-    const body = rolled.dialogueLog
-      .filter((line) => line.speaker === 'Day Report')
-      .map((line) => line.text)
-      .join('\n');
-    expect(body).toContain('Day 1 Report');
-    expect(body).toContain('Day 2 begins');
+    expect(rolled.dialogueLog.filter((line) => line.speaker === 'Day Report')).toHaveLength(0);
+    expect(rolled.lastDailyXpDay).toBe(2);
   });
 
   it('reconcilePlayDayRollStaging clears legacy await_continue staging', () => {
@@ -121,7 +113,7 @@ describe('Day 1 report after Sunset', () => {
     expect(fixed.playDayRollStaging).toBeUndefined();
   });
 
-  it('Day 2 report lists quest items gained during that day', () => {
+  it('forest day advance updates quest-item baseline without Day Report', () => {
     const beforeDay2Report = {
       ...createInitialQuestState(),
       lastDailyXpDay: 2,
@@ -131,14 +123,59 @@ describe('Day 1 report after Sunset', () => {
       flags: ['quest001-complete', 'abandoned-shelter-complete'],
     };
     const next = applyInSessionDayAdvanceAfterMainQuest(beforeDay2Report, beforeDay2Report, 2, true);
-    const body = next.dialogueLog
-      .filter((line) => line.speaker === 'Day Report')
-      .map((line) => line.text)
-      .join('\n');
-    expect(body).toContain('Day 2 Report');
-    expect(body).toContain("Gained items: It's a tiny buckler.");
-    expect(body).toContain('Day 3 begins');
+    expect(next.dialogueLog.filter((line) => line.speaker === 'Day Report')).toHaveLength(0);
     expect(next.dayReportQuestItemsBaseline).toContain("It's a tiny buckler.");
+    expect(next.lastDailyXpDay).toBe(3);
+  });
+});
+
+describe('applyVillageRolloverOnLogin', () => {
+  it('rolls one narrative day after an Eastern midnight since the last grant', () => {
+    const state = {
+      ...createInitialQuestState(),
+      flags: [VILLAGE_PHASE_FLAG, DAY_PACING_ACTIVE_FLAG],
+      lastDailyXpDay: 4,
+      lastDailyXpGrantEasternYmd: '2026-06-09',
+    };
+    const nowUtcMs = getEasternMidnightUtcFromYmd('2026-06-10') + 60_000;
+    const next = applyVillageRolloverOnLogin(state, nowUtcMs);
+    expect(next.lastDailyXpDay).toBe(5);
+    expect(next.lastDailyXpGrantEasternYmd).toBe('2026-06-10');
+    expect(
+      next.dialogueLog.some((line) => line.speaker === 'Day Report' && line.text === 'Day 4 Report')
+    ).toBe(true);
+    expect(
+      next.dialogueLog.some((line) => line.speaker === 'Day Report' && line.text === 'Day 5 begins')
+    ).toBe(true);
+  });
+
+  it('anchors grant date on first village day without rolling', () => {
+    const state = {
+      ...createInitialQuestState(),
+      flags: [VILLAGE_PHASE_FLAG, DAY_PACING_ACTIVE_FLAG],
+      lastDailyXpDay: 4,
+      lastDailyXpGrantEasternYmd: null,
+    };
+    const nowUtcMs = getEasternMidnightUtcFromYmd('2026-06-10') + 60_000;
+    const next = applyVillageRolloverOnLogin(
+      { ...state, lastDailyXpGrantEasternYmd: '2026-06-10' },
+      nowUtcMs
+    );
+    expect(next.lastDailyXpDay).toBe(4);
+    expect(next.dialogueLog.filter((line) => line.speaker === 'Day Report')).toHaveLength(0);
+  });
+
+  it('legacy saves without grant ymd roll once on login after Eastern midnight', () => {
+    const state = {
+      ...createInitialQuestState(),
+      flags: [VILLAGE_PHASE_FLAG, DAY_PACING_ACTIVE_FLAG],
+      lastDailyXpDay: 4,
+      lastDailyXpGrantEasternYmd: null,
+    };
+    const nowUtcMs = getEasternMidnightUtcFromYmd('2026-06-10') + 60_000;
+    const next = applyVillageRolloverOnLogin(state, nowUtcMs);
+    expect(next.lastDailyXpDay).toBe(5);
+    expect(next.lastDailyXpGrantEasternYmd).toBe('2026-06-10');
   });
 });
 

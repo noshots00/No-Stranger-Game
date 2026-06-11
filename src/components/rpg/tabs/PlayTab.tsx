@@ -126,7 +126,6 @@ export function PlayTab({
       playFeedSegments={playFeedSegments}
       playJournalLines={playJournalLines}
       newQuestIds={newQuestIds}
-      questTitleById={questTitleById}
       visibleQuests={visibleQuests}
       activeQuest={activeQuest}
       completedQuestIds={completedQuestIds}
@@ -142,6 +141,7 @@ export function PlayTab({
       dayPacingActive={dayPacingActive}
       nextDayResetMs={nextDayResetMs}
       playerName={committedPlayerName}
+      questFirstOpenedAtMs={questState.questFirstOpenedAtMs}
     />
   );
 }
